@@ -1,0 +1,81 @@
+.\" Manpage for lightning(1).
+.TH LIGHTNING 1 "May 2026" "scripts" "User Commands"
+
+.SH NAME
+lightning \- multi-backend Lightning Network frontend
+
+.SH SYNOPSIS
+.B lightning
+.RI [ options ]
+.I command
+.RI [ args ...]
+
+.SH DESCRIPTION
+.B lightning
+is the educational Lightning Network frontend. It
+abstracts over multiple lightning daemons so the same
+verb surface works across backends:
+
+.TP
+.B clightning
+The Core Lightning daemon (Blockstream).
+.TP
+.B lnd
+The LND daemon (Lightning Labs).
+.TP
+.B phoenixd
+The lightweight Phoenix daemon (ACINQ).
+
+Each backend plugin lives under
+.IR libexec/lightning/<backend>/
+and cites the BOLT it implements
+(FEAT-178: BOLT 1..11 + LNURL LUDs + Lightning Address
+under
+.IR share/doc/lightning/standards/ ).
+
+.SH STATUS
+
+The full surface is filed across FEAT-170..182 and
+implementation is pending. Today's
+.B bin/lightning
+is a stub establishing the shape so the artefact set
+can land.
+
+.SH SUBCOMMANDS
+
+.TP
+.B help / version
+
+.SH ENVIRONMENT
+.TP
+.B SELF_DEBUG
+Enable shell tracing.
+
+.SH FILES
+.TP
+.I libexec/lightning/<backend>/
+Per-backend plugin (clightning / lnd / phoenixd).
+.TP
+.I share/doc/lightning/standards/
+Vendored BOLT specs + LNURL LUDs + Lightning Address
+spec (FEAT-178, pending).
+
+.SH EXIT STATUS
+0 on success; non-zero on failure.
+
+.SH SEE ALSO
+.BR account (1),
+.BR bitcoin (1),
+.BR cluster (1),
+.BR secret (1).
+
+.SH STANDARDS
+BOLT 1..11 (Lightning Network protocol), LNURL LUDs,
+the Lightning Address spec \(em filed for vendoring
+under
+.IR share/doc/lightning/standards/ .
+
+.SH BUGS
+Report at
+.UR https://github.com/nostra124/scripts/issues
+.UE .

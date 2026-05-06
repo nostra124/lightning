@@ -1,0 +1,59 @@
+#!/bin/sh
+# install template for per-script repos (FEAT-191 autoconf umbrella).
+#
+# One-line bootstrap:
+#   curl -sSL https://github.com/nostra124/<pkg>/raw/master/install \
+#     | bash -s -- --prefix=$HOME/.local
+#
+# Or with a clone:
+#   git clone https://github.com/nostra124/<pkg>
+#   cd <pkg>
+#   ./install --prefix=$HOME/.local
+
+set -e
+
+PACKAGE='lightning'   # render-time substitution at PR-create time
+REPO="https://github.com/nostra124/$PACKAGE"
+BRANCH="master"
+PREFIX=""
+
+usage() {
+	cat <<EOF
+Usage: $0 [options]
+
+  --prefix=PATH    install prefix
+  --repo=URL       upstream git repo (default: $REPO)
+  --branch=NAME    branch to install (default: $BRANCH)
+  --help           this message
+EOF
+	exit 0
+}
+
+for arg in "$@"; do
+	case "$arg" in
+		--prefix=*) PREFIX="${arg#--prefix=}" ;;
+		--repo=*)   REPO="${arg#--repo=}" ;;
+		--branch=*) BRANCH="${arg#--branch=}" ;;
+		--help|-h)  usage ;;
+		*)          echo "unknown: $arg"; exit 1 ;;
+	esac
+done
+
+# If we're inside a checkout (this script is in the repo root), use
+# it. Otherwise clone to a temp dir.
+if [ -f Makefile.in ] && [ -f configure ]; then
+	cd "$(dirname "$0")"
+else
+	tmp=$(mktemp -d)
+	trap 'rm -rf "$tmp"' EXIT
+	git clone --depth 1 --branch "$BRANCH" "$REPO" "$tmp/$PACKAGE"
+	cd "$tmp/$PACKAGE"
+fi
+
+if [ -n "$PREFIX" ]; then
+	./configure --prefix="$PREFIX"
+else
+	./configure
+fi
+
+make install

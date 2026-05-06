@@ -1,0 +1,119 @@
+#!/bin/bash
+
+############################################################################
+# Configuration section
+############################################################################
+
+# This should always be the first line of code to facilitate debugging.
+[ -n "$SELF_DEBUG" ] && set -vx
+
+# Per FEAT-194: VERSION read at runtime from .rpk/version (dev tree)
+# or $PREFIX/share/lightning/version (installed). The hardcoded fallback
+# is used only if both files are missing.
+__d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.0.0')
+unset __d __s
+SELF=$(basename $0)
+
+# Resolve $SELF_LIBEXEC (FEAT-001 libexec convention).
+if [ -z "$SELF_LIBEXEC" ]; then
+	for _d in \
+		"$(cd "$(dirname "$0")/../libexec" 2>/dev/null && pwd)" \
+		"$HOME/.local/libexec" \
+		"/usr/local/libexec" \
+		"/usr/libexec"; do
+		[ -d "$_d/$SELF" ] && SELF_LIBEXEC="$_d" && break
+	done
+	unset _d
+fi
+
+die() {
+	echo "$1" >&2
+	exit "${2:-1}"
+}
+
+fatal() {
+	echo "$SELF: fatal - $1" >&2
+	exit "${2:-1}"
+}
+
+debug() {
+	[ -n "$SELF_DEBUG" ] && echo "$SELF: debug - $@" >&2
+}
+
+info() {
+	if [ ! -n "$SELF_QUIET" ]; then echo -e "$SELF: info - \033[33;m$@\033[0m" >&2; fi
+}
+
+warn() {
+	echo -e "$SELF: warn - \033[31;1;m$@\033[0m" >&2
+}
+
+# Checks if a certain function exists.
+has() {
+	local KIND=$1
+	local NAME=$2
+	type -t $KIND:$NAME | grep -q function
+}
+
+while getopts "dq" flag; do
+	if [ x"$1" = x'-q' ]; then SELF_QUIET=1; fi
+	if [ x"$1" = x'-d' ]; then SELF_DEBUG=1; fi
+	shift 1
+done
+
+############################################################################
+# Commands
+############################################################################
+
+command:help() {
+	cat >&2 <<ENDHELP
+usage: $SELF <options> <command> <args>
+
+   options:
+   -d                       enable debug mode
+   -q                       enable quiet mode
+
+   $SELF is the educational Lightning Network frontend. It
+   abstracts over multiple lightning daemons (clightning / lnd /
+   phoenixd) so the same verb surface works across backends.
+
+   Vendored standards: BOLT specs (BOLT 1..11) plus LNURL LUDs
+   and the Lightning Address spec, under share/doc/lightning/
+   standards/ (FEAT-178; pending full implementation).
+
+   The four design principles (educational, functional,
+   decentralized, simple) apply: each backend plugin is a
+   thin wrapper that cites the BOLT it implements.
+
+generic commands:
+   help                     print this help message
+   version                  print the version of $SELF
+
+(Implementation pending — FEAT-170..182 file the full
+surface; today's bin/lightning is a stub establishing the
+shape so the artefact set can land.)
+ENDHELP
+}
+
+command:version() {
+	echo "$VERSION"
+}
+
+############################################################################
+# Command-line processing
+############################################################################
+if [[ $# == 0 ]]; then
+	command:help
+	exit
+fi
+
+if has command $1; then
+	debug "executing command:$1 ${@:2}"
+	command:$1 "${@:2}"
+	exit $?
+elif test -x "$SELF_LIBEXEC/$SELF/$1"; then
+	exec "$SELF_LIBEXEC/$SELF/$1" "${@:2}"
+fi
+
+fatal "unknown command $1 ${@:2}" 1

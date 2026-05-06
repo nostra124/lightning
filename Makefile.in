@@ -1,0 +1,138 @@
+# Makefile template for per-script repos (FEAT-191 autoconf umbrella).
+#
+# Substituted at `./configure` time:
+#   @PREFIX@        install prefix (default $HOME/.local non-root,
+#                   /usr/local root)
+#   @BINDIR@        $PREFIX/bin
+#   @LIBEXECDIR@    $PREFIX/libexec
+#   @SYSCONFDIR@    $PREFIX/etc
+#   @DATADIR@       $PREFIX/share
+#   @MANDIR@        $PREFIX/share/man
+#   @PACKAGE@       the package name (account / cluster / dht / …)
+
+SHELL = /bin/bash
+
+PACKAGE   = @PACKAGE@
+PREFIX    = @PREFIX@
+BINDIR    = @BINDIR@
+LIBEXECDIR = @LIBEXECDIR@
+SYSCONFDIR = @SYSCONFDIR@
+DATADIR   = @DATADIR@
+MANDIR    = @MANDIR@
+
+BUILD_DIR = build/$(PACKAGE)
+
+.PHONY: all install uninstall check check-unit check-vectors \
+        check-sit check-all lint test help package clean \
+        install-skills-user uninstall-skills-user
+
+all: install
+
+help:
+	@echo "Targets: install, uninstall, check, lint, check-sit, check-all,"
+	@echo "         install-skills-user, uninstall-skills-user, package, clean"
+
+# Stow-based install builds a tree mirroring $PREFIX layout under
+# $(BUILD_DIR), then `stow -t $(PREFIX)` symlinks it. Symmetric
+# uninstall via `stow -D`.
+install:
+	@command -v stow >/dev/null || { echo "stow not installed"; exit 1; }
+	@mkdir -p $(BUILD_DIR)$(BINDIR) $(BUILD_DIR)$(LIBEXECDIR)/$(PACKAGE) \
+	          $(BUILD_DIR)$(SYSCONFDIR)/bash_completion.d \
+	          $(BUILD_DIR)$(MANDIR)/man1 \
+	          $(BUILD_DIR)$(DATADIR)/doc/$(PACKAGE) \
+	          $(BUILD_DIR)$(DATADIR)/$(PACKAGE)
+	@cp -a bin/* $(BUILD_DIR)$(BINDIR)/
+	@if [ -d libexec/$(PACKAGE) ]; then \
+		cp -a libexec/$(PACKAGE)/* $(BUILD_DIR)$(LIBEXECDIR)/$(PACKAGE)/; \
+	fi
+	@if [ -d etc/bash_completion.d ]; then \
+		cp -a etc/bash_completion.d/* \
+		      $(BUILD_DIR)$(SYSCONFDIR)/bash_completion.d/; \
+	fi
+	@if [ -d share/man/man1 ]; then \
+		cp -a share/man/man1/* $(BUILD_DIR)$(MANDIR)/man1/; \
+	fi
+	@if [ -d share/doc/$(PACKAGE) ]; then \
+		cp -a share/doc/$(PACKAGE)/* \
+		      $(BUILD_DIR)$(DATADIR)/doc/$(PACKAGE)/; \
+	fi
+	# .rpk/version → $DATADIR/<pkg>/version : the runtime version
+	# string the binary reads (FEAT-194). The binary's two-path
+	# fallback resolves to this file when invoked as the installed
+	# entry, and to .rpk/version when invoked from a dev tree.
+	@if [ -f .rpk/version ]; then \
+		install -m 644 .rpk/version $(BUILD_DIR)$(DATADIR)/$(PACKAGE)/version; \
+	fi
+	@stow -d build -t $(PREFIX) $(PACKAGE)
+
+uninstall:
+	@command -v stow >/dev/null || { echo "stow not installed"; exit 1; }
+	@stow -d build -t $(PREFIX) -D $(PACKAGE) || true
+
+# Tests
+check: check-unit check-vectors
+
+check-unit:
+	@if command -v bats >/dev/null 2>&1; then \
+		bats tests/unit/*.bats; \
+	else echo "bats not installed; skipping"; fi
+
+check-vectors:
+	@if [ -d tests/vectors ] && command -v prove >/dev/null 2>&1; then \
+		prove tests/vectors/*.t; \
+	else echo "prove or tests/vectors/ not present; skipping"; fi
+
+check-sit:
+	@if command -v podman >/dev/null 2>&1; then \
+		echo "==> SIT: see tests/sit/README.md"; \
+	else echo "podman not installed; soft-skipping SIT"; fi
+
+check-all: check check-sit
+
+lint:
+	@if command -v shellcheck >/dev/null 2>&1; then \
+		shellcheck -S warning bin/* $$(find libexec/$(PACKAGE) -type f 2>/dev/null); \
+	else echo "shellcheck not installed; skipping"; fi
+
+test: check
+
+# Skills installation (FEAT-192)
+install-skills-user:
+	@for agent_dir in \
+		$$HOME/.claude/skills:claude \
+		$$HOME/.config/opencode/commands:opencode; do \
+		dest=$$(echo $$agent_dir | cut -d: -f1); \
+		kind=$$(echo $$agent_dir | cut -d: -f2); \
+		if [ -d "$$dest" ] && [ -d skills/$(PACKAGE)-* ]; then \
+			for skill in skills/$(PACKAGE)-*; do \
+				name=$$(basename $$skill); \
+				ln -sf $(PREFIX)/share/$$kind/skills/$$name "$$dest/$$name" || true; \
+			done; \
+		fi; \
+	done
+
+uninstall-skills-user:
+	@for skill in skills/$(PACKAGE)-*; do \
+		name=$$(basename $$skill); \
+		find $$HOME/.claude/skills $$HOME/.config/opencode/commands \
+		  -maxdepth 1 -name $$name -type l -delete 2>/dev/null || true; \
+	done
+
+# Versioning (FEAT-194)
+package:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Usage: make package VERSION=x.y.z"; exit 1; \
+	fi
+	@grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$' <<< "$(VERSION)" || { \
+		echo "Invalid semver: $(VERSION)"; exit 1; }
+	@printf '%s\t%s\n' "$(VERSION)" "$$(git rev-parse HEAD)" \
+		>> .rpk/versions
+	@echo "$(VERSION)" > .rpk/version
+	@git add .rpk/version .rpk/versions
+	@git commit -m "package $(VERSION)"
+	@git tag "v$(VERSION)"
+
+# Per FEAT-191's invariant: clean never touches installed files.
+clean:
+	@rm -rf build/

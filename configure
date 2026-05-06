@@ -1,0 +1,83 @@
+#!/bin/sh
+# configure template for per-script repos (FEAT-191 autoconf umbrella).
+#
+# Substituted at extraction time: @PACKAGE@ → the package name.
+# Run by users as `./configure --prefix=...` to set up Makefile.local.
+
+set -e
+
+PACKAGE='lightning'    # render-time substitution at PR-create time
+                     # (NOT the @PACKAGE@ used in the sed below).
+PREFIX=""
+BINDIR=""
+LIBEXECDIR=""
+SYSCONFDIR=""
+DATADIR=""
+MANDIR=""
+
+# Default prefix per the rpk convention:
+#   $HOME/.local for non-root
+#   /usr/local for root
+default_prefix() {
+	if [ "$(id -u)" -eq 0 ]; then
+		echo "/usr/local"
+	else
+		echo "$HOME/.local"
+	fi
+}
+
+usage() {
+	cat <<EOF
+Usage: $0 [options]
+
+  --prefix=PATH        install prefix (default: $(default_prefix))
+  --bindir=PATH        executables (default: \$PREFIX/bin)
+  --libexecdir=PATH    libexec sub-tools (default: \$PREFIX/libexec)
+  --sysconfdir=PATH    config (default: \$PREFIX/etc)
+  --datadir=PATH       data files (default: \$PREFIX/share)
+  --mandir=PATH        man pages (default: \$PREFIX/share/man)
+  --help               this message
+EOF
+	exit 0
+}
+
+for arg in "$@"; do
+	case "$arg" in
+		--prefix=*)     PREFIX="${arg#--prefix=}" ;;
+		--bindir=*)     BINDIR="${arg#--bindir=}" ;;
+		--libexecdir=*) LIBEXECDIR="${arg#--libexecdir=}" ;;
+		--sysconfdir=*) SYSCONFDIR="${arg#--sysconfdir=}" ;;
+		--datadir=*)    DATADIR="${arg#--datadir=}" ;;
+		--mandir=*)     MANDIR="${arg#--mandir=}" ;;
+		--help|-h)      usage ;;
+		*)              echo "unknown: $arg"; exit 1 ;;
+	esac
+done
+
+: "${PREFIX:=$(default_prefix)}"
+: "${BINDIR:=$PREFIX/bin}"
+: "${LIBEXECDIR:=$PREFIX/libexec}"
+: "${SYSCONFDIR:=$PREFIX/etc}"
+: "${DATADIR:=$PREFIX/share}"
+: "${MANDIR:=$PREFIX/share/man}"
+
+# Required tools
+for tool in bash stow git; do
+	if ! command -v "$tool" >/dev/null; then
+		echo "configure: required tool not found: $tool" >&2
+		exit 1
+	fi
+done
+
+# Render Makefile from Makefile.in by substituting the variables.
+sed \
+	-e "s|@PACKAGE@|$PACKAGE|g" \
+	-e "s|@PREFIX@|$PREFIX|g" \
+	-e "s|@BINDIR@|$BINDIR|g" \
+	-e "s|@LIBEXECDIR@|$LIBEXECDIR|g" \
+	-e "s|@SYSCONFDIR@|$SYSCONFDIR|g" \
+	-e "s|@DATADIR@|$DATADIR|g" \
+	-e "s|@MANDIR@|$MANDIR|g" \
+	Makefile.in > Makefile
+
+echo "configured $PACKAGE for prefix=$PREFIX"

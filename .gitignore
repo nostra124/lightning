@@ -1,0 +1,5 @@
+# autoconf-generated (overwrites the committed Makefile when present)
+Makefile
+
+# Make build tree
+build/

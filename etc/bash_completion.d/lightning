@@ -1,0 +1,14 @@
+# completion file for bash
+_lightning_complete_entries () {
+	COMPREPLY=()
+	local cur="${COMP_WORDS[COMP_CWORD]}"
+	local commands="help version"
+	if [[ $COMP_CWORD -gt 1 ]]; then
+		case "${COMP_WORDS[1]}" in
+			help) COMPREPLY=($(compgen -W "${commands}" -- ${cur})) ;;
+		esac
+		return
+	fi
+	COMPREPLY+=($(compgen -W "${commands}" -- ${cur}))
+}
+complete -F _lightning_complete_entries lightning
