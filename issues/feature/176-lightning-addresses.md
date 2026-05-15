@@ -54,19 +54,21 @@ It is invoked by Apache for `/.well-known/lnurlp/<user>`.
 On request, the script:
 
 1. Reads `<user>` from `PATH_INFO`.
-2. Looks up the account binding in
-   `<install-prefix>/share/lightning/wellknown/lnurlp/users.tsv`
-   (one row per published address:
-   `user<TAB>account<TAB>min_sat<TAB>max_sat<TAB>comment_max`).
-3. If query string contains `amount=<msat>`, mints a fresh
-   BOLT-11 via `lightning invoice --account <account>` and
-   returns the callback JSON (LUD-06 + LUD-12 metadata).
+2. Shells out `sudo -u alice lightning api-lnurlp <user>
+   [<msat> <comment>]` — the verb queries the per-wallet
+   SQLite `users` table (FEAT-193) for the
+   `<user> → <account>` binding and `min_sat / max_sat /
+   comment_max` parameters.
+3. If query string contains `amount=<msat>`, the verb mints
+   a fresh BOLT-11 via `lightning invoice --account
+   <account> --message <comment>` and returns the callback
+   JSON (LUD-06 + LUD-12 metadata).
 4. Otherwise returns the LUD-06 discovery JSON (callback
    URL, min/max amounts, metadata).
 
 The script is < 100 lines of Python 3, no dependencies
-beyond the stdlib. Soft dep on `python3` declared at
-`.rpk/depends/python3`.
+beyond the stdlib. Soft deps on `python3` and `sqlite3`
+declared at `.rpk/depends/`.
 
 **Apache config snippet.** Shipped at
 `share/lightning/apache/lnurlp.conf`. Drop-in for stock
@@ -108,15 +110,15 @@ address to a specific account — `alice@example.com` →
 3. `lightning address create me@my-domain.com` with Apache
    installed:
    - drops `handler.py` and the vhost snippet
-   - registers the binding in `users.tsv`
+   - inserts a row into the `users` table (FEAT-193)
    - prints the BIP-353 TXT record to publish
    - results in a working
      `https://my-domain.com/.well-known/lnurlp/me` endpoint
      (assuming TLS / DNS is configured)
 4. `lightning address create` without Apache prints "install
    apache2 first" and exits non-zero.
-5. `lightning address remove` removes the `users.tsv` row;
+5. `lightning address remove` deletes the `users` row;
    handler.py and the vhost snippet stay (they handle every
-   user from the TSV).
+   user from the table).
 6. SIT (FEAT-182) covers address create + pay round-trip
    inside an Apache-equipped clightning regtest container.

@@ -43,9 +43,17 @@ scripts call only `lightning-cli`.
 
 Externally we depend on `python3` for the Apache CGI
 scripts that host Lightning Addresses (FEAT-176) and
-the `.well-known/lightning/` JSON API (FEAT-196). The
-shell verbs remain the source of truth — Python
-scripts are thin HTTP frontends that shell out.
+the `.well-known/lightning/` JSON API (FEAT-196), and on
+`sqlite3` for the per-wallet store (FEAT-193). The shell
+verbs remain the source of truth — Python scripts are
+thin HTTP frontends that shell out.
+
+Three-user separation on system-mode installs
+(FEAT-183): `clightning` runs the daemon, the operator
+(`alice`) runs `lightning` from her shell and owns the
+wallet repo + secret store, `www-data` runs Apache and
+the CGI. The bridge is sudo-to-alice; `www-data` never
+talks to lightningd directly.
 
 ## 5. What is intentionally duplicated
 

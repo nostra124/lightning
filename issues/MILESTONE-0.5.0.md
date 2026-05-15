@@ -27,10 +27,15 @@ Ecosystem features that sit on top of the core verbs:
    create, per-period statements, per-account API key
    issuance for FEAT-196.
 4. **FEAT-196 — `.well-known/lightning/` JSON API** — three
-   small Python CGI endpoints (`invoice`, `send`, `balance`)
+   small Python CGI endpoints (`send`, `recv`, `balance`)
    under `/.well-known/lightning/<user>/`. Per-account API
    keys; lets a phone / JS frontend / webhook drive the node
-   without shell access.
+   without shell access. Sender messages plumb through
+   LUD-12 to the remote ledger; local-only notes stay on
+   this side. Three-user privilege layout
+   (`clightning` / operator / `www-data`); bridge is
+   sudo-to-operator. Formal BIP-style spec lives at
+   `share/doc/lightning/standards/api/spec.md`.
 
 ## Dependency Order
 
@@ -60,12 +65,20 @@ and the wallet ledger from 0.4.0.
   prints a one-shot key.
 - `lightning ledger statement --account alice --period
   2026-03` produces a parseable plaintext statement.
-- `POST /.well-known/lightning/alice/invoice` with the
+- `POST /.well-known/lightning/alice/recv` with the
   write-scope key returns a BOLT-11.
-- `POST /.well-known/lightning/alice/send` to a remote
-  Lightning Address completes a payment end-to-end.
+- `POST /.well-known/lightning/alice/send` with a message
+  to a remote Lightning Address completes a payment
+  end-to-end; the remote's ledger row carries the message;
+  alice's ledger row carries both the message and the
+  local note.
 - `GET /.well-known/lightning/alice/balance` returns the
   current account balance + limit + overdraft policy.
+- `share/doc/lightning/standards/api/spec.md` is in place
+  and matches the implementation.
+- `lightning daemon install --system` provisions the
+  three-user layout; the sudoers bridge survives a
+  reboot.
 - Unit test contract extended.
 - `.rpk/version` bumped 0.4.0 → 0.5.0; ledger updated.
 - FEAT-175, FEAT-176, FEAT-195, FEAT-196 move to
@@ -75,7 +88,7 @@ and the wallet ledger from 0.4.0.
 
 Hard: 0.4.0. Soft: external services (Boltz, Loop server,
 test LSP) — mocked at unit-test level, real in SIT
-(FEAT-182). Also `python3` (added as a runtime dep for
-FEAT-176 / 196's CGI scripts) and `apache2` (operator's
+(FEAT-182). New runtime deps: `python3` (CGI scripts) and
+`sqlite3` (per-wallet store). `apache2` is the operator's
 choice; absent → addresses + API gracefully degrade with a
-clear install hint).
+clear install hint.
