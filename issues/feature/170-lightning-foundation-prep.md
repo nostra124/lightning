@@ -40,9 +40,9 @@ discarded after the new verbs cover the same ground.
    symlink so `. lightning.sh` in test files resolves.
 
 3. **Runtime deps**: only `account` + `config` + `secret`
-   at runtime; `rpk` deployment-only; `bitcoin` declared as
-   runtime dep for cross-package on-chain ops once the
-   wallet (FEAT-174) lands.
+   at runtime; `rpk` deployment-only. No direct dep on the
+   `bitcoin` package — on-chain channel funding goes through
+   the backend daemon's own bitcoind connection.
 
 4. **Soft system deps** probed at runtime:
    `lightningd` (Core Lightning), `lnd`, `phoenixd` —

@@ -22,9 +22,9 @@ description: |
   the backend daemon's CLI.
 - **Decentralized.** No custodial layer; the user's
   node is the trust boundary.
-- **Simple.** `lightning` calls only `account` and
-  `bitcoin` at runtime (the latter for on-chain
-  channel opens).
+- **Simple.** `lightning` calls only `account` at
+  runtime; on-chain channel funding is handled by the
+  backend daemon's built-in wallet.
 
 ## 2. The model
 

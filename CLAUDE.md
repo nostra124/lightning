@@ -30,9 +30,12 @@ features at the same priority level.**
 
 ## 4. The no-shared-lib policy
 
-`lightning` calls only `account` and `bitcoin` at
-runtime (the latter for on-chain channel opens).
-Backend plugins call only their daemon CLI.
+`lightning` calls only `account` at runtime. The
+on-chain leg of channel opens is handled by the
+backend daemon itself (each backend ships with its
+own bitcoind connection); we never shell out to the
+`bitcoin` package directly. Backend plugins call only
+their daemon CLI.
 
 ## 5. What is intentionally duplicated
 

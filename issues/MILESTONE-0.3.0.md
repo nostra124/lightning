@@ -17,8 +17,9 @@ Two tickets:
 
 1. **FEAT-172 — channel management verbs** — `open`, `close`,
    `list`, `balance` across clightning / lnd / phoenixd. The
-   on-chain funding leg calls into the `bitcoin` package per
-   the no-shared-lib policy.
+   on-chain funding leg is handled by the backend daemon's
+   built-in bitcoind connection; `lightning` does not call
+   the `bitcoin` package directly.
 2. **FEAT-173 — payments, invoices, BOLT-12, LNURL** — `pay`,
    `invoice`, `decode`, plus BOLT-12 offers and LNURL-pay /
    LNURL-withdraw flows.
@@ -43,5 +44,6 @@ channel) are reused by 173.
 
 ## Dependencies
 
-Hard: 0.2.0 (backend dispatch). Soft: `bitcoin` package for
-on-chain funding under FEAT-172.
+Hard: 0.2.0 (backend dispatch). On-chain funding is the
+backend daemon's responsibility (its built-in bitcoind
+connection); no direct `bitcoin` package dep.

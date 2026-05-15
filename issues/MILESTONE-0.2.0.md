@@ -19,10 +19,10 @@ Two tickets:
 
 1. **FEAT-170 — foundation prep** — sourceable lib
    (`bin/lightning.sh` symlink + source-mode guard), declare
-   runtime deps (`account` / `config` / `secret`; `bitcoin`
-   for on-chain channel opens), soft probes for `lightningd`
-   / `lnd` / `phoenixd`, and the `CLAUDE.md.lightning`
-   template.
+   runtime deps (`account` / `config` / `secret`; no direct
+   `bitcoin` dep — on-chain funding goes through the backend
+   daemon), soft probes for `lightningd` / `lnd` /
+   `phoenixd`, and the `CLAUDE.md.lightning` template.
 2. **FEAT-171 — multi-backend abstraction** — auto-detect the
    active daemon and route verbs to
    `libexec/lightning/{clightning,lnd,phoenixd}/<verb>`.
@@ -49,7 +49,6 @@ guard from 170 in place before backend plugins can be wired.
 
 ## Dependencies
 
-External: `account`, `config`, `secret` (declared runtime);
-`bitcoin` (declared, used only by FEAT-172 once channel opens
-land). At least one of `lightningd` / `lnd` / `phoenixd`
-available at runtime for any non-trivial verb.
+External: `account`, `config`, `secret` (declared runtime).
+At least one of `lightningd` / `lnd` / `phoenixd` available
+at runtime for any non-trivial verb.
