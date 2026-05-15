@@ -1,6 +1,6 @@
 # `lightning`
 
-> Educational Lightning wallet: multi-backend (LND/CLN/Eclair/Greenlight), accounts, liquidity, Lightning Addresses
+> Educational Lightning wallet on clightning (Core Lightning): accounts, liquidity, Lightning Addresses
 
 ## Install
 

@@ -11,9 +11,12 @@
 # or $PREFIX/share/lightning/version (installed). The hardcoded fallback
 # is used only if both files are missing.
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
-VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.0.0')
-unset __d __s
-SELF=$(basename $0)
+# FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
+__s="${__s%.sh}"
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '0.2.0')
+unset __d
+SELF=$__s
+unset __s
 
 # Resolve $SELF_LIBEXEC (FEAT-001 libexec convention).
 if [ -z "$SELF_LIBEXEC" ]; then
@@ -56,12 +59,6 @@ has() {
 	type -t $KIND:$NAME | grep -q function
 }
 
-while getopts "dq" flag; do
-	if [ x"$1" = x'-q' ]; then SELF_QUIET=1; fi
-	if [ x"$1" = x'-d' ]; then SELF_DEBUG=1; fi
-	shift 1
-done
-
 ############################################################################
 # Commands
 ############################################################################
@@ -74,25 +71,53 @@ usage: $SELF <options> <command> <args>
    -d                       enable debug mode
    -q                       enable quiet mode
 
-   $SELF is the educational Lightning Network frontend. It
-   abstracts over multiple lightning daemons (clightning / lnd /
-   phoenixd) so the same verb surface works across backends.
+   $SELF is the educational Lightning Network frontend on
+   clightning (Core Lightning). Verbs shell out to
+   lightning-cli; help text cites the BOLT each verb
+   implements.
 
-   Vendored standards: BOLT specs (BOLT 1..11) plus LNURL LUDs
+   Vendored standards: BOLT specs (BOLT 1..12) plus LNURL LUDs
    and the Lightning Address spec, under share/doc/lightning/
    standards/ (FEAT-178; pending full implementation).
 
    The four design principles (educational, functional,
-   decentralized, simple) apply: each backend plugin is a
-   thin wrapper that cites the BOLT it implements.
+   decentralized, simple) apply: each verb is a thin
+   wrapper over lightning-cli that cites the BOLT it
+   implements.
 
 generic commands:
    help                     print this help message
    version                  print the version of $SELF
 
-(Implementation pending — FEAT-170..182 file the full
-surface; today's bin/lightning is a stub establishing the
-shape so the artefact set can land.)
+clightning node:
+   info                     summary of \`lightning-cli getinfo\`
+   node-id                  this node's pubkey
+   peers                    connected peers (TSV)
+   channels                 channels (TSV)
+   balance                  on-chain + LN balance (TSV)
+
+daemon control:
+   daemon start             start lightningd
+   daemon stop              graceful shutdown
+   daemon restart           stop + start
+   daemon status            health check
+   daemon logs              tail the daemon log
+   daemon install [--system] generate a systemd unit
+
+wallet unlock:
+   unlock                   release the HSM (interactive)
+   unlock --stored          non-interactive (from \`secret\`)
+   unlock rotate            change password
+   unlock forget            drop the stored secret
+
+environment:
+   LIGHTNING_DIR            path to lightningd's data dir
+                            (default: \$HOME/.lightning)
+   LIGHTNING_NETWORK        bitcoin / testnet / regtest / signet
+                            (default: bitcoin)
+
+(Verb surface beyond the above lands per FEAT-172..196 —
+see issues/ for the milestone plan.)
 ENDHELP
 }
 
@@ -103,6 +128,17 @@ command:version() {
 ############################################################################
 # Command-line processing
 ############################################################################
+
+# FEAT-170: source-mode guard. When sourced (via `. lightning.sh`),
+# define functions but do not execute the dispatcher.
+[[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
+
+while getopts "dq" flag; do
+	if [ x"$1" = x'-q' ]; then SELF_QUIET=1; fi
+	if [ x"$1" = x'-d' ]; then SELF_DEBUG=1; fi
+	shift 1
+done
+
 if [[ $# == 0 ]]; then
 	command:help
 	exit

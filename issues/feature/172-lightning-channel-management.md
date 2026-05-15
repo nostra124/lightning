@@ -11,15 +11,14 @@ status: open
 
 **As a** Lightning user
 **I want** consistent commands to open, list, close, and
-adjust channels regardless of backend
+adjust channels via clightning
 **So that** I can manage routing capacity without learning
 each daemon's CLI dialect.
 
 ## Implementation
 
-Subcommands at top level of `lightning` (built into
-`bin/lightning`, dispatching through the active backend
-from FEAT-171):
+Subcommands at top level of `lightning`, implemented as verb
+scripts under `libexec/lightning/channel-*` (FEAT-171 idiom):
 
     lightning channel list                       # all channels
     lightning channel open <node-uri> <sats> [--push <sats>]
@@ -38,12 +37,12 @@ from FEAT-171):
 
 ### Funding source
 
-`channel open` requires on-chain funds. The backend handles
+`channel open` requires on-chain funds. clightning handles
 the on-chain transaction via its built-in wallet; if the
-backend's wallet is empty, the command fails clearly with a
-"fund the LN node's on-chain wallet first" message and a
-hint to send to `lightning balance --on-chain` (which prints
-the on-chain receive address from the active backend).
+wallet is empty, the command fails clearly with a "fund the
+LN node's on-chain wallet first" message and a hint to send
+to `lightning balance --on-chain` (which prints the on-chain
+receive address from clightning's `newaddr`).
 
 For multi-wallet setups using `bitcoin wallet` (FEAT-010),
 a future ticket can wire `bitcoin wallet send-to lightning`
@@ -64,7 +63,7 @@ invocation lists the cost.
    channel; `lightning channel pending` shows it during
    the close period.
 3. `lightning channel rebalance` succeeds for valid input
-   on a clightning + lnd backend.
-4. Verb output shape is identical across backends.
+   against a clightning regtest.
+4. Verb output shape is stable across releases.
 5. SIT (FEAT-182) covers open / close / list / balance on
-   regtest with each backend.
+   the clightning regtest container.

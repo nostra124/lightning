@@ -1,0 +1,253 @@
+#!/bin/bash
+# lightning daemon — lightningd lifecycle management.
+#
+# Implements FEAT-183. Subcommands:
+#   start    — bring up lightningd
+#   stop     — graceful shutdown via `lightning-cli stop`
+#   restart  — stop + start
+#   status   — health check (process / RPC / sync / unlock)
+#   logs     — tail the live log
+#   install  — generate a systemd unit
+#              --system: three-user layout (FEAT-183), runs as
+#              dedicated `clightning` user.
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+NETWORK_DIR="$LIGHTNING_DIR/$LIGHTNING_NETWORK"
+RPC_FILE="$NETWORK_DIR/lightning-rpc"
+
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning daemon <subcommand> [args]
+
+subcommands:
+   start                  start lightningd (foreground or systemd)
+   stop                   graceful shutdown
+   restart                stop + start
+   status                 health check
+   logs [-f]              tail the daemon log
+   install [--system] [--migrate]
+                          generate a systemd unit (user-mode by
+                          default; --system uses the three-user
+                          layout under user \`clightning\`)
+EOF
+}
+
+daemon_running() {
+	command -v lightning-cli >/dev/null 2>&1 && cli getinfo >/dev/null 2>&1
+}
+
+system_mode() {
+	systemctl --quiet is-enabled clightningd.service 2>/dev/null
+}
+
+cmd_start() {
+	if daemon_running; then
+		echo "lightning: daemon already running" >&2
+		exit 0
+	fi
+	if system_mode; then
+		echo "lightning: starting systemd unit clightningd.service"
+		sudo systemctl start clightningd.service
+	else
+		command -v lightningd >/dev/null || {
+			echo "lightning: lightningd not found — install Core Lightning" >&2
+			exit 127
+		}
+		mkdir -p "$LIGHTNING_DIR"
+		echo "lightning: starting lightningd (user-mode, --daemon)"
+		lightningd --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" --daemon
+	fi
+
+	# Auto-unlock hook (FEAT-184).
+	if [ -x "$SELF_LIBEXEC/lightning/unlock" ] && command -v secret >/dev/null 2>&1; then
+		# Wait briefly for the daemon to start asking for a password.
+		for _ in 1 2 3 4 5; do
+			if cli getinfo >/dev/null 2>&1; then
+				return 0
+			fi
+			# clightning needs the password if the HSM is encrypted;
+			# `unlock --stored` is a no-op when not encrypted.
+			"$SELF_LIBEXEC/lightning/unlock" --stored 2>/dev/null && return 0 || true
+			sleep 1
+		done
+	fi
+}
+
+cmd_stop() {
+	if ! daemon_running; then
+		echo "lightning: daemon not running" >&2
+		exit 0
+	fi
+	if system_mode; then
+		sudo systemctl stop clightningd.service
+	else
+		cli stop >/dev/null
+	fi
+	echo "lightning: daemon stopped"
+}
+
+cmd_restart() {
+	cmd_stop || true
+	# Give the socket time to disappear.
+	for _ in 1 2 3 4 5; do
+		[ ! -S "$RPC_FILE" ] && break
+		sleep 1
+	done
+	cmd_start
+}
+
+cmd_status() {
+	local rc=0
+	if daemon_running; then
+		local info; info=$(cli getinfo)
+		local block; block=$(jq -r .blockheight <<<"$info")
+		local warning; warning=$(jq -r '.warning_lightningd_sync // .warning_bitcoind_sync // empty' <<<"$info")
+		local mode="user"; system_mode && mode="system"
+		if [ -n "$warning" ]; then
+			echo "syncing ($mode-mode, block $block): $warning"
+			rc=1
+		else
+			echo "healthy ($mode-mode, block $block)"
+		fi
+	else
+		echo "down"
+		rc=2
+	fi
+	exit $rc
+}
+
+cmd_logs() {
+	if system_mode; then
+		exec journalctl -u clightningd.service "$@"
+	fi
+	local logfile="$LIGHTNING_DIR/log"
+	[ -f "$logfile" ] || logfile="$NETWORK_DIR/log"
+	[ -f "$logfile" ] || {
+		echo "lightning: no log file at $LIGHTNING_DIR/log or $NETWORK_DIR/log" >&2
+		echo "lightning: configure log-file=log in lightningd.conf to enable" >&2
+		exit 2
+	}
+	exec tail "$@" "$logfile"
+}
+
+cmd_install() {
+	local system=0 migrate=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--system)  system=1; shift ;;
+			--migrate) migrate=1; shift ;;
+			*) echo "lightning daemon install: unknown flag $1" >&2; exit 1 ;;
+		esac
+	done
+
+	if [ $system -eq 1 ]; then
+		install_system "$migrate"
+	else
+		install_user
+	fi
+}
+
+install_user() {
+	local dir="$HOME/.config/systemd/user"
+	local unit="$dir/lightning.service"
+	mkdir -p "$dir"
+	cat > "$unit" <<EOF
+[Unit]
+Description=Lightning Network daemon (clightning, user-mode)
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=$(command -v lightningd) --lightning-dir=$LIGHTNING_DIR --network=$LIGHTNING_NETWORK --daemon
+ExecStop=$(command -v lightning-cli) --lightning-dir=$LIGHTNING_DIR --network=$LIGHTNING_NETWORK stop
+PIDFile=$LIGHTNING_DIR/lightningd-${LIGHTNING_NETWORK}.pid
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+	systemctl --user daemon-reload 2>/dev/null || true
+	echo "lightning: wrote $unit"
+	echo "lightning: enable with: systemctl --user enable --now lightning"
+	echo "lightning: to survive logout: loginctl enable-linger $USER"
+}
+
+install_system() {
+	local migrate=$1
+
+	if [ $migrate -eq 0 ] && [ -d "$HOME/.lightning" ] && [ ! -L "$HOME/.lightning" ]; then
+		echo "lightning: ~/.lightning exists (user-mode install detected); refusing" >&2
+		echo "lightning: pass --migrate to move it to /var/lib/clightning" >&2
+		exit 3
+	fi
+
+	command -v sudo >/dev/null || { echo "lightning: sudo required for --system" >&2; exit 127; }
+
+	# 1. Create the clightning system user (idempotent).
+	if ! getent passwd clightning >/dev/null; then
+		sudo useradd --system --home /var/lib/clightning \
+			--shell /usr/sbin/nologin --user-group clightning
+	fi
+
+	# 2. State dir.
+	sudo install -d -o clightning -g clightning -m 0750 /var/lib/clightning
+
+	# 3. Add the operator to the clightning group.
+	sudo usermod -a -G clightning "$USER"
+
+	# 4. clightning's config — rpc-file-mode=0660 so the group can read it.
+	local cfg=/var/lib/clightning/config
+	sudo tee "$cfg" >/dev/null <<EOF
+network=$LIGHTNING_NETWORK
+log-file=/var/lib/clightning/log
+rpc-file-mode=0660
+EOF
+	sudo chown clightning:clightning "$cfg"
+
+	# 5. Systemd unit.
+	local unit=/etc/systemd/system/clightningd.service
+	sudo tee "$unit" >/dev/null <<EOF
+[Unit]
+Description=Lightning Network daemon (clightning, system-mode)
+After=network.target
+
+[Service]
+Type=simple
+User=clightning
+Group=clightning
+ExecStart=$(command -v lightningd) --lightning-dir=/var/lib/clightning --conf=$cfg
+Restart=on-failure
+RestartSec=5
+ProtectSystem=full
+ProtectHome=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+	sudo systemctl daemon-reload
+
+	echo "lightning: installed system-mode at /var/lib/clightning"
+	echo "lightning: user 'clightning' created; '$USER' added to group 'clightning'"
+	echo "lightning: enable with: sudo systemctl enable --now clightningd"
+	echo "lightning: log out and back in for group membership to take effect"
+}
+
+SELF_LIBEXEC="${SELF_LIBEXEC:-$(cd "$(dirname "$0")/.." && pwd)}"
+
+case "${1:-}" in
+	start)   shift; cmd_start "$@" ;;
+	stop)    shift; cmd_stop "$@" ;;
+	restart) shift; cmd_restart "$@" ;;
+	status)  shift; cmd_status "$@" ;;
+	logs)    shift; cmd_logs "$@" ;;
+	install) shift; cmd_install "$@" ;;
+	"")      usage; exit 1 ;;
+	*)       echo "lightning daemon: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

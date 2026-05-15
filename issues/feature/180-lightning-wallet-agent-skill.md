@@ -11,7 +11,7 @@ status: open
 
 **As a** user delegating Lightning tasks to an AI agent
 **I want** a packaged skill that teaches the agent the
-multi-backend model, the wallet/account abstraction, the
+clightning model, the wallet/account abstraction, the
 liquidity layer, and the Lightning Address flow
 **So that** an agent can manage channels, send/receive
 payments, set up an address, and rebalance liquidity
@@ -48,16 +48,18 @@ Layout:
 `SKILL.md` body covers:
 
 1. Design principles.
-2. Multi-backend (clightning / lnd / phoenixd) — when each
-   is chosen.
+2. The clightning model — `lightningd` + `lightning-cli` +
+   plugins — and where `lightning`'s verbs sit on top.
 3. The git-backed wallet + labelled accounts model
-   (parallel to bitcoin-wallet).
+   (parallel to bitcoin-wallet); the TSV ledger
+   (FEAT-193).
 4. Workflow recipes:
    - open a channel; check capacity
    - create + pay an invoice; pay an offer
    - resolve + pay a Lightning Address
-   - set up your own Lightning Address
-   - rebalance via Loop / Boltz
+   - set up your own Lightning Address (cluster / local
+     Apache / standalone)
+   - acquire inbound liquidity via LSPS1 / Loop / Boltz
    - tag payments to an account; query history
 5. Guardrails:
    - Never log payment preimages or invoices outside the
@@ -65,10 +67,11 @@ Layout:
    - `force-close` is destructive — require confirmation.
    - Liquidity ops cost fees; show the budget before
      executing.
-   - Multi-backend means verb behaviour can differ subtly;
-     check `lightning backend` before debugging.
+   - The bank-mode (FEAT-195) overdraft policy is the
+     operator's discipline, not auth — single-user
+     assumption.
 6. Where to read more: `man lightning`, walkthrough
-   (FEAT-181), `share/doc/lightning/standards/comparison.md`.
+   (FEAT-181), `share/doc/lightning/standards/cln-overview.md`.
 
 Installation per the established pattern.
 

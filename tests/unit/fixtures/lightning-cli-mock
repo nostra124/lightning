@@ -1,0 +1,66 @@
+#!/bin/bash
+# Mock lightning-cli for bats unit tests.
+#
+# Reads MOCK_STATE (path to a state file) to track whether the
+# daemon is "up" (RPC reachable) or "down". Returns canned JSON
+# for known commands; exits non-zero with a clear message on
+# unknown ones.
+
+state_file="${MOCK_STATE:-/tmp/lightning-mock-state}"
+state="up"
+[ -f "$state_file" ] && state=$(cat "$state_file")
+
+# Strip the standard lightning-cli flags we pass in our verbs.
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--lightning-dir=*|--network=*|--conf=*) shift ;;
+		*) break ;;
+	esac
+done
+
+if [ "$state" = "down" ]; then
+	echo "lightning-cli: cannot connect to RPC" >&2
+	exit 1
+fi
+
+case "$1" in
+	getinfo)
+		cat <<'EOF'
+{
+  "id": "020000000000000000000000000000000000000000000000000000000000000001",
+  "alias": "TESTNODE",
+  "color": "ff0000",
+  "num_peers": 0,
+  "num_pending_channels": 0,
+  "num_active_channels": 0,
+  "num_inactive_channels": 0,
+  "version": "v24.05",
+  "blockheight": 100,
+  "network": "regtest"
+}
+EOF
+		;;
+	listpeers)
+		echo '{"peers": []}'
+		;;
+	listpeerchannels)
+		echo '{"channels": []}'
+		;;
+	listchannels)
+		echo '{"channels": []}'
+		;;
+	listfunds)
+		echo '{"outputs": [], "channels": []}'
+		;;
+	newaddr)
+		echo '{"bech32": "bcrt1qtestaddressxxxxxxxxxxxxxxxxxxxxxxxxxx"}'
+		;;
+	stop)
+		echo "down" > "$state_file"
+		echo '"Shutdown complete"'
+		;;
+	*)
+		echo "mock lightning-cli: unhandled command '$1'" >&2
+		exit 1
+		;;
+esac

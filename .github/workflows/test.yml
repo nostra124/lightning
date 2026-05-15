@@ -1,0 +1,16 @@
+name: test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  bats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+      - name: run bats unit tests
+        run: bats tests/unit/

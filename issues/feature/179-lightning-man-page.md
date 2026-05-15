@@ -21,17 +21,18 @@ FEAT-015 (bitcoin). Depends on FEAT-178.
 ## Implementation
 
 `share/man/man1/lightning.1` (groff). Sections: NAME,
-SYNOPSIS, DESCRIPTION (four design principles + multi-
-backend + wallet/account model + addresses), **BACKENDS**
-(one subsection per: clightning / lnd / phoenixd —
-strengths, when chosen, caveats), SUBCOMMANDS (channel /
-pay / invoice / offer / lnurl / wallet / account /
-liquidity / address / decode), ENVIRONMENT, FILES, EXIT
-STATUS, EXAMPLES, **STANDARDS**, SEE ALSO (`bitcoin(1)`,
-`secret(1)`, `account(1)`, `cluster(1)`).
+SYNOPSIS, DESCRIPTION (four design principles + clightning
+focus + wallet/account model + addresses),
+**ENVIRONMENT** (`LIGHTNING_DIR`, `LIGHTNING_NETWORK`),
+SUBCOMMANDS (channel / pay / invoice / offer / lnurl /
+wallet / account / liquidity / address / decode / daemon /
+unlock / tor / ledger / qr), FILES, EXIT STATUS, EXAMPLES,
+**STANDARDS**, SEE ALSO (`bitcoin(1)`, `secret(1)`,
+`account(1)`, `cluster(1)`, `lightningd(8)`,
+`lightning-cli(1)`).
 
 DESCRIPTION opens with the four design principles and the
-*backend-neutral Lightning toolkit* framing.
+*educational Lightning toolkit on clightning* framing.
 
 STANDARDS section enumerates every vendored spec from
 FEAT-178 with title, status, upstream URL, and local path.
@@ -55,8 +56,8 @@ Mapping examples:
 
 ## Acceptance Criteria
 
-1. `man lightning` renders with all sections; BACKENDS +
-   STANDARDS populated.
+1. `man lightning` renders with all sections; STANDARDS
+   populated.
 2. `lightning help <verb>` for any spec-implementing verb
    prints the citation template with the correct local
    path for the active install prefix.
