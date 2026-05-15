@@ -1,0 +1,216 @@
+#!/bin/bash
+# lightning account — multi-account management (FEAT-174 / FEAT-195).
+#
+# Usage:
+#   lightning account list [--balances]
+#   lightning account create <name> [<description>]
+#                           [--limit <sat>] [--overdraft deny|warn|allow]
+#                           [--host <domain>]
+#   lightning account delete <name>
+#   lightning account show <name>
+#   lightning account apikey create <name> [--scope read|write]
+#   lightning account apikey list <name>
+#   lightning account apikey revoke <name> [--scope read|write]
+
+set -e
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning account <subcommand> [args]
+
+subcommands:
+   list [--balances]
+   create <name> [<description>] [--limit <sat>] [--overdraft deny|warn|allow] [--host <domain>]
+   delete <name>
+   show <name>
+   apikey create <name> [--scope read|write]
+   apikey list <name>
+   apikey revoke <name> [--scope read|write]
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+command -v sqlite3 >/dev/null || {
+	echo "lightning: sqlite3 not found — install sqlite3" >&2; exit 127; }
+
+wallet_db() {
+	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
+	echo "$LIGHTNING_DIR/wallet/$active/state.db"
+}
+
+SELF_LIBEXEC="${SELF_LIBEXEC:-$(cd "$(dirname "$0")" && pwd)}"
+DB=$(wallet_db)
+
+ensure_db() {
+	[ -f "$DB" ] || {
+		echo "lightning: no wallet database at $DB — run 'lightning wallet init' first" >&2
+		exit 5
+	}
+}
+
+cmd_list() {
+	ensure_db
+	local with_balances=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--balances) with_balances=1; shift ;;
+			*) echo "lightning account list: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	if [ "$with_balances" -eq 1 ]; then
+		sqlite3 -readonly "$DB" -cmd ".mode tabs" \
+			"SELECT a.name, COALESCE(a.limit_sat, 'NULL') AS limit_sat, COALESCE(SUM(l.amount_msat), 0) AS balance_sat, a.overdraft FROM accounts a LEFT JOIN ledger l ON l.account = a.name GROUP BY a.name ORDER BY a.name"
+	else
+		sqlite3 -readonly "$DB" -cmd ".mode tabs" \
+			"SELECT name, description, COALESCE(limit_sat, 'NULL') AS limit_sat, overdraft FROM accounts ORDER BY name"
+	fi
+}
+
+cmd_create() {
+	[ $# -lt 1 ] && { echo "usage: lightning account create <name> [<description>] [--limit <sat>] [--overdraft deny|warn|allow] [--host <domain>]" >&2; exit 1; }
+	ensure_db
+	local name="$1"; shift
+	local desc=""
+	local limit_sat=""
+	local overdraft="deny"
+	local host=""
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--limit)     limit_sat="$2"; shift 2 ;;
+			--overdraft) overdraft="$2"; shift 2 ;;
+			--host)      host="$2"; shift 2 ;;
+			*)           desc="${desc:+$desc }$1"; shift ;;
+		esac
+	done
+
+	case "$overdraft" in
+		deny|warn|allow) ;;
+		*) echo "lightning: --overdraft must be deny|warn|allow" >&2; exit 1 ;;
+	esac
+
+	if [ -n "$limit_sat" ]; then
+		sqlite3 "$DB" "INSERT INTO accounts (name, description, limit_sat, overdraft) VALUES ('$(echo "$name" | sed "s/'/''/g")', '$(echo "$desc" | sed "s/'/''/g")', $limit_sat, '$overdraft')" 2>/dev/null || {
+			echo "lightning: account '$name' already exists" >&2; exit 3; }
+	else
+		sqlite3 "$DB" "INSERT INTO accounts (name, description, overdraft) VALUES ('$(echo "$name" | sed "s/'/''/g")', '$(echo "$desc" | sed "s/'/''/g")', '$overdraft')" 2>/dev/null || {
+			echo "lightning: account '$name' already exists" >&2; exit 3; }
+	fi
+	echo "ok"
+	echo "account: $name"
+	echo "overdraft: $overdraft"
+	[ -n "$limit_sat" ] && echo "limit_sat: $limit_sat"
+
+	# Auto-address if --host is set.
+	if [ -n "$host" ] && [ -x "$SELF_LIBEXEC/lightning/address" ]; then
+		echo "address: $name@$host (auto-created)" >&2
+		"$SELF_LIBEXEC/lightning/address" create "$name@$host" --account "$name" >/dev/null
+	fi
+}
+
+cmd_delete() {
+	[ $# -lt 1 ] && { echo "usage: lightning account delete <name>" >&2; exit 1; }
+	ensure_db
+	local name="$1"
+	sqlite3 "$DB" "DELETE FROM accounts WHERE name = '$(echo "$name" | sed "s/'/''/g")'"
+	echo "ok"
+}
+
+cmd_show() {
+	[ $# -lt 1 ] && { echo "usage: lightning account show <name>" >&2; exit 1; }
+	ensure_db
+	local name="$1"; shift
+	local esc; esc=$(echo "$name" | sed "s/'/''/g")
+
+	local info; info=$(sqlite3 -readonly "$DB" -cmd ".mode tabs" \
+		"SELECT name, description, COALESCE(limit_sat, 'NULL'), overdraft FROM accounts WHERE name = '$esc'") || {
+		echo "lightning: account '$name' not found" >&2; exit 4; }
+	echo "$info" | while IFS=$'\t' read -r n desc lim od; do
+		echo "account:	$n"
+		echo "description:	$desc"
+		echo "limit_sat:	$lim"
+		echo "overdraft:	$od"
+	done
+
+	local bal; bal=$(sqlite3 -readonly "$DB" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger WHERE account = '$esc'")
+	local bal_sat=$(( bal / 1000 ))
+	echo "balance_sat:	$bal_sat"
+
+	echo ""
+	echo "=== recent ledger ==="
+	sqlite3 -readonly "$DB" -cmd ".mode tabs" \
+		"SELECT id, ts, direction, amount_msat, peer, payment_hash FROM ledger WHERE account = '$esc' ORDER BY ts DESC LIMIT 10"
+}
+
+require_secret() {
+	command -v secret >/dev/null || {
+		echo "lightning: the \`secret\` package is required (https://github.com/nostra124/secret)" >&2; exit 127; }
+}
+
+cmd_apikey() {
+	[ $# -lt 1 ] && { echo "usage: lightning account apikey create|list|revoke <name> [--scope read|write]" >&2; exit 1; }
+	local sub="$1"; shift
+
+	case "$sub" in
+		create)
+			[ $# -lt 1 ] && { echo "usage: lightning account apikey create <name> [--scope read|write]" >&2; exit 1; }
+			require_secret
+			local name="$1"; shift
+			local scope="read"
+			while [ $# -gt 0 ]; do
+				case "$1" in
+					--scope) scope="$2"; shift 2 ;;
+					*) echo "lightning account apikey: unknown flag '$1'" >&2; exit 1 ;;
+				esac
+			done
+			local key; key=$(uuidgen 2>/dev/null || openssl rand -hex 16)
+			echo "$key" | secret put "lightning.$name.apikey.$scope" >/dev/null
+			echo "$key"
+			echo "scope: $scope" >&2
+			;;
+		list)
+			[ $# -lt 1 ] && { echo "usage: lightning account apikey list <name>" >&2; exit 1; }
+			require_secret
+			local name="$1"; shift
+			for s in read write; do
+				if secret get "lightning.$name.apikey.$s" >/dev/null 2>&1; then
+					echo "$name	$s	(issued)"
+				fi
+			done
+			;;
+		revoke)
+			[ $# -lt 1 ] && { echo "usage: lightning account apikey revoke <name> [--scope read|write]" >&2; exit 1; }
+			require_secret
+			local name="$1"; shift
+			local scope=""
+			while [ $# -gt 0 ]; do
+				case "$1" in
+					--scope) scope="$2"; shift 2 ;;
+					*) echo "lightning account apikey: unknown flag '$1'" >&2; exit 1 ;;
+				esac
+			done
+			if [ -n "$scope" ]; then
+				secret rm "lightning.$name.apikey.$scope" 2>/dev/null || true
+				echo "ok (scope: $scope)"
+			else
+				for s in read write; do
+					secret rm "lightning.$name.apikey.$s" 2>/dev/null || true
+				done
+				echo "ok (all scopes)"
+			fi
+			;;
+		*) echo "lightning account apikey: unknown subcommand '$sub'" >&2; exit 1 ;;
+	esac
+}
+
+case "$1" in
+	list)   shift; cmd_list "$@" ;;
+	create) shift; cmd_create "$@" ;;
+	delete) shift; cmd_delete "$@" ;;
+	show)   shift; cmd_show "$@" ;;
+	apikey) shift; cmd_apikey "$@" ;;
+	*) usage; exit 1 ;;
+esac

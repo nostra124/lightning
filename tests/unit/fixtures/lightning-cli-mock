@@ -153,6 +153,24 @@ EOF
 	disableoffer)
 		echo '{"active": false}'
 		;;
+	staticbackup)
+		echo '{"scb": "deadbeefcafebabe"}'
+		;;
+	hsmtool)
+		case "$2" in
+			gethsmsecret)
+				# Return a 12-word BIP-39 mnemonic.
+				echo '"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"'
+				;;
+			generatehsm)
+				echo '"ok"'
+				;;
+			*)
+				echo "mock lightning-cli: unhandled hsmtool command '$2'" >&2
+				exit 1
+				;;
+		esac
+		;;
 	*)
 		echo "mock lightning-cli: unhandled command '$1'" >&2
 		exit 1

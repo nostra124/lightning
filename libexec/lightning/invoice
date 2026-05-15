@@ -8,6 +8,7 @@
 #   lightning invoice <sat> <label> [--description <text>]
 #                                   [--expiry <sec>]
 #                                   [--qr]
+#                                   [--account <name>]
 
 set -e
 
@@ -15,6 +16,7 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning invoice <sat> <label> [--description <text>]
                                        [--expiry <sec>] [--qr]
+                                       [--account <name>]
 EOF
 }
 
@@ -27,21 +29,27 @@ LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 
+wallet_db() {
+	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
+	echo "$LIGHTNING_DIR/wallet/$active/state.db"
+}
+
 sat="$1"; label="$2"; shift 2
 desc="$label"
 expiry=3600
 want_qr=0
+account=""
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--description) desc="$2"; shift 2 ;;
 		--expiry)      expiry="$2"; shift 2 ;;
 		--qr)          want_qr=1; shift ;;
+		--account)     account="$2"; shift 2 ;;
 		*) echo "lightning invoice: unknown flag '$1'" >&2; exit 1 ;;
 	esac
 done
 
-# clightning's `invoice` takes amount in msat (or "any") + label + description.
 msat=$(( sat * 1000 ))
 json=$(cli invoice "$msat" "$label" "$desc" "$expiry")
 
@@ -50,6 +58,15 @@ hash=$(jq -r .payment_hash <<<"$json")
 
 echo "$bolt11"
 echo "# payment_hash: $hash" >&2
+
+# Write to invoices table if wallet DB exists.
+DB=$(wallet_db)
+if [ -f "$DB" ] && command -v sqlite3 >/dev/null; then
+	acct="${account:--}"
+	expiry_ts=$(date -u -d "+$expiry seconds" +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -u -v+"$expiry"S +%Y-%m-%dT%H:%M:%S 2>/dev/null || echo "")
+	[ -n "$expiry_ts" ] && \
+		sqlite3 "$DB" "INSERT INTO invoices (bolt11, payment_hash, account, amount_msat, expiry, message, state) VALUES ('$(echo "$bolt11" | sed "s/'/''/g")', '$(echo "$hash" | sed "s/'/''/g")', '$(echo "$acct" | sed "s/'/''/g")', $msat, '$expiry_ts', '$(echo "$desc" | sed "s/'/''/g")', 'pending')" 2>/dev/null || true
+fi
 
 if [ "$want_qr" -eq 1 ] && [ -x "$SELF_LIBEXEC/lightning/qr" ]; then
 	echo

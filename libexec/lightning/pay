@@ -8,10 +8,14 @@
 #   lightning pay <bolt11>
 #                 [--max-fee-sat N]    # cap routing fee
 #                 [--timeout S]        # give up after S seconds
+#                 [--account <name>]   # tag in ledger (FEAT-193)
+#                 [--note <text>]      # local-only note
 
 set -e
 
-[ $# -lt 1 ] && { echo "usage: lightning pay <bolt11> [--max-fee-sat N] [--timeout S]" >&2; exit 1; }
+usage() { echo "usage: lightning pay <bolt11> [--max-fee-sat N] [--timeout S] [--account <name>] [--note <text>]" >&2; }
+
+[ $# -lt 1 ] && { usage; exit 1; }
 
 command -v lightning-cli >/dev/null || {
 	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
@@ -20,17 +24,57 @@ LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 
+wallet_db() {
+	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
+	echo "$LIGHTNING_DIR/wallet/$active/state.db"
+}
+
 bolt11="$1"; shift
 maxfee_sat=""
 timeout=60
+account=""
+note=""
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--max-fee-sat) maxfee_sat="$2"; shift 2 ;;
 		--timeout)     timeout="$2"; shift 2 ;;
+		--account)     account="$2"; shift 2 ;;
+		--note)        note="$2"; shift 2 ;;
 		*) echo "lightning pay: unknown flag '$1'" >&2; exit 1 ;;
 	esac
 done
+
+# Overdraft check (FEAT-195).
+if [ -n "$account" ]; then
+	DB=$(wallet_db)
+	if [ -f "$DB" ] && command -v sqlite3 >/dev/null; then
+		esc_acct=$(echo "$account" | sed "s/'/''/g")
+		policy=$(sqlite3 -readonly "$DB" "SELECT overdraft FROM accounts WHERE name = '$esc_acct'")
+
+		if [ -n "$policy" ]; then
+			# Decode the bolt11 to get the amount in sat.
+			decoded=$(cli decodepay "$bolt11" 2>/dev/null)
+			pay_msat=$(jq -r '.amount_msat // 0' <<<"$decoded")
+			pay_sat=$(( pay_msat / 1000 ))
+
+			if [ "$pay_sat" -gt 0 ] 2>/dev/null; then
+				balance_msat=$(sqlite3 -readonly "$DB" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger WHERE account = '$esc_acct'")
+				balance_sat=$(( balance_msat / 1000 ))
+
+				if [ "$policy" = "deny" ] && [ "$balance_sat" -lt "$pay_sat" ] 2>/dev/null; then
+					shortfall=$(( pay_sat - balance_sat ))
+					echo "lightning: would overdraw account '$account' by ${shortfall} sat (balance: ${balance_sat} sat, policy: deny)" >&2
+					exit 3
+				fi
+				if [ "$policy" = "warn" ] && [ "$balance_sat" -lt "$pay_sat" ] 2>/dev/null; then
+					shortfall=$(( pay_sat - balance_sat ))
+					echo "lightning: warning — payment of $pay_sat sat would overdraw '$account' by ${shortfall} sat" >&2
+				fi
+			fi
+		fi
+	fi
+fi
 
 args=("$bolt11")
 [ -n "$maxfee_sat" ] && args+=("null" "null" "$timeout" "null" "${maxfee_sat}sat") \
@@ -39,6 +83,7 @@ args=("$bolt11")
 result=$(cli pay "${args[@]}")
 status=$(jq -r .status <<<"$result")
 hash=$(jq -r .payment_hash <<<"$result")
+amount_msat=$(jq -r '.amount_msat // 0' <<<"$result")
 fee_msat=$(jq -r '.amount_sent_msat - .amount_msat // 0' <<<"$result" 2>/dev/null || echo 0)
 fee_sat=$(( ${fee_msat%msat} / 1000 ))
 
@@ -46,6 +91,16 @@ if [ "$status" = "complete" ]; then
 	echo "ok"
 	echo "payment_hash: $hash"
 	echo "fee_sat:      $fee_sat"
+
+	# Write to ledger if wallet DB exists.
+	DB=$(wallet_db)
+	if [ -f "$DB" ] && command -v sqlite3 >/dev/null; then
+		note_esc=$(echo "$note" | sed "s/'/''/g")
+		acct="${account:--}"
+		sqlite3 "$DB" "INSERT INTO ledger (ts, account, direction, amount_msat, peer, payment_hash, message, note) VALUES (datetime('now'), '$(echo "$acct" | sed "s/'/''/g")', 'out', $amount_msat, '-', '$(echo "$hash" | sed "s/'/''/g")', '', '$note_esc')" 2>/dev/null || true
+		[ "$fee_msat" -gt 0 ] 2>/dev/null && \
+			sqlite3 "$DB" "INSERT INTO ledger (ts, account, direction, amount_msat, peer, payment_hash, message, note) VALUES (datetime('now'), '$(echo "$acct" | sed "s/'/''/g")', 'fee', $fee_msat, '-', '$(echo "$hash" | sed "s/'/''/g")', '', '')" 2>/dev/null || true
+	fi
 	exit 0
 else
 	echo "failed: $status" >&2

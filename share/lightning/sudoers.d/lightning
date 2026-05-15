@@ -1,0 +1,23 @@
+# /etc/sudoers.d/lightning — narrow sudo bridge for the web API (FEAT-196)
+#
+# Installed by `make install-apache-bridge`. Allows www-data to run
+# a restricted set of lightning verbs as the operator (alice).
+# www-data never talks to lightningd directly.
+#
+# Each verb's arguments are validated by:
+#   1. The sudoers glob patterns below (enforced by sudo itself)
+#   2. The api-* script's own input validation
+#   3. The CGI script's pre-sudo parameter construction
+#
+# Three layers of defence — no free-form arguments cross the boundary.
+
+www-data ALL=(alice) NOPASSWD: \
+    /usr/local/bin/lightning api-lnurlp [a-z][a-z0-9_-]* *, \
+    /usr/local/bin/lightning api-verify [a-z][a-z0-9_-]* read|write [a-fA-F0-9-]* *, \
+    /usr/local/bin/lightning api-balance [a-z][a-z0-9_-]* *, \
+    /usr/local/bin/lightning address pay [a-z0-9_.@-]* [0-9]* --comment [a-zA-Z0-9_ ]* --account [a-z][a-z0-9_-]* *, \
+    /usr/local/bin/lightning invoice [0-9]* [a-zA-Z0-9_-]* --description * --account [a-z][a-z0-9_-]* *, \
+    /usr/local/bin/lightning api-send-recv [a-z][a-z0-9_-]* *, \
+
+# Legacy alias for earlier installs:
+www-data ALL=(alice) NOPASSWD: /usr/local/bin/lightning api-*

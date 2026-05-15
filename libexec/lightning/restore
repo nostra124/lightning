@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning restore — one-shot restore from backup (FEAT-187).
+#
+# Usage: lightning restore <wallet-remote>
+
+set -e
+
+_LIB="${SELF_LIBEXEC:+"$SELF_LIBEXEC/lightning"}"
+_LIB="${_LIB:-$(cd "$(dirname "$0")" && pwd)}"
+exec "$_LIB/backup" restore "$@"

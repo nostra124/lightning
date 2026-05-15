@@ -6,10 +6,14 @@
 #
 # Usage:
 #   lightning send <node-id> <sat> [--message <text>]
+#                                  [--account <name>]
+#                                  [--note <text>]
 
 set -e
 
-[ $# -lt 2 ] && { echo "usage: lightning send <node-id> <sat> [--message <text>]" >&2; exit 1; }
+usage() { echo "usage: lightning send <node-id> <sat> [--message <text>] [--account <name>] [--note <text>]" >&2; }
+
+[ $# -lt 2 ] && { usage; exit 1; }
 
 command -v lightning-cli >/dev/null || {
 	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
@@ -18,21 +22,49 @@ LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 
+wallet_db() {
+	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
+	echo "$LIGHTNING_DIR/wallet/$active/state.db"
+}
+
 node="$1"; sat="$2"; shift 2
 message=""
+account=""
+note=""
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--message) message="$2"; shift 2 ;;
+		--account) account="$2"; shift 2 ;;
+		--note)    note="$2"; shift 2 ;;
 		*) echo "lightning send: unknown flag '$1'" >&2; exit 1 ;;
 	esac
 done
 
 msat=$(( sat * 1000 ))
 
+# Overdraft check (FEAT-195).
+if [ -n "$account" ]; then
+	DB=$(wallet_db)
+	if [ -f "$DB" ] && command -v sqlite3 >/dev/null; then
+		esc_acct=$(echo "$account" | sed "s/'/''/g")
+		policy=$(sqlite3 -readonly "$DB" "SELECT overdraft FROM accounts WHERE name = '$esc_acct'")
+		balance_msat=$(sqlite3 -readonly "$DB" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger WHERE account = '$esc_acct'")
+		balance_sat=$(( balance_msat / 1000 ))
+
+		if [ "$policy" = "deny" ] && [ "$balance_sat" -lt "$sat" ] 2>/dev/null; then
+			shortfall=$(( sat - balance_sat ))
+			echo "lightning: would overdraw account '$account' by ${shortfall} sat (balance: ${balance_sat} sat, policy: deny)" >&2
+			exit 3
+		fi
+		if [ "$policy" = "warn" ] && [ "$balance_sat" -lt "$sat" ] 2>/dev/null; then
+			shortfall=$(( sat - balance_sat ))
+			echo "lightning: warning — keysend of $sat sat would overdraw '$account' by ${shortfall} sat" >&2
+		fi
+	fi
+fi
+
 if [ -n "$message" ]; then
-	# Keysend custom TLV: 34349334 is the de-facto "message" record
-	# used by Wallet of Satoshi, Sphinx, etc.
 	msg_hex=$(printf '%s' "$message" | xxd -p -c 256 | tr -d '\n')
 	result=$(cli keysend "$node" "$msat" null null null "{\"34349334\":\"$msg_hex\"}")
 else
@@ -42,3 +74,11 @@ fi
 hash=$(jq -r .payment_hash <<<"$result")
 echo "ok"
 echo "payment_hash: $hash"
+
+# Write to ledger if wallet DB exists.
+DB=$(wallet_db)
+if [ -f "$DB" ] && command -v sqlite3 >/dev/null; then
+	note_esc=$(echo "$note" | sed "s/'/''/g")
+	acct="${account:--}"
+	sqlite3 "$DB" "INSERT INTO ledger (ts, account, direction, amount_msat, peer, payment_hash, message, note) VALUES (datetime('now'), '$(echo "$acct" | sed "s/'/''/g")', 'out', $msat, '$(echo "$node" | sed "s/'/''/g")', '$(echo "$hash" | sed "s/'/''/g")', '$(echo "$message" | sed "s/'/''/g")', '$note_esc')" 2>/dev/null || true
+fi

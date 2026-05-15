@@ -1,0 +1,236 @@
+#!/bin/bash
+# lightning ledger — TSV accounting on SQLite (FEAT-193).
+#
+# Storage: ~/.lightning/wallet/<active>/state.db (SQLite, WAL mode).
+# Default output is TSV; supports csv/jsonl export.
+#
+# Usage:
+#   lightning ledger list [--account <n>] [--since <date>] [--limit N]
+#   lightning ledger sum  [--by account|day|month|year] [--account <n>]
+#   lightning ledger balance [<account>]
+#   lightning ledger annotate <payment_hash> <note>
+#   lightning ledger export csv|jsonl|tsv
+#   lightning ledger statement --account <n> --period <YYYY-MM|YYYY-QN|YYYY>
+
+set -e
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning ledger <subcommand> [args]
+
+subcommands:
+   list [--account <n>] [--since <date>] [--limit N]
+   sum  [--by account|day|month|year] [--account <n>]
+   balance [<account>]
+   annotate <payment_hash> <note>
+   export csv|jsonl|tsv
+   statement --account <n> --period <YYYY-MM|YYYY-QN|YYYY>
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+
+command -v sqlite3 >/dev/null || {
+	echo "lightning: sqlite3 not found — install sqlite3" >&2; exit 127; }
+
+wallet_db() {
+	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
+	echo "$LIGHTNING_DIR/wallet/$active/state.db"
+}
+
+DB=$(wallet_db)
+
+ensure_db() {
+	[ -f "$DB" ] || {
+		echo "lightning: no wallet database at $DB — run 'lightning wallet init' first" >&2
+		exit 5
+	}
+}
+
+# Wrapper: pass query to sqlite3 with TSV mode.
+q() {
+	sqlite3 -readonly "$DB" -cmd ".mode tabs" "$@"
+}
+
+cmd_list() {
+	ensure_db
+	local account="" since="" limit=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--account) account="$2"; shift 2 ;;
+			--since)   since="$2"; shift 2 ;;
+			--limit)   limit="$2"; shift 2 ;;
+			*) echo "lightning ledger list: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	local sql="SELECT id, ts, account, direction, amount_msat, peer, payment_hash, message, note FROM ledger WHERE 1=1"
+	[ -n "$account" ] && sql="$sql AND account = '$(echo "$account" | sed "s/'/''/g")'"
+	[ -n "$since" ]   && sql="$sql AND ts >= '$since'"
+	sql="$sql ORDER BY ts DESC"
+	[ -n "$limit" ]   && sql="$sql LIMIT $limit"
+
+	q "$sql"
+}
+
+cmd_sum() {
+	ensure_db
+	local by="account" account=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--by)      by="$2"; shift 2 ;;
+			--account) account="$2"; shift 2 ;;
+			*) echo "lightning ledger sum: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	local group
+	case "$by" in
+		account) group="account" ;;
+		day)     group="date(ts)" ;;
+		month)   group="strftime('%Y-%m', ts)" ;;
+		year)    group="strftime('%Y', ts)" ;;
+		*) echo "lightning ledger sum: --by must be account|day|month|year" >&2; exit 1 ;;
+	esac
+
+	local sql="SELECT $group AS period, SUM(amount_msat) AS total_msat FROM ledger WHERE 1=1"
+	[ -n "$account" ] && sql="$sql AND account = '$(echo "$account" | sed "s/'/''/g")'"
+	sql="$sql GROUP BY $group ORDER BY period"
+
+	echo "period	total_msat"
+	q "$sql"
+}
+
+cmd_balance() {
+	ensure_db
+	local account="${1:-}"
+	if [ -n "$account" ]; then
+		q "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger WHERE account = '$(echo "$account" | sed "s/'/''/g")'"
+	else
+		q "SELECT account, COALESCE(SUM(amount_msat), 0) FROM ledger GROUP BY account ORDER BY account"
+	fi
+}
+
+cmd_annotate() {
+	ensure_db
+	[ $# -lt 2 ] && { echo "usage: lightning ledger annotate <payment_hash> <note>" >&2; exit 1; }
+	local hash="$1"; shift
+	local note="$*"
+	sqlite3 "$DB" "UPDATE ledger SET note = '$(echo "$note" | sed "s/'/''/g")' WHERE payment_hash = '$(echo "$hash" | sed "s/'/''/g")'"
+	echo "ok"
+}
+
+cmd_export() {
+	ensure_db
+	[ $# -lt 1 ] && { echo "usage: lightning ledger export csv|jsonl|tsv" >&2; exit 1; }
+	local fmt="$1"
+
+	case "$fmt" in
+		tsv)
+			q "SELECT id, ts, account, direction, amount_msat, peer, payment_hash, message, note FROM ledger ORDER BY ts"
+			;;
+		csv)
+			sqlite3 -readonly "$DB" -cmd ".mode csv" -cmd ".headers on" \
+				"SELECT id, ts, account, direction, amount_msat, peer, payment_hash, message, note FROM ledger ORDER BY ts"
+			;;
+		jsonl)
+			sqlite3 -readonly "$DB" -cmd ".mode json" \
+				"SELECT id, ts, account, direction, amount_msat, peer, payment_hash, message, note FROM ledger ORDER BY ts" | \
+				jq -c '.[]'
+			;;
+		*) echo "lightning ledger export: format must be csv|jsonl|tsv" >&2; exit 1 ;;
+	esac
+}
+
+cmd_statement() {
+	ensure_db
+	local account="" period=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--account) account="$2"; shift 2 ;;
+			--period)  period="$2"; shift 2 ;;
+			*) echo "lightning ledger statement: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	[ -z "$account" ] && { echo "lightning ledger statement: --account is required" >&2; exit 1; }
+	[ -z "$period" ]  && { echo "lightning ledger statement: --period is required (YYYY-MM|YYYY-QN|YYYY)" >&2; exit 1; }
+
+	local esc; esc=$(echo "$account" | sed "s/'/''/g")
+
+	# Compute period boundaries.
+	local ts_start ts_end
+	case "$period" in
+		????-??)
+			ts_start="${period}-01"
+			# End = first day of next month.
+			local y="${period%-*}"; local m="${period#*-}"
+			m=$((10#$m + 1))
+			[ "$m" -gt 12 ] && { m=1; y=$((y + 1)); }
+			ts_end="$(printf '%04d-%02d-01' "$y" "$m")"
+			;;
+		????-Q[1-4])
+			local y="${period%-*}"; local q="${period#*-Q}"
+			case "$q" in
+				1) ts_start="${y}-01-01"; ts_end="${y}-04-01" ;;
+				2) ts_start="${y}-04-01"; ts_end="${y}-07-01" ;;
+				3) ts_start="${y}-07-01"; ts_end="${y}-10-01" ;;
+				4) ts_start="${y}-10-01"; ts_end="$((y+1))-01-01" ;;
+			esac
+			;;
+		????)
+			ts_start="${period}-01-01"
+			ts_end="$((period+1))-01-01"
+			;;
+		*) echo "lightning: --period must be YYYY-MM, YYYY-QN, or YYYY" >&2; exit 1 ;;
+	esac
+
+	# Opening balance: sum of all entries BEFORE the period.
+	local open_msat; open_msat=$(sqlite3 -readonly "$DB" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger WHERE account = '$esc' AND ts < '$ts_start'")
+	local open_sat=$(( open_msat / 1000 ))
+
+	# Period entries.
+	local rows; rows=$(sqlite3 -readonly "$DB" -cmd ".mode tabs" \
+		"SELECT ts, amount_msat, message, note, payment_hash FROM ledger WHERE account = '$esc' AND ts >= '$ts_start' AND ts < '$ts_end' ORDER BY ts")
+
+	# Closing balance.
+	local close_msat; close_msat=$(sqlite3 -readonly "$DB" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger WHERE account = '$esc' AND ts < '$ts_end'")
+	local close_sat=$(( close_msat / 1000 ))
+
+	# Fees.
+	local fee_msat; fee_msat=$(sqlite3 -readonly "$DB" "SELECT COALESCE(SUM(ABS(amount_msat)), 0) FROM ledger WHERE account = '$esc' AND direction = 'fee' AND ts >= '$ts_start' AND ts < '$ts_end'")
+	local fee_sat=$(( fee_msat / 1000 ))
+
+	local net=$(( close_sat - open_sat ))
+
+	echo "Statement for $account — $period"
+	echo "--------------------------------"
+	echo "Opening balance:        $(printf "%'d" $open_sat) sat"
+
+	if [ -n "$rows" ]; then
+		echo "$rows" | while IFS=$'\t' read -r rts ramount rmsg rnote rhash; do
+			local rsign="+"
+			[ "${ramount:0:1}" = "-" ] && rsign=""
+			local rsat=$(( ramount / 1000 ))
+			local rdesc="${rmsg:-$rnote}"
+			[ -z "$rdesc" ] && rdesc="${rhash:0:16}"
+			printf "  %s  %s%7d   %s\n" "${rts:0:10}" "$rsign" "$rsat" "${rdesc:0:50}"
+		done
+	fi
+
+	echo "--------------------------------"
+	echo "Closing balance:        $(printf "%'d" $close_sat) sat"
+	echo "Fees paid:              $(printf "%'d" $fee_sat) sat"
+	echo "Net for period:         $(printf "%'d" $net) sat"
+}
+
+case "$1" in
+	list)      shift; cmd_list "$@" ;;
+	sum)       shift; cmd_sum "$@" ;;
+	balance)   shift; cmd_balance "$@" ;;
+	annotate)  shift; cmd_annotate "$@" ;;
+	export)    shift; cmd_export "$@" ;;
+	statement) shift; cmd_statement "$@" ;;
+	*) usage; exit 1 ;;
+esac

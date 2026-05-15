@@ -3,7 +3,7 @@
 ```
 milestone: 0.4.0
 title: wallet, seed backup, and backup/restore
-status: open
+status: done
 depends_on: 0.3.0
 ```
 

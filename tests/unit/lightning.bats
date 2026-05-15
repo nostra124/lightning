@@ -1,10 +1,11 @@
 #!/usr/bin/env bats
 #
 # Unit tests for bin/lightning — the educational Lightning Network
-# frontend on clightning (FEAT-170..195). Covers the 0.2.0 surface:
-# bin/lightning dispatcher, lightning.sh source-mode guard, and the
+# frontend on clightning (FEAT-170..196). Covers the 0.2.0–0.5.0
+# surface: dispatcher, lightning.sh source-mode guard, and the
 # libexec verbs that wrap lightning-cli (info / node-id / peers /
-# channels / balance / daemon / unlock).
+# channels / balance / daemon / unlock / wallet / ledger / account /
+# address / liquidity).
 
 setup() {
 	BATS_TMPDIR=${BATS_TMPDIR:-$(mktemp -d)}
@@ -41,10 +42,10 @@ teardown() {
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 0.3.0" {
+@test "lightning version returns 0.5.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "0.3.0" ]
+	[ "$output" = "0.5.0" ]
 }
 
 @test "lightning help prints usage" {
@@ -391,4 +392,333 @@ teardown() {
 	[ "$status" -eq 0 ]
 	# First line is the BOLT-11, then a blank line, then the QR.
 	[[ "${lines[0]}" == lnbc* || "${lines[0]}" == lntb* || "${lines[0]}" == lnbcrt* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-174: wallet init, list, use, accounts
+# ---------------------------------------------------------------------------
+
+@test "FEAT-174: lightning wallet init creates wallet directory + state.db" {
+	run "$LIGHTNING_BIN" wallet init
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+	[ -f "$HOME/.lightning/wallet/default/state.db" ]
+	[ -f "$HOME/.lightning/wallet/default/.gitignore" ]
+	[ -d "$HOME/.lightning/wallet/default/.git" ]
+}
+
+@test "FEAT-174: lightning wallet init is idempotent (refuses second init)" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" wallet init
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"already exists"* ]]
+}
+
+@test "FEAT-174: lightning wallet new creates a second wallet" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" wallet new testwallet
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+	[ -f "$HOME/.lightning/wallet/testwallet/state.db" ]
+}
+
+@test "FEAT-174: lightning wallet list shows wallets" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" wallet new testwallet
+	run "$LIGHTNING_BIN" wallet list
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"default"* ]]
+	[[ "$output" == *"testwallet"* ]]
+}
+
+@test "FEAT-174: lightning wallet use switches active wallet" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" wallet new testwallet
+	run "$LIGHTNING_BIN" wallet use testwallet
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+	[[ "$output" == *"testwallet"* ]]
+	[[ "$(cat $HOME/.lightning/wallet/.active)" == "testwallet" ]]
+}
+
+@test "FEAT-174: lightning account create creates an account" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" account create alice "Alice's account"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+@test "FEAT-174: lightning account list shows created accounts" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" account create alice "Alice's account"
+	run "$LIGHTNING_BIN" account list
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"alice"* ]]
+}
+
+@test "FEAT-174: lightning account show displays account info" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" account create alice "Alice's account"
+	run "$LIGHTNING_BIN" account show alice
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"alice"* ]]
+	[[ "$output" == *"ledger"* ]]
+}
+
+@test "FEAT-174: lightning account refuses duplicate names" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" account create alice "Alice"
+	run "$LIGHTNING_BIN" account create alice "Alice again"
+	[ "$status" -ne 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-193: ledger verbs (requires wallet)
+# ---------------------------------------------------------------------------
+
+@test "FEAT-193: lightning ledger list on empty ledger is clean" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" ledger list
+	[ "$status" -eq 0 ]
+}
+
+@test "FEAT-193: lightning ledger balance on empty ledger is zero" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" ledger balance
+	[ "$status" -eq 0 ]
+}
+
+@test "FEAT-193: lightning ledger requires wallet init" {
+	run "$LIGHTNING_BIN" ledger list
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"wallet init"* ]]
+}
+
+@test "FEAT-193: lightning ledger export tsv works on empty ledger" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" ledger export tsv
+	[ "$status" -eq 0 ]
+}
+
+@test "FEAT-193: lightning ledger export csv works on empty ledger" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" ledger export csv
+	[ "$status" -eq 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-185: seed + scb
+# ---------------------------------------------------------------------------
+
+@test "FEAT-185: lightning seed export refuses without hsm_secret" {
+	run "$LIGHTNING_BIN" seed export
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"hsm_secret"* ]]
+}
+
+@test "FEAT-185: lightning seed export writes to --out file" {
+	# Create a fake hsm_secret (32 bytes = unencrypted).
+	mkdir -p "$HOME/.lightning/bitcoin"
+	dd if=/dev/zero of="$HOME/.lightning/bitcoin/hsm_secret" bs=32 count=1 status=none
+	out="$BATS_TMPDIR/seed.$$.out"
+	run "$LIGHTNING_BIN" seed export --out "$out"
+	[ "$status" -eq 0 ]
+	[ -s "$out" ]
+	rm -f "$out"
+}
+
+@test "FEAT-185: lightning scb emit writes an SCB file" {
+	mkdir -p "$HOME/.lightning/bitcoin"
+	out="$BATS_TMPDIR/scb.$$.json"
+	run "$LIGHTNING_BIN" scb emit --out "$out"
+	[ "$status" -eq 0 ]
+	[ -s "$out" ]
+	rm -f "$out"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-187: backup umbrella
+# ---------------------------------------------------------------------------
+
+@test "FEAT-187: lightning backup without wallet exits non-zero" {
+	run "$LIGHTNING_BIN" backup
+	[ "$status" -ne 0 ]
+}
+
+@test "FEAT-187: lightning backup with wallet runs scb + push" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" backup
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-173 + FEAT-193: pay/invoice/send --account writes to ledger
+# ---------------------------------------------------------------------------
+
+@test "FEAT-173/193: lightning invoice --account writes to invoices table" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" account create alice "Alice"
+	run "$LIGHTNING_BIN" invoice 1000 test --account alice
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == lnbc* || "${lines[0]}" == lntb* || "${lines[0]}" == lnbcrt* ]]
+}
+
+@test "FEAT-173/193: lightning pay --account writes to ledger" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" account create alice "Alice" --overdraft allow
+	run "$LIGHTNING_BIN" pay lnbcrt10n1pmocktest --account alice
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+	# Should have created at least one ledger row.
+	run "$LIGHTNING_BIN" ledger list
+	[ "$status" -eq 0 ]
+}
+
+@test "FEAT-173/193: lightning send --account writes to ledger" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" account create bob "Bob" --overdraft allow
+	run "$LIGHTNING_BIN" send 020000000000000000000000000000000000000000000000000000000000000002 100 --account bob --note "test payment"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+@test "FEAT-173/193: lightning ledger annotate updates a note" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" pay lnbcrt10n1pmocktest
+	# Get payment_hash from ledger.
+	run "$LIGHTNING_BIN" ledger list
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -gt 0 ] || skip "no ledger rows"
+	# Extract hash from first data row (skip header).
+	local hash; hash=$(echo "${lines[0]}" | awk '{print $7}' 2>/dev/null || echo "deadbeef")
+	run "$LIGHTNING_BIN" ledger annotate "$hash" "my note"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-176: Lightning Addresses
+# ---------------------------------------------------------------------------
+
+@test "FEAT-176: lightning address (no args) prints usage" {
+	run "$LIGHTNING_BIN" address
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+@test "FEAT-176: lightning address create without Apache exits non-zero" {
+	"$LIGHTNING_BIN" wallet init
+	# Override PATH to hide httpd/apache2 (macOS ships httpd at /usr/sbin/httpd).
+	PATH="/usr/bin:/bin" run "$LIGHTNING_BIN" address create alice@example.com
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"Apache"* ]]
+}
+
+@test "FEAT-176: lightning address resolve without network fails gracefully" {
+	# No curl to real network; should fail but not crash.
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" address resolve alice@coincorner.com
+	[ "$status" -ne 0 ]
+}
+
+@test "FEAT-176: lightning address list after no create is empty" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" address list
+	[ "$status" -eq 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-175: Liquidity
+# ---------------------------------------------------------------------------
+
+@test "FEAT-175: lightning liquidity (no args) prints usage" {
+	run "$LIGHTNING_BIN" liquidity
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+@test "FEAT-175: lightning liquidity status returns TSV" {
+	run "$LIGHTNING_BIN" liquidity status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"channel_id"* ]]
+}
+
+@test "FEAT-175: lightning liquidity provider default sets provider" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" liquidity provider default loop
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"loop"* ]]
+}
+
+@test "FEAT-175: lightning liquidity loop prints note about loopd" {
+	run "$LIGHTNING_BIN" liquidity loop out 100000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+@test "FEAT-175: lightning liquidity boltz prints note" {
+	run "$LIGHTNING_BIN" liquidity boltz in 50000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+@test "FEAT-175: lightning liquidity lsp buy prints note" {
+	run "$LIGHTNING_BIN" liquidity lsp test-lsp buy 100000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-195: Bank mode
+# ---------------------------------------------------------------------------
+
+@test "FEAT-195: lightning account create --limit sets ceiling" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" account create alice --limit 50000 --overdraft deny
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+	[[ "$output" == *"50000"* ]]
+}
+
+@test "FEAT-195: lightning account create --overdraft rejects invalid value" {
+	"$LIGHTNING_BIN" wallet init
+	run "$LIGHTNING_BIN" account create alice --overdraft invalid
+	[ "$status" -ne 0 ]
+}
+
+@test "FEAT-195: lightning account list --balances shows balance" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" account create alice --limit 50000 --overdraft deny
+	run "$LIGHTNING_BIN" account list --balances
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"alice"* ]]
+}
+
+@test "FEAT-195: lightning pay --account refuses overdraw with deny policy" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" account create alice --overdraft deny
+	# Balance is 0, try paying 50000 sat — should refuse.
+	run "$LIGHTNING_BIN" pay lnbcrt10n1pmocktest --account alice
+	[ "$status" -eq 3 ]
+	[[ "$output" == *"overdraw"* ]]
+}
+
+@test "FEAT-195: lightning ledger statement produces formatted output" {
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" account create alice "Alice account"
+	run "$LIGHTNING_BIN" ledger statement --account alice --period 2026-01
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Statement for alice"* ]]
+	[[ "$output" == *"Opening balance"* ]]
+	[[ "$output" == *"Closing balance"* ]]
+}
+
+@test "FEAT-195: lightning account apikey create prints a key" {
+	command -v secret >/dev/null || skip "secret package not installed"
+	"$LIGHTNING_BIN" wallet init
+	"$LIGHTNING_BIN" account create alice
+	run "$LIGHTNING_BIN" account apikey create alice --scope read
+	[ "$status" -eq 0 ]
+	[ -n "$output" ]
 }

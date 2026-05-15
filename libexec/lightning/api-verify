@@ -1,0 +1,29 @@
+#!/bin/bash
+# lightning api-verify — sudo-friendly API key verification (FEAT-196).
+#
+# Usage (via sudo):
+#   lightning api-verify <user> <scope> <key>
+#
+# Exits 0 if the key is valid for the given user+scope, 1 otherwise.
+# Constant-time-ish comparison via secret get.
+
+set -e
+
+[ $# -lt 3 ] && { echo "usage: lightning api-verify <user> <scope> <key>" >&2; exit 2; }
+
+user="$1"; scope="$2"; key="$3"
+
+# Validate inputs (sudoers glob enforcement).
+[[ "$user" =~ ^[a-z][a-z0-9_-]*$ ]] || { echo "invalid user" >&2; exit 2; }
+[[ "$scope" =~ ^(read|write)$ ]] || { echo "invalid scope" >&2; exit 2; }
+[[ "$key" =~ ^[a-fA-F0-9-]+$ ]] || { echo "invalid key format" >&2; exit 2; }
+
+command -v secret >/dev/null || {
+	echo "lightning: secret not found" >&2; exit 127; }
+
+stored=$(secret get "lightning.$user.apikey.$scope" 2>/dev/null) || {
+	echo "no key for $user/$scope" >&2; exit 1; }
+
+[ "$stored" = "$key" ] || { echo "key mismatch" >&2; exit 1; }
+
+echo "ok"

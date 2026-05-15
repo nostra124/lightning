@@ -1,0 +1,241 @@
+#!/bin/bash
+# lightning wallet — git-backed wallet storage (FEAT-174).
+#
+# Layout:
+#   ~/.lightning/wallet/<name>/
+#     .git/
+#     lightning-dir     # path to clightning's data dir
+#     state.db          # SQLite store (gitignored)
+#     state.sql         # sqlite3 .dump (tracked by git)
+#     .gitignore
+#
+# Usage:
+#   lightning wallet init          — create default wallet
+#   lightning wallet new <name>    — create a new wallet
+#   lightning wallet use <name>    — switch active wallet
+#   lightning wallet list          — list wallets
+#   lightning wallet push [remote] — git push
+#   lightning wallet pull [remote] — git pull
+#   lightning wallet sync [remote] — pull + push
+
+set -e
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning wallet <subcommand> [args]
+
+subcommands:
+   init                  create default wallet
+   new <name>            create a new wallet
+   use <name>            switch active wallet
+   list                  list wallets
+   push [remote]         git push wallet
+   pull [remote]         git pull wallet
+   sync [remote]         pull + push
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+command -v sqlite3 >/dev/null || {
+	echo "lightning: sqlite3 not found — install sqlite3" >&2; exit 127; }
+
+WALLET_ROOT="$LIGHTNING_DIR/wallet"
+
+active_wallet() {
+	cat "$WALLET_ROOT/.active" 2>/dev/null || echo "default"
+}
+
+wallet_path() {
+	echo "$WALLET_ROOT/$1"
+}
+
+ensure_wallet_root() {
+	mkdir -p "$WALLET_ROOT"
+}
+
+set_active() {
+	echo "$1" > "$WALLET_ROOT/.active"
+}
+
+db_path() {
+	echo "$(wallet_path "$(active_wallet)")/state.db"
+}
+
+# Create the SQLite schema (5 tables per FEAT-193).
+init_db() {
+	local db="$1"
+	sqlite3 "$db" <<'EOSQL'
+CREATE TABLE IF NOT EXISTS accounts (
+    name        TEXT    PRIMARY KEY,
+    description TEXT    NOT NULL DEFAULT '',
+    limit_sat   INTEGER,
+    overdraft   TEXT    NOT NULL DEFAULT 'deny'
+);
+CREATE TABLE IF NOT EXISTS ledger (
+    id           INTEGER PRIMARY KEY,
+    ts           TEXT    NOT NULL,
+    account      TEXT    NOT NULL DEFAULT '-',
+    direction    TEXT    NOT NULL,
+    amount_msat  INTEGER NOT NULL,
+    peer         TEXT    NOT NULL DEFAULT '-',
+    payment_hash TEXT    NOT NULL DEFAULT '-',
+    message      TEXT    NOT NULL DEFAULT '',
+    note         TEXT    NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS invoices (
+    bolt11       TEXT    PRIMARY KEY,
+    payment_hash TEXT    NOT NULL,
+    account      TEXT    NOT NULL DEFAULT '-',
+    amount_msat  INTEGER NOT NULL,
+    expiry       TEXT    NOT NULL,
+    message      TEXT    NOT NULL DEFAULT '',
+    state        TEXT    NOT NULL DEFAULT 'pending'
+);
+CREATE TABLE IF NOT EXISTS channel_notes (
+    channel_id TEXT PRIMARY KEY,
+    note       TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS users (
+    user        TEXT    PRIMARY KEY,
+    account     TEXT    NOT NULL,
+    min_sat     INTEGER NOT NULL DEFAULT 1,
+    max_sat     INTEGER NOT NULL DEFAULT 100000000,
+    comment_max INTEGER NOT NULL DEFAULT 256
+);
+EOSQL
+}
+
+init_gitignore() {
+	local dir="$1"
+	cat > "$dir/.gitignore" <<'EOF'
+state.db
+*.db
+EOF
+}
+
+cmd_init() {
+	local name="${1:-default}"
+	local wdir; wdir=$(wallet_path "$name")
+
+	if [ -d "$wdir" ]; then
+		echo "lightning: wallet '$name' already exists at $wdir" >&2
+		exit 3
+	fi
+
+	mkdir -p "$wdir"
+	init_db "$wdir/state.db"
+	init_gitignore "$wdir"
+
+	# Write lightning-dir pointer.
+	echo "$LIGHTNING_DIR" > "$wdir/lightning-dir"
+
+	# Git init.
+	git -C "$wdir" init --quiet
+	git -C "$wdir" add .gitignore state.sql lightning-dir 2>/dev/null || true
+	git -C "$wdir" commit -m "wallet: init $name" --quiet 2>/dev/null || true
+
+	# Pre-commit hook: regenerate state.sql before every commit.
+	mkdir -p "$wdir/.git/hooks"
+	cat > "$wdir/.git/hooks/pre-commit" <<'EOF'
+#!/bin/bash
+# Auto-regenerate state.sql from state.db on commit.
+cd "$(git rev-parse --git-dir)/.."
+if [ -f state.db ]; then
+	sqlite3 state.db .dump > state.sql.tmp
+	mv state.sql.tmp state.sql
+	git add state.sql
+fi
+EOF
+	chmod +x "$wdir/.git/hooks/pre-commit"
+
+	set_active "$name"
+	echo "ok"
+	echo "wallet: $name"
+}
+
+cmd_new() {
+	[ $# -lt 1 ] && { echo "usage: lightning wallet new <name>" >&2; exit 1; }
+	cmd_init "$1"
+}
+
+cmd_use() {
+	[ $# -lt 1 ] && { echo "usage: lightning wallet use <name>" >&2; exit 1; }
+	local wdir; wdir=$(wallet_path "$1")
+	[ -d "$wdir" ] || {
+		echo "lightning: wallet '$1' not found — run 'lightning wallet init' or 'lightning wallet new $1'" >&2
+		exit 4
+	}
+	set_active "$1"
+	echo "ok"
+	echo "active: $1"
+}
+
+cmd_list() {
+	ensure_wallet_root
+	local active; active=$(active_wallet)
+	for d in "$WALLET_ROOT"/*/; do
+		[ -d "$d" ] || continue
+		local name; name=$(basename "$d")
+		[ "$name" = ".git" ] && continue
+		[ -f "$d/state.db" ] || continue
+		if [ "$name" = "$active" ]; then
+			echo "$name	*active"
+		else
+			echo "$name"
+		fi
+	done
+}
+
+cmd_push() {
+	local remote="${1:-origin}"
+	local wdir; wdir=$(wallet_path "$(active_wallet)")
+	[ -d "$wdir/.git" ] || {
+		echo "lightning: wallet not initialized at $wdir" >&2; exit 5; }
+
+	# Regenerate state.sql before push.
+	if [ -f "$wdir/state.db" ]; then
+		sqlite3 "$wdir/state.db" .dump > "$wdir/state.sql.tmp"
+		mv "$wdir/state.sql.tmp" "$wdir/state.sql"
+	fi
+	git -C "$wdir" add -A
+	git -C "$wdir" commit --allow-empty -m "wallet: auto-sync $(date -u +%Y-%m-%dT%H:%M:%SZ)" --quiet 2>/dev/null || true
+	git -C "$wdir" push "$remote" 2>&1 || echo "lightning: push failed — set remote with 'git -C $wdir remote add $remote <url>'" >&2
+	echo "ok"
+}
+
+cmd_pull() {
+	local remote="${1:-origin}"
+	local wdir; wdir=$(wallet_path "$(active_wallet)")
+	[ -d "$wdir/.git" ] || {
+		echo "lightning: wallet not initialized at $wdir" >&2; exit 5; }
+
+	git -C "$wdir" pull "$remote" 2>&1 || echo "lightning: pull failed" >&2
+
+	# Rebuild state.db from state.sql if pulled.
+	if [ -f "$wdir/state.sql" ] && [ ! -f "$wdir/state.db" ]; then
+		sqlite3 "$wdir/state.db" < "$wdir/state.sql"
+	elif [ -f "$wdir/state.sql" ]; then
+		# Merge: rebuild in temp, swap.
+		sqlite3 "$wdir/state.db.tmp" < "$wdir/state.sql" 2>/dev/null && \
+			mv "$wdir/state.db.tmp" "$wdir/state.db" || true
+	fi
+	echo "ok"
+}
+
+cmd_sync() {
+	cmd_pull "$@"
+	cmd_push "$@"
+}
+
+case "$1" in
+	init) shift; cmd_init "$@" ;;
+	new)  shift; cmd_new "$@" ;;
+	use)  shift; cmd_use "$@" ;;
+	list) shift; cmd_list "$@" ;;
+	push) shift; cmd_push "$@" ;;
+	pull) shift; cmd_pull "$@" ;;
+	sync) shift; cmd_sync "$@" ;;
+	*) usage; exit 1 ;;
+esac

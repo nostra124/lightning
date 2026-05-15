@@ -13,7 +13,7 @@
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
 # FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
 __s="${__s%.sh}"
-VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '0.3.0')
+   VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '0.5.0')
 unset __d
 SELF=$__s
 unset __s
@@ -135,14 +135,61 @@ wallet unlock:
    unlock rotate            change password
    unlock forget            drop the stored secret
 
+wallet (FEAT-174 / 0.4.0):
+   wallet init              create default wallet
+   wallet new <name>        create a new wallet
+   wallet use <name>        switch active wallet
+   wallet list              list wallets
+   wallet push [remote]     git push wallet
+   wallet pull [remote]     git pull wallet
+   wallet sync [remote]     pull + push
+
+accounts (FEAT-174):
+   account list             list accounts
+   account create <name>    create an account
+   account delete <name>    delete an account
+   account show <name>      balance + history filter
+   account apikey create <name> [--scope write]
+
+ledger (FEAT-193):
+   ledger list [--account <n>] [--since <date>]
+   ledger sum [--by account|day|month|year]
+   ledger balance [<account>]
+   ledger annotate <hash> <note>
+   ledger export csv|jsonl|tsv
+
+seed backup & recovery (FEAT-185):
+   seed export [--out <file>]
+   seed import
+   seed verify
+   scb emit [--out <file>]
+   scb restore <file>
+
+backup / restore (FEAT-187):
+   backup [--seed]
+   restore <wallet-remote>
+   backup verify
+
+lightning addresses (FEAT-176 / 0.5.0):
+   address resolve <addr>          resolve a Lightning Address
+   address pay <addr> <sat>        resolve + pay
+   address create <addr>           detect Apache, install LNURL-pay handler
+   address list                    owned addresses
+   address remove <addr>           remove address
+
+liquidity (FEAT-175 / 0.5.0):
+   liquidity status                per-channel + total capacity
+   liquidity in <amount>           acquire inbound
+   liquidity out <amount>          acquire outbound
+   liquidity loop in|out <amount>  Lightning Loop
+   liquidity boltz in|out <amount> Boltz swap
+   liquidity lsp <name> buy <amt>  LSPS1 channel purchase
+
 environment:
    LIGHTNING_DIR            path to lightningd's data dir
                             (default: \$HOME/.lightning)
    LIGHTNING_NETWORK        bitcoin / testnet / regtest / signet
                             (default: bitcoin)
-
-(Verb surface beyond the above lands per FEAT-172..196 —
-see issues/ for the milestone plan.)
 ENDHELP
 }
 
