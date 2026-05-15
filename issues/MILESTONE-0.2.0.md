@@ -1,7 +1,7 @@
-# Milestone 1.1.0 — foundation & multi-backend abstraction
+# Milestone 0.2.0 — foundation & multi-backend abstraction
 
 ```
-milestone: 1.1.0
+milestone: 0.2.0
 title: foundation & multi-backend abstraction
 status: open
 depends_on: ~
@@ -9,8 +9,8 @@ depends_on: ~
 
 ## Summary
 
-The 1.0.0 import landed a stub `bin/lightning` (help + version
-only) and a contract `tests/unit/lightning.bats`. 1.1.0 turns
+The 0.1.0 import landed a stub `bin/lightning` (help + version
+only) and a contract `tests/unit/lightning.bats`. 0.2.0 turns
 that stub into a real foundation and lays down the
 multi-backend dispatch layer that every subsequent verb relies
 on.
@@ -43,7 +43,7 @@ guard from 170 in place before backend plugins can be wired.
 - `docs/templates/CLAUDE.md.lightning` exists.
 - `tests/unit/lightning.bats` still green; new tests cover
   source-mode and backend dispatch.
-- `.rpk/version` bumped 1.0.0 → 1.1.0; `.rpk/versions` ledger
+- `.rpk/version` bumped 0.1.0 → 0.2.0; `.rpk/versions` ledger
   updated.
 - FEAT-170 and FEAT-171 move to `issues/feature/done/`.
 

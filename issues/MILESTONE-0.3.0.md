@@ -1,10 +1,10 @@
-# Milestone 1.2.0 — channels & payments
+# Milestone 0.3.0 — channels & payments
 
 ```
-milestone: 1.2.0
+milestone: 0.3.0
 title: channels & payments
 status: open
-depends_on: 1.1.0
+depends_on: 0.2.0
 ```
 
 ## Summary
@@ -38,10 +38,10 @@ channel) are reused by 173.
   decode BOLT-11, BOLT-12, and LNURL strings.
 - Each verb's source cites the BOLT it implements.
 - Unit test contract extended; bats suite green.
-- `.rpk/version` bumped 1.1.0 → 1.2.0; ledger updated.
+- `.rpk/version` bumped 0.2.0 → 0.3.0; ledger updated.
 - FEAT-172, FEAT-173 move to `issues/feature/done/`.
 
 ## Dependencies
 
-Hard: 1.1.0 (backend dispatch). Soft: `bitcoin` package for
+Hard: 0.2.0 (backend dispatch). Soft: `bitcoin` package for
 on-chain funding under FEAT-172.

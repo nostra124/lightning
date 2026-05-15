@@ -1,17 +1,19 @@
-# Milestone 1.6.0 — walkthrough & SIT validation
+# Milestone 1.0.0 — walkthrough & SIT validation
 
 ```
-milestone: 1.6.0
+milestone: 1.0.0
 title: walkthrough & SIT validation
 status: open
-depends_on: 1.5.0
+depends_on: 0.6.0
 ```
 
 ## Summary
 
-End-to-end validation: a reproducible walkthrough that
-exercises the full happy path on regtest, plus a SIT suite
-that runs the same path against per-backend containers in CI.
+The 1.0.0 graduation milestone: the package is feature-complete
+through 0.6.0, and this milestone validates the full surface
+end-to-end. A reproducible walkthrough exercises the happy path
+on regtest, and a SIT suite runs the same path against
+per-backend containers in CI.
 
 Two tickets:
 
@@ -35,10 +37,10 @@ backbone of the SIT runner.
   clean regtest.
 - `tests/sit/` green against all three backends in CI.
 - README links to the walkthrough.
-- `.rpk/version` bumped 1.5.0 → 1.6.0; ledger updated.
+- `.rpk/version` bumped 0.6.0 → 1.0.0; ledger updated.
 - FEAT-181, FEAT-182 move to `issues/feature/done/`.
 
 ## Dependencies
 
-Hard: 1.5.0. External: docker / podman for backend containers
+Hard: 0.6.0. External: docker / podman for backend containers
 in SIT.

@@ -11,7 +11,7 @@
 # or $PREFIX/share/lightning/version (installed). The hardcoded fallback
 # is used only if both files are missing.
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
-VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.0.0')
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '0.1.0')
 unset __d __s
 SELF=$(basename $0)
 

@@ -1,10 +1,10 @@
-# Milestone 1.4.0 — addresses & liquidity
+# Milestone 0.5.0 — addresses & liquidity
 
 ```
-milestone: 1.4.0
+milestone: 0.5.0
 title: addresses & liquidity
 status: open
-depends_on: 1.3.0
+depends_on: 0.4.0
 ```
 
 ## Summary
@@ -18,13 +18,13 @@ Ecosystem features that sit on top of the core verbs:
    `alice@example.com`-style addresses: pay them, create your
    own, and host them (the host flow needs a public HTTP
    endpoint; covered as an optional sub-feature with a
-   walkthrough deferred to 1.6.0 / FEAT-181).
+   walkthrough deferred to 1.0.0 / FEAT-181).
 
 ## Dependency Order
 
 FEAT-175 and FEAT-176 are independent and can land in either
-order. Both depend on the pay / invoice verbs from 1.2.0 and
-the wallet ledger from 1.3.0 (for recording loop fees and
+order. Both depend on the pay / invoice verbs from 0.3.0 and
+the wallet ledger from 0.4.0 (for recording loop fees and
 address-pay history).
 
 ## Exit Criteria
@@ -38,10 +38,10 @@ address-pay history).
 - `lightning address create` issues an address bound to the
   active wallet.
 - Unit test contract extended.
-- `.rpk/version` bumped 1.3.0 → 1.4.0; ledger updated.
+- `.rpk/version` bumped 0.4.0 → 0.5.0; ledger updated.
 - FEAT-175, FEAT-176 move to `issues/feature/done/`.
 
 ## Dependencies
 
-Hard: 1.3.0. Soft: external services (Boltz, Loop server) —
+Hard: 0.4.0. Soft: external services (Boltz, Loop server) —
 mocked at unit-test level, real in SIT (FEAT-182).

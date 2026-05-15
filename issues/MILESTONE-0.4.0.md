@@ -1,10 +1,10 @@
-# Milestone 1.3.0 — wallet as git repo with multi-account
+# Milestone 0.4.0 — wallet as git repo with multi-account
 
 ```
-milestone: 1.3.0
+milestone: 0.4.0
 title: wallet as git repo with multi-account
 status: open
-depends_on: 1.2.0
+depends_on: 0.3.0
 ```
 
 ## Summary
@@ -22,7 +22,7 @@ opaque database.
 ## Dependency Order
 
 Single ticket; depends on the payment / invoice verbs from
-1.2.0 so the ledger has something to record.
+0.3.0 so the ledger has something to record.
 
 ## Exit Criteria
 
@@ -32,9 +32,9 @@ Single ticket; depends on the payment / invoice verbs from
 - `lightning wallet push` / `pull` round-trip through a
   bare-repo remote in test fixtures.
 - Unit test contract extended.
-- `.rpk/version` bumped 1.2.0 → 1.3.0; ledger updated.
+- `.rpk/version` bumped 0.3.0 → 0.4.0; ledger updated.
 - FEAT-174 moves to `issues/feature/done/`.
 
 ## Dependencies
 
-Hard: 1.2.0 (pay / invoice verbs to feed the ledger).
+Hard: 0.3.0 (pay / invoice verbs to feed the ledger).

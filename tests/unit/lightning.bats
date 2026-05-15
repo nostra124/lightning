@@ -27,10 +27,10 @@ teardown() {
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 1.0.0" {
+@test "lightning version returns 0.1.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.0.0" ]
+	[ "$output" = "0.1.0" ]
 }
 
 @test "lightning help prints usage" {
