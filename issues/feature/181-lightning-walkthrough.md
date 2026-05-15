@@ -50,19 +50,26 @@ Mirrors FEAT-129 (dht), FEAT-015 (bitcoin), FEAT-117
 6. **LNURL.** Pay against a public testnet LNURL (or a
    mocked endpoint). Cite LUD-06.
 
-7. **Lightning Address.** Set up `alice@<test-domain>` —
-   via `cluster apache` (if running), the local-Apache
-   snippet, or the standalone `lightning address daemon`.
-   From peer, `lightning address pay alice@<test-domain>
-   100`. Cite the Lightning Address spec + BIP-353.
+7. **Lightning Address.** With Apache installed in the
+   walkthrough environment, `lightning address create
+   alice@<test-domain>` installs the Python CGI handler
+   under `/.well-known/lnurlp/alice`. From peer,
+   `lightning address pay alice@<test-domain> 100`. Cite
+   the Lightning Address spec + BIP-353.
 
-8. **Inbound liquidity (LSPS1).** `lightning liquidity
+8. **JSON API.** `lightning account apikey create alice
+   --scope write` issues a key. `curl -H 'X-API-Key: ...'
+   -d '{"sat": 500}' .../lightning/alice/invoice` returns
+   a BOLT-11; `curl ... .../lightning/alice/send` pays
+   bob@<test-domain>. Cite FEAT-196.
+
+9. **Inbound liquidity (LSPS1).** `lightning liquidity
    status` shows zero inbound. `lightning liquidity in
    100000` buys 100k sat inbound via the configured LSP.
    Cite BLIP-51.
 
-9. **Wallet sync.** Set up alice on a second machine via
-   `lightning wallet pull` — show the history travels.
+10. **Wallet sync.** Set up alice on a second machine via
+    `lightning wallet pull` — show the ledger travels.
 
 Each section ends with "what just happened" + the cited
 spec + the local path under
@@ -71,10 +78,10 @@ spec + the local path under
 ## Acceptance Criteria
 
 1. `docs/lightning-walkthrough.md` exists and covers all
-   nine sections.
-2. A new user with regtest bitcoind + clightning follows
-   it end to end and reaches a working Lightning Address
-   + paid invoice + inbound-liquidity buy without
-   consulting other docs.
+   ten sections.
+2. A new user with regtest bitcoind + clightning + Apache
+   follows it end to end and reaches a working Lightning
+   Address + paid invoice + JSON-API send + inbound-
+   liquidity buy without consulting other docs.
 3. Each step cites the relevant vendored standard.
 4. Every command exercised by `tests/sit/` (FEAT-182).

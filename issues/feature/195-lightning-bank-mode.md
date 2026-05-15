@@ -96,6 +96,23 @@ import. PDF is explicitly out of scope.
 prints account / limit / current-balance / utilisation as a
 single TSV, suitable for a daily cron summary.
 
+### API keys (per account, for FEAT-196)
+
+    lightning account apikey create <name> --scope read|write
+        # generates a random key, stores it via
+        # secret put lightning.<name>.apikey.<scope>,
+        # prints it once (operator copies it out)
+    lightning account apikey list <name>
+        # which scopes are issued
+    lightning account apikey revoke <name> --scope read|write
+
+Used by FEAT-196's `.well-known/lightning/` CGI scripts.
+Single-user assumption still holds: the operator manages
+keys; there's no holder-side workflow. The keys exist so
+external HTTP callers (the operator's phone, a JS frontend,
+a webhook) can authenticate without putting shell access on
+the internet.
+
 ## Acceptance Criteria
 
 1. `lightning account create alice --limit 50000
@@ -109,5 +126,9 @@ single TSV, suitable for a daily cron summary.
    2026-03` produces a parseable plaintext statement.
 4. `lightning account list --balances` prints one TSV row
    per account.
-5. Help text states the single-user assumption explicitly
-   ("no per-account auth — operator is trusted").
+5. `lightning account apikey create alice --scope write`
+   prints a one-shot key and stores it under
+   `secret get lightning.alice.apikey.write`.
+6. Help text states the single-user assumption explicitly
+   ("no per-account holder auth — API keys exist so HTTP
+   callers can authenticate, not so account holders can").

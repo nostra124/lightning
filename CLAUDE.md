@@ -41,6 +41,12 @@ itself (its built-in bitcoind connection); we never
 shell out to the `bitcoin` package directly. Verb
 scripts call only `lightning-cli`.
 
+Externally we depend on `python3` for the Apache CGI
+scripts that host Lightning Addresses (FEAT-176) and
+the `.well-known/lightning/` JSON API (FEAT-196). The
+shell verbs remain the source of truth — Python
+scripts are thin HTTP frontends that shell out.
+
 ## 5. What is intentionally duplicated
 
 - **Verb-level command construction** — each verb
@@ -48,12 +54,17 @@ scripts call only `lightning-cli`.
   cli-helper library.
 - **Invoice / payment-hash parsing** — implemented in
   each verb that needs it.
+- **CGI endpoint scripts** — one Python file per
+  endpoint (FEAT-196), only `_lib.py` shared. Endpoint
+  scripts don't reach across each other.
 
 ## 6. Consumers
 
-End users (personal Lightning wallets); cluster
-integrations exposing payment endpoints (FEAT-079
-cluster apache + lightning).
+End users (personal Lightning wallets); external HTTP
+callers (phone / JS frontend / webhooks) via the
+`.well-known/lightning/` API (FEAT-196). Cluster
+integration is not on the critical path — see FEAT-190
+(obsolete).
 
 ## 7. Build / install
 

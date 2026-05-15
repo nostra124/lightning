@@ -28,7 +28,8 @@ Under `tests/sit/`:
     ├── podman/
     │   ├── Dockerfile.regtest        (bitcoind regtest base)
     │   └── Dockerfile.clightning     (regtest + lightningd
-    │                                  + lightning-cli)
+    │                                  + lightning-cli +
+    │                                  apache2 + python3)
     ├── helpers.bash                  (multi-node fixture:
     │                                  spin up two lightningd
     │                                  instances + a bitcoind
@@ -40,23 +41,24 @@ Under `tests/sit/`:
         ├── 04_offer_pay_bolt12.bats
         ├── 05_lnurl_flow.bats                (mock LNURL service
         │                                      in the container)
-        ├── 06_address_create_pay.bats        (standalone +
-        │                                      local-Apache
-        │                                      modes; cluster
-        │                                      mode in a
-        │                                      separate suite
-        │                                      that bundles
-        │                                      cluster apache)
+        ├── 06_address_create_pay.bats        (apache + python
+        │                                      CGI handler)
         ├── 07_wallet_account_ledger.bats     (multi-account
         │                                      tagging + TSV
         │                                      ledger queries)
         ├── 08_wallet_push_pull.bats          (two-machine wallet
         │                                      sync)
         ├── 09_inbound_liquidity_lsps1.bats   (mock LSP)
-        ├── 10_walkthrough.bats               (FEAT-181 lockstep)
-        └── 11_softdep_probe.bats             (missing
-                                               lightning-cli
-                                               fails clearly)
+        ├── 10_wellknown_api.bats             (FEAT-196 invoice
+        │                                      / send / balance
+        │                                      end-to-end +
+        │                                      bad-apikey 401 +
+        │                                      overdraft 402)
+        ├── 11_walkthrough.bats               (FEAT-181 lockstep)
+        └── 12_softdep_probe.bats             (missing
+                                               lightning-cli /
+                                               python3 / apache2
+                                               fail clearly)
 
 `make check-sit` runs the suite; soft-skips if `podman`
 isn't available.
@@ -67,10 +69,12 @@ isn't available.
    every suite to green.
 2. Channel open / close + invoice pay end-to-end.
 3. BOLT-12 offer + LNURL + Lightning Address flows
-   end-to-end.
-4. Inbound-liquidity via mock LSPS1 LSP succeeds and
+   end-to-end (Apache + Python CGI in the container).
+4. JSON API: invoice / send / balance happy paths; bad
+   API key returns 401; overdraft returns 402.
+5. Inbound-liquidity via mock LSPS1 LSP succeeds and
    `liquidity status` reflects the new capacity.
-5. Wallet push/pull two-machine round-trip preserves the
+6. Wallet push/pull two-machine round-trip preserves the
    TSV ledger byte-for-byte.
-6. Walkthrough suite verifies every step of FEAT-181.
-7. Suites are deterministic over 5 runs.
+7. Walkthrough suite verifies every step of FEAT-181.
+8. Suites are deterministic over 5 runs.
