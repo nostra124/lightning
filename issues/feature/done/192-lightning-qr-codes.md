@@ -2,7 +2,7 @@
 id: FEAT-192
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning QR codes — invoices, addresses, offers

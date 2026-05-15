@@ -2,7 +2,7 @@
 id: FEAT-173
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning: payment / invoice / BOLT-12 / LNURL verbs

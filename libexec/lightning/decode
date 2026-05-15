@@ -1,0 +1,58 @@
+#!/bin/bash
+# lightning decode — detect + decode any Lightning string.
+#
+# Implements: BOLT-11 / BOLT-12 / LNURL / Lightning Address
+# detection + dispatch per FEAT-173.
+#
+# Usage:
+#   lightning decode <string>
+
+set -e
+
+[ $# -lt 1 ] && { echo "usage: lightning decode <string>" >&2; exit 1; }
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+s="$1"
+# Strip a `lightning:` prefix if present (BIP-21 amendment).
+s="${s#lightning:}"
+s="${s#LIGHTNING:}"
+
+lower=$(printf '%s' "$s" | tr 'A-Z' 'a-z')
+
+case "$lower" in
+	lnbc*|lntb*|lnbcrt*|lnsb*)
+		echo "type: bolt11"
+		cli decodepay "$s" | jq .
+		;;
+	lno*)
+		echo "type: bolt12-offer"
+		cli decode "$s" | jq .
+		;;
+	lni*)
+		echo "type: bolt12-invoice"
+		cli decode "$s" | jq .
+		;;
+	lnurl*)
+		echo "type: lnurl"
+		# LNURL is bech32-encoded URL. Decode via lightning-cli if
+		# available, else just show the raw string.
+		cli decode "$s" 2>/dev/null | jq . || echo "raw: $s"
+		;;
+	*@*)
+		echo "type: lightning-address"
+		echo "address: $s"
+		# Resolve via LUD-16 on demand.
+		user="${s%%@*}"; host="${s##*@}"
+		echo "lnurlp: https://$host/.well-known/lnurlp/$user"
+		;;
+	*)
+		echo "type: unknown" >&2
+		exit 1
+		;;
+esac

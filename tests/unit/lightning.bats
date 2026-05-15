@@ -41,10 +41,10 @@ teardown() {
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 0.2.0" {
+@test "lightning version returns 0.3.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "0.2.0" ]
+	[ "$output" = "0.3.0" ]
 }
 
 @test "lightning help prints usage" {
@@ -89,12 +89,18 @@ teardown() {
 	[[ "$output" == *"LNURL"* || "$output" == *"Lightning Address"* ]]
 }
 
-@test "help lists the 0.2.0 verb surface" {
+@test "help lists the 0.3.0 verb surface" {
 	run "$LIGHTNING_BIN" help
 	[[ "$output" == *"info"* ]]
 	[[ "$output" == *"node-id"* ]]
 	[[ "$output" == *"daemon"* ]]
 	[[ "$output" == *"unlock"* ]]
+	[[ "$output" == *"channel"* ]]
+	[[ "$output" == *"invoice"* ]]
+	[[ "$output" == *"pay"* ]]
+	[[ "$output" == *"offer"* ]]
+	[[ "$output" == *"lnurl"* ]]
+	[[ "$output" == *"qr"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -224,4 +230,165 @@ teardown() {
 @test "FEAT-184: lightning unlock errors clearly when lightning-cli absent" {
 	export PATH="/usr/bin:/bin"
 	run -127 "$LIGHTNING_BIN" unlock --stored
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-172: channel management
+# ---------------------------------------------------------------------------
+
+@test "FEAT-172: lightning channel (no args) prints usage" {
+	run "$LIGHTNING_BIN" channel
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
+}
+
+@test "FEAT-172: lightning channel list returns the TSV header" {
+	run "$LIGHTNING_BIN" channel list
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "id	peer	capacity	local	remote	state" ]]
+}
+
+@test "FEAT-172: lightning channel open reports ok + channel_id" {
+	run "$LIGHTNING_BIN" channel open \
+		020000000000000000000000000000000000000000000000000000000000000002@127.0.0.1:9735 \
+		100000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+	[[ "$output" == *"channel_id"* ]]
+}
+
+@test "FEAT-172: lightning channel close reports ok + txid" {
+	run "$LIGHTNING_BIN" channel close 0000000000000000000000000000000000000000000000000000000000000001
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+	[[ "$output" == *"txid"* ]]
+}
+
+@test "FEAT-172: lightning channel force-close refuses without --confirm" {
+	run "$LIGHTNING_BIN" channel force-close 0000000000000000000000000000000000000000000000000000000000000001
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"REFUSING"* ]]
+}
+
+@test "FEAT-172: lightning channel balance prints a header row" {
+	run "$LIGHTNING_BIN" channel balance
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "channel_id	local_msat	remote_msat	state" ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-173: payments / invoices / BOLT-12 / LNURL
+# ---------------------------------------------------------------------------
+
+@test "FEAT-173: lightning invoice 1000 'beer' returns a BOLT-11" {
+	run "$LIGHTNING_BIN" invoice 1000 beer
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == lnbc* || "${lines[0]}" == lntb* || "${lines[0]}" == lnbcrt* ]]
+}
+
+@test "FEAT-173: lightning pay <bolt11> returns ok + payment_hash" {
+	run "$LIGHTNING_BIN" pay lnbcrt10n1pmocktest
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+	[[ "$output" == *"payment_hash"* ]]
+}
+
+@test "FEAT-173: lightning decode identifies BOLT-11" {
+	run "$LIGHTNING_BIN" decode lnbcrt10n1pmocktest
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"bolt11"* ]]
+}
+
+@test "FEAT-173: lightning decode identifies BOLT-12 offer" {
+	run "$LIGHTNING_BIN" decode lno1pgmocktest
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"bolt12-offer"* ]]
+}
+
+@test "FEAT-173: lightning decode identifies LNURL" {
+	run "$LIGHTNING_BIN" decode LNURL1DP68GURN8GHJ7
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"lnurl"* ]]
+}
+
+@test "FEAT-173: lightning decode identifies a Lightning Address" {
+	run "$LIGHTNING_BIN" decode alice@example.com
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"lightning-address"* ]]
+	[[ "$output" == *"example.com"* ]]
+}
+
+@test "FEAT-173: lightning decode strips the 'lightning:' BIP-21 prefix" {
+	run "$LIGHTNING_BIN" decode "lightning:lnbcrt10n1pmocktest"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"bolt11"* ]]
+}
+
+@test "FEAT-173: lightning offer creates a BOLT-12 offer" {
+	run "$LIGHTNING_BIN" offer 500 donations
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == lno* ]]
+}
+
+@test "FEAT-173: lightning offer-pay fetches and pays" {
+	run "$LIGHTNING_BIN" offer-pay lno1pgmocktest
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+@test "FEAT-173: lightning send (keysend) succeeds" {
+	run "$LIGHTNING_BIN" send 020000000000000000000000000000000000000000000000000000000000000002 100
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+}
+
+@test "FEAT-173: lightning lnurl (no args) prints usage" {
+	run "$LIGHTNING_BIN" lnurl
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-192: QR codes
+# ---------------------------------------------------------------------------
+
+@test "FEAT-192: lightning qr (no args) prints usage" {
+	run "$LIGHTNING_BIN" qr
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+@test "FEAT-192: lightning qr emits something for ANSI mode" {
+	if ! command -v qrencode >/dev/null; then
+		# Fallback path: print the text as-is.
+		run "$LIGHTNING_BIN" qr "lnbcrt10n1pmocktest"
+		[ "$status" -eq 0 ]
+		[[ "$output" == *"lnbcrt10n1pmocktest"* ]]
+	else
+		run "$LIGHTNING_BIN" qr "lnbcrt10n1pmocktest"
+		[ "$status" -eq 0 ]
+		# qrencode UTF8 output contains the half-block characters.
+		[ -n "$output" ]
+	fi
+}
+
+@test "FEAT-192: lightning qr --png writes a file" {
+	if ! command -v qrencode >/dev/null; then
+		skip "qrencode not installed"
+	fi
+	out="$BATS_TMPDIR/qr.$$.png"
+	run "$LIGHTNING_BIN" qr "lnbcrt10n1pmocktest" --png "$out"
+	[ "$status" -eq 0 ]
+	[ -s "$out" ]
+	rm -f "$out"
+}
+
+@test "FEAT-192: lightning invoice --qr emits the BOLT-11 AND a QR" {
+	if ! command -v qrencode >/dev/null; then
+		skip "qrencode not installed"
+	fi
+	run "$LIGHTNING_BIN" invoice 1000 beer --qr
+	[ "$status" -eq 0 ]
+	# First line is the BOLT-11, then a blank line, then the QR.
+	[[ "${lines[0]}" == lnbc* || "${lines[0]}" == lntb* || "${lines[0]}" == lnbcrt* ]]
 }
