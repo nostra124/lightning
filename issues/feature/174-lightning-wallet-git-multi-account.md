@@ -36,8 +36,8 @@ don't sub-key the node's funds, they're a bookkeeping layer.
                               # (rune-id / macaroon-id / phoenixd-host)
     accounts                 # one per line:
                               #   <name><TAB><description>
-    history                  # rec-format payment + channel events
-    invoices                 # rec-format outstanding invoices
+    ledger.tsv               # append-only TSV ledger (FEAT-193)
+    invoices.tsv             # outstanding invoices, TSV
     notes/<channel-id>       # free-text channel notes
     .gitignore               # excludes runtime caches
 
@@ -60,10 +60,10 @@ alice-tagged events; computes alice's notional balance
 
 ### History
 
-`lightning history` (no filter) shows everything; `--account
-<n>` / `--label <pat>` / `--since <date>` filter. Uses the
-data toolkit's `data rec select` under the hood (soft dep
-on `data`).
+`lightning history` is a thin alias for `lightning ledger
+list` (FEAT-193). Same TSV file, same flags
+(`--account <n>` / `--since <date>` / `--limit N`). No soft
+dep on `data` / recutils — plain `awk` over the TSV.
 
 ### Push/pull
 

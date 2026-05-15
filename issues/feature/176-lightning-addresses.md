@@ -28,7 +28,7 @@ matches email's familiar shape.
     lightning address list                          # owned addresses
     lightning address remove <addr>
 
-### Hosting (two modes)
+### Hosting (three modes)
 
 **Cluster mode** (preferred for cluster operators):
 
@@ -39,13 +39,24 @@ right LNURL-pay JSON. The handler queries the local
 `lightning` to mint an invoice on demand. DNS A record auto-
 managed by `cluster dns`.
 
-**Standalone mode** (no cluster needed):
+**Local-Apache mode** (single-user with an existing Apache):
+
+For users who already run Apache locally but don't want the
+whole `cluster` stack, we ship a drop-in vhost snippet under
+`share/doc/lightning/apache/lnurlp.conf` that ProxyPasses
+`/.well-known/lnurlp/<user>` to `lightning serve` (FEAT-190)
+or the standalone daemon (below) on `127.0.0.1`. Installs via
+`lightning address apache-snippet > /etc/apache2/sites-
+available/lnurlp.conf`. TLS and DNS are the user's job;
+hints in the snippet comments point at certbot.
+
+**Standalone mode** (no web server at all):
 
 `lightning address daemon start` runs a small bash HTTP
 server (using `socat` / `nc` + a lightning-side handler)
 listening on a configurable port, suitable for users
-without `cluster apache`. They configure their own DNS +
-TLS termination (e.g. via cloudflare tunnels).
+without any web server in front. They configure their own
+DNS + TLS termination (e.g. via cloudflare tunnels).
 
 ### BIP-353 DNS-based payment instructions
 
@@ -70,10 +81,13 @@ funds go to the `donations` account by default, etc.
    mode produces a working `https://my-domain.com/.well-known/
    lnurlp/me` endpoint that mints invoices via the local
    lightning node; another wallet can pay it.
-4. Standalone-mode daemon serves the same endpoint when the
+4. `lightning address apache-snippet` emits a vhost
+   fragment that works when dropped into a stock Debian
+   `apache2` config (local-Apache mode).
+5. Standalone-mode daemon serves the same endpoint when the
    user manages their own DNS + TLS.
-5. BIP-353 TXT record gets created when `cluster dns` is
+6. BIP-353 TXT record gets created when `cluster dns` is
    available; falls back to a manual instruction message
    otherwise.
-6. SIT (FEAT-182) covers address create + pay round-trip
+7. SIT (FEAT-182) covers address create + pay round-trip
    between two regtest nodes.
