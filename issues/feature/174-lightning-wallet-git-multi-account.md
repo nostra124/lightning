@@ -31,9 +31,7 @@ don't sub-key the node's funds, they're a bookkeeping layer.
 `~/.lightning/wallet/<name>/`:
 
     .git/
-    backend                  # active backend name
-    backend-config           # backend connection config
-                              # (rune-id / macaroon-id / phoenixd-host)
+    lightning-dir            # path to clightning's data dir
     accounts                 # one per line:
                               #   <name><TAB><description>
     ledger.tsv               # append-only TSV ledger (FEAT-193)
@@ -42,8 +40,8 @@ don't sub-key the node's funds, they're a bookkeeping layer.
     .gitignore               # excludes runtime caches
 
 The seed / credentials live in `secret` (under
-`lightning/<wallet>/<backend>/`), not in the repo. Pushing
-the repo is safe (no credentials).
+`lightning/<wallet>/`), not in the repo. Pushing the repo is
+safe (no credentials).
 
 ### Accounts
 
@@ -82,9 +80,9 @@ notes are last-writer-wins per file.
 
 Multiple wallets per machine via `lightning wallet new
 <name>`; switch active via `lightning wallet use <name>`.
-Each wallet binds to one LN backend instance. A common
-pattern: `personal` wallet on a phoenixd backend, `node`
-wallet on a clightning backend.
+Each wallet binds to one `lightningd` data dir
+(`LIGHTNING_DIR`). A common pattern: `personal` wallet on a
+mainnet `lightningd`, `dev` wallet on a regtest one.
 
 ## Acceptance Criteria
 

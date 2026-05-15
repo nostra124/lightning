@@ -15,42 +15,37 @@ verbs that wire my node to a watchtower (or run one)
 **So that** an offline node can't be cheated by a peer
 publishing a stale commitment.
 
-Watchtowers are the BOLT-13 proposal (draft). lnd has a
-production implementation (`wtclient` / `watchtower`);
-clightning ships `lightningd-altruistwatchtower` as a plugin.
-phoenixd is online-only (no watchtower client / server).
+Watchtowers are the BOLT-13 proposal (draft). clightning
+ships `lightningd-altruistwatchtower` as a plugin (client
+side) and the `watchtower` plugin (server side).
 
 Educational angle: this verb teaches penalty transactions —
 help text walks through the justice scenario.
 
 ## Implementation
 
-1. **Client side**:
+1. **Client side** — wraps the `altruistwatchtower` plugin:
    - `lightning tower client-add <pubkey@host>` — register a
      remote tower.
    - `lightning tower client-list` — show registered towers
      and session counts.
    - `lightning tower client-stats` — sessions, towers,
      backup state.
-2. **Server side (opt-in)**:
-   - `lightning tower server-on` — enable watchtower role on
-     the active backend (lnd config flip; clightning plugin
-     load).
-   - `lightning tower server-off` — disable.
+2. **Server side (opt-in)** — wraps the `watchtower` plugin:
+   - `lightning tower server-on` — load the plugin into
+     lightningd.
+   - `lightning tower server-off` — unload.
    - `lightning tower server-status` — peers + breaches
      witnessed.
-3. **phoenixd**: prints a clear "not supported — this is an
-   always-online wallet" message.
 
 ## Acceptance Criteria
 
-1. `lightning tower client-add` works against lnd and
-   clightning.
+1. `lightning tower client-add <pubkey@host>` registers a
+   tower with the altruistwatchtower plugin.
 2. SIT (FEAT-182) demonstrates penalty-tx broadcast by a
    running tower when a peer publishes a stale commitment.
-3. phoenixd prints the not-supported message and exits 0.
-4. Help text walks through the justice scenario citing BOLT 03
-   and the watchtower BLIP/BOLT-13 draft URL.
+3. Help text walks through the justice scenario citing
+   BOLT 03 and the watchtower BLIP / BOLT-13 draft URL.
 
 ## Milestone
 

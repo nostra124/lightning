@@ -74,23 +74,25 @@ usage: $SELF <options> <command> <args>
    -d                       enable debug mode
    -q                       enable quiet mode
 
-   $SELF is the educational Lightning Network frontend. It
-   abstracts over multiple lightning daemons (clightning / lnd /
-   phoenixd) so the same verb surface works across backends.
+   $SELF is the educational Lightning Network frontend on
+   clightning (Core Lightning). Verbs shell out to
+   lightning-cli; help text cites the BOLT each verb
+   implements.
 
-   Vendored standards: BOLT specs (BOLT 1..11) plus LNURL LUDs
+   Vendored standards: BOLT specs (BOLT 1..12) plus LNURL LUDs
    and the Lightning Address spec, under share/doc/lightning/
    standards/ (FEAT-178; pending full implementation).
 
    The four design principles (educational, functional,
-   decentralized, simple) apply: each backend plugin is a
-   thin wrapper that cites the BOLT it implements.
+   decentralized, simple) apply: each verb is a thin
+   wrapper over lightning-cli that cites the BOLT it
+   implements.
 
 generic commands:
    help                     print this help message
    version                  print the version of $SELF
 
-(Implementation pending — FEAT-170..182 file the full
+(Implementation pending — FEAT-170..195 file the full
 surface; today's bin/lightning is a stub establishing the
 shape so the artefact set can land.)
 ENDHELP

@@ -1,13 +1,12 @@
 ---
 name: lightning-wallet
 description: |
-  Operate the `lightning` multi-backend Lightning
-  Network frontend — open channels, pay invoices,
-  generate invoices, query node info across
-  clightning / lnd / phoenixd backends. Trigger when
-  the user wants to send a Lightning payment, receive
-  one, manage channels, or learn the BOLT
-  abstractions.
+  Operate the `lightning` Lightning Network frontend
+  on clightning (Core Lightning) — open channels, pay
+  invoices, generate invoices, query node info.
+  Trigger when the user wants to send a Lightning
+  payment, receive one, manage channels, or learn the
+  BOLT abstractions.
 ---
 
 # `lightning-wallet` skill
@@ -15,31 +14,25 @@ description: |
 ## 1. Design principles
 
 - **Educational.** Each verb cites the BOLT it
-  implements (BOLT 1..11) plus LNURL/Lightning
-  Address standards. Reading any backend plugin
-  teaches the corresponding daemon's surface.
+  implements (BOLT 1..12) plus LNURL/Lightning
+  Address standards. Reading any verb script teaches
+  the matching `lightning-cli` surface.
 - **Functional.** Each verb is a thin wrapper over
-  the backend daemon's CLI.
+  `lightning-cli` (clightning's CLI).
 - **Decentralized.** No custodial layer; the user's
   node is the trust boundary.
 - **Simple.** `lightning` calls only `account` at
-  runtime; on-chain channel funding is handled by the
-  backend daemon's built-in wallet.
+  runtime; on-chain channel funding is handled by
+  clightning's built-in wallet.
 
 ## 2. The model
 
-A **lightning node** is identified by a backend +
-node ID + on-chain backing wallet:
-
-| Backend     | Daemon              | Use case                  |
-|-------------|---------------------|---------------------------|
-| clightning  | lightningd          | full-featured             |
-| lnd         | lnd                 | broad ecosystem support   |
-| phoenixd    | phoenixd            | lightweight, mobile-style |
-
-`lightning` exposes a uniform verb surface across
-all three; behind the scenes it dispatches to the
-matching plugin under `libexec/lightning/<backend>/`.
+A **lightning node** is a `lightningd` instance plus
+its on-chain backing wallet. `lightning` is a verb
+layer on top of `lightning-cli`. The libexec dispatch
+shape (`libexec/lightning/<verb>`) leaves the door
+open for additional backends as future plugin
+directories, but only clightning ships today.
 
 ## 3. Workflow recipes
 
@@ -71,18 +64,16 @@ implementation. Today's `bin/lightning` is a stub.)
 
 ## 4. Guardrails (when implementation lands)
 
-1. **Channel state is at-rest in the daemon's
-   data dir.** Back up `~/.lightning/`,
-   `~/.lnd/`, etc. — losing it loses funds.
-2. **`phoenixd` is custodial-leaning** — it relies
-   on ACINQ as a routing peer. clightning / lnd
-   are non-custodial.
-3. **Invoices expire.** BOLT 11 has a default 1h
+1. **Channel state is at-rest in clightning's data
+   dir** (`~/.lightning/`). Back it up — losing it
+   loses funds. SCB snapshots (FEAT-185) live in the
+   wallet repo and let you force-close to recover.
+2. **Invoices expire.** BOLT 11 has a default 1h
    expiry; pay or generate a new one.
-4. **Channel close ≠ instant funds.** On-chain
+3. **Channel close ≠ instant funds.** On-chain
    confirmation (≥ 6 blocks) is required for
    force-closes.
-5. **The seed phrase / wallet keys live in
+4. **The seed phrase / wallet keys live in
    `secret` (FEAT-041 pass-init).** Never copy them
    into shell history.
 

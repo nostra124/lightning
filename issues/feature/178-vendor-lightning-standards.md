@@ -64,12 +64,14 @@ FEAT-126 (dht).
          blip-50.md                      LSPS general
          blip-51.md                      LSPS1 channel purchase
 
-       comparison.md                     contrasts the three LN
-                                          implementations (clightning /
-                                          lnd / phoenixd) — model,
-                                          auth, RPC dialect, mobile
-                                          friendliness, BOLT-12 support.
-                                          Educational centrepiece.
+       cln-overview.md                   architectural tour of
+                                          clightning (lightningd +
+                                          plugins + lightning-cli) —
+                                          how the daemon is built,
+                                          what plugins exist, how
+                                          BOLT-12 / LSPS land. The
+                                          educational centrepiece for
+                                          this single-backend release.
 
 2. **`UPSTREAM.txt`** records canonical URL + retrieved-on
    date per vendored document. Refresh script re-fetches.
@@ -83,6 +85,7 @@ FEAT-126 (dht).
 2. Licence boundaries respected (BOLTs MIT, LUDs CC0, etc.).
 3. After `make install`, every cited file is reachable.
 4. The refresh script re-fetches reproducibly.
-5. `comparison.md` contrasts the three implementations —
-   readable in 10 minutes, leaves a reader with a model
-   of why each exists.
+5. `cln-overview.md` covers lightningd / lightning-cli /
+   plugins / hsm_secret / config in 10 minutes; leaves a
+   reader with a working mental model of the daemon they
+   just installed.

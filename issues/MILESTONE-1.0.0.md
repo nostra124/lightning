@@ -12,19 +12,18 @@ depends_on: 0.6.0
 The 1.0.0 graduation milestone: the package is feature-complete
 through 0.6.0, and this milestone validates the full surface
 end-to-end. A reproducible walkthrough exercises the happy path
-on regtest, and a SIT suite runs the same path against
-per-backend containers in CI.
+on a clightning regtest, and a SIT suite runs the same path
+in a container in CI.
 
 Two tickets:
 
 1. **FEAT-181 — walkthrough** — clightning on regtest →
-   channel open → pay → Lightning Address → Loop. Lives under
-   `share/doc/lightning/walkthrough/` and is reproducible by
-   a reader following the man page.
+   channel open → pay → Lightning Address → liquidity-in
+   (LSPS1). Lives under `share/doc/lightning/walkthrough/`
+   and is reproducible by a reader following the man page.
 2. **FEAT-182 — SIT tests** — `tests/sit/` runs the same
-   walkthrough against `clightning`, `lnd`, and `phoenixd`
-   regtest containers, gated by env so it's opt-in locally
-   and mandatory in CI.
+   walkthrough against a clightning regtest container, gated
+   by env so it's opt-in locally and mandatory in CI.
 
 ## Dependency Order
 
@@ -35,12 +34,13 @@ backbone of the SIT runner.
 
 - `share/doc/lightning/walkthrough/` runs to completion on a
   clean regtest.
-- `tests/sit/` green against all three backends in CI.
+- `tests/sit/` green against the clightning regtest
+  container in CI.
 - README links to the walkthrough.
 - `.rpk/version` bumped 0.6.0 → 1.0.0; ledger updated.
 - FEAT-181, FEAT-182 move to `issues/feature/done/`.
 
 ## Dependencies
 
-Hard: 0.6.0. External: docker / podman for backend containers
-in SIT.
+Hard: 0.6.0. External: docker / podman for the clightning +
+bitcoind regtest container in SIT.

@@ -5,83 +5,80 @@ priority: high
 status: open
 ---
 
-# Lightning: multi-backend abstraction (clightning, lnd, phoenixd)
+# Lightning: clightning backend wiring
 
 ## Description
 
 **As a** Lightning user
-**I want** one CLI surface that drives whichever Lightning
-implementation I run — Core Lightning / lnd / phoenixd —
-with auto-detection picking the right one
-**So that** the same `lightning channel open …` /
-`lightning pay …` / etc. work without me caring which
-daemon's RPC dialect I'm speaking.
+**I want** the `lightning` verb layer to talk to clightning
+(Core Lightning) via `lightning-cli`
+**So that** `lightning channel open …`, `lightning pay …`,
+`lightning invoice …` etc. work against a local lightningd
+daemon.
+
+Scope: **clightning only**. lnd and phoenixd are out of
+scope. The libexec verb-dispatch layout
+(`libexec/lightning/<verb>`) leaves the door open for
+future backends as additional plugin directories, but only
+clightning ships today. No `lightning backend <name>` verb,
+no auto-detection across implementations.
 
 ## Implementation
 
-### Backends
+### Verb scripts
 
-Each backend is an executable file under
-`libexec/lightning/backends/<name>` exposing a fixed
-internal API:
+Each verb is a script under `libexec/lightning/<verb>` that
+shells out to `lightning-cli` and reshapes the JSON output
+into the project's TSV / plaintext contract. No shared
+"backend helper" library — repetition is intentional per
+the no-shared-lib policy.
 
-    backend_node_id                          # public key
-    backend_unlock                            # if needed
-    backend_channel_list
-    backend_channel_open <node-uri> <sats>
-    backend_channel_close <channel-id>
-    backend_balance                           # confirmed / unconfirmed
-                                              #  / pending / channel
-    backend_invoice <amount-sat> <label> [<expiry>]
-    backend_pay <bolt11>
-    backend_send_keysend <node-id> <amount>
-    backend_pending_forwards
-    backend_history [<since>]
+Verbs that land in this ticket (the minimum to prove the
+wiring):
 
-Backends:
+    lightning node-id                       # getinfo .id
+    lightning info                          # getinfo summary
+    lightning peers                         # listpeers
+    lightning channels                      # listchannels
+    lightning balance                       # listfunds reshape
 
-- `clightning` — talks to `lightning-cli` (or directly to
-  the unix socket). Default. Simpler RPC, well-suited to
-  bash. Auth via rune / commando.
-- `lnd` — talks to `lncli` (gRPC under the hood). Auth via
-  macaroon + TLS cert.
-- `phoenixd` — talks to phoenixd's HTTP API. Designed for
-  mobile / lightweight setups; LSP-backed. Auth via
-  api password.
+The verbs in FEAT-172 / 173 (channel open/close/pay/invoice)
+follow the same pattern.
 
-### Selection
+### RPC reach
 
-    lightning backend                  # show active
-    lightning backend auto             # default — detect
-    lightning backend clightning|lnd|phoenixd
+`lightning-cli` defaults to talking to the unix socket at
+`~/.lightning/<network>/lightning-rpc`. We honour:
 
-`auto` priority: clightning if `lightning-cli` reachable;
-else lnd if `lncli` reachable; else phoenixd if its API is
-reachable.
+    LIGHTNING_DIR        # overrides ~/.lightning
+    LIGHTNING_NETWORK    # bitcoin | testnet | regtest | signet
+                          # (default: bitcoin)
 
-### Auth handling
+### Auth
 
-Each backend's auth credentials (rune / macaroon /
-phoenixd-password) live in `secret` under
-`lightning/<backend>/<role>` namespacing. `lightning unlock`
-and friends pull from `secret` automatically.
+Authentication is the unix-socket permission bit
+(file-owner only). Rune / commando paths aren't needed for
+local use; if a user wants remote `lightning-cli`, they wire
+that into `lightning-cli`'s own config and we just inherit.
 
-### Soft deps
+### Soft dep
 
-Each backend's binary is probed; auto only chooses a
-backend whose binary is reachable. Missing all three fails
-with a clear "install lightningd, lnd, or phoenixd" message.
+`lightning-cli` (binary `lightning-cli`) probed at help-time
+via the standard rpk pattern. Missing binary fails with a
+clear "install Core Lightning (lightningd) and ensure
+`lightning-cli` is on PATH" message.
 
 ## Acceptance Criteria
 
-1. `lightning backend auto` correctly picks clightning when
-   `lightning-cli getinfo` succeeds, lnd when `lncli getinfo`
-   does, phoenixd as fallback.
-2. `lightning node-id` returns the same pubkey via any
-   backend (against the same node).
-3. `lightning channel list` shape is identical across
-   backends (TSV: `id<TAB>peer<TAB>capacity<TAB>local<TAB>remote<TAB>state`).
-4. Backend translators live under
-   `libexec/lightning/backends/`; adding a fourth (e.g.
-   eclair) is a single-file addition.
-5. SIT (FEAT-182) covers each backend in its container.
+1. `lightning node-id` returns the same pubkey as
+   `lightning-cli getinfo | jq -r .id`.
+2. `lightning info` summarises getinfo in <10 lines of
+   plain text.
+3. `lightning channels` produces a stable TSV (header +
+   one row per channel:
+   `id<TAB>peer<TAB>capacity<TAB>local<TAB>remote<TAB>state`).
+4. Missing `lightning-cli` produces the install hint and
+   exits non-zero.
+5. Verbs respect `LIGHTNING_DIR` and `LIGHTNING_NETWORK`.
+6. SIT (FEAT-182) drives these verbs against a clightning
+   regtest container.

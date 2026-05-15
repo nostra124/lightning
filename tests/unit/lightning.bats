@@ -1,9 +1,9 @@
 #!/usr/bin/env bats
 #
 # Unit tests for bin/lightning — the educational Lightning Network
-# frontend (FEAT-170..182). bin/lightning is a stub today; the
-# real verb surface (clightning / lnd / phoenixd backend
-# plugins, BOLT 1..11, LNURL) lands per FEAT-170..182.
+# frontend on clightning (FEAT-170..195). bin/lightning is a stub
+# today; the real verb surface (clightning wiring, BOLT 1..12,
+# LNURL, LSPS1) lands per FEAT-170..195.
 
 setup() {
 	BATS_TMPDIR=${BATS_TMPDIR:-$(mktemp -d)}
@@ -65,9 +65,9 @@ teardown() {
 	[[ "$output" == *"BOLT"* ]]
 }
 
-@test "help mentions backend abstraction (clightning / lnd / phoenixd)" {
+@test "help mentions clightning (Core Lightning)" {
 	run "$LIGHTNING_BIN" help
-	[[ "$output" == *"clightning"* || "$output" == *"lnd"* || "$output" == *"phoenixd"* ]]
+	[[ "$output" == *"clightning"* || "$output" == *"Core Lightning"* ]]
 }
 
 @test "help mentions LNURL / Lightning Address vendored standards" {

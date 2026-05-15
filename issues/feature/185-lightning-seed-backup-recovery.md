@@ -17,9 +17,10 @@ only my seed phrase + the latest SCB.
 
 Two distinct artefacts:
 
-- **Seed** — BIP-39 mnemonic (lnd `aezeed`; clightning
-  `hsm_secret`; phoenixd seed file). Encrypted with the
-  daemon password.
+- **Seed** — clightning's `hsm_secret`, optionally
+  represented as a BIP-39 mnemonic via `hsmtool generatehsm
+  / dumponchaindescriptors`. Encrypted with the HSM
+  password.
 - **SCB** — static channel backup blob. Encrypted with the
   seed-derived key. Updated on every channel open / close.
   Restoring an SCB triggers force-closes by peers to release
@@ -35,7 +36,8 @@ open/close auto-commits a fresh SCB.
    (read once, scary banner). Optionally `--out <file>` writes
    to a path readable only by the user.
 2. **`lightning seed import`** — interactive: prompts for
-   mnemonic, initialises the active backend.
+   mnemonic, initialises a fresh `hsm_secret` via `hsmtool
+   generatehsm`.
 3. **`lightning seed verify`** — checksum + asks the user to
    re-type 2 random words.
 4. **`lightning scb emit [--out <file>]`** — writes a fresh
@@ -55,4 +57,5 @@ open/close auto-commits a fresh SCB.
    against a regtest peer.
 4. Seed export refuses to run if the daemon is locked.
 5. Help text cites the BOLT-relevant background (BOLT 02 §
-   channel state, lnd's SCB README).
+   channel state, clightning's `emergency.recover`
+   documentation).

@@ -13,8 +13,8 @@ status: open
 **I want** consistent commands to create invoices, pay
 invoices (BOLT-11), receive offers (BOLT-12), and
 interact with LNURL services
-**So that** every common Lightning flow is one verb away,
-backend-neutral.
+**So that** every common Lightning flow is one verb away
+via clightning.
 
 ## Implementation
 
@@ -36,9 +36,8 @@ backend-neutral.
                                                   #  via the offer's RGS)
     lightning offer-revoke <offer-id>
 
-(BOLT-12 supported by clightning + lnd; phoenixd has
-limited support — graceful degradation with a clear
-message.)
+(clightning has first-class BOLT-12 support via
+`fetchinvoice` / `offer`.)
 
 ### LNURL (LUDs)
 
@@ -56,11 +55,11 @@ dispatches.
 
 ### Wallet-side accounting
 
-Every successful pay / receive writes a row into the
-wallet's history (FEAT-174) with timestamp, amount, label,
-counterparty (if known), and the invoice/offer/lnurl
-source. Available for query via `lightning history` and
-`lightning history --label …`.
+Every successful pay / receive writes a row into the wallet
+ledger (FEAT-193's `ledger.tsv`) with timestamp, amount,
+account label, counterparty (if known), and the invoice /
+offer / lnurl source. Available for query via
+`lightning ledger list` (FEAT-193).
 
 ### Help / man-page citations
 
@@ -74,11 +73,10 @@ FEAT-179).
    on regtest.
 2. `lightning offer 500 'donations'` creates a BOLT-12
    offer; `lightning offer-pay <offer>` from a peer pays
-   against it (clightning + lnd; phoenixd skipped with a
-   clear message).
+   against it.
 3. `lightning lnurl pay <test-lnurl> 100` resolves and
    pays.
 4. `lightning decode` correctly identifies + dispatches
    each format.
 5. SIT (FEAT-182) covers happy paths for BOLT-11, BOLT-12,
-   LNURL on each backend that supports them.
+   and LNURL on the clightning regtest container.

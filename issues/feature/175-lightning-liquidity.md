@@ -93,8 +93,9 @@ new capacity.
 ### Soft deps
 
 Each provider integration has its own runtime probe
-(typically just `curl` for REST). Backend-required for
-on-chain fallback (e.g. Loop sometimes does on-chain HTLCs).
+(typically just `curl` for REST). On-chain fallback (e.g.
+Loop sometimes does on-chain HTLCs) is handled by
+clightning's built-in bitcoind connection.
 
 ## Acceptance Criteria
 

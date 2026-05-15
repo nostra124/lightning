@@ -25,10 +25,11 @@ Mirrors FEAT-129 (dht), FEAT-015 (bitcoin), FEAT-117
 `docs/lightning-walkthrough.md` walks through:
 
 1. **Setup.** Spin up bitcoind on regtest, then clightning
-   (or lnd) connected to it. Confirm `lightning backend
-   auto` picks clightning. Mine some regtest blocks +
-   fund the LN node's on-chain wallet. Cite BOLT-1 for the
-   protocol model.
+   connected to it. `lightning daemon start` brings up
+   `lightningd`; `lightning unlock` releases the wallet.
+   Mine some regtest blocks + fund the LN node's on-chain
+   wallet via `lightning balance --on-chain`. Cite BOLT-1
+   for the protocol model.
 
 2. **Create a wallet.** `lightning wallet new alice`,
    create accounts (`personal`, `donations`).
@@ -50,15 +51,15 @@ Mirrors FEAT-129 (dht), FEAT-015 (bitcoin), FEAT-117
    mocked endpoint). Cite LUD-06.
 
 7. **Lightning Address.** Set up `alice@<test-domain>` —
-   either via `cluster apache` (if running) or the
-   standalone `lightning address daemon`. From peer,
-   `lightning address pay alice@<test-domain> 100`.
-   Cite the Lightning Address spec + BIP-353.
+   via `cluster apache` (if running), the local-Apache
+   snippet, or the standalone `lightning address daemon`.
+   From peer, `lightning address pay alice@<test-domain>
+   100`. Cite the Lightning Address spec + BIP-353.
 
-8. **Liquidity (Loop).** `lightning liquidity status`;
-   `lightning liquidity loop out 50000` to a regtest-
-   compatible Loop endpoint (or mock). Cite the Loop
-   protocol summary.
+8. **Inbound liquidity (LSPS1).** `lightning liquidity
+   status` shows zero inbound. `lightning liquidity in
+   100000` buys 100k sat inbound via the configured LSP.
+   Cite BLIP-51.
 
 9. **Wallet sync.** Set up alice on a second machine via
    `lightning wallet pull` — show the history travels.
@@ -73,7 +74,7 @@ spec + the local path under
    nine sections.
 2. A new user with regtest bitcoind + clightning follows
    it end to end and reaches a working Lightning Address
-   + paid invoice + Loop swap without consulting other
-   docs.
+   + paid invoice + inbound-liquidity buy without
+   consulting other docs.
 3. Each step cites the relevant vendored standard.
 4. Every command exercised by `tests/sit/` (FEAT-182).

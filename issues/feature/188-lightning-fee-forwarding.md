@@ -38,10 +38,11 @@ visible.
 
 ## Acceptance Criteria
 
-1. `lightning fee set` updates the active backend's policy and
-   `fee get` reflects it.
-2. `lightning forward list` returns identical TSV shape across
-   backends.
+1. `lightning fee set` updates clightning's per-channel
+   policy (`setchannel`) and `fee get` reflects it via
+   `listchannels`.
+2. `lightning forward list` returns a stable TSV
+   (forwarded HTLCs from `listforwards`).
 3. SIT (FEAT-182) routes a payment through the test node and
    `forward stats` reports it.
 
