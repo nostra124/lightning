@@ -1,0 +1,44 @@
+#!/bin/bash
+# lightning send — keysend a payment to a raw node id (no invoice).
+#
+# Implements: keysend (BOLT-4 + TLV records) per FEAT-173.
+#   share/doc/lightning/standards/bolts/04-onion-routing.md
+#
+# Usage:
+#   lightning send <node-id> <sat> [--message <text>]
+
+set -e
+
+[ $# -lt 2 ] && { echo "usage: lightning send <node-id> <sat> [--message <text>]" >&2; exit 1; }
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+node="$1"; sat="$2"; shift 2
+message=""
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--message) message="$2"; shift 2 ;;
+		*) echo "lightning send: unknown flag '$1'" >&2; exit 1 ;;
+	esac
+done
+
+msat=$(( sat * 1000 ))
+
+if [ -n "$message" ]; then
+	# Keysend custom TLV: 34349334 is the de-facto "message" record
+	# used by Wallet of Satoshi, Sphinx, etc.
+	msg_hex=$(printf '%s' "$message" | xxd -p -c 256 | tr -d '\n')
+	result=$(cli keysend "$node" "$msat" null null null "{\"34349334\":\"$msg_hex\"}")
+else
+	result=$(cli keysend "$node" "$msat")
+fi
+
+hash=$(jq -r .payment_hash <<<"$result")
+echo "ok"
+echo "payment_hash: $hash"

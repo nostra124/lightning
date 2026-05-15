@@ -1,0 +1,61 @@
+#!/bin/bash
+# lightning qr — render a string as a QR code.
+#
+# Implements FEAT-192. Default output is a terminal-friendly
+# QR (utf-8 half-block via qrencode -t UTF8); --png / --svg
+# write to a file.
+#
+# Usage:
+#   lightning qr <text>            # ANSI to stdout
+#   lightning qr <text> --png FILE
+#   lightning qr <text> --svg FILE
+#   echo <text> | lightning qr -   # read from stdin
+#
+# Most BOLT-11 / BOLT-12 / LNURL strings carry a `lightning:`
+# URI prefix when scanned (BIP-21 §amend); we honour caller-
+# supplied prefixes and don't auto-add one.
+
+set -e
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning qr <text>           ANSI QR to stdout
+       lightning qr <text> --png F   write PNG to F
+       lightning qr <text> --svg F   write SVG to F
+       lightning qr -                read text from stdin
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+text="$1"; shift
+if [ "$text" = "-" ]; then
+	text=$(cat)
+fi
+
+if ! command -v qrencode >/dev/null; then
+	echo "lightning: qrencode not installed — install for crisp QR (debian: apt install qrencode)" >&2
+	# Ultra-minimal fallback: print the text as-is so a phone can
+	# read it as a search field. Not scannable; clearly degraded.
+	echo "$text"
+	exit 0
+fi
+
+format="ansi"
+out=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--png) format="png"; out="$2"; shift 2 ;;
+		--svg) format="svg"; out="$2"; shift 2 ;;
+		--ansi) format="ansi"; shift ;;
+		*) echo "lightning qr: unknown flag '$1'" >&2; exit 1 ;;
+	esac
+done
+
+case "$format" in
+	ansi) printf '%s' "$text" | qrencode -t UTF8 -o - ;;
+	png)  [ -z "$out" ] && { echo "lightning qr: --png needs FILE" >&2; exit 1; }
+	      printf '%s' "$text" | qrencode -t PNG -o "$out" ;;
+	svg)  [ -z "$out" ] && { echo "lightning qr: --svg needs FILE" >&2; exit 1; }
+	      printf '%s' "$text" | qrencode -t SVG -o "$out" ;;
+esac

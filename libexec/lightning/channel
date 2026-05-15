@@ -1,0 +1,156 @@
+#!/bin/bash
+# lightning channel — channel management.
+#
+# Implements: BOLT-2 (peer protocol) + BOLT-5 (on-chain close) per
+# FEAT-172.
+#   share/doc/lightning/standards/bolts/02-peer-protocol.md
+#   share/doc/lightning/standards/bolts/05-onchain.md
+#
+# Subcommands:
+#   list                                — TSV of channels (= lightning channels)
+#   open  <node-uri> <sats> [--push <sats>]
+#                                        — fund a new channel
+#   close <channel-id>                   — cooperative close
+#   force-close <channel-id> --confirm   — unilateral; loud warning
+#   balance [<channel-id>]               — local / remote msat
+#   info <channel-id>
+#   pending                              — opening / closing
+
+set -e
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning channel <subcommand> [args]
+
+subcommands:
+   list                                 TSV of all channels
+   open <node-uri> <sats> [--push <sats>]
+                                        open a channel
+   close <channel-id>                   cooperative close
+   force-close <channel-id> --confirm   unilateral close (costly!)
+   balance [<channel-id>]               local / remote msat
+   info <channel-id>
+   pending                              opening / closing channels
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+cmd_list() {
+	# Reuse the top-level `channels` verb script via libexec.
+	exec "$SELF_LIBEXEC/lightning/channels" "$@"
+}
+
+cmd_open() {
+	[ $# -lt 2 ] && { echo "usage: lightning channel open <node-uri> <sats> [--push <sats>]" >&2; exit 1; }
+	local uri="$1" sats="$2"; shift 2
+	local push_msat=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--push) push_msat="$(( $2 * 1000 ))msat"; shift 2 ;;
+			*) echo "lightning channel open: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	# Connect first (idempotent on clightning).
+	local pubkey="${uri%%@*}"
+	cli connect "$uri" >/dev/null
+
+	# Fund. fundchannel: id, amount, feerate, announce, minconf, utxos, push_msat
+	if [ -n "$push_msat" ]; then
+		result=$(cli fundchannel "$pubkey" "${sats}sat" null true null null "$push_msat")
+	else
+		result=$(cli fundchannel "$pubkey" "${sats}sat")
+	fi
+
+	local chan_id; chan_id=$(jq -r '.channel_id // .outnum' <<<"$result")
+	local txid;    txid=$(jq -r .txid <<<"$result")
+	echo "ok"
+	echo "channel_id: $chan_id"
+	echo "funding_txid: $txid"
+}
+
+cmd_close() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel close <channel-id>" >&2; exit 1; }
+	local id="$1"
+	result=$(cli close "$id")
+	type=$(jq -r .type <<<"$result")
+	echo "ok"
+	echo "type: $type"
+	echo "txid: $(jq -r '.txid // "-"' <<<"$result")"
+}
+
+cmd_force_close() {
+	[ $# -lt 2 ] || [ "$2" != "--confirm" ] && {
+		cat >&2 <<EOF
+lightning channel force-close: REFUSING without --confirm.
+
+A force close (unilateral close):
+  - costs the to_self_delay (typically 144 blocks ≈ 1 day)
+  - reveals the channel state to the on-chain layer
+  - is the only option when the peer is unreachable
+
+If that's what you want:
+    lightning channel force-close <channel-id> --confirm
+EOF
+		exit 2
+	}
+	local id="$1"
+	# clightning's `close` with unilateraltimeout=1 forces unilateral.
+	result=$(cli close "$id" 1)
+	echo "force-closed; on-chain timeout begins after first confirmation"
+	jq . <<<"$result" >&2
+}
+
+cmd_balance() {
+	local id="${1:-}"
+	if [ -z "$id" ]; then
+		cli listpeerchannels | jq -r '
+			["channel_id","local_msat","remote_msat","state"], (
+				.channels[] | [
+					(.short_channel_id // .channel_id // "-"),
+					(.to_us_msat // 0),
+					(((.total_msat // 0) - (.to_us_msat // 0))),
+					.state
+				]
+			) | @tsv'
+	else
+		cli listpeerchannels | jq -r --arg id "$id" '
+			.channels[] | select(.short_channel_id == $id or .channel_id == $id) |
+			["local_msat: " + (.to_us_msat|tostring),
+			 "remote_msat: " + ((.total_msat - .to_us_msat)|tostring),
+			 "state: " + .state] | .[]'
+	fi
+}
+
+cmd_info() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel info <channel-id>" >&2; exit 1; }
+	local id="$1"
+	cli listpeerchannels | jq --arg id "$id" '.channels[] | select(.short_channel_id == $id or .channel_id == $id)'
+}
+
+cmd_pending() {
+	cli listpeerchannels | jq -r '
+		["channel_id","peer","state"], (
+			.channels[] | select(.state | test("OPENINGD|CHANNELD_AWAITING_LOCKIN|CLOSINGD_SIGEXCHANGE|CLOSINGD_COMPLETE|AWAITING_UNILATERAL|FUNDING_SPEND_SEEN|ONCHAIN")) |
+			[ (.short_channel_id // .channel_id // "-"), .peer_id, .state ]
+		) | @tsv'
+}
+
+case "$1" in
+	list)        shift; cmd_list "$@" ;;
+	open)        shift; cmd_open "$@" ;;
+	close)       shift; cmd_close "$@" ;;
+	force-close) shift; cmd_force_close "$@" ;;
+	balance)     shift; cmd_balance "$@" ;;
+	info)        shift; cmd_info "$@" ;;
+	pending)     shift; cmd_pending "$@" ;;
+	*) usage; exit 1 ;;
+esac

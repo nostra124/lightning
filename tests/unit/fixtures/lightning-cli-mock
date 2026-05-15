@@ -59,6 +59,100 @@ EOF
 		echo "down" > "$state_file"
 		echo '"Shutdown complete"'
 		;;
+	invoice)
+		# args: msat label desc expiry
+		hash=$(echo -n "$2$3" | sha256sum | cut -c1-64)
+		cat <<EOF
+{
+  "bolt11": "lnbcrt10n1pmocktest",
+  "payment_hash": "$hash",
+  "expires_at": 4102444800
+}
+EOF
+		;;
+	pay)
+		# args: bolt11 ...
+		hash=$(echo -n "$2" | sha256sum | cut -c1-64)
+		cat <<EOF
+{
+  "status": "complete",
+  "payment_hash": "$hash",
+  "amount_msat": 1000,
+  "amount_sent_msat": 1001,
+  "payment_preimage": "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+}
+EOF
+		;;
+	decodepay)
+		cat <<'EOF'
+{
+  "currency": "bcrt",
+  "amount_msat": 1000,
+  "description": "test",
+  "payment_hash": "deadbeef",
+  "expiry": 3600
+}
+EOF
+		;;
+	decode)
+		# Detect type from the arg.
+		s=$(printf '%s' "$2" | tr 'A-Z' 'a-z')
+		case "$s" in
+			lno*) echo '{"type": "bolt12 offer", "valid": true, "offer_description": "mock"}' ;;
+			lni*) echo '{"type": "bolt12 invoice", "valid": true}' ;;
+			lnurl*) echo '{"type": "lnurl", "url": "https://example.com/.well-known/lnurlp/test"}' ;;
+			*) echo '{"type": "unknown", "valid": false}' ;;
+		esac
+		;;
+	keysend)
+		hash=$(echo -n "$2" | sha256sum | cut -c1-64)
+		cat <<EOF
+{
+  "payment_hash": "$hash",
+  "status": "complete"
+}
+EOF
+		;;
+	connect)
+		echo '{"id": "020000000000000000000000000000000000000000000000000000000000000002"}'
+		;;
+	fundchannel)
+		cat <<'EOF'
+{
+  "tx": "0200000000000000",
+  "txid": "0000000000000000000000000000000000000000000000000000000000000001",
+  "channel_id": "0000000000000000000000000000000000000000000000000000000000000001",
+  "outnum": 0
+}
+EOF
+		;;
+	close)
+		cat <<'EOF'
+{
+  "type": "mutual",
+  "txid": "0000000000000000000000000000000000000000000000000000000000000002"
+}
+EOF
+		;;
+	offer)
+		cat <<'EOF'
+{
+  "bolt12": "lno1pgmocktest",
+  "offer_id": "deadbeefcafe",
+  "active": true,
+  "single_use": false
+}
+EOF
+		;;
+	fetchinvoice)
+		echo '{"invoice": "lni1pgmocktest"}'
+		;;
+	listoffers)
+		echo '{"offers": []}'
+		;;
+	disableoffer)
+		echo '{"active": false}'
+		;;
 	*)
 		echo "mock lightning-cli: unhandled command '$1'" >&2
 		exit 1

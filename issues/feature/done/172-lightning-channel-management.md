@@ -2,7 +2,7 @@
 id: FEAT-172
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning: channel management verbs

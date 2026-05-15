@@ -1,0 +1,57 @@
+#!/bin/bash
+# lightning invoice — mint a BOLT-11 invoice.
+#
+# Implements: BOLT-11 (invoice protocol) per FEAT-173.
+#   share/doc/lightning/standards/bolts/11-payment-encoding.md
+#
+# Usage:
+#   lightning invoice <sat> <label> [--description <text>]
+#                                   [--expiry <sec>]
+#                                   [--qr]
+
+set -e
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning invoice <sat> <label> [--description <text>]
+                                       [--expiry <sec>] [--qr]
+EOF
+}
+
+[ $# -lt 2 ] && { usage; exit 1; }
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+sat="$1"; label="$2"; shift 2
+desc="$label"
+expiry=3600
+want_qr=0
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--description) desc="$2"; shift 2 ;;
+		--expiry)      expiry="$2"; shift 2 ;;
+		--qr)          want_qr=1; shift ;;
+		*) echo "lightning invoice: unknown flag '$1'" >&2; exit 1 ;;
+	esac
+done
+
+# clightning's `invoice` takes amount in msat (or "any") + label + description.
+msat=$(( sat * 1000 ))
+json=$(cli invoice "$msat" "$label" "$desc" "$expiry")
+
+bolt11=$(jq -r .bolt11 <<<"$json")
+hash=$(jq -r .payment_hash <<<"$json")
+
+echo "$bolt11"
+echo "# payment_hash: $hash" >&2
+
+if [ "$want_qr" -eq 1 ] && [ -x "$SELF_LIBEXEC/lightning/qr" ]; then
+	echo
+	"$SELF_LIBEXEC/lightning/qr" "lightning:$bolt11"
+fi
