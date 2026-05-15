@@ -2,7 +2,7 @@
 id: FEAT-184
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning wallet unlock

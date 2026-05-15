@@ -2,7 +2,7 @@
 id: FEAT-171
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning: clightning backend wiring

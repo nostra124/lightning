@@ -2,7 +2,7 @@
 id: FEAT-191
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning CI workflow — bats unit tests on every PR

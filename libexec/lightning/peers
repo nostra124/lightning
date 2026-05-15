@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning peers — TSV list of connected peers.
+#
+# Implements: clightning listpeers reshape per FEAT-171.
+# Output columns: pubkey<TAB>connected<TAB>features<TAB>addr
+
+set -e
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found — install Core Lightning (lightningd) and ensure lightning-cli is on PATH" >&2
+	exit 127
+}
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+
+printf "pubkey\tconnected\tfeatures\taddr\n"
+lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" listpeers \
+	| jq -r '.peers[] | [.id, (.connected|tostring), (.features // "-"), ((.netaddr // [])[0] // "-")] | @tsv'

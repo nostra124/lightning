@@ -2,7 +2,7 @@
 id: FEAT-170
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning foundation prep — sourceable lib + minimal runtime deps

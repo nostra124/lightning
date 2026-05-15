@@ -2,7 +2,7 @@
 id: FEAT-183
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning daemon lifecycle management

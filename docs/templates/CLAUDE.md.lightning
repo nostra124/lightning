@@ -1,0 +1,104 @@
+# `lightning` — agent guide template
+
+> Drop-in template for an agent CLAUDE.md when working in
+> the `lightning` package or a fork of it. Mirrors
+> `CLAUDE.md.foundation` (cross-package conventions) and
+> specialises it for the clightning-only educational
+> Lightning frontend.
+
+## 1. Scope
+
+`lightning` is the Lightning Network frontend targeting
+**clightning (Core Lightning)** as the single backend, plus
+vendored BOLT / LNURL / LSPS specs and a small JSON API at
+`.well-known/lightning/<user>/`. lnd and phoenixd support
+are explicitly out of scope; the libexec verb-dispatch
+layout leaves the door open for future backends but ships
+only the clightning plugin.
+
+Out of scope:
+
+- on-chain operations (clightning's bitcoind connection
+  handles them; the JSON API never moves on-chain funds)
+- custodial wallets (non-custodial by default)
+- lnd / phoenixd support
+
+## 2. Repo conventions
+
+Standard rpk per-package: `bin/lightning` dispatcher plus
+libexec lookup for verbs (`libexec/lightning/<verb>`). The
+clightning calls live directly under those verb scripts —
+no extra "backend plugin" layer.
+
+Educational package: vendors BOLT 1..12 + LNURL LUDs +
+Lightning Address spec + the local Well-Known API spec
+under `share/doc/lightning/standards/`.
+
+## 3. Issue authoring
+
+Same as `CLAUDE.md.foundation`. **Bugs come before features
+at the same priority level.**
+
+## 4. The no-shared-lib policy
+
+`lightning` calls only `account` at runtime (for wallet
+remote URLs). The on-chain leg of channel opens is handled
+by clightning itself (its built-in bitcoind connection); we
+never shell out to the `bitcoin` package directly. Verb
+scripts call only `lightning-cli`.
+
+Externally we depend on:
+
+- `python3` — for the Apache CGI scripts at
+  `.well-known/lnurlp/` (FEAT-176) and
+  `.well-known/lightning/` (FEAT-196).
+- `sqlite3` — for the per-wallet store (FEAT-193).
+- `jq` — for JSON reshaping in verb scripts.
+
+The shell verbs remain the source of truth; Python is a
+thin HTTP frontend that shells out.
+
+## 5. Three-user separation (system-mode)
+
+On `lightning daemon install --system`:
+
+| User         | Role                                                       |
+|--------------|------------------------------------------------------------|
+| `clightning` | runs `lightningd`; owns `/var/lib/clightning/`             |
+| operator     | runs `lightning` CLI; owns the wallet repo + secret store; |
+|              | added to group `clightning` on install                     |
+| `www-data`   | runs Apache + the CGI scripts; bridges to operator via     |
+|              | a narrow sudoers fragment                                  |
+
+The RPC socket is mode 0660, group `clightning`. Apache is
+not in that group; the CGI scripts cross the privilege
+boundary via `sudo -u <operator> lightning api-* <args>`
+with argument-shape validation enforced both in sudoers and
+the `api-*` verbs themselves.
+
+## 6. What is intentionally duplicated
+
+- **Verb-level command construction** — each verb script
+  shells out to `lightning-cli` inline; no shared cli-helper
+  library.
+- **Invoice / payment-hash parsing** — implemented in each
+  verb that needs it.
+- **CGI endpoint scripts** — one Python file per endpoint
+  (FEAT-196), only `_lib.py` shared. Endpoint scripts don't
+  reach across each other.
+
+## 7. Build / install
+
+`./configure && make install`. Stow-based.
+
+Optional add-ons (operator opts in explicitly):
+
+- `make install-skills-user` — symlinks
+  `skills/lightning-wallet/` into agent skill directories.
+- `make install-apache-bridge` — drops the sudoers fragment
+  and Apache vhost snippet for the JSON API.
+
+## 8. Versioning
+
+Semver. `.rpk/version` is the source of truth.
+`tests/unit/lightning.bats` is the contract.
