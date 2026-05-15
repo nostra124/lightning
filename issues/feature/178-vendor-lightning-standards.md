@@ -33,9 +33,13 @@ FEAT-126 (dht).
          04-onion-routing.md
          05-onchain.md                   channel close
          07-routing-gossip.md
+         08-transport.md                 encrypted, authed wire
          09-features.md
          11-payment-encoding.md          BOLT-11 invoices
          12-offer-encoding.md            BOLT-12 offers
+         README-drafts.md                pointers to draft specs
+                                          (watchtowers, onion messages)
+                                          we vendor once they stabilise
 
        lnurl-rfc/                        (fiatjaf/lnurl-rfc repo, CC0)
          lud-01.md  base

@@ -1,28 +1,38 @@
-# Milestone 0.4.0 — wallet as git repo with multi-account
+# Milestone 0.4.0 — wallet, seed backup, and backup/restore
 
 ```
 milestone: 0.4.0
-title: wallet as git repo with multi-account
+title: wallet, seed backup, and backup/restore
 status: open
 depends_on: 0.3.0
 ```
 
 ## Summary
 
-One ticket: **FEAT-174** — `lightning wallet` storage layer.
-The wallet is a git repo with multi-account support, plain-text
-accounting (one append-only ledger per account), and
-`push` / `pull` for backup to a remote.
+The wallet milestone — non-custodial-by-default posture comes
+to life. Three tickets land together because they form a
+single user story (init wallet → record activity → back it
+up → recover it on a new machine):
 
-This is what gives the package its non-custodial-by-default
-posture: keys, channel state, and payment history all live in
-a user-owned git repo rather than in the backend daemon's
-opaque database.
+1. **FEAT-174 — wallet as git repo** — `lightning wallet`
+   storage layer with multi-account support, plain-text
+   append-only ledger per account, and `push` / `pull` to a
+   bare-repo remote.
+2. **FEAT-185 — seed backup & recovery** —
+   `lightning seed {export,import,verify}` and
+   `lightning scb {emit,restore}` (static channel backups,
+   auto-committed to the wallet repo on every channel state
+   change).
+3. **FEAT-187 — backup / restore verbs** — `lightning backup`
+   and `lightning restore` umbrella verbs that compose
+   FEAT-174 + FEAT-185 + FEAT-184 (unlock) into a single
+   one-shot.
 
 ## Dependency Order
 
-Single ticket; depends on the payment / invoice verbs from
-0.3.0 so the ledger has something to record.
+FEAT-174 → FEAT-185 → FEAT-187. The seed/SCB layer needs a
+wallet repo to write into; the umbrella verbs sit on top of
+both.
 
 ## Exit Criteria
 
@@ -31,10 +41,19 @@ Single ticket; depends on the payment / invoice verbs from
 - Every pay / invoice from FEAT-173 appends a ledger entry.
 - `lightning wallet push` / `pull` round-trip through a
   bare-repo remote in test fixtures.
+- `lightning seed export` / `import` round-trips against a
+  fresh regtest daemon — same node id.
+- `lightning scb emit` fires automatically on every channel
+  state change (hook from FEAT-172).
+- `lightning backup && lightning restore` round-trips
+  end-to-end against a fresh regtest daemon.
 - Unit test contract extended.
 - `.rpk/version` bumped 0.3.0 → 0.4.0; ledger updated.
-- FEAT-174 moves to `issues/feature/done/`.
+- FEAT-174, FEAT-185, FEAT-187 move to
+  `issues/feature/done/`.
 
 ## Dependencies
 
-Hard: 0.3.0 (pay / invoice verbs to feed the ledger).
+Hard: 0.3.0 (pay / invoice verbs to feed the ledger; channel
+state for the SCB) and 0.2.0 / FEAT-184 (unlock for the
+restore flow).
