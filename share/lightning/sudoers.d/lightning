@@ -1,0 +1,19 @@
+# Sudoers fragment for the FEAT-196 well-known JSON API.
+#
+# Apache (www-data) crosses into the operator's account to run
+# the narrow `lightning api-*` verbs. Each glob constrains
+# argument shape (lowercase user, numeric sat); the api-* verbs
+# enforce the same constraints again.
+#
+# Install with `make install-apache-bridge`. Do not edit
+# directly under /etc/sudoers.d/ — re-run the make target to
+# regenerate.
+#
+# Replace `alice` below with the operator account name.
+
+www-data ALL=(alice) NOPASSWD: \
+    /usr/local/bin/lightning api-recv    [a-z][a-zA-Z0-9_-]* [0-9]* *, \
+    /usr/local/bin/lightning api-send    [a-z][a-zA-Z0-9_-]* *@*.* [0-9]* * *, \
+    /usr/local/bin/lightning api-balance [a-z][a-zA-Z0-9_-]*, \
+    /usr/local/bin/lightning api-verify  [a-z][a-zA-Z0-9_-]* read *, \
+    /usr/local/bin/lightning api-verify  [a-z][a-zA-Z0-9_-]* write *

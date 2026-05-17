@@ -41,10 +41,10 @@ teardown() {
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 0.4.0" {
+@test "lightning version returns 0.5.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "0.4.0" ]
+	[ "$output" = "0.5.0" ]
 }
 
 @test "lightning help prints usage" {
@@ -89,7 +89,7 @@ teardown() {
 	[[ "$output" == *"LNURL"* || "$output" == *"Lightning Address"* ]]
 }
 
-@test "help lists the 0.4.0 verb surface" {
+@test "help lists the 0.5.0 verb surface" {
 	run "$LIGHTNING_BIN" help
 	[[ "$output" == *"info"* ]]
 	[[ "$output" == *"node-id"* ]]
@@ -107,6 +107,10 @@ teardown() {
 	[[ "$output" == *"seed"* ]]
 	[[ "$output" == *"scb"* ]]
 	[[ "$output" == *"backup"* ]]
+	[[ "$output" == *"address"* ]]
+	[[ "$output" == *"liquidity"* ]]
+	[[ "$output" == *"apikey"* ]]
+	[[ "$output" == *"statement"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -623,4 +627,225 @@ teardown() {
 	[ -n "$scb" ]
 	[ -s "$scb" ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$bare" "$clone" "$HOME/.lightning"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-195: bank mode (apikey, statements, account list --balances)
+# ---------------------------------------------------------------------------
+
+@test "FEAT-195: account apikey create stores under secret + prints once" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+
+	# Mock secret as a key-value file store.
+	SECRET_STORE="$BATS_TMPDIR/secret.$$"
+	mkdir -p "$SECRET_STORE"
+	cat > "$BIN_SHIM/secret" <<EOF
+#!/bin/bash
+set -e
+case "\$1" in
+  put) cat > "$SECRET_STORE/\$2" ;;
+  get) [ -f "$SECRET_STORE/\$2" ] && cat "$SECRET_STORE/\$2" || exit 1 ;;
+  rm)  rm -f "$SECRET_STORE/\$2" ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/secret"
+
+	run "$LIGHTNING_BIN" account apikey create rent --scope write
+	[ "$status" -eq 0 ]
+	# Second line is the key (line 1 is "lightning account apikey: rent/write =").
+	key="${lines[1]}"
+	[ -n "$key" ]
+	[ -f "$SECRET_STORE/lightning.rent.apikey.write" ]
+	stored=$(cat "$SECRET_STORE/lightning.rent.apikey.write")
+	[ "$key" = "$stored" ]
+
+	run "$LIGHTNING_BIN" account apikey list rent
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"write"* ]]
+
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$SECRET_STORE" "$HOME/.lightning"
+}
+
+@test "FEAT-195: account list --balances prints balance + limit + overdraft" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent --limit 50000 --overdraft deny >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000000 --account rent
+
+	run "$LIGHTNING_BIN" account list --balances
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"rent"* ]]
+	[[ "$output" == *"1000"* ]]   # balance_sat = 1_000_000 msat / 1000 = 1000
+	[[ "$output" == *"deny"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-195: ledger statement renders a plaintext block" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000000 --account rent --message "march"
+	"$LIGHTNING_BIN" ledger add out -250000 --account rent --message "coffee"
+	year=$(date -u +%Y)
+	month=$(date -u +%Y-%m)
+
+	run "$LIGHTNING_BIN" ledger statement --account rent --period "$month"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Statement for rent"* ]]
+	[[ "$output" == *"Closing balance"* ]]
+	[[ "$output" == *"Net for period"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-175: liquidity
+# ---------------------------------------------------------------------------
+
+@test "FEAT-175: lightning liquidity (no args) prints usage" {
+	run "$LIGHTNING_BIN" liquidity
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* || "$output" == *"status"* ]]
+}
+
+@test "FEAT-175: liquidity status returns TSV header + per-channel rows" {
+	run "$LIGHTNING_BIN" liquidity status
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "channel_id	inbound_sat	outbound_sat	state" ]]
+}
+
+@test "FEAT-175: provider default writes the choice into the wallet repo" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" liquidity provider default lsp
+	[ "$status" -eq 0 ]
+	[ -f "$LIGHTNING_WALLETS_ROOT/alice/liquidity/default" ]
+	[ "$(cat "$LIGHTNING_WALLETS_ROOT/alice/liquidity/default")" = "lsp" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-176: Lightning Address
+# ---------------------------------------------------------------------------
+
+@test "FEAT-176: address (no args) prints usage" {
+	run "$LIGHTNING_BIN" address
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+	[[ "$output" == *"resolve"* || "$output" == *"create"* ]]
+}
+
+@test "FEAT-176: address create without Apache exits with install hint" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create alice >/dev/null
+	# Scrub PATH so apache2/httpd/apachectl aren't found.
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	rm -f "$BIN_SHIM/apache2" "$BIN_SHIM/httpd" "$BIN_SHIM/apachectl"
+	run "$LIGHTNING_BIN" address create alice@example.com --account alice
+	[ "$status" -eq 3 ]
+	[[ "$output" == *"apache2 not installed"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-176: address create with Apache registers the binding" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create alice >/dev/null
+	# Stub apache2 so the detection passes.
+	ln -sf /bin/true "$BIN_SHIM/apache2"
+
+	run "$LIGHTNING_BIN" address create alice@example.com --account alice
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"registered alice@example.com"* ]]
+
+	run "$LIGHTNING_BIN" address list
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"alice"* ]]
+
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-176: account create --host chains into address create" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	ln -sf /bin/true "$BIN_SHIM/apache2"
+
+	run "$LIGHTNING_BIN" account create bob --host example.com
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"created bob"* ]]
+	[[ "$output" == *"registered bob@example.com"* ]]
+
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-196: well-known API sudo-bridge verbs
+# ---------------------------------------------------------------------------
+
+@test "FEAT-196: api-verify (matching key) exits 0" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+
+	# Stub secret to return a known key.
+	cat > "$BIN_SHIM/secret" <<'EOF'
+#!/bin/bash
+case "$1 $2" in
+  "get lightning.rent.apikey.write") echo "supersecret" ;;
+  *) exit 1 ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/secret"
+
+	run "$LIGHTNING_BIN" api-verify rent write supersecret
+	[ "$status" -eq 0 ]
+
+	run "$LIGHTNING_BIN" api-verify rent write WRONGKEY
+	[ "$status" -ne 0 ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-196: api-balance returns the JSON shape balance.py expects" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create alice --limit 50000 --overdraft deny >/dev/null
+	ln -sf /bin/true "$BIN_SHIM/apache2"
+	"$LIGHTNING_BIN" address create alice@example.com --account alice >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1234000 --account alice
+
+	run "$LIGHTNING_BIN" api-balance alice
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"balance_sat":1234'* ]]
+	[[ "$output" == *'"limit_sat":50000'* ]]
+	[[ "$output" == *'"overdraft":"deny"'* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-196: api-send refuses when overdraft=deny and insufficient balance" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create alice --overdraft deny >/dev/null
+	ln -sf /bin/true "$BIN_SHIM/apache2"
+	"$LIGHTNING_BIN" address create alice@example.com --account alice >/dev/null
+	# Balance is zero. Try to send 100 sat.
+	run "$LIGHTNING_BIN" api-send alice bob@example.com 100 "msg" "note"
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"would_overdraw"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-196: balance.py is syntactically valid Python 3" {
+	command -v python3 >/dev/null || skip "python3 not installed"
+	# Lightweight smoke: the CGI scripts must at least parse.
+	# Real end-to-end coverage of the Apache + Python + sudo bridge
+	# lives in FEAT-182's SIT suite where a regtest container has
+	# the real services.
+	run python3 -m py_compile share/lightning/wellknown/lightning/_lib.py \
+	                          share/lightning/wellknown/lightning/balance.py \
+	                          share/lightning/wellknown/lightning/recv.py \
+	                          share/lightning/wellknown/lightning/send.py \
+	                          share/lightning/wellknown/lnurlp/handler.py
+	[ "$status" -eq 0 ]
 }

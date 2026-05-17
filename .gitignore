@@ -3,3 +3,7 @@ Makefile
 
 # Make build tree
 build/
+
+# Python bytecode for the FEAT-196 CGI scripts
+__pycache__/
+*.pyc

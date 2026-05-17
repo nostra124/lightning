@@ -13,7 +13,7 @@
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
 # FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
 __s="${__s%.sh}"
-VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '0.4.0')
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '0.5.0')
 unset __d
 SELF=$__s
 unset __s
@@ -141,6 +141,21 @@ seed & backups:
    scb restore <file>       force-close recovery
    backup [--seed]          SCB + state.sql + git push
    restore <url> [<name>]   clone wallet + seed import + scb restore
+
+ecosystem (addresses, liquidity, bank mode):
+   address create <addr>    register a LUD-16 endpoint
+                            (Apache + Python CGI)
+   address pay <addr> <sat> [--comment <text>]
+   address resolve <addr>
+   address list / remove
+   liquidity status         per-channel inbound/outbound (TSV)
+   liquidity in <sat>       LSPS1 channel purchase (default)
+   liquidity out <sat>      Loop / Boltz outbound
+   account create <n> --host <domain>
+                            auto-issues <n>@<domain>
+   account apikey create <n> --scope read|write
+                            issue a key for the well-known API
+   ledger statement --account <n> --period <YYYY-MM|YYYY-Q1..Q4|YYYY>
 
 daemon control:
    daemon start             start lightningd

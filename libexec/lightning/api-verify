@@ -1,0 +1,28 @@
+#!/bin/bash
+# lightning api-verify <account> <scope> <key>
+#
+# Constant-time verify a user-supplied API key against the
+# value stored under secret/lightning.<account>.apikey.<scope>.
+# Exit 0 on match, non-zero otherwise. No output on either path
+# (the CGI script translates exit code -> 401/200).
+#
+# Implements FEAT-196's auth hop.
+
+set -e
+[ $# -eq 3 ] || exit 1
+account="$1"; scope="$2"; supplied="$3"
+
+case "$account" in [a-z][a-z0-9_-]*) ;; *) exit 2 ;; esac
+case "$scope" in read|write) ;; *) exit 2 ;; esac
+
+command -v secret >/dev/null || exit 127
+
+expected=$(secret get "lightning.$account.apikey.$scope" 2>/dev/null) || exit 1
+[ -n "$expected" ] || exit 1
+
+# Constant-time compare via openssl. Length differences leak; we mitigate
+# by hashing both sides first.
+a=$(printf '%s' "$expected" | openssl dgst -sha256 | awk '{print $NF}')
+b=$(printf '%s' "$supplied" | openssl dgst -sha256 | awk '{print $NF}')
+[ "$a" = "$b" ] || exit 1
+exit 0

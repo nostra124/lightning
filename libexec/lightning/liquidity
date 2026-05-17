@@ -1,0 +1,187 @@
+#!/bin/bash
+# lightning liquidity — channel-liquidity management.
+#
+# Implements FEAT-175.
+#
+# Subcommands:
+#   status                  TSV: channel inbound / outbound (sat)
+#   in <sat> [--provider <name>]    acquire INBOUND (want to receive more)
+#   out <sat> [--provider <name>]   acquire OUTBOUND (want to send more)
+#   loop in|out <sat>               Lightning Loop wrapper
+#   boltz in|out <sat>              Boltz wrapper
+#   lsp <name> buy <sat>            LSPS1 channel purchase
+#   provider default <name>         set the default
+
+set -e
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found" >&2; exit 127; }
+command -v curl >/dev/null || {
+	echo "lightning: curl not found (required for liquidity provider calls)" >&2; exit 127; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+# Provider config lives under the active wallet repo at liquidity/<provider>/.
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+active_wallet_dir() {
+	local n="default"; [ -f "$ACTIVE_LINK" ] && n=$(cat "$ACTIVE_LINK")
+	echo "$WALLETS_ROOT/$n"
+}
+liq_dir() { echo "$(active_wallet_dir)/liquidity"; }
+
+default_provider() {
+	local f; f="$(liq_dir)/default"
+	[ -f "$f" ] && cat "$f" || echo "lsp"
+}
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning liquidity <subcommand>
+
+   status                  TSV of per-channel inbound / outbound (sat)
+   in <sat> [--provider <name>]   acquire inbound capacity
+   out <sat> [--provider <name>]  acquire outbound capacity
+   loop in|out <sat>
+   boltz in|out <sat>
+   lsp <name> buy <sat>
+   provider default <name>
+EOF
+}
+
+cmd_status() {
+	printf "channel_id\tinbound_sat\toutbound_sat\tstate\n"
+	cli listpeerchannels | jq -r '
+		.channels[] | [
+			(.short_channel_id // .channel_id // "-"),
+			((((.total_msat // 0) - (.to_us_msat // 0))) / 1000 | floor),
+			((.to_us_msat // 0) / 1000 | floor),
+			.state
+		] | @tsv'
+}
+
+# Each provider sub-call is a thin wrapper; the actual provider integration
+# happens by shelling out to the per-provider client (loopd, boltz-cli, lsps1-cli)
+# if installed, otherwise hits the documented HTTP endpoint with curl. For
+# 0.5.0 we ship the wrappers; the SIT (FEAT-182) covers the real round-trip
+# against test endpoints / mocks.
+
+call_loop() {
+	# direction = in|out; amount in sat.
+	local direction="$1" sat="$2"
+	if ! command -v loop >/dev/null; then
+		echo "lightning liquidity: loopd (Lightning Loop) CLI not installed" >&2
+		echo "lightning liquidity: see https://github.com/lightninglabs/loop" >&2
+		return 127
+	fi
+	# `loop in`  charges sats into LN (gives outbound)
+	# `loop out` drains sats out of LN (gives inbound)
+	# Our verb names match the user's perspective (in = more inbound).
+	# So liquidity in -> loop out; liquidity out -> loop in.
+	case "$direction" in
+		in)  loop out --amt "$sat" ;;
+		out) loop in  --amt "$sat" ;;
+	esac
+}
+
+call_boltz() {
+	local direction="$1" sat="$2"
+	if ! command -v boltzcli >/dev/null; then
+		echo "lightning liquidity: boltzcli not installed" >&2
+		echo "lightning liquidity: see https://github.com/BoltzExchange/boltz-client" >&2
+		return 127
+	fi
+	case "$direction" in
+		in)  boltzcli createreverseswap --amount "$sat" ;;
+		out) boltzcli createswap         --amount "$sat" ;;
+	esac
+}
+
+call_lsp() {
+	# direction is always 'in' for LSPS1 (channel purchase); 'out' is N/A.
+	local direction="$1" name="$2" sat="$3"
+	[ "$direction" = "in" ] || {
+		echo "lightning liquidity: LSPS1 only buys inbound capacity" >&2
+		return 1
+	}
+	local cfg="$(liq_dir)/lsp/$name/endpoint"
+	[ -f "$cfg" ] || {
+		echo "lightning liquidity: LSP '$name' not configured" >&2
+		echo "lightning liquidity: write the LSPS1 endpoint URL into $cfg" >&2
+		return 2
+	}
+	local endpoint; endpoint=$(cat "$cfg")
+	# Step 1: GET info to discover the LSP's options.
+	curl -fsSL "$endpoint/info" >/dev/null
+	# Step 2: POST create-order. clightning's `lsps1-create-order` plugin
+	# (if loaded) does this for us; fall back to raw curl otherwise.
+	if cli help lsps1-create-order 2>/dev/null | grep -q lsps1; then
+		cli lsps1-create-order "$endpoint" "$sat"
+	else
+		echo "lightning liquidity: lsps1-create-order plugin not loaded on this lightningd" >&2
+		echo "lightning liquidity: load core-lightning's lsps-client plugin and retry" >&2
+		return 3
+	fi
+}
+
+cmd_in() {
+	local sat="$1"; shift
+	local provider; provider=$(default_provider)
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--provider) provider="$2"; shift 2 ;;
+			*) echo "lightning liquidity in: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	case "$provider" in
+		loop)  call_loop  in "$sat" ;;
+		boltz) call_boltz in "$sat" ;;
+		lsp)
+			# Use the first configured LSP.
+			local d="$(liq_dir)/lsp"
+			[ -d "$d" ] || { echo "lightning liquidity: no LSP configured" >&2; exit 2; }
+			local name; name=$(ls "$d" 2>/dev/null | head -1)
+			[ -n "$name" ] || { echo "lightning liquidity: no LSP configured" >&2; exit 2; }
+			call_lsp in "$name" "$sat" ;;
+		*) echo "lightning liquidity: unknown provider '$provider'" >&2; exit 1 ;;
+	esac
+}
+
+cmd_out() {
+	local sat="$1"; shift
+	local provider; provider=$(default_provider)
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--provider) provider="$2"; shift 2 ;;
+			*) echo "lightning liquidity out: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	case "$provider" in
+		loop)  call_loop  out "$sat" ;;
+		boltz) call_boltz out "$sat" ;;
+		lsp)   echo "lightning liquidity: LSPS1 only buys inbound; pick a different provider for outbound" >&2; exit 1 ;;
+		*) echo "lightning liquidity: unknown provider '$provider'" >&2; exit 1 ;;
+	esac
+}
+
+cmd_provider() {
+	[ "$1" = "default" ] && [ -n "$2" ] || { echo "usage: lightning liquidity provider default <name>" >&2; exit 1; }
+	mkdir -p "$(liq_dir)"
+	echo "$2" > "$(liq_dir)/default"
+	echo "lightning liquidity: default provider = $2"
+}
+
+case "${1:-}" in
+	status)   shift; cmd_status "$@" ;;
+	in)       shift; cmd_in "$@" ;;
+	out)      shift; cmd_out "$@" ;;
+	loop)     shift; call_loop  "$1" "$2" ;;
+	boltz)    shift; call_boltz "$1" "$2" ;;
+	lsp)      shift; [ "$2" = "buy" ] || { echo "usage: lightning liquidity lsp <name> buy <sat>" >&2; exit 1; }
+	          call_lsp in "$1" "$3" ;;
+	provider) shift; cmd_provider "$@" ;;
+	"")       usage; exit 1 ;;
+	*)        echo "lightning liquidity: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

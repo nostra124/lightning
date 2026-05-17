@@ -2,7 +2,7 @@
 id: FEAT-175
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # Lightning: liquidity layer (Loop / Boltz / generic LSP)

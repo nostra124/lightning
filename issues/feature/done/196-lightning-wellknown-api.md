@@ -2,7 +2,7 @@
 id: FEAT-196
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # Lightning `.well-known/lightning/` JSON API

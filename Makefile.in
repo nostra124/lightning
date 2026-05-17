@@ -123,6 +123,31 @@ uninstall-skills-user:
 		  -maxdepth 1 -name $$name -type l -delete 2>/dev/null || true; \
 	done
 
+# FEAT-196: drop the sudoers fragment that lets Apache (www-data) cross
+# into the operator's account for the narrow `lightning api-*` verbs.
+# Operator is read from $$LIGHTNING_OPERATOR (default $$USER). This target
+# requires root and is explicitly NOT run by `make install`.
+LIGHTNING_OPERATOR ?= $(USER)
+install-apache-bridge:
+	@if [ "$$(id -u)" != "0" ]; then \
+		echo "install-apache-bridge: must be run as root"; exit 1; \
+	fi
+	@sed "s/alice/$(LIGHTNING_OPERATOR)/g" share/lightning/sudoers.d/lightning \
+		> /etc/sudoers.d/lightning.tmp
+	@visudo -c -f /etc/sudoers.d/lightning.tmp >/dev/null
+	@chmod 0440 /etc/sudoers.d/lightning.tmp
+	@mv /etc/sudoers.d/lightning.tmp /etc/sudoers.d/lightning
+	@echo "install-apache-bridge: dropped /etc/sudoers.d/lightning"
+	@echo "install-apache-bridge: add the Apache snippet to your vhost:"
+	@echo "    cat /usr/share/lightning/apache/lnurlp.conf"
+
+uninstall-apache-bridge:
+	@if [ "$$(id -u)" != "0" ]; then \
+		echo "uninstall-apache-bridge: must be run as root"; exit 1; \
+	fi
+	@rm -f /etc/sudoers.d/lightning
+	@echo "uninstall-apache-bridge: removed /etc/sudoers.d/lightning"
+
 # Versioning (FEAT-194)
 package:
 	@if [ -z "$(VERSION)" ]; then \

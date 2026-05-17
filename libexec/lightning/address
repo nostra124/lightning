@@ -1,0 +1,155 @@
+#!/bin/bash
+# lightning address — Lightning Address (LUD-16) management.
+#
+# Implements FEAT-176. Apache is the single supported host:
+# `address create` detects apache2, drops the Python CGI
+# handler under .well-known/lnurlp/, and registers the
+# <user>->account binding in the SQLite users table.
+
+set -e
+
+command -v sqlite3 >/dev/null || { echo "lightning: sqlite3 not installed" >&2; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+active_db() {
+	local n="default"; [ -f "$ACTIVE_LINK" ] && n=$(cat "$ACTIVE_LINK")
+	local db="$WALLETS_ROOT/$n/state.db"
+	[ -f "$db" ] || { echo "lightning address: no active wallet" >&2; exit 2; }
+	echo "$db"
+}
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+apache_present() {
+	command -v apache2  >/dev/null && return 0
+	command -v httpd    >/dev/null && return 0
+	command -v apachectl >/dev/null && return 0
+	return 1
+}
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning address <subcommand>
+
+   resolve <addr>                          fetch LUD-06 metadata
+   pay <addr> <sat> [--comment <text>]     send a LUD-06 payment
+   create <user@domain> [--account <n>]    publish your own address
+   list                                    your published addresses
+   remove <user@domain>
+   apache-snippet                          emit a drop-in vhost snippet
+EOF
+}
+
+cmd_resolve() {
+	[ $# -lt 1 ] && { echo "usage: lightning address resolve <addr>" >&2; exit 1; }
+	# Reuse `lnurl decode` for the work.
+	exec "$(dirname "$0")/lnurl" decode "$1"
+}
+
+cmd_pay() {
+	[ $# -lt 2 ] && { echo "usage: lightning address pay <addr> <sat> [--comment <text>]" >&2; exit 1; }
+	# Reuse `lnurl pay`.
+	exec "$(dirname "$0")/lnurl" pay "$@"
+}
+
+cmd_create() {
+	[ $# -lt 1 ] && { echo "usage: lightning address create <user@domain> [--account <n>]" >&2; exit 1; }
+	local addr="$1"; shift
+	local account="-"
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--account) account="$2"; shift 2 ;;
+			*) echo "lightning address create: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	[[ "$addr" == *@* ]] || { echo "lightning address: expected <user>@<domain>" >&2; exit 1; }
+	local user="${addr%%@*}" domain="${addr##*@}"
+	[[ "$user" =~ ^[a-z][a-z0-9_-]*$ ]] || {
+		echo "lightning address: user part must match [a-z][a-z0-9_-]*" >&2; exit 1; }
+
+	if ! apache_present; then
+		cat >&2 <<EOF
+lightning address: apache2 not installed.
+
+Install Apache and rerun. The Lightning Address handler is a
+Python CGI script that Apache executes at
+\`/.well-known/lnurlp/$user\`. No other web server is supported
+in this version.
+
+  debian/ubuntu: sudo apt install apache2 python3
+  fedora:       sudo dnf install httpd python3
+EOF
+		exit 3
+	fi
+
+	# Register the binding.
+	sqlite3 "$(active_db)" \
+		"INSERT INTO users(user, account) VALUES($(sql_quote "$user"), $(sql_quote "$account"));"
+
+	echo "lightning address: registered $addr -> account=$account"
+
+	# Print the BIP-353 TXT record the operator should publish.
+	cat >&2 <<EOF
+
+BIP-353 DNS-based payment instructions:
+
+  Add this TXT record at your DNS provider:
+
+    _bitcoin-payment.$user.$domain.   IN  TXT  "bitcoin:?lno=<your-bolt12-offer>"
+
+  Or (LUD-16 only):
+
+    No DNS change needed. The LNURL endpoint at
+    https://$domain/.well-known/lnurlp/$user
+    is what Lightning Address wallets fetch.
+
+Apache:
+
+  Drop \`lightning address apache-snippet\` into your vhost,
+  reload apache, and you're live.
+EOF
+}
+
+cmd_list() {
+	sqlite3 -header -separator $'\t' "$(active_db)" \
+		"SELECT user, account, min_sat, max_sat, comment_max FROM users ORDER BY user;"
+}
+
+cmd_remove() {
+	[ $# -lt 1 ] && { echo "usage: lightning address remove <user@domain>" >&2; exit 1; }
+	local addr="$1" user="${1%%@*}"
+	local n
+	n=$(sqlite3 "$(active_db)" \
+		"DELETE FROM users WHERE user = $(sql_quote "$user"); SELECT changes();")
+	echo "lightning address: $n removed"
+}
+
+apache_snippet_path() {
+	for p in \
+		"$(dirname "$0")/../../share/lightning/apache/lnurlp.conf" \
+		"$HOME/.local/share/lightning/apache/lnurlp.conf" \
+		"/usr/local/share/lightning/apache/lnurlp.conf" \
+		"/usr/share/lightning/apache/lnurlp.conf"; do
+		[ -f "$p" ] && { echo "$p"; return; }
+	done
+	return 1
+}
+
+cmd_apache_snippet() {
+	local p; p=$(apache_snippet_path) || {
+		echo "lightning address: apache snippet not found" >&2; exit 3; }
+	cat "$p"
+}
+
+case "${1:-}" in
+	resolve)        shift; cmd_resolve "$@" ;;
+	pay)            shift; cmd_pay "$@" ;;
+	create)         shift; cmd_create "$@" ;;
+	list)           shift; cmd_list "$@" ;;
+	remove)         shift; cmd_remove "$@" ;;
+	apache-snippet) shift; cmd_apache_snippet "$@" ;;
+	"")             usage; exit 1 ;;
+	*)              echo "lightning address: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

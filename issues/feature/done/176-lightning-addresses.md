@@ -2,7 +2,7 @@
 id: FEAT-176
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # Lightning addresses (`alice@example.com`) — create, pay, host via Apache
