@@ -43,10 +43,10 @@ teardown() {
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 1.2.0" {
+@test "lightning version returns 1.3.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.2.0" ]
+	[ "$output" = "1.3.0" ]
 }
 
 @test "lightning help prints usage" {
@@ -1245,7 +1245,7 @@ EOF
 @test "1.2.0: -q flag parses + version still prints" {
 	run "$LIGHTNING_BIN" -q version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.2.0" ]
+	[ "$output" = "1.3.0" ]
 }
 
 @test "1.2.0: -q -d flags compose (getopts handles both)" {
@@ -1255,7 +1255,7 @@ EOF
 	# second flag was lost or the verb was treated as a flag.
 	run "$LIGHTNING_BIN" -q -d version
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"1.2.0"* ]]
+	[[ "$output" == *"1.3.0"* ]]
 }
 
 @test "1.2.0: unknown flag exits non-zero" {
@@ -1878,4 +1878,31 @@ EOF
 	run bash -c "set -- foo bar; . '$sh'; echo \"\$1\""
 	[ "$status" -eq 0 ]
 	[ "$output" = "foo" ]
+}
+
+# ---------------------------------------------------------------------------
+# 1.3.0 — kcov coverage measurement
+# ---------------------------------------------------------------------------
+
+@test "1.3.0: Makefile.in has a `coverage` target that wraps bats in kcov" {
+	f="$BATS_TEST_DIRNAME/../../Makefile.in"
+	[ -f "$f" ]
+	grep -q "^coverage:" "$f"
+	grep -q "kcov" "$f"
+	grep -q "COVERAGE_DIR" "$f"
+}
+
+@test "1.3.0: CI workflow has a separate coverage job that uploads HTML" {
+	f="$BATS_TEST_DIRNAME/../../.github/workflows/test.yml"
+	[ -f "$f" ]
+	grep -q "^  coverage:" "$f"
+	grep -q "kcov" "$f"
+	grep -q "upload-artifact" "$f"
+	grep -q "coverage-html" "$f"
+}
+
+@test "1.3.0: coverage job depends on the test job (sequenced)" {
+	f="$BATS_TEST_DIRNAME/../../.github/workflows/test.yml"
+	# `needs: test` ensures the gate-job runs first.
+	grep -qE "^[[:space:]]*needs:[[:space:]]*test" "$f"
 }

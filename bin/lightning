@@ -13,7 +13,7 @@
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
 # FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
 __s="${__s%.sh}"
-VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.2.0')
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.3.0')
 unset __d
 SELF=$__s
 unset __s
