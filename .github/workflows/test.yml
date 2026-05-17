@@ -38,7 +38,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            bats sqlite3 jq python3 qrencode openssl xxd
+            bats sqlite3 jq python3 qrencode openssl xxd stow
       - name: install kcov build deps
         run: |
           sudo apt-get install -y --no-install-recommends \
