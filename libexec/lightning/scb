@@ -64,11 +64,14 @@ cmd_restore() {
 	local f="$1"
 	[ -f "$f" ] || { echo "lightning scb: no such file $f" >&2; exit 2; }
 
-	# Reads one hex line per channel.
-	while IFS= read -r line; do
-		[ -z "$line" ] && continue
-		cli emergencyrecover "$line" >/dev/null
-	done <"$f"
+	# clightning's `emergencyrecover` reads the encrypted SCB blob
+	# from <lightning-dir>/emergency.recover. Stage our file there
+	# (one blob per channel, concatenated, exactly as emit produced)
+	# and invoke the RPC with no args.
+	local target="$LIGHTNING_DIR/$LIGHTNING_NETWORK/emergency.recover"
+	[ -d "$(dirname "$target")" ] || target="$LIGHTNING_DIR/emergency.recover"
+	cp "$f" "$target"
+	cli emergencyrecover >/dev/null
 
 	cat >&2 <<EOF
 

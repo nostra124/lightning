@@ -176,7 +176,27 @@ cmd_pull() {
 	local dir; dir=$(active_path)
 	[ -d "$dir/.git" ] || { echo "lightning wallet: no active wallet" >&2; exit 2; }
 	cd "$dir"
-	git pull --rebase "$remote" "$(git symbolic-ref --short HEAD)"
+	local branch; branch=$(git symbolic-ref --short HEAD)
+	if ! git pull --rebase "$remote" "$branch"; then
+		# `git pull --rebase` leaves the repo half-merged on conflict;
+		# surface the recovery path with a clear lightning-level message.
+		cat >&2 <<EOF
+lightning wallet pull: rebase failed (conflict on $branch).
+
+To recover:
+    cd "$dir"
+    git status                       # see conflicted files
+    git rebase --abort               # back out, OR
+    # resolve conflicts in state.sql / accounts manually, then:
+    git add state.sql accounts
+    git rebase --continue
+
+The post-merge hook (which rebuilds state.db from state.sql)
+hasn't run; do it manually after a clean rebase:
+    sqlite3 state.db < state.sql
+EOF
+		exit 5
+	fi
 	# The post-merge hook is git's responsibility; for --rebase we rebuild manually.
 	[ -x .git/hooks/post-merge ] && .git/hooks/post-merge || true
 }

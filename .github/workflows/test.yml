@@ -6,27 +6,27 @@ on:
   pull_request:
 
 jobs:
-  bats:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: install deps
-        # Explicit list so behaviour doesn't drift with ubuntu-latest
-        # image revisions. shellcheck + qrencode + groff are optional;
-        # tests skip when they're absent, but we install them for full
-        # coverage.
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            bats sqlite3 jq python3 qrencode groff shellcheck openssl xxd
+            bats sqlite3 jq python3 python3-pytest qrencode groff \
+            shellcheck openssl xxd
       - name: bats unit tests
         run: bats tests/unit/
-      - name: shellcheck (non-fatal)
-        # Surface lint warnings without blocking merges. Failing here
-        # makes the lint visible; the bats step is the merge gate.
-        continue-on-error: true
+      - name: pytest (FEAT-196 CGI scripts)
+        run: pytest tests/python/
+      - name: shellcheck (merge gate)
+        # 1.2.0 onward: shellcheck warnings are a hard fail. Run on
+        # the full verb tree; CI fails if any new warnings appear.
         run: |
-          shellcheck -S warning bin/lightning libexec/lightning/* \
-            share/lightning/hooks/* tests/sit/helpers.bash \
-            share/doc/lightning/standards/refresh.sh \
-            || echo "shellcheck reported warnings (non-fatal)"
+          shellcheck -S warning \
+            bin/lightning \
+            libexec/lightning/* \
+            share/lightning/hooks/* \
+            tests/sit/helpers.bash \
+            share/doc/lightning/standards/refresh.sh

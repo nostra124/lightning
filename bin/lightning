@@ -13,7 +13,7 @@
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
 # FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
 __s="${__s%.sh}"
-VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.1.1')
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.2.0')
 unset __d
 SELF=$__s
 unset __s
@@ -44,15 +44,15 @@ fatal() {
 }
 
 debug() {
-	[ -n "$SELF_DEBUG" ] && echo "$SELF: debug - $@" >&2
+	[ -n "$SELF_DEBUG" ] && echo "$SELF: debug - $*" >&2
 }
 
 info() {
-	if [ ! -n "$SELF_QUIET" ]; then echo -e "$SELF: info - \033[33;m$@\033[0m" >&2; fi
+	if [ -z "$SELF_QUIET" ]; then echo -e "$SELF: info - \033[33;m$*\033[0m" >&2; fi
 }
 
 warn() {
-	echo -e "$SELF: warn - \033[31;1;m$@\033[0m" >&2
+	echo -e "$SELF: warn - \033[31;1;m$*\033[0m" >&2
 }
 
 # Checks if a certain function exists.
@@ -209,23 +209,27 @@ command:version() {
 # define functions but do not execute the dispatcher.
 [[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
 
-while getopts "dq" flag; do
-	if [ x"$1" = x'-q' ]; then SELF_QUIET=1; fi
-	if [ x"$1" = x'-d' ]; then SELF_DEBUG=1; fi
-	shift 1
+while getopts "dq" _flag; do
+	case "$_flag" in
+		d) SELF_DEBUG=1 ;;
+		q) SELF_QUIET=1 ;;
+		*) command:help; exit 1 ;;
+	esac
 done
+shift $((OPTIND - 1))
+unset _flag
 
 if [[ $# == 0 ]]; then
 	command:help
 	exit
 fi
 
-if has command $1; then
-	debug "executing command:$1 ${@:2}"
-	command:$1 "${@:2}"
+if has command "$1"; then
+	debug "executing command:$1 ${*:2}"
+	command:"$1" "${@:2}"
 	exit $?
 elif test -x "$SELF_LIBEXEC/$SELF/$1"; then
 	exec "$SELF_LIBEXEC/$SELF/$1" "${@:2}"
 fi
 
-fatal "unknown command $1 ${@:2}" 1
+fatal "unknown command $1 ${*:2}" 1

@@ -11,6 +11,7 @@
 #                `newaddr` instead. Useful when funding the LN node.
 
 set -e
+set -o pipefail
 
 command -v lightning-cli >/dev/null || {
 	echo "lightning: lightning-cli not found — install Core Lightning (lightningd) and ensure lightning-cli is on PATH" >&2
