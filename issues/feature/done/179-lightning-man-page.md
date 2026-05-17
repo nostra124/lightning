@@ -2,7 +2,7 @@
 id: FEAT-179
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # `lightning(1)` man page citing the vendored standards

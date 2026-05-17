@@ -2,7 +2,7 @@
 id: FEAT-178
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # Vendor BOLT specs + LNURL LUDs + Lightning Address spec under `share/doc/lightning/standards/`

@@ -2,7 +2,7 @@
 id: FEAT-180
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # `lightning-wallet` agent skill

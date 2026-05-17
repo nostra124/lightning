@@ -41,10 +41,10 @@ teardown() {
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 0.5.0" {
+@test "lightning version returns 0.6.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "0.5.0" ]
+	[ "$output" = "0.6.0" ]
 }
 
 @test "lightning help prints usage" {
@@ -89,7 +89,7 @@ teardown() {
 	[[ "$output" == *"LNURL"* || "$output" == *"Lightning Address"* ]]
 }
 
-@test "help lists the 0.5.0 verb surface" {
+@test "help lists the 0.6.0 verb surface" {
 	run "$LIGHTNING_BIN" help
 	[[ "$output" == *"info"* ]]
 	[[ "$output" == *"node-id"* ]]
@@ -111,6 +111,7 @@ teardown() {
 	[[ "$output" == *"liquidity"* ]]
 	[[ "$output" == *"apikey"* ]]
 	[[ "$output" == *"statement"* ]]
+	[[ "$output" == *"tor"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -848,4 +849,155 @@ EOF
 	                          share/lightning/wellknown/lightning/send.py \
 	                          share/lightning/wellknown/lnurlp/handler.py
 	[ "$status" -eq 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-189: Tor
+# ---------------------------------------------------------------------------
+
+@test "FEAT-189: lightning tor (no args) prints usage" {
+	run "$LIGHTNING_BIN" tor
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+@test "FEAT-189: lightning tor on writes proxy + statictor into config" {
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR/bitcoin"
+	touch "$LIGHTNING_DIR/bitcoin/config"
+	# Avoid the restart hop reaching the real daemon.
+	ln -sf /bin/true "$BIN_SHIM/lightningd"
+
+	run "$LIGHTNING_BIN" tor on
+	# May fail to find an onion in the mock; the config edit is what matters.
+	grep -q '^proxy=127.0.0.1:9050' "$LIGHTNING_DIR/bitcoin/config"
+	grep -q '^addr=statictor:127.0.0.1:9051' "$LIGHTNING_DIR/bitcoin/config"
+	grep -q '^always-use-proxy=true' "$LIGHTNING_DIR/bitcoin/config"
+	rm -rf "$LIGHTNING_DIR"
+}
+
+@test "FEAT-189: lightning tor off strips the proxy lines" {
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR/bitcoin"
+	cat > "$LIGHTNING_DIR/bitcoin/config" <<EOF
+network=bitcoin
+proxy=127.0.0.1:9050
+addr=statictor:127.0.0.1:9051
+always-use-proxy=true
+EOF
+	run "$LIGHTNING_BIN" tor off
+	[ "$status" -eq 0 ]
+	! grep -q '^proxy=' "$LIGHTNING_DIR/bitcoin/config"
+	! grep -q '^addr=statictor:' "$LIGHTNING_DIR/bitcoin/config"
+	grep -q '^network=bitcoin' "$LIGHTNING_DIR/bitcoin/config"
+	rm -rf "$LIGHTNING_DIR"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-178: standards vendoring
+# ---------------------------------------------------------------------------
+
+@test "FEAT-178: README index references the full BOLT / LUD / BIP / BLIP set" {
+	dir="$BATS_TEST_DIRNAME/../../share/doc/lightning/standards"
+	[ -f "$dir/README.md" ]
+	for term in BOLT LUD BIP BLIP cln-overview UPSTREAM; do
+		grep -q "$term" "$dir/README.md"
+	done
+}
+
+@test "FEAT-178: UPSTREAM.txt covers every vendored file" {
+	dir="$BATS_TEST_DIRNAME/../../share/doc/lightning/standards"
+	# Every file mentioned in UPSTREAM.txt should exist on disk.
+	while IFS=$'\t' read -r path _ _; do
+		case "$path" in '#'*|'') continue ;; esac
+		[ -f "$dir/$path" ] || { echo "missing: $path"; return 1; }
+	done < "$dir/UPSTREAM.txt"
+}
+
+@test "FEAT-178: cln-overview is present and substantial" {
+	f="$BATS_TEST_DIRNAME/../../share/doc/lightning/standards/cln-overview.md"
+	[ -f "$f" ]
+	# Should mention all four clightning binaries.
+	for term in lightningd lightning-cli lightning-hsmtool BOLT; do
+		grep -q "$term" "$f"
+	done
+}
+
+@test "FEAT-178: refresh.sh exists and is executable" {
+	f="$BATS_TEST_DIRNAME/../../share/doc/lightning/standards/refresh.sh"
+	[ -x "$f" ]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-179: man page
+# ---------------------------------------------------------------------------
+
+@test "FEAT-179: man page exists and references the full verb surface" {
+	f="$BATS_TEST_DIRNAME/../../share/man/man1/lightning.1"
+	[ -f "$f" ]
+	# Spot-check sections + key verbs.
+	grep -q "^.TH LIGHTNING 1" "$f"
+	grep -q "^.SH NAME" "$f"
+	grep -q "^.SH ENVIRONMENT" "$f"
+	grep -q "^.SH SUBCOMMANDS" "$f"
+	grep -q "^.SH STANDARDS" "$f"
+	grep -q "^.SH EXIT STATUS" "$f"
+	for verb in invoice pay channel wallet account ledger backup liquidity address tor daemon; do
+		grep -qw "$verb" "$f"
+	done
+}
+
+@test "FEAT-179: man page renders without groff warnings (if groff available)" {
+	command -v groff >/dev/null || skip "groff not installed"
+	f="$BATS_TEST_DIRNAME/../../share/man/man1/lightning.1"
+	# -ww promotes warnings to errors; -man parses the man macros.
+	run groff -ww -man -Tutf8 "$f"
+	[ "$status" -eq 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-177: self-contained packaging
+# ---------------------------------------------------------------------------
+
+@test "FEAT-177: docs/lightning.md covers every 0.6.0 verb" {
+	f="$BATS_TEST_DIRNAME/../../docs/lightning.md"
+	[ -f "$f" ]
+	for verb in info node-id peers channels balance channel invoice pay send decode \
+	            offer offer-pay lnurl qr wallet account ledger history seed scb \
+	            backup restore liquidity address daemon unlock tor; do
+		grep -qw "$verb" "$f"
+	done
+}
+
+@test "FEAT-177: bash completion defines _lightning and registers complete" {
+	f="$BATS_TEST_DIRNAME/../../etc/bash_completion.d/lightning"
+	[ -f "$f" ]
+	grep -q "_lightning()" "$f"
+	grep -q "^complete -F _lightning lightning$" "$f"
+	grep -q "^complete -F _lightning lightning.sh$" "$f"
+}
+
+@test "FEAT-177: bash completion sources cleanly" {
+	f="$BATS_TEST_DIRNAME/../../etc/bash_completion.d/lightning"
+	run bash -n "$f"
+	[ "$status" -eq 0 ]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-180: agent skill
+# ---------------------------------------------------------------------------
+
+@test "FEAT-180: SKILL.md describes the full 0.6.0 surface" {
+	f="$BATS_TEST_DIRNAME/../../skills/lightning-wallet/SKILL.md"
+	[ -f "$f" ]
+	for term in "channel open" "lightning invoice" "address pay" "account create" \
+	            "liquidity in" "backup" "restore" "BOLT" "LUD" "Tor" "force-close"; do
+		grep -q "$term" "$f"
+	done
+}
+
+@test "FEAT-180: SKILL.md frontmatter has name + description" {
+	f="$BATS_TEST_DIRNAME/../../skills/lightning-wallet/SKILL.md"
+	head -10 "$f" | grep -q "^name: lightning-wallet"
+	head -20 "$f" | grep -q "^description:"
 }

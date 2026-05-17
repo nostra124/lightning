@@ -1,81 +1,318 @@
-.\" Manpage for lightning(1).
-.TH LIGHTNING 1 "May 2026" "scripts" "User Commands"
-
+.TH LIGHTNING 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning \- multi-backend Lightning Network frontend
-
+lightning \- educational Lightning Network frontend on clightning
 .SH SYNOPSIS
 .B lightning
-.RI [ options ]
-.I command
-.RI [ args ...]
-
+[\fB\-d\fR] [\fB\-q\fR] \fIcommand\fR [\fIargs\fR]
 .SH DESCRIPTION
 .B lightning
-is the educational Lightning Network frontend. It
-abstracts over multiple lightning daemons so the same
-verb surface works across backends:
+is the educational Lightning Network frontend targeting clightning
+(Core Lightning) as the single backend. Verbs shell out to
+\fIlightning-cli\fR; help text cites the BOLT each verb implements.
 
-.TP
-.B clightning
-The Core Lightning daemon (Blockstream).
-.TP
-.B lnd
-The LND daemon (Lightning Labs).
-.TP
-.B phoenixd
-The lightweight Phoenix daemon (ACINQ).
+The four design principles:
 
-Each backend plugin lives under
-.IR libexec/lightning/<backend>/
-and cites the BOLT it implements
-(FEAT-178: BOLT 1..11 + LNURL LUDs + Lightning Address
-under
-.IR share/doc/lightning/standards/ ).
-
-.SH STATUS
-
-The full surface is filed across FEAT-170..182 and
-implementation is pending. Today's
-.B bin/lightning
-is a stub establishing the shape so the artefact set
-can land.
-
-.SH SUBCOMMANDS
-
-.TP
-.B help / version
+.IP \[bu] 2
+.B Educational.
+Each verb cites the BOLT it implements (BOLT 1..12) plus LNURL and
+Lightning Address standards.
+.IP \[bu]
+.B Functional.
+Each verb is a thin wrapper over \fIlightning-cli\fR.
+.IP \[bu]
+.B Decentralized.
+No custodial layer; the user's node is the trust boundary.
+.IP \[bu]
+.B Simple.
+.I lightning
+calls only the
+.IR account (1)
+package at runtime;
+on-chain channel funding is handled by clightning's built-in wallet.
 
 .SH ENVIRONMENT
 .TP
-.B SELF_DEBUG
-Enable shell tracing.
+.B LIGHTNING_DIR
+Path to clightning's data dir. Default
+.IR $HOME/.lightning .
+.TP
+.B LIGHTNING_NETWORK
+.IR bitcoin " | " testnet " | " regtest " | " signet .
+Default
+.IR bitcoin .
+.TP
+.B LIGHTNING_WALLETS_ROOT
+Where multi-account wallet repos live. Default
+.IR $HOME/.lightning/wallet .
+
+.SH SUBCOMMANDS
+
+.SS Node introspection
+.TP
+.B info
+Summary of \fIgetinfo\fR.
+.TP
+.B node-id
+Print this node's pubkey.
+.TP
+.B peers
+TSV of connected peers.
+.TP
+.B channels
+TSV of channels.
+.TP
+.B balance \fR[\fB--on-chain\fR]
+On-chain confirmed / unconfirmed / channel balance. With
+\fB--on-chain\fR, prints a receive address from \fInewaddr\fR.
+
+.SS Channels (BOLT-2, BOLT-5)
+.TP
+.B channel list
+TSV of all channels.
+.TP
+.B channel open \fI<node-uri>\fR \fI<sats>\fR \fR[\fB--push\fR \fI<sats>\fR]
+Open a channel. Funding comes from clightning's on-chain wallet.
+.TP
+.B channel close \fI<id>\fR
+Cooperative close.
+.TP
+.B channel force-close \fI<id>\fR \fB--confirm\fR
+Unilateral close. Costs the
+.IR to_self_delay
+(typically 144 blocks); the
+.B --confirm
+flag is mandatory.
+.TP
+.B channel balance \fR[\fI<id>\fR]
+Per-channel local / remote msat.
+.TP
+.B channel info \fI<id>\fR
+.TP
+.B channel pending
+Opening / closing channels.
+
+.SS Payments (BOLT-11, BOLT-12, LNURL)
+.TP
+.B invoice \fI<sat>\fR \fI<label>\fR \fR[\fB--description\fR \fI<text>\fR] [\fB--expiry\fR \fI<sec>\fR] [\fB--qr\fR]
+Mint a BOLT-11 invoice.
+.TP
+.B pay \fI<bolt11>\fR \fR[\fB--max-fee-sat\fR \fIN\fR] [\fB--timeout\fR \fIS\fR]
+Pay a BOLT-11 invoice.
+.TP
+.B send \fI<node-id>\fR \fI<sat>\fR \fR[\fB--message\fR \fI<text>\fR]
+Keysend payment.
+.TP
+.B decode \fI<string>\fR
+Detect + decode any of: BOLT-11, BOLT-12 offer, BOLT-12 invoice,
+LNURL, Lightning Address. Strips a leading \fIlightning:\fR BIP-21
+prefix.
+.TP
+.B offer \fI<sat>\fR|\fIany\fR \fI<description>\fR \fR[\fB--qr\fR]
+Create a BOLT-12 offer.
+.TP
+.B offer-pay \fI<bolt12-offer>\fR \fR[\fI<sat>\fR] [\fB--message\fR \fI<text>\fR]
+Fetch invoice + pay.
+.TP
+.B lnurl decode \fI<lnurl>\fR
+.TP
+.B lnurl pay \fI<lnurl-or-address>\fR \fI<sat>\fR \fR[\fB--comment\fR \fI<text>\fR]
+LUD-06 + LUD-12 round-trip.
+
+.SS QR codes
+.TP
+.B qr \fI<text>\fR \fR[\fB--png\fR \fIFILE\fR | \fB--svg\fR \fIFILE\fR | \fB--ansi\fR]
+Render a QR. ANSI to stdout by default.
+
+.SS Wallet + accounts
+.TP
+.B wallet new \fI<name>\fR
+Initialise a git-backed wallet repo with a fresh
+.I state.db
+(see
+.IR /usr/share/lightning/schema.sql ).
+.TP
+.B wallet use \fI<name>\fR
+Set the active wallet.
+.TP
+.B wallet list | active | path
+.TP
+.B wallet push | pull | sync \fR[\fI<remote>\fR]
+Git round-trip with the
+.I state.sql
+dump.
+.TP
+.B account list \fR[\fB--balances\fR]
+.TP
+.B account create \fI<name>\fR \fR[\fI<desc>\fR] [\fB--limit\fR \fI<sat>\fR] [\fB--overdraft\fR \fIdeny\fR|\fIwarn\fR|\fIallow\fR] [\fB--host\fR \fI<domain>\fR]
+With \fB--host\fR, auto-issues \fI<name>@<domain>\fR via
+.B address create.
+.TP
+.B account delete \fI<name>\fR
+.TP
+.B account show \fI<name>\fR
+.TP
+.B account apikey \fIcreate\fR|\fIlist\fR|\fIrevoke\fR \fI<name>\fR \fB--scope\fR \fIread\fR|\fIwrite\fR
+Issue API keys for the well-known JSON API (FEAT-196).
+
+.SS Ledger
+.TP
+.B ledger list \fR[\fB--account\fR \fI<n>\fR] [\fB--since\fR \fI<date>\fR] [\fB--limit\fR \fIN\fR]
+.TP
+.B ledger sum \fR[\fB--by\fR \fIaccount\fR|\fIday\fR|\fImonth\fR|\fIyear\fR]
+.TP
+.B ledger balance \fR[\fI<account>\fR]
+.TP
+.B ledger annotate \fI<payment_hash>\fR \fI<note>\fR
+Set the local-only \fInote\fR column.
+.TP
+.B ledger statement \fB--account\fR \fI<n>\fR \fB--period\fR \fIYYYY-MM\fR|\fIYYYY-Q[1-4]\fR|\fIYYYY\fR \fR[\fB--tsv\fR]
+.TP
+.B ledger export \fIcsv\fR|\fIjsonl\fR|\fItsv\fR
+.TP
+.B history
+Alias for \fBledger list\fR.
+
+.SS Seed + backups
+.TP
+.B seed export | import | verify
+Wraps clightning's
+.IR hsm_secret .
+.TP
+.B scb emit \fR[\fB--out\fR \fIFILE\fR]
+Static Channel Backup. Default destination is the active wallet's
+\fIscb/\fR dir.
+.TP
+.B scb restore \fIFILE\fR
+Triggers force-closes by peers; on-chain funds become spendable
+after the to_self_delay.
+.TP
+.B backup \fR[\fB--seed\fR] [\fB--remote\fR \fI<name>\fR]
+SCB + state.sql + git push.
+.TP
+.B restore \fI<wallet-remote-url>\fR \fR[\fI<name>\fR]
+Clone + seed import + scb restore.
+
+.SS Liquidity
+.TP
+.B liquidity status
+Per-channel inbound / outbound (sat).
+.TP
+.B liquidity in \fI<sat>\fR \fR[\fB--provider\fR \fI<name>\fR]
+Acquire inbound (the primary user story).
+.TP
+.B liquidity out \fI<sat>\fR
+.TP
+.B liquidity loop \fIin\fR|\fIout\fR \fI<sat>\fR
+.TP
+.B liquidity boltz \fIin\fR|\fIout\fR \fI<sat>\fR
+.TP
+.B liquidity lsp \fI<name>\fR \fIbuy\fR \fI<sat>\fR
+BLIP-51 (LSPS1) channel purchase.
+.TP
+.B liquidity provider default \fI<name>\fR
+
+.SS Addresses (LUD-16)
+.TP
+.B address create \fI<user@domain>\fR \fR[\fB--account\fR \fI<n>\fR]
+Apache-detected; refuses without
+.IR apache2 .
+.TP
+.B address pay \fI<addr>\fR \fI<sat>\fR \fR[\fB--comment\fR \fI<text>\fR]
+.TP
+.B address resolve \fI<addr>\fR
+.TP
+.B address list | remove
+.TP
+.B address apache-snippet
+Emit the drop-in vhost fragment.
+
+.SS Daemon control
+.TP
+.B daemon start | stop | restart | status | logs
+.TP
+.B daemon install \fR[\fB--system\fR] [\fB--migrate\fR]
+With \fB--system\fR, provisions the
+.B clightning
+system user + \fI/var/lib/clightning/\fR + systemd unit.
+
+.SS Wallet unlock
+.TP
+.B unlock \fR[\fB--stored\fR | \fIrotate\fR | \fIforget\fR] [\fB--wallet\fR \fI<name>\fR]
+clightning HSM unlock + secret-store integration.
+
+.SS Tor
+.TP
+.B tor on | off | status
+Manages
+.IR lightningd.conf 's
+\fIproxy=\fR and \fIaddr=statictor:\fR settings; restarts the daemon.
 
 .SH FILES
 .TP
-.I libexec/lightning/<backend>/
-Per-backend plugin (clightning / lnd / phoenixd).
+.I $LIGHTNING_DIR/
+clightning data dir. See \fI/usr/share/lightning/standards/cln-overview.md\fR.
 .TP
-.I share/doc/lightning/standards/
-Vendored BOLT specs + LNURL LUDs + Lightning Address
-spec (FEAT-178, pending).
+.I $LIGHTNING_WALLETS_ROOT/<name>/
+git-backed wallet repo. Contains \fIstate.db\fR (SQLite, gitignored)
+and \fIstate.sql\fR (the dump that travels).
+.TP
+.I /usr/share/lightning/schema.sql
+SQLite schema (FEAT-193).
+.TP
+.I /usr/share/lightning/wellknown/
+Python CGI scripts for Apache: \fIlnurlp/handler.py\fR (FEAT-176) and
+\fIlightning/{send,recv,balance}.py\fR (FEAT-196).
+.TP
+.I /usr/share/lightning/apache/lnurlp.conf
+Drop-in vhost fragment.
+.TP
+.I /usr/share/lightning/sudoers.d/lightning
+Bridge fragment for \fIwww-data\fR to call the \fIapi-*\fR verbs as
+the operator. Installed via
+.B make install-apache-bridge.
+
+.SH STANDARDS
+The full set of vendored specs lives under
+.IR /usr/share/lightning/standards/ .
+The
+.B Lightning Well-Known JSON API
+spec (FEAT-196) is at \fIapi/spec.md\fR.
 
 .SH EXIT STATUS
-0 on success; non-zero on failure.
+.TP
+0
+success
+.TP
+1
+generic error (unknown verb, bad args)
+.TP
+2
+business-rule failure (e.g.
+.B channel force-close
+without
+.BR --confirm )
+.TP
+3
+configuration failure (e.g. apache not installed)
+.TP
+4
+payment / unlock failure
+.TP
+127
+soft-dep absent (lightning-cli, sqlite3, qrencode, ...)
 
 .SH SEE ALSO
 .BR account (1),
-.BR bitcoin (1),
-.BR cluster (1),
-.BR secret (1).
+.BR secret (1),
+.BR config (1),
+.BR lightningd (8),
+.BR lightning-cli (1),
+.BR lightning-hsmtool (8).
 
-.SH STANDARDS
-BOLT 1..11 (Lightning Network protocol), LNURL LUDs,
-the Lightning Address spec \(em filed for vendoring
-under
-.IR share/doc/lightning/standards/ .
+The vendored standards:
+.IR /usr/share/lightning/standards/ .
 
-.SH BUGS
-Report at
-.UR https://github.com/nostra124/scripts/issues
+.SH AUTHOR
+nostra124. Source:
+.UR https://github.com/nostra124/lightning
 .UE .

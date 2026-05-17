@@ -2,7 +2,7 @@
 id: FEAT-177
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning self-contained packaging: docs, tests, completion, CLAUDE.md
