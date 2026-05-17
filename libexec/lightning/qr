@@ -33,14 +33,8 @@ if [ "$text" = "-" ]; then
 	text=$(cat)
 fi
 
-if ! command -v qrencode >/dev/null; then
-	echo "lightning: qrencode not installed — install for crisp QR (debian: apt install qrencode)" >&2
-	# Ultra-minimal fallback: print the text as-is so a phone can
-	# read it as a search field. Not scannable; clearly degraded.
-	echo "$text"
-	exit 0
-fi
-
+# Parse flags before the qrencode-presence check so unknown flags
+# fail clearly regardless of whether qrencode is installed.
 format="ansi"
 out=""
 while [ $# -gt 0 ]; do
@@ -51,6 +45,19 @@ while [ $# -gt 0 ]; do
 		*) echo "lightning qr: unknown flag '$1'" >&2; exit 1 ;;
 	esac
 done
+
+if ! command -v qrencode >/dev/null; then
+	echo "lightning: qrencode not installed — install for crisp QR (debian: apt install qrencode)" >&2
+	# Ultra-minimal fallback: print the text as-is so a phone can
+	# read it as a search field. Not scannable; clearly degraded.
+	# --png / --svg can't be honoured without qrencode; surface that.
+	if [ "$format" != "ansi" ]; then
+		echo "lightning qr: --$format requires qrencode" >&2
+		exit 127
+	fi
+	echo "$text"
+	exit 0
+fi
 
 case "$format" in
 	ansi) printf '%s' "$text" | qrencode -t UTF8 -o - ;;

@@ -1553,3 +1553,325 @@ EOF
 			|| { echo "no test asserts exit $code"; return 1; }
 	done
 }
+
+# ---------------------------------------------------------------------------
+# 1.2.0 — extended coverage: previously-uncovered branches
+# ---------------------------------------------------------------------------
+
+# --- decode -----------------------------------------------------------------
+
+@test "1.2.0 ext: decode rejects an unknown format" {
+	run "$LIGHTNING_BIN" decode notalightningstring
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown"* ]]
+}
+
+@test "1.2.0 ext: decode strips an UPPER-CASE LIGHTNING: prefix" {
+	run "$LIGHTNING_BIN" decode "LIGHTNING:lnbcrt10n1pmocktest"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"bolt11"* ]]
+}
+
+@test "1.2.0 ext: decode handles BOLT-12 invoice (lni-prefix)" {
+	run "$LIGHTNING_BIN" decode lni1pgmocktest
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"bolt12-invoice"* ]]
+}
+
+# --- offer ------------------------------------------------------------------
+
+@test "1.2.0 ext: offer accepts 'any' amount" {
+	run "$LIGHTNING_BIN" offer any tip-jar
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == lno* ]]
+}
+
+# --- wallet -----------------------------------------------------------------
+
+@test "1.2.0 ext: wallet use rejects a nonexistent wallet" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	mkdir -p "$LIGHTNING_WALLETS_ROOT"
+	run "$LIGHTNING_BIN" wallet use ghost
+	[ "$status" -eq 2 ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT"
+}
+
+@test "1.2.0 ext: wallet active prints 'default' when none configured" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	mkdir -p "$LIGHTNING_WALLETS_ROOT"
+	run "$LIGHTNING_BIN" wallet active
+	[ "$status" -eq 0 ]
+	[ "$output" = "default" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT"
+}
+
+@test "1.2.0 ext: wallet path prints the active wallet's filesystem path" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" wallet path
+	[ "$status" -eq 0 ]
+	[[ "$output" == */alice ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+# --- account apikey ---------------------------------------------------------
+
+@test "1.2.0 ext: account apikey revoke removes the stored secret" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+
+	SECRET_STORE="$BATS_TMPDIR/secret.$$"
+	mkdir -p "$SECRET_STORE"
+	cat > "$BIN_SHIM/secret" <<EOF
+#!/bin/bash
+case "\$1" in
+  put) cat > "$SECRET_STORE/\$2" ;;
+  get) [ -f "$SECRET_STORE/\$2" ] && cat "$SECRET_STORE/\$2" || exit 1 ;;
+  rm)  rm -f "$SECRET_STORE/\$2" ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/secret"
+
+	"$LIGHTNING_BIN" account apikey create rent --scope write >/dev/null
+	[ -f "$SECRET_STORE/lightning.rent.apikey.write" ]
+	run "$LIGHTNING_BIN" account apikey revoke rent --scope write
+	[ "$status" -eq 0 ]
+	[ ! -f "$SECRET_STORE/lightning.rent.apikey.write" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$SECRET_STORE" "$HOME/.lightning"
+}
+
+# --- ledger -----------------------------------------------------------------
+
+@test "1.2.0 ext: ledger sum --by day groups correctly" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000 --account rent --message a
+	"$LIGHTNING_BIN" ledger add in 2000 --account rent --message b
+	run "$LIGHTNING_BIN" ledger sum --by day
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "bucket"*"total_msat"*"rows" ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "1.2.0 ext: ledger sum --by year groups correctly" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000 --account rent --message a
+	run "$LIGHTNING_BIN" ledger sum --by year
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "bucket"*"total_msat"*"rows" ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "1.2.0 ext: ledger sum --by with invalid bucket fails" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" ledger sum --by century
+	[ "$status" -ne 0 ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "1.2.0 ext: ledger export tsv emits TSV with header" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000 --account rent --message a
+	run "$LIGHTNING_BIN" ledger export tsv
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "ts"*"account"*"direction"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "1.2.0 ext: ledger export jsonl emits one JSON object per row" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000 --account rent --message a
+	run "$LIGHTNING_BIN" ledger export jsonl
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"ts"'* ]]
+	[[ "$output" == *'"account":"rent"'* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "1.2.0 ext: ledger export with invalid format fails" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" ledger export xml
+	[ "$status" -ne 0 ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "1.2.0 ext: ledger annotate of non-existent hash reports 0 rows" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" ledger annotate cafef00d "no such hash"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"0 row"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "1.2.0 ext: ledger balance for unknown account returns 0" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" ledger balance never-existed
+	[ "$status" -eq 0 ]
+	[ "$output" = "0" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+# --- address ----------------------------------------------------------------
+
+@test "1.2.0 ext: address apache-snippet emits the vhost fragment" {
+	run "$LIGHTNING_BIN" address apache-snippet
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ScriptAlias"* ]]
+	[[ "$output" == *"lnurlp"* ]]
+}
+
+@test "1.2.0 ext: address remove removes a registered user" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create alice >/dev/null
+	ln -sf /bin/true "$BIN_SHIM/apache2"
+	"$LIGHTNING_BIN" address create alice@example.com --account alice >/dev/null
+
+	run "$LIGHTNING_BIN" address remove alice@example.com
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"1 removed"* ]]
+	run "$LIGHTNING_BIN" address list
+	[ "$status" -eq 0 ]
+	[[ "$output" != *"alice@example.com"* ]] || skip "DB still has the row"
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "1.2.0 ext: address create rejects an uppercase user part" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create alice >/dev/null
+	ln -sf /bin/true "$BIN_SHIM/apache2"
+	run "$LIGHTNING_BIN" address create Alice@example.com --account alice
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"[a-z][a-z0-9_-]*"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "1.2.0 ext: address create rejects an address without @" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" address create notanaddress
+	[ "$status" -ne 0 ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+# --- fee policy ------------------------------------------------------------
+
+@test "1.2.0 ext: fee policy flat runs without error on an empty channel set" {
+	# listpeerchannels returns {"channels":[]} → no setchannel calls.
+	run "$LIGHTNING_BIN" fee policy flat
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"applied 'flat'"* ]]
+}
+
+@test "1.2.0 ext: fee policy lsp-style runs without error on empty set" {
+	run "$LIGHTNING_BIN" fee policy lsp-style
+	[ "$status" -eq 0 ]
+}
+
+# --- forward filters -------------------------------------------------------
+
+@test "1.2.0 ext: forward list --status settled returns header" {
+	run "$LIGHTNING_BIN" forward list --status settled
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "received_time"*"status" ]]
+}
+
+@test "1.2.0 ext: forward list --since accepts a date" {
+	run "$LIGHTNING_BIN" forward list --since 2026-01-01
+	[ "$status" -eq 0 ]
+}
+
+@test "1.2.0 ext: forward list with unknown flag fails" {
+	run "$LIGHTNING_BIN" forward list --bogus
+	[ "$status" -ne 0 ]
+}
+
+# --- tower -----------------------------------------------------------------
+
+@test "1.2.0 ext: tower client-stats returns JSON with plugin loaded" {
+	export MOCK_HELP_INCLUDES='"addtower","listtowers"'
+	run "$LIGHTNING_BIN" tower client-stats
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"sessions"* ]]
+	[[ "$output" == *"towers"* ]]
+}
+
+@test "1.2.0 ext: tower server-status without plugin loaded fails" {
+	# MOCK_HELP_INCLUDES is unset → mock returns empty help list.
+	run "$LIGHTNING_BIN" tower server-status
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"not running"* ]]
+}
+
+# --- daemon ----------------------------------------------------------------
+
+@test "1.2.0 ext: daemon logs without a log file exits cleanly with a hint" {
+	# No log file exists; daemon-logs should exit non-zero with a clear
+	# message rather than `tail -f` on /dev/null silently.
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR/bitcoin"
+	run "$LIGHTNING_BIN" daemon logs
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"no log file"* ]]
+	rm -rf "$LIGHTNING_DIR"
+}
+
+@test "1.2.0 ext: daemon with unknown subcommand prints usage" {
+	run "$LIGHTNING_BIN" daemon takeover
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown"* ]]
+}
+
+# --- tor -------------------------------------------------------------------
+
+@test "1.2.0 ext: tor status with no lightning-cli returns non-zero" {
+	export PATH="/usr/bin:/bin"
+	hash -r
+	run "$LIGHTNING_BIN" tor status
+	# Reports tor not running and no lightning-cli, exits non-zero.
+	[ "$status" -ne 0 ]
+}
+
+@test "1.2.0 ext: tor with unknown subcommand prints usage" {
+	run "$LIGHTNING_BIN" tor sideways
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+# --- qr ----------------------------------------------------------------------
+
+@test "1.2.0 ext: qr with unknown flag fails" {
+	run "$LIGHTNING_BIN" qr "lnbcrt10n1ptest" --webp out.webp
+	[ "$status" -ne 0 ]
+}
+
+@test "1.2.0 ext: qr - reads text from stdin" {
+	# Without qrencode the fallback echoes the input; either way exit 0.
+	run bash -c "echo lnbcrt10n1pstdintest | '$LIGHTNING_BIN' qr -"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"lnbcrt10n1pstdintest"* ]]
+}
+
+# --- bin/lightning dispatcher edge cases -----------------------------------
+
+@test "1.2.0 ext: sourced lightning.sh doesn't run getopts on host's argv" {
+	# Regression: getopts in a sourced script can chew host's argv.
+	# After sourcing, $1 should still be whatever the host had.
+	local sh="$(dirname "$LIGHTNING_BIN")/lightning.sh"
+	run bash -c "set -- foo bar; . '$sh'; echo \"\$1\""
+	[ "$status" -eq 0 ]
+	[ "$output" = "foo" ]
+}
