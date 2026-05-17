@@ -37,9 +37,18 @@ Or in two steps:
 
 - `man lightning`
 - `docs/lightning.md` — CLI contract reference
+- `share/doc/lightning/walkthrough/README.md` — end-to-end regtest walkthrough
 - `share/doc/lightning/standards/README.md` — vendored standards
+- `share/doc/lightning/standards/cln-overview.md` — 10-minute clightning tour
+- `share/doc/lightning/standards/api/spec.md` — Well-Known JSON API spec
 - `CLAUDE.md` — agent guide
 - `skills/lightning-wallet/SKILL.md` — agent skill
+
+## Tests
+
+- `make check` — bats unit suite (no daemon required)
+- `make check-sit` — full SIT against a regtest+apache podman container
+  (see `tests/sit/README.md`)
 
 ## Conventions
 

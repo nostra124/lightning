@@ -1,0 +1,33 @@
+# bitcoind regtest base image (FEAT-182).
+#
+# Used as the FROM base for Dockerfile.clightning. Stays
+# minimal so the layer cache holds: bitcoind + a regtest
+# config + an entrypoint that starts the daemon and exposes
+# port 18443.
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl bash \
+        bitcoind \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd --create-home --shell /bin/bash bitcoin
+USER bitcoin
+WORKDIR /home/bitcoin
+
+RUN mkdir -p .bitcoin && cat > .bitcoin/bitcoin.conf <<EOF
+regtest=1
+server=1
+txindex=1
+rpcuser=test
+rpcpassword=test
+rpcallowip=127.0.0.1
+fallbackfee=0.0001
+[regtest]
+rpcport=18443
+EOF
+
+EXPOSE 18443
+
+CMD ["bitcoind", "-regtest"]

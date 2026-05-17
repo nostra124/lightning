@@ -2,7 +2,7 @@
 id: FEAT-182
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # SIT: lightning end-to-end against a clightning regtest container

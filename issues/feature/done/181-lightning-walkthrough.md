@@ -2,7 +2,7 @@
 id: FEAT-181
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # Lightning walkthrough: clightning on regtest, channel, pay, address, Loop
