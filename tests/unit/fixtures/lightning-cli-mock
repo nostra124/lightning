@@ -159,6 +159,36 @@ EOF
 	emergencyrecover)
 		echo '{"stubs": [], "channel_count": 1}'
 		;;
+	addtower)
+		printf '{"id":"%s","host":"127.0.0.1","port":9814,"num_sessions":0}\n' "${2%@*}"
+		;;
+	listtowers)
+		echo '{"towers": []}'
+		;;
+	watchtower-stats)
+		echo '{"channels": 0, "breaches": 0}'
+		;;
+	plugin)
+		# `plugin start|stop` — just acknowledge.
+		printf '{"command":"%s","plugin":"%s","success":true}\n' "$2" "${3:-watchtower}"
+		;;
+	help)
+		# Used by tower/fee to probe plugin presence. Return an empty
+		# command list by default; specific tests override by passing
+		# MOCK_HELP_INCLUDES.
+		if [ -n "$MOCK_HELP_INCLUDES" ]; then
+			printf '{"help":[%s]}\n' "$MOCK_HELP_INCLUDES"
+		else
+			echo '{"help":[]}'
+		fi
+		;;
+	setchannel)
+		printf '{"channels":[{"channel_id":"%s","fee_base_msat":%s,"fee_proportional_millionths":%s}]}\n' \
+			"$2" "$3" "$4"
+		;;
+	listforwards)
+		echo '{"forwards": []}'
+		;;
 	*)
 		echo "mock lightning-cli: unhandled command '$1'" >&2
 		exit 1

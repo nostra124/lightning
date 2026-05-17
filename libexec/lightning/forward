@@ -1,0 +1,78 @@
+#!/bin/bash
+# lightning forward — forwarded-HTLC introspection (FEAT-188).
+#
+# Wraps clightning's `listforwards`. Routing nodes use this
+# to see what went through them and what they earned.
+#
+# Subcommands:
+#   list [--since <date>] [--status settled|failed|local_failed|offered]
+#   stats                                  totals: msats / fees / success rate
+
+set -e
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found" >&2; exit 127; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning forward <subcommand>
+
+   list [--since <date>] [--status settled|failed|local_failed|offered]
+   stats                              totals: msat / fees / success rate
+EOF
+}
+
+cmd_list() {
+	local since="" status=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--since)  since="$2";  shift 2 ;;
+			--status) status="$2"; shift 2 ;;
+			*) echo "lightning forward list: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	# Convert YYYY-MM-DD to unix epoch for clightning's `received_time`
+	# filter (it accepts both forms in jq).
+	local since_epoch=""
+	[ -n "$since" ] && since_epoch=$(date -u -d "$since" +%s 2>/dev/null || echo "")
+
+	printf "received_time\tin_channel\tout_channel\tin_msat\tout_msat\tfee_msat\tstatus\n"
+	cli listforwards | jq -r --arg since "$since_epoch" --arg status "$status" '
+		.forwards[]
+		| select(($status == "") or (.status == $status))
+		| select(($since == "") or (.received_time >= ($since | tonumber)))
+		| [(.received_time | strftime("%Y-%m-%dT%H:%M:%SZ") // (.received_time|tostring)),
+		   (.in_channel  // "-"),
+		   (.out_channel // "-"),
+		   (.in_msat // .in_msatoshi // 0),
+		   (.out_msat // .out_msatoshi // 0),
+		   (.fee_msat // .fee // 0),
+		   .status
+		  ] | @tsv'
+}
+
+cmd_stats() {
+	cli listforwards | jq '{
+		total: (.forwards | length),
+		settled: ([.forwards[] | select(.status == "settled")] | length),
+		failed:  ([.forwards[] | select(.status == "failed")]  | length),
+		forwarded_msat: ([.forwards[] | select(.status == "settled") | (.out_msat // .out_msatoshi // 0)] | add // 0),
+		fees_earned_msat: ([.forwards[] | select(.status == "settled") | (.fee_msat // .fee // 0)] | add // 0),
+		success_rate: (
+			(([.forwards[] | select(.status == "settled")] | length) * 100.0)
+			/ ([.forwards | length, 1] | max)
+		)
+	}'
+}
+
+case "${1:-}" in
+	list)  shift; cmd_list "$@" ;;
+	stats) shift; cmd_stats "$@" ;;
+	"")    usage; exit 1 ;;
+	*)     echo "lightning forward: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

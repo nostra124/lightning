@@ -1,0 +1,104 @@
+#!/bin/bash
+# lightning fee — per-channel fee policy (FEAT-188).
+#
+# Wraps clightning's `setchannel` + `listchannels`. Fees are
+# what makes a routing node profitable; see BOLT-7
+# §channel_update for the wire format.
+#
+# Subcommands:
+#   get [<channel-id>]                    show base+ppm
+#   set <channel-id> <base-msat> <ppm>    update
+#   policy <name>                         apply named policy
+#                                          (flat | lsp-style | match-peer)
+
+set -e
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found" >&2; exit 127; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning fee <subcommand>
+
+   get [<channel-id>]                    TSV of base / ppm per channel
+   set <channel-id> <base-msat> <ppm>    update one channel
+   policy <name>                         apply a named policy across all:
+                                          - flat       (1000 msat + 1 ppm)
+                                          - lsp-style  (0   msat + 250 ppm)
+                                          - match-peer (copy peer's fees)
+EOF
+}
+
+cmd_get() {
+	local id_filter="${1:-}"
+	# Local channels via listpeerchannels (newer) → listchannels fallback.
+	local json
+	if json=$(cli listpeerchannels 2>/dev/null); then
+		printf "channel_id\tbase_msat\tppm\n"
+		jq -r --arg id "$id_filter" '
+			.channels[]
+			| select(($id == "") or (.short_channel_id == $id or .channel_id == $id))
+			| [(.short_channel_id // .channel_id // "-"),
+			   (.fee_base_msat // 0),
+			   (.fee_proportional_millionths // 0)]
+			| @tsv' <<<"$json"
+	else
+		json=$(cli listchannels)
+		printf "channel_id\tbase_msat\tppm\n"
+		jq -r --arg id "$id_filter" '
+			.channels[]
+			| select(($id == "") or (.short_channel_id == $id))
+			| [.short_channel_id, .base_fee_millisatoshi,
+			   .fee_per_millionth] | @tsv' <<<"$json"
+	fi
+}
+
+cmd_set() {
+	[ $# -lt 3 ] && { echo "usage: lightning fee set <channel-id> <base-msat> <ppm>" >&2; exit 1; }
+	local id="$1" base="$2" ppm="$3"
+	[[ "$base" =~ ^[0-9]+$ ]] || { echo "base-msat: integer required" >&2; exit 1; }
+	[[ "$ppm"  =~ ^[0-9]+$ ]] || { echo "ppm: integer required" >&2; exit 1; }
+	cli setchannel "$id" "$base" "$ppm" | jq .
+}
+
+cmd_policy() {
+	[ $# -lt 1 ] && { echo "usage: lightning fee policy <name>" >&2; exit 1; }
+	local name="$1"
+	local base ppm
+	case "$name" in
+		flat)       base=1000; ppm=1 ;;
+		lsp-style)  base=0;    ppm=250 ;;
+		match-peer)
+			# Apply each peer's outbound fees to our inbound side.
+			cli listpeerchannels | jq -c '.channels[] | {
+				id: (.short_channel_id // .channel_id),
+				base: (.peer_features // {} | 0),
+				ppm: 0
+			}' | while read -r row; do
+				# Stub: we don't have peer-side update info via vanilla
+				# listpeerchannels. Mark as TODO; the named-policy hook
+				# is still useful for the flat / lsp-style cases.
+				:
+			done
+			echo "lightning fee policy: match-peer requires per-peer rate fetch (TODO)" >&2
+			exit 2 ;;
+		*) echo "lightning fee policy: unknown '$name' (flat | lsp-style | match-peer)" >&2; exit 1 ;;
+	esac
+
+	cli listpeerchannels | jq -r '.channels[]?.short_channel_id // .channels[]?.channel_id' | while read -r id; do
+		[ -n "$id" ] && cli setchannel "$id" "$base" "$ppm" >/dev/null && echo "  $id  base=$base  ppm=$ppm"
+	done
+	echo "lightning fee policy: applied '$name' to all channels"
+}
+
+case "${1:-}" in
+	get)    shift; cmd_get "$@" ;;
+	set)    shift; cmd_set "$@" ;;
+	policy) shift; cmd_policy "$@" ;;
+	"")     usage; exit 1 ;;
+	*)      echo "lightning fee: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

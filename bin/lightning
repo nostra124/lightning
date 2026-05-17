@@ -13,7 +13,7 @@
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
 # FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
 __s="${__s%.sh}"
-VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.0.0')
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.1.0')
 unset __d
 SELF=$__s
 unset __s
@@ -175,6 +175,16 @@ tor:
    tor on                   enable v3 hidden service
    tor off                  disable
    tor status               tor running? onion advertised? leak?
+
+routing node (1.1.0):
+   tower client-add <pk@host:port>   register a watchtower
+   tower client-list / -stats        sessions / backups
+   tower server-on / -off / -status  run a watchtower
+   fee get [<channel-id>]            base + ppm per channel
+   fee set <channel-id> <base> <ppm>
+   fee policy <name>                 flat | lsp-style | match-peer
+   forward list [--since D] [--status S]
+   forward stats                     totals + success rate
 
 environment:
    LIGHTNING_DIR            path to lightningd's data dir
