@@ -57,6 +57,10 @@ install:
 		cp -a share/doc/$(PACKAGE)/* \
 		      $(BUILD_DIR)$(DATADIR)/doc/$(PACKAGE)/; \
 	fi
+	# Per-package share/ payload (schema, git hooks, etc.).
+	@if [ -d share/$(PACKAGE) ]; then \
+		cp -a share/$(PACKAGE)/* $(BUILD_DIR)$(DATADIR)/$(PACKAGE)/; \
+	fi
 	# .rpk/version → $DATADIR/<pkg>/version : the runtime version
 	# string the binary reads (FEAT-194). The binary's two-path
 	# fallback resolves to this file when invoked as the installed

@@ -41,10 +41,10 @@ teardown() {
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 0.3.0" {
+@test "lightning version returns 0.4.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "0.3.0" ]
+	[ "$output" = "0.4.0" ]
 }
 
 @test "lightning help prints usage" {
@@ -89,7 +89,7 @@ teardown() {
 	[[ "$output" == *"LNURL"* || "$output" == *"Lightning Address"* ]]
 }
 
-@test "help lists the 0.3.0 verb surface" {
+@test "help lists the 0.4.0 verb surface" {
 	run "$LIGHTNING_BIN" help
 	[[ "$output" == *"info"* ]]
 	[[ "$output" == *"node-id"* ]]
@@ -101,6 +101,12 @@ teardown() {
 	[[ "$output" == *"offer"* ]]
 	[[ "$output" == *"lnurl"* ]]
 	[[ "$output" == *"qr"* ]]
+	[[ "$output" == *"wallet"* ]]
+	[[ "$output" == *"account"* ]]
+	[[ "$output" == *"ledger"* ]]
+	[[ "$output" == *"seed"* ]]
+	[[ "$output" == *"scb"* ]]
+	[[ "$output" == *"backup"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -391,4 +397,230 @@ teardown() {
 	[ "$status" -eq 0 ]
 	# First line is the BOLT-11, then a blank line, then the QR.
 	[[ "${lines[0]}" == lnbc* || "${lines[0]}" == lntb* || "${lines[0]}" == lnbcrt* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-174 + FEAT-193: wallet repo + SQLite store
+# ---------------------------------------------------------------------------
+
+@test "FEAT-174: lightning wallet (no args) prints usage" {
+	run "$LIGHTNING_BIN" wallet
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
+}
+
+@test "FEAT-174: lightning wallet new creates a git-backed wallet with state.db" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	run "$LIGHTNING_BIN" wallet new alice
+	[ "$status" -eq 0 ]
+	[ -d "$LIGHTNING_WALLETS_ROOT/alice/.git" ]
+	[ -f "$LIGHTNING_WALLETS_ROOT/alice/state.db" ]
+	[ -f "$LIGHTNING_WALLETS_ROOT/alice/state.sql" ]
+	[ -f "$LIGHTNING_WALLETS_ROOT/alice/lightning-dir" ]
+	# state.db should contain the five schema tables.
+	tables=$(sqlite3 "$LIGHTNING_WALLETS_ROOT/alice/state.db" \
+		"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;" | sort)
+	[[ "$tables" == *"accounts"* ]]
+	[[ "$tables" == *"ledger"* ]]
+	[[ "$tables" == *"invoices"* ]]
+	[[ "$tables" == *"channel_notes"* ]]
+	[[ "$tables" == *"users"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT"
+}
+
+@test "FEAT-174: wallet new auto-selects the first wallet as active" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" wallet active
+	[ "$status" -eq 0 ]
+	[ "$output" = "alice" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-174: wallet list marks active wallet with *" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" wallet new bob >/dev/null
+	"$LIGHTNING_BIN" wallet use bob >/dev/null
+	run "$LIGHTNING_BIN" wallet list
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"* bob"* ]]
+	[[ "$output" == *"  alice"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-174: wallet push round-trips through a bare-repo remote" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	# Set up a bare-repo remote.
+	bare="$BATS_TMPDIR/bare.$$"
+	git init --bare --quiet "$bare"
+	(cd "$LIGHTNING_WALLETS_ROOT/alice" && git remote add origin "$bare")
+	run "$LIGHTNING_BIN" wallet push origin
+	[ "$status" -eq 0 ]
+	# Clone-side: state.sql should be there.
+	clone="$BATS_TMPDIR/clone.$$"
+	git clone --quiet "$bare" "$clone"
+	[ -f "$clone/state.sql" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$bare" "$clone" "$HOME/.lightning"
+}
+
+# ---------------------------------------------------------------------------
+# Account verbs (FEAT-174 + FEAT-195 limit/overdraft fields)
+# ---------------------------------------------------------------------------
+
+@test "FEAT-174: account create + list + show + delete" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+
+	run "$LIGHTNING_BIN" account create rent "monthly rent" --limit 50000 --overdraft deny
+	[ "$status" -eq 0 ]
+
+	run "$LIGHTNING_BIN" account list
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"rent"* ]]
+	[[ "$output" == *"50000"* ]]
+	[[ "$output" == *"deny"* ]]
+
+	run "$LIGHTNING_BIN" account show rent
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"name:        rent"* ]]
+	[[ "$output" == *"balance_sat: 0"* ]]
+	[[ "$output" == *"overdraft:   deny"* ]]
+
+	run "$LIGHTNING_BIN" account delete rent
+	[ "$status" -eq 0 ]
+
+	run "$LIGHTNING_BIN" account show rent
+	[ "$status" -eq 2 ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-174: account create rejects invalid name" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" account create "Bad Name"
+	[ "$status" -ne 0 ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-193: ledger verbs
+# ---------------------------------------------------------------------------
+
+@test "FEAT-193: ledger add + list + sum + balance" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+
+	# Receive 1000 sat (1_000_000 msat) into rent.
+	"$LIGHTNING_BIN" ledger add in 1000000 --account rent --peer bob@example.com --message "march" --note "march budget"
+	# Pay 250 sat (-250_000 msat) from rent.
+	"$LIGHTNING_BIN" ledger add out -250000 --account rent --peer carol@example.com --message "coffee"
+
+	run "$LIGHTNING_BIN" ledger list --account rent
+	[ "$status" -eq 0 ]
+	# Header row + 2 data rows.
+	[ "${#lines[@]}" -ge 3 ]
+	[[ "$output" == *"march"* ]]
+	[[ "$output" == *"coffee"* ]]
+	[[ "$output" == *"march budget"* ]]
+
+	run "$LIGHTNING_BIN" ledger balance rent
+	[ "$status" -eq 0 ]
+	# 1_000_000 - 250_000 = 750_000 msat.
+	[ "$output" = "750000" ]
+
+	run "$LIGHTNING_BIN" ledger sum --by account
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"rent"* ]]
+	[[ "$output" == *"750000"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-193: ledger annotate fills the note column on an existing row" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000000 --account rent --payment-hash deadbeef --message "test"
+
+	run "$LIGHTNING_BIN" ledger annotate deadbeef "april budget"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"1 row"* ]]
+
+	run "$LIGHTNING_BIN" ledger list --account rent
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"april budget"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-193: ledger export csv produces a CSV with header" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000000 --account rent --message "test"
+	run "$LIGHTNING_BIN" ledger export csv
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == *"ts,account,direction"* ]]
+	[[ "$output" == *"rent"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-174: history is an alias for ledger list" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000 --account rent --message "ping"
+	run "$LIGHTNING_BIN" history
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ping"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-185: seed + SCB
+# ---------------------------------------------------------------------------
+
+@test "FEAT-185: lightning scb (no args) prints usage" {
+	run "$LIGHTNING_BIN" scb
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+@test "FEAT-185: lightning scb emit writes a non-empty file" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" scb emit
+	[ "$status" -eq 0 ]
+	# Find the file emit wrote.
+	scb=$(ls "$LIGHTNING_WALLETS_ROOT/alice/scb/"scb-*.hex)
+	[ -s "$scb" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-185: lightning seed (no args) prints usage" {
+	run "$LIGHTNING_BIN" seed
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"export"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-187: backup composer
+# ---------------------------------------------------------------------------
+
+@test "FEAT-187: backup emits SCB + pushes wallet to remote" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	bare="$BATS_TMPDIR/bare.$$"
+	git init --bare --quiet "$bare"
+	(cd "$LIGHTNING_WALLETS_ROOT/alice" && git remote add origin "$bare")
+	run "$LIGHTNING_BIN" backup --remote origin
+	[ "$status" -eq 0 ]
+	# Bare repo should now have the SCB file.
+	clone="$BATS_TMPDIR/clone.$$"
+	git clone --quiet "$bare" "$clone"
+	scb=$(ls "$clone/scb/"scb-*.hex 2>/dev/null || true)
+	[ -n "$scb" ]
+	[ -s "$scb" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$bare" "$clone" "$HOME/.lightning"
 }

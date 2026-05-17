@@ -1,0 +1,4 @@
+#!/bin/bash
+# lightning history — alias for `lightning ledger list`.
+# Implements FEAT-174 §History.
+exec "${SELF_LIBEXEC:-$(dirname "$0")/..}/lightning/ledger" list "$@"

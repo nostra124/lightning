@@ -1,0 +1,167 @@
+#!/bin/bash
+# lightning ledger — TSV-default view of the SQLite ledger.
+#
+# Implements FEAT-193 verbs.
+#
+# Subcommands:
+#   list [--account <n>] [--since <date>] [--limit <N>]
+#   sum  [--by account|day|month|year] [--account <n>]
+#   balance [<account>]
+#   annotate <payment_hash> <note>
+#   add <direction> <amount_msat> [--account <n>] [--peer <p>]
+#                                  [--payment-hash <h>] [--message <m>]
+#                                  [--note <n>]
+#                                       — used by pay/invoice/forward
+#                                         hooks once they're wired
+#   export csv|jsonl|tsv
+
+set -e
+
+command -v sqlite3 >/dev/null || { echo "lightning: sqlite3 not installed" >&2; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+
+active_db() {
+	local name="default"
+	[ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
+	local db="$WALLETS_ROOT/$name/state.db"
+	[ -f "$db" ] || { echo "lightning ledger: no active wallet (try \`lightning wallet new\`)" >&2; exit 2; }
+	echo "$db"
+}
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning ledger <subcommand>
+
+   list [--account <n>] [--since <date>] [--limit <N>]
+   sum  [--by account|day|month|year] [--account <n>]
+   balance [<account>]
+   annotate <payment_hash> <note>
+   add <direction> <amount_msat> [--account <n>] [--peer <p>]
+       [--payment-hash <h>] [--message <m>] [--note <n>]
+   export csv|jsonl|tsv
+EOF
+}
+
+cmd_list() {
+	local account="" since="" limit=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--account) account="$2"; shift 2 ;;
+			--since)   since="$2"; shift 2 ;;
+			--limit)   limit="$2"; shift 2 ;;
+			*) echo "lightning ledger list: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	local where=""
+	[ -n "$account" ] && where="WHERE account = $(sql_quote "$account")"
+	if [ -n "$since" ]; then
+		[ -n "$where" ] && where="$where AND ts >= $(sql_quote "$since")" \
+		                || where="WHERE ts >= $(sql_quote "$since")"
+	fi
+	local order="ORDER BY id DESC"
+	[ -n "$limit" ] && order="$order LIMIT $((limit))"
+
+	sqlite3 -header -separator $'\t' "$(active_db)" \
+		"SELECT ts, account, direction, amount_msat, peer, payment_hash, message, note FROM ledger $where $order;"
+}
+
+cmd_sum() {
+	local by="account" account=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--by)
+				case "$2" in account|day|month|year) by="$2"; shift 2 ;;
+					*) echo "--by: must be account|day|month|year" >&2; exit 1 ;;
+				esac ;;
+			--account) account="$2"; shift 2 ;;
+			*) echo "lightning ledger sum: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	local group
+	case "$by" in
+		account) group="account" ;;
+		day)     group="substr(ts, 1, 10)" ;;
+		month)   group="substr(ts, 1, 7)" ;;
+		year)    group="substr(ts, 1, 4)" ;;
+	esac
+
+	local where=""
+	[ -n "$account" ] && where="WHERE account = $(sql_quote "$account")"
+
+	sqlite3 -header -separator $'\t' "$(active_db)" \
+		"SELECT $group AS bucket, SUM(amount_msat) AS total_msat, COUNT(*) AS rows FROM ledger $where GROUP BY $group ORDER BY bucket;"
+}
+
+cmd_balance() {
+	local where=""
+	[ $# -ge 1 ] && where="WHERE account = $(sql_quote "$1")"
+	sqlite3 "$(active_db)" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger $where;"
+}
+
+cmd_annotate() {
+	[ $# -lt 2 ] && { echo "usage: lightning ledger annotate <payment_hash> <note>" >&2; exit 1; }
+	local hash="$1" note="$2"
+	# `changes()` is per-connection — must be in the same invocation as
+	# the UPDATE, or it returns 0.
+	local n
+	n=$(sqlite3 "$(active_db)" \
+		"UPDATE ledger SET note = $(sql_quote "$note") WHERE payment_hash = $(sql_quote "$hash"); SELECT changes();")
+	echo "lightning ledger: $n row(s) annotated"
+}
+
+cmd_add() {
+	[ $# -lt 2 ] && { echo "usage: lightning ledger add <direction> <amount_msat> ..." >&2; exit 1; }
+	local direction="$1" amount="$2"; shift 2
+	local account="-" peer="-" hash="-" message="" note=""
+
+	case "$direction" in in|out|fee|forward) ;; *) echo "direction: must be in|out|fee|forward" >&2; exit 1;; esac
+	[[ "$amount" =~ ^-?[0-9]+$ ]] || { echo "amount_msat: integer required" >&2; exit 1; }
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--account)      account="$2"; shift 2 ;;
+			--peer)         peer="$2"; shift 2 ;;
+			--payment-hash) hash="$2"; shift 2 ;;
+			--message)      message="$2"; shift 2 ;;
+			--note)         note="$2"; shift 2 ;;
+			*) echo "lightning ledger add: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	local ts; ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+	sqlite3 "$(active_db)" \
+		"INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message, note) VALUES($(sql_quote "$ts"), $(sql_quote "$account"), $(sql_quote "$direction"), $amount, $(sql_quote "$peer"), $(sql_quote "$hash"), $(sql_quote "$message"), $(sql_quote "$note"));"
+}
+
+cmd_export() {
+	local fmt="${1:-tsv}"
+	case "$fmt" in
+		tsv)
+			sqlite3 -header -separator $'\t' "$(active_db)" \
+				"SELECT ts, account, direction, amount_msat, peer, payment_hash, message, note FROM ledger ORDER BY id;" ;;
+		csv)
+			sqlite3 -csv -header "$(active_db)" \
+				"SELECT ts, account, direction, amount_msat, peer, payment_hash, message, note FROM ledger ORDER BY id;" ;;
+		jsonl)
+			sqlite3 "$(active_db)" \
+				"SELECT json_object('ts',ts,'account',account,'direction',direction,'amount_msat',amount_msat,'peer',peer,'payment_hash',payment_hash,'message',message,'note',note) FROM ledger ORDER BY id;" ;;
+		*) echo "lightning ledger export: format must be tsv|csv|jsonl" >&2; exit 1 ;;
+	esac
+}
+
+case "${1:-}" in
+	list)     shift; cmd_list "$@" ;;
+	sum)      shift; cmd_sum "$@" ;;
+	balance)  shift; cmd_balance "$@" ;;
+	annotate) shift; cmd_annotate "$@" ;;
+	add)      shift; cmd_add "$@" ;;
+	export)   shift; cmd_export "$@" ;;
+	"")       usage; exit 1 ;;
+	*)        echo "lightning ledger: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

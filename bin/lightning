@@ -13,7 +13,7 @@
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
 # FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
 __s="${__s%.sh}"
-VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '0.3.0')
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '0.4.0')
 unset __d
 SELF=$__s
 unset __s
@@ -120,6 +120,27 @@ payments (BOLT-11 / BOLT-12 / LNURL):
 
 qr codes:
    qr <text>                ANSI / PNG / SVG; honours \`--png\` / \`--svg\`
+
+wallet & accounts (git-backed SQLite store):
+   wallet new <name>        initialise a wallet repo
+   wallet use <name>        set active wallet
+   wallet list              list wallets
+   wallet push/pull/sync    git round-trip + state.db rebuild
+   account list             accounts in the active wallet
+   account create <name>    --limit <sat> --overdraft <policy>
+   account show <name>      balance + recent ledger
+   ledger list              TSV rows from the ledger
+   ledger sum --by month    aggregate
+   ledger annotate <hash> <note>
+   history                  alias for \`ledger list\`
+
+seed & backups:
+   seed export              print mnemonic (read once)
+   seed import              initialise hsm_secret from mnemonic
+   scb emit                 write a Static Channel Backup
+   scb restore <file>       force-close recovery
+   backup [--seed]          SCB + state.sql + git push
+   restore <url> [<name>]   clone wallet + seed import + scb restore
 
 daemon control:
    daemon start             start lightningd

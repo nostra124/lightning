@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning wallet pre-commit hook (FEAT-174):
+# dump state.db to state.sql so git tracks a readable text
+# snapshot of the SQLite store. state.db itself is gitignored.
+
+set -e
+[ -f state.db ] || exit 0
+sqlite3 state.db .dump > state.sql.tmp
+mv state.sql.tmp state.sql
+git add state.sql

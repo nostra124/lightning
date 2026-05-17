@@ -153,6 +153,12 @@ EOF
 	disableoffer)
 		echo '{"active": false}'
 		;;
+	staticbackup)
+		echo '{"scb": ["00112233445566778899aabbccddeeff", "ffeeddccbbaa99887766554433221100"]}'
+		;;
+	emergencyrecover)
+		echo '{"stubs": [], "channel_count": 1}'
+		;;
 	*)
 		echo "mock lightning-cli: unhandled command '$1'" >&2
 		exit 1

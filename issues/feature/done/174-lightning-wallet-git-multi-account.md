@@ -2,7 +2,7 @@
 id: FEAT-174
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning wallet as git repo with multi-account, accounting, and push/pull

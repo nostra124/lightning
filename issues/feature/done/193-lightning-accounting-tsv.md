@@ -2,7 +2,7 @@
 id: FEAT-193
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning accounting — small SQLite store

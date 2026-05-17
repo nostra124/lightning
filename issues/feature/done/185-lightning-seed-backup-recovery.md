@@ -2,7 +2,7 @@
 id: FEAT-185
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning seed backup & recovery

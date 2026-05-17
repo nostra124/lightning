@@ -1,0 +1,200 @@
+#!/bin/bash
+# lightning wallet — multi-account git-backed wallet store.
+#
+# Implements FEAT-174 + FEAT-193 (SQLite store) + FEAT-174's
+# git push/pull round-trip.
+#
+# Subcommands:
+#   new <name>           initialise a new wallet repo
+#   use <name>           set the active wallet (writes ~/.lightning/active)
+#   list                 list wallets
+#   active               print active wallet name
+#   push [<remote>]      git push the wallet repo
+#   pull [<remote>]      git pull, then rebuild state.db
+#   sync [<remote>]      pull + push
+#   path                 print the active wallet's filesystem path
+
+set -e
+
+command -v sqlite3 >/dev/null || {
+	echo "lightning: sqlite3 not installed" >&2; exit 127; }
+command -v git >/dev/null || {
+	echo "lightning: git not installed" >&2; exit 127; }
+
+# Locate the schema. Tries the installed location, then the dev tree.
+schema_path() {
+	for p in \
+		"$(dirname "$0")/../../share/lightning/schema.sql" \
+		"$HOME/.local/share/lightning/schema.sql" \
+		"/usr/local/share/lightning/schema.sql" \
+		"/usr/share/lightning/schema.sql"; do
+		[ -f "$p" ] && { echo "$p"; return; }
+	done
+	return 1
+}
+
+hooks_dir() {
+	for p in \
+		"$(dirname "$0")/../../share/lightning/hooks" \
+		"$HOME/.local/share/lightning/hooks" \
+		"/usr/local/share/lightning/hooks" \
+		"/usr/share/lightning/hooks"; do
+		[ -d "$p" ] && { echo "$p"; return; }
+	done
+	return 1
+}
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+
+active_name() {
+	if [ -f "$ACTIVE_LINK" ]; then
+		cat "$ACTIVE_LINK"
+	else
+		# Default to "default" when nothing is set.
+		echo "default"
+	fi
+}
+
+active_path() {
+	echo "$WALLETS_ROOT/$(active_name)"
+}
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning wallet <subcommand> [args]
+
+subcommands:
+   new <name>           initialise a new wallet repo
+   use <name>           set the active wallet
+   list                 list wallets
+   active               print the active wallet name
+   path                 print the active wallet's filesystem path
+   push [<remote>]      git push the wallet repo
+   pull [<remote>]      git pull + rebuild state.db
+   sync [<remote>]      pull + push
+EOF
+}
+
+cmd_new() {
+	[ $# -lt 1 ] && { echo "usage: lightning wallet new <name>" >&2; exit 1; }
+	local name="$1"
+	local dir="$WALLETS_ROOT/$name"
+
+	if [ -e "$dir" ]; then
+		echo "lightning wallet: $dir already exists" >&2
+		exit 2
+	fi
+
+	local schema; schema=$(schema_path) || {
+		echo "lightning wallet: schema.sql not found" >&2; exit 3; }
+	local hooks; hooks=$(hooks_dir) || {
+		echo "lightning wallet: hooks dir not found" >&2; exit 3; }
+
+	mkdir -p "$dir"
+	cd "$dir"
+
+	git init --quiet
+	echo "${LIGHTNING_DIR:-$HOME/.lightning}" > lightning-dir
+	cat > .gitignore <<EOF
+# FEAT-174: SQLite working DB is rebuilt from state.sql on pull.
+state.db
+state.db-journal
+state.db-wal
+state.db-shm
+EOF
+
+	# Install the hooks (copy, don't symlink — git won't follow symlinked
+	# hooks across machines after a push/pull round-trip).
+	cp "$hooks/pre-commit" .git/hooks/pre-commit
+	cp "$hooks/post-merge" .git/hooks/post-merge
+	chmod +x .git/hooks/pre-commit .git/hooks/post-merge
+
+	# Build the SQLite store + the initial SQL dump.
+	sqlite3 state.db < "$schema"
+	sqlite3 state.db .dump > state.sql
+
+	git add lightning-dir .gitignore state.sql
+	git -c user.email=lightning@localhost -c user.name=lightning \
+		commit --quiet -m "init wallet $name"
+
+	echo "lightning wallet: created $dir"
+	# Auto-select if this is the first wallet.
+	if [ ! -f "$ACTIVE_LINK" ]; then
+		echo "$name" > "$ACTIVE_LINK"
+		echo "lightning wallet: marked '$name' as active"
+	fi
+}
+
+cmd_use() {
+	[ $# -lt 1 ] && { echo "usage: lightning wallet use <name>" >&2; exit 1; }
+	local name="$1"
+	[ -d "$WALLETS_ROOT/$name" ] || {
+		echo "lightning wallet: no such wallet '$name'" >&2; exit 2; }
+	mkdir -p "$(dirname "$ACTIVE_LINK")"
+	echo "$name" > "$ACTIVE_LINK"
+	echo "lightning wallet: active=$name"
+}
+
+cmd_list() {
+	[ -d "$WALLETS_ROOT" ] || return 0
+	local active; active=$(active_name)
+	for d in "$WALLETS_ROOT"/*; do
+		[ -d "$d" ] || continue
+		local n; n=$(basename "$d")
+		if [ "$n" = "$active" ]; then
+			printf "* %s\n" "$n"
+		else
+			printf "  %s\n" "$n"
+		fi
+	done
+}
+
+cmd_active() { active_name; }
+
+cmd_path() { active_path; }
+
+cmd_push() {
+	local remote="${1:-origin}"
+	local dir; dir=$(active_path)
+	[ -d "$dir/.git" ] || { echo "lightning wallet: no active wallet (try \`wallet new\`)" >&2; exit 2; }
+	cd "$dir"
+	# Trigger the pre-commit hook explicitly to ensure state.sql is current.
+	if [ -f state.db ] && [ -x .git/hooks/pre-commit ]; then
+		.git/hooks/pre-commit
+		# If state.sql changed, commit it.
+		if ! git diff --quiet -- state.sql 2>/dev/null; then
+			git -c user.email=lightning@localhost -c user.name=lightning \
+				commit --quiet -m "auto-snapshot state.sql"
+		fi
+	fi
+	git push "$remote" "$(git symbolic-ref --short HEAD)"
+}
+
+cmd_pull() {
+	local remote="${1:-origin}"
+	local dir; dir=$(active_path)
+	[ -d "$dir/.git" ] || { echo "lightning wallet: no active wallet" >&2; exit 2; }
+	cd "$dir"
+	git pull --rebase "$remote" "$(git symbolic-ref --short HEAD)"
+	# The post-merge hook is git's responsibility; for --rebase we rebuild manually.
+	[ -x .git/hooks/post-merge ] && .git/hooks/post-merge || true
+}
+
+cmd_sync() {
+	cmd_pull "$@"
+	cmd_push "$@"
+}
+
+case "${1:-}" in
+	new)    shift; cmd_new "$@" ;;
+	use)    shift; cmd_use "$@" ;;
+	list)   shift; cmd_list "$@" ;;
+	active) shift; cmd_active "$@" ;;
+	path)   shift; cmd_path "$@" ;;
+	push)   shift; cmd_push "$@" ;;
+	pull)   shift; cmd_pull "$@" ;;
+	sync)   shift; cmd_sync "$@" ;;
+	"")     usage; exit 1 ;;
+	*)      echo "lightning wallet: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac
