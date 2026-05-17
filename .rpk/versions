@@ -1,0 +1,16 @@
+# Per-release SHA ledger (FEAT-194).
+#
+# Format: <version><TAB><release-commit-sha>
+#
+# Updated by the maintainer at each release tag. Pre-release
+# work-in-progress versions (e.g. 1.2.0-dev) aren't tracked
+# here; only what landed on master gets a row.
+
+0.1.0	6c86442
+0.2.0	fcc9735
+0.3.0	c7d7746
+0.4.0	e541d55
+0.5.0	c2d6e08
+0.6.0	ff39436
+1.0.0	0bb8bf2
+1.1.0	bd464f3

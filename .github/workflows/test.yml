@@ -10,7 +10,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
-      - name: run bats unit tests
+      - name: install deps
+        # Explicit list so behaviour doesn't drift with ubuntu-latest
+        # image revisions. shellcheck + qrencode + groff are optional;
+        # tests skip when they're absent, but we install them for full
+        # coverage.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bats sqlite3 jq python3 qrencode groff shellcheck openssl xxd
+      - name: bats unit tests
         run: bats tests/unit/
+      - name: shellcheck (non-fatal)
+        # Surface lint warnings without blocking merges. Failing here
+        # makes the lint visible; the bats step is the merge gate.
+        continue-on-error: true
+        run: |
+          shellcheck -S warning bin/lightning libexec/lightning/* \
+            share/lightning/hooks/* tests/sit/helpers.bash \
+            share/doc/lightning/standards/refresh.sh \
+            || echo "shellcheck reported warnings (non-fatal)"
