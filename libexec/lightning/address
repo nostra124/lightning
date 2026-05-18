@@ -142,7 +142,7 @@ cmd_pay() {
 	ARGS=()
 	[ -n "$account" ] && ARGS+=(--account "$account")
 	[ -n "$comment" ] && ARGS+=(--note "$comment")
-	exec "$SELF_LIBEXEC/lightning/pay" "$bolt11" "${ARGS[@]}"
+	exec "$SELF_LIBEXEC/lightning/invoice" pay "$bolt11" "${ARGS[@]}"
 }
 
 cmd_create() {

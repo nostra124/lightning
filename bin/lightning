@@ -68,128 +68,49 @@ has() {
 
 command:help() {
 	cat >&2 <<ENDHELP
-usage: $SELF <options> <command> <args>
+usage: $SELF <options> <command> [<args>]
 
    options:
-   -d                       enable debug mode
-   -q                       enable quiet mode
+   -d                      enable debug mode
+   -q                      enable quiet mode
 
    $SELF is the educational Lightning Network frontend on
-   clightning (Core Lightning). Verbs shell out to
-   lightning-cli; help text cites the BOLT each verb
-   implements.
+   clightning (Core Lightning). Each command is an object —
+   run \`$SELF <command>\` for its sub-commands. The four
+   design principles (educational, functional, decentralized,
+   simple) apply: each verb is a thin wrapper over
+   lightning-cli that cites the BOLT it implements.
 
-   Vendored standards: BOLT specs (BOLT 1..12) plus LNURL LUDs
-   and the Lightning Address spec, under share/doc/lightning/
-   standards/ (FEAT-178; pending full implementation).
+   Vendored standards (BOLT 1..12, LNURL LUDs, Lightning
+   Address) live under share/doc/lightning/standards/.
 
-   The four design principles (educational, functional,
-   decentralized, simple) apply: each verb is a thin
-   wrapper over lightning-cli that cites the BOLT it
-   implements.
+generic:
+   help                    print this help
+   version                 print the version of $SELF
 
-generic commands:
-   help                     print this help message
-   version                  print the version of $SELF
+objects:
+   node                    local clightning node (info, peers, seed, unlock)
+   wallet                  wallet repo (init, new, push/pull, backup/restore)
+   account                 logical accounts and api keys
+   channel                 Lightning channels (open, close, balance, scb)
+   daemon                  lightningd lifecycle (start, stop, logs, install)
+   invoice                 BOLT-11 invoices (create, pay)
+   offer                   BOLT-12 offers (create, pay)
+   address                 Lightning Addresses (resolve, pay, create)
+   lnurl                   LNURL (decode, pay)
+   liquidity               inbound / outbound (status, loop, boltz, lsp)
+   ledger                  derived ledger (list, sum, balance, export)
 
-clightning node:
-   info                     summary of \`lightning-cli getinfo\`
-   node-id                  this node's pubkey
-   peers                    connected peers (TSV)
-   channels                 channels (TSV)
-   balance                  on-chain + LN balance (TSV)
-
-channels (BOLT-2 / BOLT-5):
-   channel list             TSV of all channels
-   channel open <uri> <sats> open a channel
-   channel close <id>       cooperative close
-   channel force-close <id> --confirm   unilateral close
-   channel balance [<id>]   local / remote msat
-   channel info <id>
-   channel pending          opening / closing channels
-
-payments (BOLT-11 / BOLT-12 / LNURL):
-   invoice <sat> <label>    mint a BOLT-11; --qr renders one
-   pay <bolt11>             pay a BOLT-11 invoice
-   send <node-id> <sat>     keysend (BOLT-4 TLV)
-   offer <sat>|any <desc>   create a BOLT-12 offer
-   offer-pay <bolt12>       fetch + pay a BOLT-12 offer
-   lnurl decode <lnurl>
-   lnurl pay <addr> <sat>   LNURL-pay (LUD-06 + LUD-12)
-   decode <string>          detect + decode any of the above
-
-qr codes:
-   qr <text>                ANSI / PNG / SVG; honours \`--png\` / \`--svg\`
-
-daemon control:
-   daemon start             start lightningd
-   daemon stop              graceful shutdown
-   daemon restart           stop + start
-   daemon status            health check
-   daemon logs              tail the daemon log
-   daemon install [--system] generate a systemd unit
-
-wallet unlock:
-   unlock                   release the HSM (interactive)
-   unlock --stored          non-interactive (from \`secret\`)
-   unlock rotate            change password
-   unlock forget            drop the stored secret
-
-wallet (FEAT-174 / 0.4.0):
-   wallet init              create default wallet
-   wallet new <name>        create a new wallet
-   wallet use <name>        switch active wallet
-   wallet list              list wallets
-   wallet push [remote]     git push wallet
-   wallet pull [remote]     git pull wallet
-   wallet sync [remote]     pull + push
-
-accounts (FEAT-174):
-   account list             list accounts
-   account create <name>    create an account
-   account delete <name>    delete an account
-   account show <name>      balance + history filter
-   account apikey create <name> [--scope write]
-
-ledger (FEAT-193):
-   ledger list [--account <n>] [--since <date>]
-   ledger sum [--by account|day|month|year]
-   ledger balance [<account>]
-   ledger annotate <hash> <note>
-   ledger export csv|jsonl|tsv
-
-seed backup & recovery (FEAT-185):
-   seed export [--out <file>]
-   seed import
-   seed verify
-   scb emit [--out <file>]
-   scb restore <file>
-
-backup / restore (FEAT-187):
-   backup [--seed]
-   restore <wallet-remote>
-   backup verify
-
-lightning addresses (FEAT-176 / 0.5.0):
-   address resolve <addr>          resolve a Lightning Address
-   address pay <addr> <sat>        resolve + pay
-   address create <addr>           detect Apache, install LNURL-pay handler
-   address list                    owned addresses
-   address remove <addr>           remove address
-
-liquidity (FEAT-175 / 0.5.0):
-   liquidity status                per-channel + total capacity
-   liquidity in <amount>           acquire inbound
-   liquidity out <amount>          acquire outbound
-   liquidity loop in|out <amount>  Lightning Loop
-   liquidity boltz in|out <amount> Boltz swap
-   liquidity lsp <name> buy <amt>  LSPS1 channel purchase
+one-shots:
+   send <node-id> <sat>    keysend (BOLT-4 TLV)
+   decode <string>         detect + decode any LN string
+   qr <text>               ANSI / PNG / SVG QR code
 
 environment:
-   LIGHTNING_DIR            path to lightningd's data dir
-                            (default: \$HOME/.lightning)
-   LIGHTNING_NETWORK        bitcoin / testnet / regtest / signet
-                            (default: bitcoin)
+   LIGHTNING_DIR           path to lightningd's data dir
+                           (default: \$HOME/.lightning)
+   LIGHTNING_NETWORK       bitcoin / testnet / regtest / signet
+                           (default: bitcoin)
 ENDHELP
 }
 

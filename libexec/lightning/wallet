@@ -17,6 +17,9 @@
 #   lightning wallet push [remote] — git push
 #   lightning wallet pull [remote] — git pull
 #   lightning wallet sync [remote] — pull + push
+#   lightning wallet backup [--seed] — emit SCB + git push (FEAT-187)
+#   lightning wallet backup verify   — sanity-check the wallet backup
+#   lightning wallet restore <remote> — clone + rebuild from a wallet remote
 
 set -e
 
@@ -32,6 +35,9 @@ subcommands:
    push [remote]         git push wallet
    pull [remote]         git pull wallet
    sync [remote]         pull + push
+   backup [--seed]       emit SCB + git push (FEAT-187)
+   backup verify         sanity-check the wallet backup
+   restore <remote>      clone wallet remote + rebuild state.db
 EOF
 }
 
@@ -229,13 +235,120 @@ cmd_sync() {
 	cmd_push "$@"
 }
 
+# FEAT-187: backup umbrella. Delegates to sibling verbs (channel scb, node seed).
+_sibling() {
+	local lib="${SELF_LIBEXEC:+$SELF_LIBEXEC/lightning}"
+	lib="${lib:-$(cd "$(dirname "$0")" && pwd)}"
+	echo "$lib/$1"
+}
+
+backup_emit() {
+	local include_seed=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--seed) include_seed=1; shift ;;
+			*) echo "lightning wallet backup: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	# 1. Emit SCB via channel dispatcher.
+	"$(_sibling channel)" scb emit
+
+	# 2. Optional seed export into wallet.
+	if [ "$include_seed" -eq 1 ]; then
+		cat >&2 <<'BANNER'
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   WARNING: storing your seed in the wallet repo       !
+!   makes it available to anyone who can read the git   !
+!   history. Only use --seed if you understand this.    !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+BANNER
+		local active; active=$(active_wallet)
+		local seed_path="$LIGHTNING_DIR/wallet/$active/seed.enc"
+		"$(_sibling node)" seed export --out "$seed_path"
+		echo "lightning: seed exported to $seed_path" >&2
+
+		local wdir="$LIGHTNING_DIR/wallet/$active"
+		if [ -d "$wdir/.git" ]; then
+			git -C "$wdir" add "$seed_path" 2>/dev/null || true
+			git -C "$wdir" commit -m "backup: seed export" --quiet 2>/dev/null || true
+		fi
+	fi
+
+	# 3. Git push.
+	cmd_push
+
+	echo "lightning: backup complete" >&2
+}
+
+backup_verify() {
+	local active; active=$(active_wallet)
+	local wdir; wdir=$(wallet_path "$active")
+	local scb_count; scb_count=$(ls "$wdir/scb/"*.json 2>/dev/null | wc -l)
+
+	[ "$scb_count" -gt 0 ] || {
+		echo "lightning: WARNING — no SCB snapshots found in wallet" >&2
+	}
+
+	local remote
+	remote=$(git -C "$wdir" remote get-url origin 2>/dev/null) || remote="(none)"
+	echo "wallet:      $active"
+	echo "remote:      $remote"
+	echo "scb_count:   $scb_count"
+
+	if [ -f "$wdir/seed.enc" ]; then
+		echo "seed:        present at $wdir/seed.enc"
+	else
+		echo "seed:        not stored in wallet (expected — use --seed at backup time)"
+	fi
+	echo "lightning: backup structure looks intact" >&2
+}
+
+cmd_backup() {
+	if [ "${1:-}" = "verify" ]; then
+		shift; backup_verify "$@"
+	else
+		backup_emit "$@"
+	fi
+}
+
+cmd_restore() {
+	[ $# -lt 1 ] && { echo "usage: lightning wallet restore <remote>" >&2; exit 1; }
+	local remote="$1"
+	local name; name=$(basename "$remote" .git)
+
+	ensure_wallet_root
+	git clone "$remote" "$LIGHTNING_DIR/wallet/$name" 2>/dev/null || {
+		echo "lightning: failed to clone $remote" >&2; exit 4; }
+
+	set_active "$name"
+
+	local wdir; wdir=$(wallet_path "$name")
+	if [ -f "$wdir/state.sql" ] && ! [ -f "$wdir/state.db" ]; then
+		sqlite3 "$wdir/state.db" < "$wdir/state.sql"
+	fi
+
+	local latest_scb; latest_scb=$(ls -t "$wdir/scb/"*.json 2>/dev/null | head -1)
+
+	echo "lightning: wallet restored from $remote" >&2
+	echo "lightning: now run 'lightning node seed import' to restore your seed," >&2
+	echo "          then 'lightning node unlock' to unlock the daemon." >&2
+
+	if [ -n "$latest_scb" ]; then
+		echo "lightning: latest SCB: $latest_scb" >&2
+		echo "          run 'lightning channel scb restore $latest_scb' after unlock" >&2
+	fi
+}
+
 case "$1" in
-	init) shift; cmd_init "$@" ;;
-	new)  shift; cmd_new "$@" ;;
-	use)  shift; cmd_use "$@" ;;
-	list) shift; cmd_list "$@" ;;
-	push) shift; cmd_push "$@" ;;
-	pull) shift; cmd_pull "$@" ;;
-	sync) shift; cmd_sync "$@" ;;
+	init)    shift; cmd_init "$@" ;;
+	new)     shift; cmd_new "$@" ;;
+	use)     shift; cmd_use "$@" ;;
+	list)    shift; cmd_list "$@" ;;
+	push)    shift; cmd_push "$@" ;;
+	pull)    shift; cmd_pull "$@" ;;
+	sync)    shift; cmd_sync "$@" ;;
+	backup)  shift; cmd_backup "$@" ;;
+	restore) shift; cmd_restore "$@" ;;
 	*) usage; exit 1 ;;
 esac

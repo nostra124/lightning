@@ -3,9 +3,10 @@
 # Unit tests for bin/lightning — the educational Lightning Network
 # frontend on clightning (FEAT-170..196). Covers the 0.2.0–0.5.0
 # surface: dispatcher, lightning.sh source-mode guard, and the
-# libexec verbs that wrap lightning-cli (info / node-id / peers /
-# channels / balance / daemon / unlock / wallet / ledger / account /
-# address / liquidity).
+# libexec object dispatchers (node / channel / daemon / wallet /
+# account / ledger / invoice / offer / address / lnurl / liquidity).
+# As of 0.5.x the CLI is purely object-oriented: top-level commands
+# are objects, actions live as sub-commands.
 
 setup() {
 	BATS_TMPDIR=${BATS_TMPDIR:-$(mktemp -d)}
@@ -90,17 +91,25 @@ teardown() {
 	[[ "$output" == *"LNURL"* || "$output" == *"Lightning Address"* ]]
 }
 
-@test "help lists the 0.3.0 verb surface" {
+@test "help lists the top-level objects" {
 	run "$LIGHTNING_BIN" help
-	[[ "$output" == *"info"* ]]
-	[[ "$output" == *"node-id"* ]]
-	[[ "$output" == *"daemon"* ]]
-	[[ "$output" == *"unlock"* ]]
+	[[ "$output" == *"node"* ]]
+	[[ "$output" == *"wallet"* ]]
+	[[ "$output" == *"account"* ]]
 	[[ "$output" == *"channel"* ]]
+	[[ "$output" == *"daemon"* ]]
 	[[ "$output" == *"invoice"* ]]
-	[[ "$output" == *"pay"* ]]
 	[[ "$output" == *"offer"* ]]
+	[[ "$output" == *"address"* ]]
 	[[ "$output" == *"lnurl"* ]]
+	[[ "$output" == *"liquidity"* ]]
+	[[ "$output" == *"ledger"* ]]
+}
+
+@test "help lists the one-shot verbs" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"send"* ]]
+	[[ "$output" == *"decode"* ]]
 	[[ "$output" == *"qr"* ]]
 }
 
@@ -136,40 +145,40 @@ teardown() {
 # FEAT-171: clightning backend wiring
 # ---------------------------------------------------------------------------
 
-@test "FEAT-171: lightning info renders getinfo summary" {
-	run "$LIGHTNING_BIN" info
+@test "FEAT-171: lightning node info renders getinfo summary" {
+	run "$LIGHTNING_BIN" node info
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"TESTNODE"* ]]
 	[[ "$output" == *"regtest"* ]]
 }
 
-@test "FEAT-171: lightning node-id returns the pubkey" {
-	run "$LIGHTNING_BIN" node-id
+@test "FEAT-171: lightning node id returns the pubkey" {
+	run "$LIGHTNING_BIN" node id
 	[ "$status" -eq 0 ]
 	[ "$output" = "020000000000000000000000000000000000000000000000000000000000000001" ]
 }
 
-@test "FEAT-171: lightning peers returns the TSV header" {
-	run "$LIGHTNING_BIN" peers
+@test "FEAT-171: lightning node peers returns the TSV header" {
+	run "$LIGHTNING_BIN" node peers
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "pubkey	connected	features	addr" ]]
 }
 
-@test "FEAT-171: lightning channels returns the TSV header" {
-	run "$LIGHTNING_BIN" channels
+@test "FEAT-171: lightning channel list returns the TSV header" {
+	run "$LIGHTNING_BIN" channel list
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "id	peer	capacity	local	remote	state" ]]
 }
 
-@test "FEAT-171: lightning balance returns the TSV header + row" {
-	run "$LIGHTNING_BIN" balance
+@test "FEAT-171: lightning node balance returns the TSV header + row" {
+	run "$LIGHTNING_BIN" node balance
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "onchain_confirmed_sat	onchain_unconfirmed_sat	channels_sat" ]]
 	[[ "${lines[1]}" == "0	0	0" ]]
 }
 
-@test "FEAT-171: lightning balance --on-chain prints an address" {
-	run "$LIGHTNING_BIN" balance --on-chain
+@test "FEAT-171: lightning node balance --on-chain prints an address" {
+	run "$LIGHTNING_BIN" node balance --on-chain
 	[ "$status" -eq 0 ]
 	[[ "$output" == bcrt1q* ]]
 }
@@ -177,8 +186,14 @@ teardown() {
 @test "FEAT-171: verbs exit 127 when lightning-cli is absent" {
 	# Hide lightning-cli from PATH.
 	export PATH="/usr/bin:/bin"
-	run -127 "$LIGHTNING_BIN" info
+	run -127 "$LIGHTNING_BIN" node info
 	[[ "$output" == *"install Core Lightning"* ]]
+}
+
+@test "lightning node (no args) prints usage" {
+	run "$LIGHTNING_BIN" node
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -217,20 +232,20 @@ teardown() {
 # FEAT-184: unlock
 # ---------------------------------------------------------------------------
 
-@test "FEAT-184: lightning unlock --stored is a no-op when not encrypted" {
+@test "FEAT-184: lightning node unlock --stored is a no-op when not encrypted" {
 	# No hsm_secret exists yet → not encrypted.
 	mkdir -p "$HOME/.lightning/bitcoin"
 	# 32-byte file = unencrypted.
 	dd if=/dev/zero of="$HOME/.lightning/bitcoin/hsm_secret" bs=32 count=1 status=none
 	# Mock `secret` so the dep check passes even though we won't call it.
 	ln -sf /bin/true "$BIN_SHIM/secret"
-	run "$LIGHTNING_BIN" unlock --stored
+	run "$LIGHTNING_BIN" node unlock --stored
 	[ "$status" -eq 0 ]
 }
 
-@test "FEAT-184: lightning unlock errors clearly when lightning-cli absent" {
+@test "FEAT-184: lightning node unlock errors clearly when lightning-cli absent" {
 	export PATH="/usr/bin:/bin"
-	run -127 "$LIGHTNING_BIN" unlock --stored
+	run -127 "$LIGHTNING_BIN" node unlock --stored
 }
 
 # ---------------------------------------------------------------------------
@@ -281,14 +296,14 @@ teardown() {
 # FEAT-173: payments / invoices / BOLT-12 / LNURL
 # ---------------------------------------------------------------------------
 
-@test "FEAT-173: lightning invoice 1000 'beer' returns a BOLT-11" {
-	run "$LIGHTNING_BIN" invoice 1000 beer
+@test "FEAT-173: lightning invoice create 1000 'beer' returns a BOLT-11" {
+	run "$LIGHTNING_BIN" invoice create 1000 beer
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == lnbc* || "${lines[0]}" == lntb* || "${lines[0]}" == lnbcrt* ]]
 }
 
-@test "FEAT-173: lightning pay <bolt11> returns ok + payment_hash" {
-	run "$LIGHTNING_BIN" pay lnbcrt10n1pmocktest
+@test "FEAT-173: lightning invoice pay <bolt11> returns ok + payment_hash" {
+	run "$LIGHTNING_BIN" invoice pay lnbcrt10n1pmocktest
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"ok"* ]]
 	[[ "$output" == *"payment_hash"* ]]
@@ -325,16 +340,28 @@ teardown() {
 	[[ "$output" == *"bolt11"* ]]
 }
 
-@test "FEAT-173: lightning offer creates a BOLT-12 offer" {
-	run "$LIGHTNING_BIN" offer 500 donations
+@test "FEAT-173: lightning offer create makes a BOLT-12 offer" {
+	run "$LIGHTNING_BIN" offer create 500 donations
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == lno* ]]
 }
 
-@test "FEAT-173: lightning offer-pay fetches and pays" {
-	run "$LIGHTNING_BIN" offer-pay lno1pgmocktest
+@test "FEAT-173: lightning offer pay fetches and pays" {
+	run "$LIGHTNING_BIN" offer pay lno1pgmocktest
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"ok"* ]]
+}
+
+@test "FEAT-173: lightning offer (no args) prints usage" {
+	run "$LIGHTNING_BIN" offer
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
+}
+
+@test "FEAT-173: lightning invoice (no args) prints usage" {
+	run "$LIGHTNING_BIN" invoice
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
 }
 
 @test "FEAT-173: lightning send (keysend) succeeds" {
@@ -384,11 +411,11 @@ teardown() {
 	rm -f "$out"
 }
 
-@test "FEAT-192: lightning invoice --qr emits the BOLT-11 AND a QR" {
+@test "FEAT-192: lightning invoice create --qr emits the BOLT-11 AND a QR" {
 	if ! command -v qrencode >/dev/null; then
 		skip "qrencode not installed"
 	fi
-	run "$LIGHTNING_BIN" invoice 1000 beer --qr
+	run "$LIGHTNING_BIN" invoice create 1000 beer --qr
 	[ "$status" -eq 0 ]
 	# First line is the BOLT-11, then a blank line, then the QR.
 	[[ "${lines[0]}" == lnbc* || "${lines[0]}" == lntb* || "${lines[0]}" == lnbcrt* ]]
@@ -510,44 +537,44 @@ teardown() {
 # FEAT-185: seed + scb
 # ---------------------------------------------------------------------------
 
-@test "FEAT-185: lightning seed export refuses without hsm_secret" {
-	run "$LIGHTNING_BIN" seed export
+@test "FEAT-185: lightning node seed export refuses without hsm_secret" {
+	run "$LIGHTNING_BIN" node seed export
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"hsm_secret"* ]]
 }
 
-@test "FEAT-185: lightning seed export writes to --out file" {
+@test "FEAT-185: lightning node seed export writes to --out file" {
 	# Create a fake hsm_secret (32 bytes = unencrypted).
 	mkdir -p "$HOME/.lightning/bitcoin"
 	dd if=/dev/zero of="$HOME/.lightning/bitcoin/hsm_secret" bs=32 count=1 status=none
 	out="$BATS_TMPDIR/seed.$$.out"
-	run "$LIGHTNING_BIN" seed export --out "$out"
+	run "$LIGHTNING_BIN" node seed export --out "$out"
 	[ "$status" -eq 0 ]
 	[ -s "$out" ]
 	rm -f "$out"
 }
 
-@test "FEAT-185: lightning scb emit writes an SCB file" {
+@test "FEAT-185: lightning channel scb emit writes an SCB file" {
 	mkdir -p "$HOME/.lightning/bitcoin"
 	out="$BATS_TMPDIR/scb.$$.json"
-	run "$LIGHTNING_BIN" scb emit --out "$out"
+	run "$LIGHTNING_BIN" channel scb emit --out "$out"
 	[ "$status" -eq 0 ]
 	[ -s "$out" ]
 	rm -f "$out"
 }
 
 # ---------------------------------------------------------------------------
-# FEAT-187: backup umbrella
+# FEAT-187: backup umbrella (now under `wallet`)
 # ---------------------------------------------------------------------------
 
-@test "FEAT-187: lightning backup without wallet exits non-zero" {
-	run "$LIGHTNING_BIN" backup
+@test "FEAT-187: lightning wallet backup without wallet exits non-zero" {
+	run "$LIGHTNING_BIN" wallet backup
 	[ "$status" -ne 0 ]
 }
 
-@test "FEAT-187: lightning backup with wallet runs scb + push" {
+@test "FEAT-187: lightning wallet backup runs scb + push" {
 	"$LIGHTNING_BIN" wallet init
-	run "$LIGHTNING_BIN" backup
+	run "$LIGHTNING_BIN" wallet backup
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"ok"* ]]
 }
@@ -556,18 +583,18 @@ teardown() {
 # FEAT-173 + FEAT-193: pay/invoice/send --account writes to ledger
 # ---------------------------------------------------------------------------
 
-@test "FEAT-173/193: lightning invoice --account writes to invoices table" {
+@test "FEAT-173/193: lightning invoice create --account writes to invoices table" {
 	"$LIGHTNING_BIN" wallet init
 	"$LIGHTNING_BIN" account create alice "Alice"
-	run "$LIGHTNING_BIN" invoice 1000 test --account alice
+	run "$LIGHTNING_BIN" invoice create 1000 test --account alice
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == lnbc* || "${lines[0]}" == lntb* || "${lines[0]}" == lnbcrt* ]]
 }
 
-@test "FEAT-173/193: lightning pay --account writes to ledger" {
+@test "FEAT-173/193: lightning invoice pay --account writes to ledger" {
 	"$LIGHTNING_BIN" wallet init
 	"$LIGHTNING_BIN" account create alice "Alice" --overdraft allow
-	run "$LIGHTNING_BIN" pay lnbcrt10n1pmocktest --account alice
+	run "$LIGHTNING_BIN" invoice pay lnbcrt10n1pmocktest --account alice
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"ok"* ]]
 	# Should have created at least one ledger row.
@@ -585,7 +612,7 @@ teardown() {
 
 @test "FEAT-173/193: lightning ledger annotate updates a note" {
 	"$LIGHTNING_BIN" wallet init
-	"$LIGHTNING_BIN" pay lnbcrt10n1pmocktest
+	"$LIGHTNING_BIN" invoice pay lnbcrt10n1pmocktest
 	# Get payment_hash from ledger.
 	run "$LIGHTNING_BIN" ledger list
 	[ "$status" -eq 0 ]
@@ -695,11 +722,11 @@ teardown() {
 	[[ "$output" == *"alice"* ]]
 }
 
-@test "FEAT-195: lightning pay --account refuses overdraw with deny policy" {
+@test "FEAT-195: lightning invoice pay --account refuses overdraw with deny policy" {
 	"$LIGHTNING_BIN" wallet init
 	"$LIGHTNING_BIN" account create alice --overdraft deny
 	# Balance is 0, try paying 50000 sat — should refuse.
-	run "$LIGHTNING_BIN" pay lnbcrt10n1pmocktest --account alice
+	run "$LIGHTNING_BIN" invoice pay lnbcrt10n1pmocktest --account alice
 	[ "$status" -eq 3 ]
 	[[ "$output" == *"overdraw"* ]]
 }

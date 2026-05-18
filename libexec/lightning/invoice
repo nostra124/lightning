@@ -1,26 +1,30 @@
 #!/bin/bash
-# lightning invoice — mint a BOLT-11 invoice.
+# lightning invoice — BOLT-11 invoices (create + pay).
 #
-# Implements: BOLT-11 (invoice protocol) per FEAT-173.
+# Implements: BOLT-11 per FEAT-173.
 #   share/doc/lightning/standards/bolts/11-payment-encoding.md
 #
-# Usage:
-#   lightning invoice <sat> <label> [--description <text>]
-#                                   [--expiry <sec>]
-#                                   [--qr]
-#                                   [--account <name>]
+# Subcommands:
+#   create <sat> <label> [--description <text>] [--expiry <sec>]
+#                                              [--qr] [--account <name>]
+#   pay <bolt11> [--max-fee-sat N] [--timeout S]
+#                [--account <name>] [--note <text>]
 
 set -e
 
 usage() {
 	cat >&2 <<EOF
-usage: lightning invoice <sat> <label> [--description <text>]
-                                       [--expiry <sec>] [--qr]
-                                       [--account <name>]
+usage: lightning invoice <subcommand> [args]
+
+subcommands:
+   create <sat> <label> [--description <text>] [--expiry <sec>]
+                        [--qr] [--account <name>]
+   pay <bolt11> [--max-fee-sat N] [--timeout S]
+                [--account <name>] [--note <text>]
 EOF
 }
 
-[ $# -lt 2 ] && { usage; exit 1; }
+[ $# -lt 1 ] && { usage; exit 1; }
 
 command -v lightning-cli >/dev/null || {
 	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
@@ -34,41 +38,132 @@ wallet_db() {
 	echo "$LIGHTNING_DIR/wallet/$active/state.db"
 }
 
-sat="$1"; label="$2"; shift 2
-desc="$label"
-expiry=3600
-want_qr=0
-account=""
+cmd_create() {
+	[ $# -lt 2 ] && { echo "usage: lightning invoice create <sat> <label> [--description <text>] [--expiry <sec>] [--qr] [--account <name>]" >&2; exit 1; }
 
-while [ $# -gt 0 ]; do
-	case "$1" in
-		--description) desc="$2"; shift 2 ;;
-		--expiry)      expiry="$2"; shift 2 ;;
-		--qr)          want_qr=1; shift ;;
-		--account)     account="$2"; shift 2 ;;
-		*) echo "lightning invoice: unknown flag '$1'" >&2; exit 1 ;;
-	esac
-done
+	local sat="$1" label="$2"; shift 2
+	local desc="$label"
+	local expiry=3600
+	local want_qr=0
+	local account=""
 
-msat=$(( sat * 1000 ))
-json=$(cli invoice "$msat" "$label" "$desc" "$expiry")
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--description) desc="$2"; shift 2 ;;
+			--expiry)      expiry="$2"; shift 2 ;;
+			--qr)          want_qr=1; shift ;;
+			--account)     account="$2"; shift 2 ;;
+			*) echo "lightning invoice create: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
 
-bolt11=$(jq -r .bolt11 <<<"$json")
-hash=$(jq -r .payment_hash <<<"$json")
+	local msat=$(( sat * 1000 ))
+	local json; json=$(cli invoice "$msat" "$label" "$desc" "$expiry")
 
-echo "$bolt11"
-echo "# payment_hash: $hash" >&2
+	local bolt11; bolt11=$(jq -r .bolt11 <<<"$json")
+	local hash;   hash=$(jq -r .payment_hash <<<"$json")
 
-# Write to invoices table if wallet DB exists.
-DB=$(wallet_db)
-if [ -f "$DB" ] && command -v sqlite3 >/dev/null; then
-	acct="${account:--}"
-	expiry_ts=$(date -u -d "+$expiry seconds" +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -u -v+"$expiry"S +%Y-%m-%dT%H:%M:%S 2>/dev/null || echo "")
-	[ -n "$expiry_ts" ] && \
-		sqlite3 "$DB" "INSERT INTO invoices (bolt11, payment_hash, account, amount_msat, expiry, message, state) VALUES ('$(echo "$bolt11" | sed "s/'/''/g")', '$(echo "$hash" | sed "s/'/''/g")', '$(echo "$acct" | sed "s/'/''/g")', $msat, '$expiry_ts', '$(echo "$desc" | sed "s/'/''/g")', 'pending')" 2>/dev/null || true
-fi
+	echo "$bolt11"
+	echo "# payment_hash: $hash" >&2
 
-if [ "$want_qr" -eq 1 ] && [ -x "$SELF_LIBEXEC/lightning/qr" ]; then
-	echo
-	"$SELF_LIBEXEC/lightning/qr" "lightning:$bolt11"
-fi
+	local DB; DB=$(wallet_db)
+	if [ -f "$DB" ] && command -v sqlite3 >/dev/null; then
+		local acct="${account:--}"
+		local expiry_ts
+		expiry_ts=$(date -u -d "+$expiry seconds" +%Y-%m-%dT%H:%M:%S 2>/dev/null || date -u -v+"$expiry"S +%Y-%m-%dT%H:%M:%S 2>/dev/null || echo "")
+		[ -n "$expiry_ts" ] && \
+			sqlite3 "$DB" "INSERT INTO invoices (bolt11, payment_hash, account, amount_msat, expiry, message, state) VALUES ('$(echo "$bolt11" | sed "s/'/''/g")', '$(echo "$hash" | sed "s/'/''/g")', '$(echo "$acct" | sed "s/'/''/g")', $msat, '$expiry_ts', '$(echo "$desc" | sed "s/'/''/g")', 'pending')" 2>/dev/null || true
+	fi
+
+	if [ "$want_qr" -eq 1 ] && [ -x "$SELF_LIBEXEC/lightning/qr" ]; then
+		echo
+		"$SELF_LIBEXEC/lightning/qr" "lightning:$bolt11"
+	fi
+}
+
+cmd_pay() {
+	[ $# -lt 1 ] && { echo "usage: lightning invoice pay <bolt11> [--max-fee-sat N] [--timeout S] [--account <name>] [--note <text>]" >&2; exit 1; }
+
+	local bolt11="$1"; shift
+	local maxfee_sat=""
+	local timeout=60
+	local account=""
+	local note=""
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--max-fee-sat) maxfee_sat="$2"; shift 2 ;;
+			--timeout)     timeout="$2"; shift 2 ;;
+			--account)     account="$2"; shift 2 ;;
+			--note)        note="$2"; shift 2 ;;
+			*) echo "lightning invoice pay: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	# Overdraft check (FEAT-195).
+	if [ -n "$account" ]; then
+		local DB; DB=$(wallet_db)
+		if [ -f "$DB" ] && command -v sqlite3 >/dev/null; then
+			local esc_acct; esc_acct=$(echo "$account" | sed "s/'/''/g")
+			local policy; policy=$(sqlite3 -readonly "$DB" "SELECT overdraft FROM accounts WHERE name = '$esc_acct'")
+
+			if [ -n "$policy" ]; then
+				local decoded; decoded=$(cli decodepay "$bolt11" 2>/dev/null)
+				local pay_msat; pay_msat=$(jq -r '.amount_msat // 0' <<<"$decoded")
+				local pay_sat=$(( pay_msat / 1000 ))
+
+				if [ "$pay_sat" -gt 0 ] 2>/dev/null; then
+					local balance_msat; balance_msat=$(sqlite3 -readonly "$DB" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger WHERE account = '$esc_acct'")
+					local balance_sat=$(( balance_msat / 1000 ))
+
+					if [ "$policy" = "deny" ] && [ "$balance_sat" -lt "$pay_sat" ] 2>/dev/null; then
+						local shortfall=$(( pay_sat - balance_sat ))
+						echo "lightning: would overdraw account '$account' by ${shortfall} sat (balance: ${balance_sat} sat, policy: deny)" >&2
+						exit 3
+					fi
+					if [ "$policy" = "warn" ] && [ "$balance_sat" -lt "$pay_sat" ] 2>/dev/null; then
+						local shortfall=$(( pay_sat - balance_sat ))
+						echo "lightning: warning — payment of $pay_sat sat would overdraw '$account' by ${shortfall} sat" >&2
+					fi
+				fi
+			fi
+		fi
+	fi
+
+	local args=("$bolt11")
+	[ -n "$maxfee_sat" ] && args+=("null" "null" "$timeout" "null" "${maxfee_sat}sat") \
+	                    || args+=("null" "null" "$timeout")
+
+	local result; result=$(cli pay "${args[@]}")
+	local status; status=$(jq -r .status <<<"$result")
+	local hash;   hash=$(jq -r .payment_hash <<<"$result")
+	local amount_msat; amount_msat=$(jq -r '.amount_msat // 0' <<<"$result")
+	local fee_msat; fee_msat=$(jq -r '.amount_sent_msat - .amount_msat // 0' <<<"$result" 2>/dev/null || echo 0)
+	local fee_sat=$(( ${fee_msat%msat} / 1000 ))
+
+	if [ "$status" = "complete" ]; then
+		echo "ok"
+		echo "payment_hash: $hash"
+		echo "fee_sat:      $fee_sat"
+
+		local DB; DB=$(wallet_db)
+		if [ -f "$DB" ] && command -v sqlite3 >/dev/null; then
+			local note_esc; note_esc=$(echo "$note" | sed "s/'/''/g")
+			local acct="${account:--}"
+			sqlite3 "$DB" "INSERT INTO ledger (ts, account, direction, amount_msat, peer, payment_hash, message, note) VALUES (datetime('now'), '$(echo "$acct" | sed "s/'/''/g")', 'out', $amount_msat, '-', '$(echo "$hash" | sed "s/'/''/g")', '', '$note_esc')" 2>/dev/null || true
+			[ "$fee_msat" -gt 0 ] 2>/dev/null && \
+				sqlite3 "$DB" "INSERT INTO ledger (ts, account, direction, amount_msat, peer, payment_hash, message, note) VALUES (datetime('now'), '$(echo "$acct" | sed "s/'/''/g")', 'fee', $fee_msat, '-', '$(echo "$hash" | sed "s/'/''/g")', '', '')" 2>/dev/null || true
+		fi
+		exit 0
+	else
+		echo "failed: $status" >&2
+		echo "$result" >&2
+		exit 4
+	fi
+}
+
+case "$1" in
+	create) shift; cmd_create "$@" ;;
+	pay)    shift; cmd_pay "$@" ;;
+	*) usage; exit 1 ;;
+esac

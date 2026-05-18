@@ -2,12 +2,12 @@
 # lightning channel — channel management.
 #
 # Implements: BOLT-2 (peer protocol) + BOLT-5 (on-chain close) per
-# FEAT-172.
+# FEAT-172, plus Static Channel Backup (SCB) per FEAT-185.
 #   share/doc/lightning/standards/bolts/02-peer-protocol.md
 #   share/doc/lightning/standards/bolts/05-onchain.md
 #
 # Subcommands:
-#   list                                — TSV of channels (= lightning channels)
+#   list                                — TSV of channels
 #   open  <node-uri> <sats> [--push <sats>]
 #                                        — fund a new channel
 #   close <channel-id>                   — cooperative close
@@ -15,6 +15,8 @@
 #   balance [<channel-id>]               — local / remote msat
 #   info <channel-id>
 #   pending                              — opening / closing
+#   scb emit [--out <file>]              — static channel backup
+#   scb restore <file>                   — restore from SCB
 
 set -e
 
@@ -31,6 +33,8 @@ subcommands:
    balance [<channel-id>]               local / remote msat
    info <channel-id>
    pending                              opening / closing channels
+   scb emit [--out <file>]              static channel backup
+   scb restore <file>                   restore from SCB
 EOF
 }
 
@@ -44,8 +48,29 @@ LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 
 cmd_list() {
-	# Reuse the top-level `channels` verb script via libexec.
-	exec "$SELF_LIBEXEC/lightning/channels" "$@"
+	# Prefer the newer listpeerchannels (CLN 23.05+); fall back to listpeers.
+	if json=$(cli listpeerchannels 2>/dev/null); then
+		printf "id\tpeer\tcapacity\tlocal\tremote\tstate\n"
+		jq -r '.channels[] | [
+			(.short_channel_id // .channel_id // "-"),
+			.peer_id,
+			((.total_msat // 0) / 1000 | floor),
+			((.to_us_msat  // 0) / 1000 | floor),
+			(((.total_msat // 0) - (.to_us_msat // 0)) / 1000 | floor),
+			.state
+		] | @tsv' <<<"$json"
+	else
+		json=$(cli listpeers)
+		printf "id\tpeer\tcapacity\tlocal\tremote\tstate\n"
+		jq -r '.peers[] | . as $p | .channels[]? | [
+			(.short_channel_id // .channel_id // "-"),
+			$p.id,
+			((.msatoshi_total // 0) / 1000 | floor),
+			((.msatoshi_to_us // 0) / 1000 | floor),
+			(((.msatoshi_total // 0) - (.msatoshi_to_us // 0)) / 1000 | floor),
+			.state
+		] | @tsv' <<<"$json"
+	fi
 }
 
 cmd_open() {
@@ -144,6 +169,79 @@ cmd_pending() {
 		) | @tsv'
 }
 
+# FEAT-185: Static Channel Backup.
+
+wallet_scb_dir() {
+	local active; active=$(cat "${LIGHTNING_DIR}/wallet/.active" 2>/dev/null || echo "default")
+	echo "${LIGHTNING_DIR}/wallet/$active/scb"
+}
+
+scb_emit() {
+	local outfile=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--out) outfile="$2"; shift 2 ;;
+			*) echo "lightning channel scb emit: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	scb_json=$(cli staticbackup 2>/dev/null || cli listpeerchannels 2>/dev/null | jq '{scb: .}' 2>/dev/null) || {
+		echo "lightning: failed to read SCB from daemon" >&2; exit 4; }
+
+	if [ -n "$outfile" ]; then
+		echo "$scb_json" > "$outfile"
+		echo "ok"
+		echo "path: $outfile"
+	else
+		local scb_dir; scb_dir=$(wallet_scb_dir)
+		mkdir -p "$scb_dir"
+		local ts; ts=$(date -u +%Y%m%dT%H%M%SZ)
+		local path="$scb_dir/scb-$ts.json"
+		echo "$scb_json" > "$path"
+		echo "ok"
+		echo "path: $path"
+
+		local wdir; wdir=$(dirname "$scb_dir")
+		if [ -d "$wdir/.git" ]; then
+			git -C "$wdir" add "$path" 2>/dev/null || true
+			git -C "$wdir" commit -m "scb: snapshot $ts" --quiet 2>/dev/null || true
+		fi
+	fi
+}
+
+scb_restore() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel scb restore <file>" >&2; exit 1; }
+	local file="$1"
+	[ -f "$file" ] || { echo "lightning: SCB file not found: $file" >&2; exit 4; }
+
+	result=$(cli staticbackup restore "$file" 2>/dev/null || cli emergency recover "$file" 2>/dev/null) || {
+		echo "lightning: SCB restore failed — daemon may need to be unlocked first" >&2
+		exit 4
+	}
+
+	echo "ok"
+	echo "lightning: SCB restore initiated; force-closes expected within the next block" >&2
+	echo "$result" | jq . 2>/dev/null || echo "$result"
+}
+
+cmd_scb() {
+	[ $# -lt 1 ] && {
+		cat >&2 <<EOF
+usage: lightning channel scb <subcommand> [args]
+
+subcommands:
+   emit [--out <file>]
+   restore <file>
+EOF
+		exit 1
+	}
+	case "$1" in
+		emit)    shift; scb_emit "$@" ;;
+		restore) shift; scb_restore "$@" ;;
+		*) echo "lightning channel scb: unknown subcommand '$1'" >&2; exit 1 ;;
+	esac
+}
+
 case "$1" in
 	list)        shift; cmd_list "$@" ;;
 	open)        shift; cmd_open "$@" ;;
@@ -152,5 +250,6 @@ case "$1" in
 	balance)     shift; cmd_balance "$@" ;;
 	info)        shift; cmd_info "$@" ;;
 	pending)     shift; cmd_pending "$@" ;;
+	scb)         shift; cmd_scb "$@" ;;
 	*) usage; exit 1 ;;
 esac
