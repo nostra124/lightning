@@ -2,14 +2,16 @@
 # lightning daemon — lightningd lifecycle management.
 #
 # Implements FEAT-183. Subcommands:
-#   start    — bring up lightningd
+#   start    — bring up lightningd (background; --daemon or via supervisor)
+#   run      — bring up lightningd in foreground (for launchd/systemd Type=simple)
 #   stop     — graceful shutdown via `lightning-cli stop`
 #   restart  — stop + start
 #   status   — health check (process / RPC / sync / unlock)
 #   logs     — tail the live log
-#   install  — generate a systemd unit
-#              --system: three-user layout (FEAT-183), runs as
-#              dedicated `clightning` user.
+#   install  — generate a service unit
+#              Linux: systemd (~/.config/systemd/user/lightning.service)
+#                     or system-mode (/etc/systemd/system/clightningd.service)
+#              macOS: launchd (~/Library/LaunchAgents/<label>.plist)
 
 set -e
 
@@ -17,29 +19,49 @@ LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 NETWORK_DIR="$LIGHTNING_DIR/$LIGHTNING_NETWORK"
 RPC_FILE="$NETWORK_DIR/lightning-rpc"
+LAUNCHD_LABEL="network.lightning.lightningd"
 
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+is_macos() { [ "$(uname -s)" = "Darwin" ]; }
+
+launchd_plist() {
+	if [ "$EUID" -eq 0 ]; then
+		echo "/Library/LaunchDaemons/${LAUNCHD_LABEL}.plist"
+	else
+		echo "$HOME/Library/LaunchAgents/${LAUNCHD_LABEL}.plist"
+	fi
+}
+
+launchd_mode() {
+	is_macos && command -v launchctl >/dev/null 2>&1 && \
+		launchctl list "$LAUNCHD_LABEL" >/dev/null 2>&1
+}
 
 usage() {
 	cat >&2 <<EOF
 usage: lightning daemon <subcommand> [args]
 
-   Lifecycle of the underlying clightningd process. Supports
-   user-mode (systemctl --user) and system-mode (FEAT-183
-   three-user layout: dedicated \`clightning\` user owns the
-   daemon, the operator owns the wallet repo, www-data runs the
-   CGI). Each sub-command also accepts --help.
+   Lifecycle of the underlying clightningd process. Detects the
+   right supervisor for the platform:
+     • macOS — launchd (~/Library/LaunchAgents/...)
+     • Linux — systemd --user, or system-mode (FEAT-183 three-user
+       layout: dedicated \`clightning\` user owns the daemon, the
+       operator owns the wallet repo, www-data runs the CGI).
+   Each sub-command also accepts --help.
 
 subcommands:
-   start                  start lightningd (foreground or systemd)
+   start                  bring up lightningd (background)
+   run                    bring up lightningd in foreground
+                          (for launchd / systemd Type=simple)
    stop                   graceful shutdown
    restart                stop + start
    status                 health check
    logs [-f]              tail the daemon log
    install [--system] [--migrate]
-                          generate a systemd unit (user-mode by
-                          default; --system uses the three-user
-                          layout under user \`clightning\`)
+                          generate a service unit (systemd on Linux,
+                          launchd on macOS). --system writes a
+                          system-wide unit (Linux three-user layout).
 EOF
 }
 
@@ -53,10 +75,13 @@ system_mode() {
 
 cmd_start() {
 	if daemon_running; then
-		error "daemon already running"
-		exit 0
+		info "daemon already running"
+		return 0
 	fi
-	if system_mode; then
+	if launchd_mode; then
+		info "starting launchd service $LAUNCHD_LABEL"
+		launchctl start "$LAUNCHD_LABEL"
+	elif system_mode; then
 		info "starting systemd unit clightningd.service"
 		sudo systemctl start clightningd.service
 	else
@@ -65,8 +90,17 @@ cmd_start() {
 			exit 127
 		}
 		mkdir -p "$LIGHTNING_DIR"
-		info "starting lightningd (user-mode, --daemon)"
-		lightningd --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" --daemon
+		local logfile="$LIGHTNING_DIR/log"
+		info "starting lightningd (user-mode, --daemon, log: $logfile)"
+		# lightningd writes startup messages to stderr BEFORE forking
+		# (--daemon detaches afterwards), so redirect both streams to
+		# the log file. Otherwise the parent shell sees the leak.
+		lightningd \
+			--lightning-dir="$LIGHTNING_DIR" \
+			--network="$LIGHTNING_NETWORK" \
+			--log-file="$logfile" \
+			--daemon \
+			>>"$logfile" 2>&1
 	fi
 
 	# Auto-unlock hook (FEAT-184).
@@ -84,12 +118,33 @@ cmd_start() {
 	fi
 }
 
+cmd_run() {
+	# Foreground variant — exec lightningd directly so launchd /
+	# systemd Type=simple can supervise it. Logs stream to stdout /
+	# stderr; the supervisor decides where they land.
+	if daemon_running; then
+		error "daemon already running; stop it before \`daemon run\`"
+		exit 1
+	fi
+	command -v lightningd >/dev/null || {
+		error "lightningd not found — install Core Lightning"
+		exit 127
+	}
+	mkdir -p "$LIGHTNING_DIR"
+	info "running lightningd in foreground"
+	exec lightningd \
+		--lightning-dir="$LIGHTNING_DIR" \
+		--network="$LIGHTNING_NETWORK"
+}
+
 cmd_stop() {
 	if ! daemon_running; then
-		error "daemon not running"
-		exit 0
+		info "daemon not running"
+		return 0
 	fi
-	if system_mode; then
+	if launchd_mode; then
+		launchctl stop "$LAUNCHD_LABEL"
+	elif system_mode; then
 		sudo systemctl stop clightningd.service
 	else
 		cli stop >/dev/null
@@ -113,7 +168,9 @@ cmd_status() {
 		local info; info=$(cli getinfo)
 		local block; block=$(jq -r .blockheight <<<"$info")
 		local warning; warning=$(jq -r '.warning_lightningd_sync // .warning_bitcoind_sync // empty' <<<"$info")
-		local mode="user"; system_mode && mode="system"
+		local mode="user"
+		launchd_mode && mode="launchd"
+		system_mode  && mode="system"
 		if [ -n "$warning" ]; then
 			echo "syncing ($mode-mode, block $block): $warning"
 			rc=1
@@ -131,11 +188,25 @@ cmd_logs() {
 	if system_mode; then
 		exec journalctl -u clightningd.service "$@"
 	fi
-	local logfile="$LIGHTNING_DIR/log"
-	[ -f "$logfile" ] || logfile="$NETWORK_DIR/log"
-	[ -f "$logfile" ] || {
-		warn "no log file at $LIGHTNING_DIR/log or $NETWORK_DIR/log"
-		error "configure log-file=log in lightningd.conf to enable"
+	# Check the well-known locations in order. cmd_start /
+	# install_macos_user both write to $LIGHTNING_DIR/log;
+	# lightningd's own default is $LIGHTNING_DIR/<network>/log.
+	local logfile
+	for candidate in "$LIGHTNING_DIR/log" "$NETWORK_DIR/log"; do
+		if [ -f "$candidate" ]; then
+			logfile="$candidate"
+			break
+		fi
+	done
+	[ -n "$logfile" ] || {
+		error "no log file yet at $LIGHTNING_DIR/log or $NETWORK_DIR/log"
+		if launchd_mode; then
+			warn "the LaunchAgent is loaded but hasn't produced a log entry yet"
+		elif daemon_running; then
+			warn "the daemon is running but logging to an unexpected path"
+		else
+			warn "run \`lightning daemon start\` (or load the LaunchAgent / systemd unit)"
+		fi
 		exit 2
 	}
 	exec tail "$@" "$logfile"
@@ -151,11 +222,161 @@ cmd_install() {
 		esac
 	done
 
-	if [ $system -eq 1 ]; then
+	if is_macos; then
+		if [ $system -eq 1 ]; then
+			install_macos_system "$migrate"
+		else
+			install_macos_user
+		fi
+	elif [ $system -eq 1 ]; then
 		install_system "$migrate"
 	else
 		install_user
 	fi
+}
+
+install_macos_user() {
+	local plist; plist=$(launchd_plist)
+	local self_bin="$SELF_LIBEXEC/../bin/lightning"
+	# Resolve to an absolute path in case SELF_LIBEXEC is relative.
+	self_bin=$(cd "$(dirname "$self_bin")" && pwd)/$(basename "$self_bin")
+	mkdir -p "$(dirname "$plist")"
+	cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${LAUNCHD_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${self_bin}</string>
+        <string>daemon</string>
+        <string>run</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LIGHTNING_DIR</key>
+        <string>${LIGHTNING_DIR}</string>
+        <key>LIGHTNING_NETWORK</key>
+        <string>${LIGHTNING_NETWORK}</string>
+        <key>PATH</key>
+        <string>${PATH}</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${LIGHTNING_DIR}/log</string>
+    <key>StandardErrorPath</key>
+    <string>${LIGHTNING_DIR}/log</string>
+</dict>
+</plist>
+EOF
+	info "wrote $plist"
+	info "next: load the agent — this also starts the daemon (RunAtLoad=true)"
+	info "    launchctl load -w $plist"
+	info "verify:"
+	info "    lightning daemon status"
+	info "    lightning daemon logs -f"
+	info "stop + unload:"
+	info "    launchctl unload $plist"
+}
+
+install_macos_system() {
+	local migrate=$1
+	local state_dir=/usr/local/var/clightning
+	local plist=/Library/LaunchDaemons/${LAUNCHD_LABEL}.plist
+
+	if [ $migrate -eq 0 ] && [ -d "$HOME/.lightning" ] && [ ! -L "$HOME/.lightning" ]; then
+		error "~/.lightning exists (user-mode install detected); refusing"
+		warn "pass --migrate to move it to $state_dir"
+		exit 3
+	fi
+
+	command -v sudo >/dev/null || { error "sudo required for --system"; exit 127; }
+
+	# macOS doesn't have useradd — use dscl. UID 250-300 is the
+	# conventional range for third-party system users.
+	local svc_user="_clightning"
+	local svc_uid=297
+	local svc_gid=297
+
+	if ! dscl . -read /Users/$svc_user >/dev/null 2>&1; then
+		# Pick an unused UID in the system range if 297 is taken.
+		while dscl . -list /Users UniqueID 2>/dev/null | awk '{print $2}' | grep -qx "$svc_uid"; do
+			svc_uid=$((svc_uid + 1))
+		done
+		svc_gid=$svc_uid
+
+		info "creating system user $svc_user (uid $svc_uid)"
+		sudo dscl . -create /Groups/$svc_user
+		sudo dscl . -create /Groups/$svc_user PrimaryGroupID $svc_gid
+		sudo dscl . -create /Users/$svc_user
+		sudo dscl . -create /Users/$svc_user UniqueID $svc_uid
+		sudo dscl . -create /Users/$svc_user PrimaryGroupID $svc_gid
+		sudo dscl . -create /Users/$svc_user UserShell /usr/bin/false
+		sudo dscl . -create /Users/$svc_user NFSHomeDirectory $state_dir
+		sudo dscl . -create /Users/$svc_user RealName "Core Lightning daemon"
+		sudo dscl . -create /Users/$svc_user IsHidden 1
+	fi
+
+	# State dir, owned by the service user, group-readable so the
+	# operator (added to the group) can reach the RPC socket.
+	sudo install -d -o $svc_user -g $svc_user -m 0750 "$state_dir"
+
+	# Add the current user to the clightning group so they can talk
+	# to the RPC socket without sudo.
+	sudo dseditgroup -o edit -a "$USER" -t user "$svc_user"
+
+	# clightning config — rpc-file-mode=0660 so the group can read.
+	local cfg="$state_dir/config"
+	sudo tee "$cfg" >/dev/null <<EOF
+network=$LIGHTNING_NETWORK
+log-file=$state_dir/log
+rpc-file-mode=0660
+EOF
+	sudo chown $svc_user:$svc_user "$cfg"
+
+	# LaunchDaemon plist running as the service user.
+	local lightningd_bin; lightningd_bin=$(command -v lightningd)
+	sudo tee "$plist" >/dev/null <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${LAUNCHD_LABEL}</string>
+    <key>UserName</key>
+    <string>${svc_user}</string>
+    <key>GroupName</key>
+    <string>${svc_user}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${lightningd_bin}</string>
+        <string>--lightning-dir=${state_dir}</string>
+        <string>--conf=${cfg}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>${state_dir}/log</string>
+    <key>StandardErrorPath</key>
+    <string>${state_dir}/log</string>
+</dict>
+</plist>
+EOF
+	sudo chown root:wheel "$plist"
+	sudo chmod 644 "$plist"
+
+	info "installed system-mode at $state_dir"
+	info "user '$svc_user' created (uid $svc_uid); '$USER' added to its group"
+	info "next: load the daemon — this also starts it (RunAtLoad=true)"
+	info "    sudo launchctl load -w $plist"
+	info "log out and back in for your group membership to take effect"
 }
 
 install_user() {
@@ -180,7 +401,11 @@ WantedBy=default.target
 EOF
 	systemctl --user daemon-reload 2>/dev/null || true
 	info "wrote $unit"
-	info "enable with: systemctl --user enable --now lightning"
+	info "next: enable + start — --now does both"
+	info "    systemctl --user enable --now lightning"
+	info "verify:"
+	info "    lightning daemon status"
+	info "    lightning daemon logs -f"
 	info "to survive logout: loginctl enable-linger $USER"
 }
 
@@ -241,8 +466,9 @@ EOF
 
 	info "installed system-mode at /var/lib/clightning"
 	info "user 'clightning' created; '$USER' added to group 'clightning'"
-	info "enable with: sudo systemctl enable --now clightningd"
-	info "log out and back in for group membership to take effect"
+	info "next: enable + start — --now does both"
+	info "    sudo systemctl enable --now clightningd"
+	info "log out and back in for your group membership to take effect"
 }
 
 SELF_LIBEXEC="${SELF_LIBEXEC:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -253,18 +479,31 @@ subhelp() {
 			cat <<'EOF'
 usage: lightning daemon start
 
-Bring up lightningd. If a systemd unit `clightningd.service` is
-enabled, starts it; otherwise launches `lightningd --daemon` in
-user-mode under $LIGHTNING_DIR. Triggers auto-unlock (FEAT-184)
-when the `secret` package is installed.
+Bring up lightningd in the background. Detects the supervisor in
+this order: launchd (macOS) -> systemd (Linux) -> direct fork via
+`lightningd --daemon`. In direct mode, stdout/stderr are redirected
+to $LIGHTNING_DIR/log so the terminal stays clean. Triggers
+auto-unlock (FEAT-184) when the `secret` package is installed.
+EOF
+			;;
+		run)
+			cat <<'EOF'
+usage: lightning daemon run
+
+Bring up lightningd in the FOREGROUND — exec the binary without
+--daemon, so logs stream to stdout/stderr and exit propagates to
+the caller. This is the entry point invoked by launchd and by
+systemd units with Type=simple. Refuses if the daemon is already
+running.
 EOF
 			;;
 		stop)
 			cat <<'EOF'
 usage: lightning daemon stop
 
-Graceful shutdown via `lightning-cli stop` (or systemctl stop
-clightningd in system-mode). No-op if the daemon isn't running.
+Graceful shutdown. Detects launchd / systemctl / direct and uses
+the matching stop command (falls back to `lightning-cli stop`).
+No-op if the daemon isn't running.
 EOF
 			;;
 		restart)
@@ -298,12 +537,25 @@ EOF
 			cat <<'EOF'
 usage: lightning daemon install [--system] [--migrate]
 
-Write a systemd unit for the daemon. Default is user-mode at
-~/.config/systemd/user/lightning.service. --system writes a
-system-mode unit at /etc/systemd/system/clightningd.service,
-creates the `clightning` system user, and adds you to its group
-(FEAT-183 three-user layout). --migrate moves an existing
-~/.lightning into /var/lib/clightning.
+Write a service unit for the daemon. Platform-aware:
+
+Default (user-mode) — runs as the current user, no sudo needed:
+   macOS  ~/Library/LaunchAgents/network.lightning.lightningd.plist
+          (LaunchAgent calling `lightning daemon run` so launchd
+          supervises lightningd).
+   Linux  ~/.config/systemd/user/lightning.service.
+
+--system — runs the daemon as a dedicated unprivileged service
+user, with the operator added to its group so they can reach the
+RPC socket. Requires sudo for the install step only — the
+daemon never runs as root.
+   macOS  /Library/LaunchDaemons/network.lightning.lightningd.plist
+          UserName=_clightning, state at /usr/local/var/clightning.
+   Linux  /etc/systemd/system/clightningd.service
+          User=clightning, state at /var/lib/clightning
+          (FEAT-183 three-user layout).
+
+--migrate moves an existing ~/.lightning into the system state dir.
 EOF
 			;;
 		*)
@@ -321,6 +573,7 @@ esac
 
 case "$SUB" in
 	start)   cmd_start "$@" ;;
+	run)     cmd_run "$@" ;;
 	stop)    cmd_stop "$@" ;;
 	restart) cmd_restart "$@" ;;
 	status)  cmd_status "$@" ;;
@@ -328,5 +581,5 @@ case "$SUB" in
 	install) cmd_install "$@" ;;
 	help)    subhelp "${1:-}" || usage; exit ;;
 	"")      usage; exit 1 ;;
-	*)       warn "daemon: unknown subcommand '$SUB'"; usage; exit 1 ;;
+	*)       error "daemon: unknown subcommand '$SUB'"; usage; exit 1 ;;
 esac

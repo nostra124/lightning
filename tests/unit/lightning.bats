@@ -221,13 +221,55 @@ teardown() {
 	[[ "$output" == *"down"* ]]
 }
 
-@test "FEAT-183: lightning daemon install writes a user-mode systemd unit" {
+@test "FEAT-183: lightning daemon install writes a user-mode systemd unit (Linux)" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "Linux-only — macOS uses launchd"
+	fi
 	# Stub lightningd so install's ExecStart resolves.
 	ln -sf /bin/true "$BIN_SHIM/lightningd"
 	run "$LIGHTNING_BIN" daemon install
 	[ "$status" -eq 0 ]
 	[ -f "$HOME/.config/systemd/user/lightning.service" ]
 	grep -q "Description=Lightning Network daemon" "$HOME/.config/systemd/user/lightning.service"
+}
+
+@test "FEAT-183: lightning daemon install writes a LaunchAgent plist (macOS)" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — Linux uses systemd"
+	fi
+	ln -sf /bin/true "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	local plist="$HOME/Library/LaunchAgents/network.lightning.lightningd.plist"
+	[ -f "$plist" ]
+	grep -q "<string>network.lightning.lightningd</string>" "$plist"
+	grep -q "<string>daemon</string>" "$plist"
+	grep -q "<string>run</string>" "$plist"
+	grep -q "<key>RunAtLoad</key>" "$plist"
+	grep -q "<key>KeepAlive</key>" "$plist"
+}
+
+@test "FEAT-183: lightning daemon run requires lightningd binary" {
+	# Daemon NOT running, lightningd binary NOT present → exit 127.
+	echo "down" > "$MOCK_STATE"
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	run "$LIGHTNING_BIN" daemon run
+	[ "$status" -eq 127 ]
+	[[ "$output" == *"lightningd not found"* ]]
+}
+
+@test "FEAT-183: lightning daemon run refuses when daemon is already running" {
+	# Mock lightning-cli getinfo returns success (state = up) by default.
+	run "$LIGHTNING_BIN" daemon run
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"already running"* ]]
+}
+
+@test "FEAT-183: lightning daemon help lists run alongside start" {
+	run "$LIGHTNING_BIN" daemon
+	[[ "$output" == *"run"* ]]
+	[[ "$output" == *"start"* ]]
+	[[ "$output" == *"foreground"* ]]
 }
 
 # ---------------------------------------------------------------------------
