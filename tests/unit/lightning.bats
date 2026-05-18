@@ -38,19 +38,37 @@ teardown() {
 	rm -f "$MOCK_STATE"
 }
 
-# Stubs curl so `daemon install --esplora` writes a placeholder
-# sauron.py instead of hitting GitHub. Tests that want to exercise
-# the failure path should write their own curl stub.
-_stub_sauron_curl() {
+# Stubs curl+tar so `daemon install --trustedcoin` doesn't hit
+# GitHub. curl writes a fake tarball; tar extracts a placeholder
+# trustedcoin binary. Tests that want the failure path stub curl
+# themselves.
+_stub_trustedcoin_curl() {
 	cat > "$BIN_SHIM/curl" <<'EOF'
 #!/bin/sh
+# Pull the -o argument and write a placeholder file there. Real
+# tarball isn't needed — our tar stub doesn't read the contents.
 while [ $# -gt 0 ]; do
 	case "$1" in -o) target=$2; shift 2 ;; *) shift ;; esac
 done
-[ -n "$target" ] && printf '#!/usr/bin/env python3\n# stub sauron.py\n' > "$target"
+[ -n "$target" ] && printf 'STUB TARBALL\n' > "$target"
 exit 0
 EOF
 	chmod +x "$BIN_SHIM/curl"
+	# Stub tar to drop a placeholder trustedcoin binary into -C dir.
+	cat > "$BIN_SHIM/tar" <<'EOF'
+#!/bin/sh
+# Find -C <dir> and write trustedcoin there.
+while [ $# -gt 0 ]; do
+	case "$1" in -C) dest=$2; shift 2 ;; *) shift ;; esac
+done
+[ -n "$dest" ] && {
+	mkdir -p "$dest"
+	printf '#!/bin/sh\nexit 0\n' > "$dest/trustedcoin"
+	chmod +x "$dest/trustedcoin"
+}
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/tar"
 }
 
 # ---------------------------------------------------------------------------
@@ -399,112 +417,124 @@ EOF
 	grep -q "<integer>30</integer>" "$plist"
 }
 
-@test "FEAT-183: daemon install --esplora writes managed sauron block + auto-installs plugin" {
+@test "FEAT-183: daemon install --trustedcoin writes managed block + auto-installs plugin" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
-	# Stub curl so we don't hit the network; write a placeholder
-	# sauron.py to whatever path the dispatcher requested.
-	cat > "$BIN_SHIM/curl" <<'EOF'
-#!/bin/sh
-# Pull the -o argument and write a minimal Python file there.
-while [ $# -gt 0 ]; do
-	case "$1" in -o) target=$2; shift 2 ;; *) shift ;; esac
-done
-[ -n "$target" ] && printf '#!/usr/bin/env python3\n# stub sauron.py\n' > "$target"
-exit 0
-EOF
-	chmod +x "$BIN_SHIM/curl"
-	run "$LIGHTNING_BIN" daemon install --esplora
+	_stub_trustedcoin_curl
+	run "$LIGHTNING_BIN" daemon install --trustedcoin
 	[ "$status" -eq 0 ]
 	[ -f "$HOME/.lightning/config" ]
 	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
-	grep -q "sauron-api-endpoint=https://blockstream.info/api" "$HOME/.lightning/config"
-	grep -q "lightning esplora" "$HOME/.lightning/config"
-	# The plugin file should have been downloaded and made executable.
-	[ -x "$HOME/.lightning/plugins/sauron.py" ]
+	grep -q "lightning backend" "$HOME/.lightning/config"
+	grep -q "trustedcoin" "$HOME/.lightning/config"
+	# The plugin binary should have landed in plugins/ and be executable.
+	[ -x "$HOME/.lightning/plugins/trustedcoin" ]
 }
 
-@test "FEAT-183: daemon install --esplora skips fetch if sauron.py already present" {
+@test "FEAT-183: daemon install --trustedcoin skips fetch if binary already present" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
-	# Pre-place a sauron.py.
 	mkdir -p "$HOME/.lightning/plugins"
-	echo "stub" > "$HOME/.lightning/plugins/sauron.py"
-	chmod +x "$HOME/.lightning/plugins/sauron.py"
+	printf '#!/bin/sh\nexit 0\n' > "$HOME/.lightning/plugins/trustedcoin"
+	chmod +x "$HOME/.lightning/plugins/trustedcoin"
 	# Fail loudly if curl gets called.
 	printf '#!/bin/sh\necho "curl should not be called" >&2; exit 99\n' > "$BIN_SHIM/curl"
 	chmod +x "$BIN_SHIM/curl"
-	run "$LIGHTNING_BIN" -v daemon install --esplora
+	run "$LIGHTNING_BIN" -v daemon install --trustedcoin
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"already present"* ]]
-	[[ "$output" != *"fetching sauron plugin"* ]]
-	# File unchanged.
-	[ "$(cat $HOME/.lightning/plugins/sauron.py)" = "stub" ]
+	[[ "$output" != *"fetching trustedcoin"* ]]
 }
 
-@test "FEAT-183: daemon install --esplora reports failure when curl fails" {
+@test "FEAT-183: daemon install --trustedcoin reports failure when curl fails (Linux)" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "macOS uses go install, not curl"
+	fi
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
-	# curl that always fails — exercises both fallback URLs.
 	printf '#!/bin/sh\nexit 22\n' > "$BIN_SHIM/curl"
 	chmod +x "$BIN_SHIM/curl"
-	run "$LIGHTNING_BIN" daemon install --esplora
-	# Config is still written (the toggle succeeded), but the
-	# operation prints a clear error about the failed download.
-	grep -q "sauron-api-endpoint" "$HOME/.lightning/config"
-	[[ "$output" == *"could not download sauron.py from any known URL"* ]]
-	# Both candidate URLs should be listed in the manual hint.
-	[[ "$output" == *"github.com/lightningd/plugins"* ]]
+	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	# Config is still written; download failure is surfaced.
+	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
+	[[ "$output" == *"failed to download"* ]]
+	[[ "$output" == *"manual install"* ]]
 }
 
-@test "FEAT-183: daemon install --esplora <url> honors custom endpoint" {
+@test "FEAT-183: daemon install --trustedcoin needs go on macOS without one" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — prebuilt binaries cover Linux/BSD"
+	fi
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
-	_stub_sauron_curl
-	run "$LIGHTNING_BIN" daemon install --esplora "https://mempool.space/api"
-	[ "$status" -eq 0 ]
-	grep -q "sauron-api-endpoint=https://mempool.space/api" "$HOME/.lightning/config"
-	# Must not contain the default endpoint as a fallback.
-	! grep -q "sauron-api-endpoint=https://blockstream.info/api" "$HOME/.lightning/config"
+	# Hide go from PATH.
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
+	[[ "$output" == *"doesn't ship a prebuilt macOS binary"* ]]
+	[[ "$output" == *"go install"* ]]
 }
 
-@test "FEAT-183: daemon install --no-esplora strips the managed block" {
+@test "FEAT-183: daemon install --bitcoind strips the managed block" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
-	_stub_sauron_curl
-	# First enable esplora.
-	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
-	grep -q "sauron-api-endpoint" "$HOME/.lightning/config"
+	_stub_trustedcoin_curl
+	# First enable trustedcoin.
+	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
+	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
 	# Then disable.
-	run "$LIGHTNING_BIN" daemon install --no-esplora
+	run "$LIGHTNING_BIN" daemon install --bitcoind
 	[ "$status" -eq 0 ]
-	! grep -q "sauron-api-endpoint" "$HOME/.lightning/config"
 	! grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
+	! grep -q "lightning backend" "$HOME/.lightning/config"
 }
 
-@test "FEAT-183: daemon install --esplora is idempotent (no duplicate blocks)" {
+@test "FEAT-183: daemon install --trustedcoin is idempotent (no duplicate blocks)" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
-	_stub_sauron_curl
-	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
-	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
-	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
+	_stub_trustedcoin_curl
+	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
+	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
+	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
 	# Exactly one block, not three.
-	local count; count=$(grep -c "lightning esplora" "$HOME/.lightning/config" || true)
+	local count; count=$(grep -c "lightning backend" "$HOME/.lightning/config" || true)
 	[ "$count" -eq 2 ]   # begin + end markers
 }
 
-@test "FEAT-183: daemon start skips bitcoind check in esplora mode" {
-	echo "down" > "$MOCK_STATE"
+@test "FEAT-183: daemon install --trustedcoin migrates a legacy esplora block" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	_stub_trustedcoin_curl
 	mkdir -p "$HOME/.lightning"
-	# Pre-seed esplora config (bypass install's WARNING banner).
-	cat > "$HOME/.lightning/config" <<EOF
+	cat > "$HOME/.lightning/config" <<'EOF'
+# user setting that should survive
+log-level=debug
+
 # >>> lightning esplora — managed by 'daemon install --esplora'
 disable-plugin=bcli
 sauron-api-endpoint=https://blockstream.info/api
 # <<< lightning esplora
 EOF
-	# Stub lightningd that flips MOCK_STATE so post-start probe passes.
+	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	[ "$status" -eq 0 ]
+	# Legacy block is gone; user setting preserved; new block present.
+	! grep -q "lightning esplora" "$HOME/.lightning/config"
+	! grep -q "sauron-api-endpoint" "$HOME/.lightning/config"
+	grep -q "log-level=debug" "$HOME/.lightning/config"
+	grep -q "lightning backend" "$HOME/.lightning/config"
+	grep -q "trustedcoin" "$HOME/.lightning/config"
+}
+
+@test "FEAT-183: daemon start skips bitcoind check in trustedcoin mode" {
+	echo "down" > "$MOCK_STATE"
+	mkdir -p "$HOME/.lightning"
+	# Pre-seed trustedcoin config (bypass install's WARNING banner).
+	cat > "$HOME/.lightning/config" <<EOF
+# >>> lightning backend — managed by 'daemon install'
+disable-plugin=bcli
+# trustedcoin reference
+# <<< lightning backend
+EOF
 	cat > "$BIN_SHIM/lightningd" <<EOF
 #!/bin/sh
 rm -f "$MOCK_STATE"
@@ -515,8 +545,7 @@ EOF
 	export PATH="$BIN_SHIM:/usr/bin:/bin"
 	run "$LIGHTNING_BIN" -v daemon start
 	[ "$status" -eq 0 ]
-	# Skip message present, warning absent.
-	[[ "$output" == *"esplora backend"* ]]
+	[[ "$output" == *"trustedcoin backend"* ]]
 	[[ "$output" == *"skipping bitcoind check"* ]]
 	[[ "$output" != *"bitcoin-cli not found"* ]]
 }
@@ -524,21 +553,20 @@ EOF
 @test "FEAT-183: daemon status reports backend in healthy + down output" {
 	mkdir -p "$HOME/.lightning"
 	cat > "$HOME/.lightning/config" <<EOF
-# >>> lightning esplora — managed by 'daemon install --esplora'
+# >>> lightning backend — managed by 'daemon install'
 disable-plugin=bcli
-sauron-api-endpoint=https://example.com/api
-# <<< lightning esplora
+# trustedcoin reference
+# <<< lightning backend
 EOF
 	# Healthy path.
 	run "$LIGHTNING_BIN" daemon status
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"backend: esplora"* ]]
-	[[ "$output" == *"https://example.com/api"* ]]
+	[[ "$output" == *"backend: trustedcoin"* ]]
 	# Down path.
 	echo "down" > "$MOCK_STATE"
 	run "$LIGHTNING_BIN" daemon status
 	[ "$status" -eq 2 ]
-	[[ "$output" == *"backend: esplora"* ]]
+	[[ "$output" == *"backend: trustedcoin"* ]]
 }
 
 @test "FEAT-183: daemon start falls through to direct mode without a service unit" {

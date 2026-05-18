@@ -21,9 +21,14 @@ NETWORK_DIR="$LIGHTNING_DIR/$LIGHTNING_NETWORK"
 RPC_FILE="$NETWORK_DIR/lightning-rpc"
 LAUNCHD_LABEL="network.lightning.lightningd"
 LIGHTNING_CONF="$LIGHTNING_DIR/config"
-ESPLORA_DEFAULT="https://blockstream.info/api"
-ESPLORA_BLOCK_BEGIN="# >>> lightning esplora — managed by 'daemon install --esplora'"
-ESPLORA_BLOCK_END="# <<< lightning esplora"
+BACKEND_BLOCK_BEGIN="# >>> lightning backend — managed by 'daemon install'"
+BACKEND_BLOCK_END="# <<< lightning backend"
+# Legacy markers from the dropped --esplora path; stripped on every
+# install so existing configs migrate cleanly.
+LEGACY_ESPLORA_BEGIN="# >>> lightning esplora — managed by 'daemon install --esplora'"
+LEGACY_ESPLORA_END="# <<< lightning esplora"
+TRUSTEDCOIN_REPO="nbd-wtf/trustedcoin"
+TRUSTEDCOIN_VERSION="v0.8.6"
 
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 
@@ -104,174 +109,195 @@ daemon_running() {
 # "BROKEN plugin-bcli: The Bitcoin backend died" and exits seconds
 # after startup. Returns 0 if bitcoind looks usable, 1 otherwise.
 # Callers should warn-and-continue, not exit — the user may be using
-# a non-default backend (e.g. sauron / Esplora plugin).
+# a non-default backend (e.g. trustedcoin).
 check_bitcoind() {
-	# Skip the check entirely when the user opted into Esplora.
-	if esplora_enabled; then
-		info "esplora backend (sauron) — skipping bitcoind check"
+	# Skip the check entirely when the user opted into a public backend.
+	if backend_enabled; then
+		info "$(backend_name) backend — skipping bitcoind check"
 		return 0
 	fi
 	if ! command -v bitcoin-cli >/dev/null 2>&1; then
 		warn "bitcoin-cli not found — lightningd needs a Bitcoin backend"
-		warn "  install bitcoind, or run \`lightning daemon install --esplora\`"
-		warn "  to use a public Esplora endpoint (degrades trust)"
+		warn "  install bitcoind, or run \`lightning daemon install --trustedcoin\`"
+		warn "  to use public block explorers (degrades trust)"
 		return 1
 	fi
 	if ! bitcoin-cli -getinfo >/dev/null 2>&1; then
 		warn "bitcoind isn't reachable — lightningd will likely crash on startup"
-		warn "  start it:  bitcoind -daemon"
-		warn "  or run a pruned node:  bitcoind -daemon -prune=550"
-		warn "  or switch to Esplora:  lightning daemon install --esplora"
+		warn "  start it:            bitcoind -daemon"
+		warn "  pruned (~550 MB):    bitcoind -daemon -prune=550"
+		warn "  or public explorers: lightning daemon install --trustedcoin"
 		return 1
 	fi
 	return 0
 }
 
-# Is the lightningd config currently configured to use sauron (Esplora)?
-esplora_enabled() {
-	[ -f "$LIGHTNING_CONF" ] && grep -qF "$ESPLORA_BLOCK_BEGIN" "$LIGHTNING_CONF"
+# Generic managed-backend-block helpers. The same markers wrap any
+# non-default backend — switching backends rewrites the block, and
+# `--bitcoind` (or no flag on a fresh install) leaves no block at all.
+
+# Returns 0 if a managed backend block is present.
+backend_enabled() {
+	[ -f "$LIGHTNING_CONF" ] && grep -qF "$BACKEND_BLOCK_BEGIN" "$LIGHTNING_CONF"
 }
 
-esplora_endpoint() {
-	[ -f "$LIGHTNING_CONF" ] || return 1
-	awk -F= -v begin="$ESPLORA_BLOCK_BEGIN" -v end="$ESPLORA_BLOCK_END" '
+# Names the currently-enabled non-default backend: trustedcoin / bitcoind.
+backend_name() {
+	if [ -f "$LIGHTNING_CONF" ] && \
+	   awk -v begin="$BACKEND_BLOCK_BEGIN" -v end="$BACKEND_BLOCK_END" '
 		$0 == begin {in_block=1; next}
 		$0 == end   {in_block=0; next}
-		in_block && $1 == "sauron-api-endpoint" {print $2; exit}
-	' "$LIGHTNING_CONF"
+		in_block && $0 ~ /trustedcoin/ {found=1}
+		END {exit !found}
+	   ' "$LIGHTNING_CONF"; then
+		echo "trustedcoin"
+	else
+		echo "bitcoind"
+	fi
 }
 
-# Append a managed sauron block to $LIGHTNING_CONF. Idempotent — strips
-# any previous managed block first.
-esplora_enable() {
-	local endpoint="${1:-$ESPLORA_DEFAULT}"
+# Strip the managed backend block (and the legacy esplora block from
+# the dropped --esplora path) so we start from a clean slate.
+backend_disable() {
+	[ -f "$LIGHTNING_CONF" ] || return 0
+	local tmp; tmp=$(mktemp "$LIGHTNING_CONF.XXXXXX")
+	awk \
+		-v b1="$BACKEND_BLOCK_BEGIN"  -v e1="$BACKEND_BLOCK_END" \
+		-v b2="$LEGACY_ESPLORA_BEGIN" -v e2="$LEGACY_ESPLORA_END" '
+		$0 == b1 || $0 == b2 {in_block=1; next}
+		$0 == e1 || $0 == e2 {in_block=0; next}
+		!in_block   {print}
+	' "$LIGHTNING_CONF" > "$tmp"
+	mv "$tmp" "$LIGHTNING_CONF"
+	# Trim trailing blank lines.
+	[ -s "$LIGHTNING_CONF" ] && sed -e :a -e '/^$/{$d;N;ba' -e '}' -i.bak "$LIGHTNING_CONF" 2>/dev/null
+	rm -f "$LIGHTNING_CONF.bak"
+}
+
+# Enable trustedcoin: idempotent, replaces any previous managed block.
+backend_enable_trustedcoin() {
 	mkdir -p "$LIGHTNING_DIR"
-	esplora_disable  # remove any previous managed block
+	backend_disable
 
-	cat >&2 <<EOF
+	cat >&2 <<'EOF'
 
-  WARNING: enabling sauron / Esplora backend.
-  The Lightning node will fetch chain data over HTTPS from:
-      $endpoint
-  Two important caveats:
-  1. Trust — the endpoint sees all your address queries and can
-     lie about block contents. Single point of failure.
-  2. The sauron plugin itself is ARCHIVED in upstream lightningd/
-     plugins (no longer maintained, may break with future CLN
-     releases). Use only if you can't run bitcoind.
-  Pruned bitcoind (prune=550, ~550 MB) is the recommended
+  WARNING: enabling trustedcoin backend.
+  The Lightning node will fetch chain data over HTTPS from public
+  block explorers (blockstream.info, mempool.space, mempool.emzy.de,
+  blockchair.com, blockchain.info — trustedcoin rotates through
+  them as a fallback chain).
+  Trade-off: those endpoints see all your address queries and could
+  lie about block contents. They also charge you implicit trust
+  jointly — a coordinated lie would land. Use only if you can't
+  run bitcoind. Pruned bitcoind (prune=550, ~550 MB) is the
   self-sovereign alternative.
 
 EOF
 	{
 		[ -s "$LIGHTNING_CONF" ] && echo
-		echo "$ESPLORA_BLOCK_BEGIN"
+		echo "$BACKEND_BLOCK_BEGIN"
+		echo "# Replace bitcoind/bcli with the trustedcoin plugin"
+		echo "# (https://github.com/$TRUSTEDCOIN_REPO)."
 		echo "disable-plugin=bcli"
-		echo "sauron-api-endpoint=$endpoint"
-		echo "$ESPLORA_BLOCK_END"
+		echo "$BACKEND_BLOCK_END"
 	} >> "$LIGHTNING_CONF"
 
-	info "esplora enabled — endpoint: $endpoint"
+	info "trustedcoin enabled (multi-explorer fallback)"
 	info "config block written to $LIGHTNING_CONF"
 
-	# sauron is an external plugin shipped separately from CLN.
-	# Fetch it automatically — small text file, well-known URL.
-	install_sauron_plugin
+	install_trustedcoin_plugin
 }
 
-# Candidate URLs to try, in order. As of 2026 sauron lives under
-# archived/ (it failed CI and is marked unmaintained). The pre-2024
-# location is kept as a fallback in case upstream un-archives it.
-SAURON_URLS=(
-	"https://raw.githubusercontent.com/lightningd/plugins/master/archived/sauron/sauron.py"
-	"https://raw.githubusercontent.com/lightningd/plugins/master/sauron/sauron.py"
-	"https://raw.githubusercontent.com/lightningd/plugins/main/sauron/sauron.py"
-)
-
-install_sauron_plugin() {
+install_trustedcoin_plugin() {
 	local plugins_dir="$LIGHTNING_DIR/plugins"
-	local sauron="$plugins_dir/sauron.py"
+	local bin="$plugins_dir/trustedcoin"
 
-	if [ -f "$sauron" ]; then
-		info "sauron plugin already present at $sauron"
-	else
-		if ! command -v curl >/dev/null 2>&1; then
-			error "curl not found — install it, or fetch sauron.py manually:"
-			error "    ${SAURON_URLS[0]}"
-			error "    -> $sauron"
-			return 1
-		fi
-		mkdir -p "$plugins_dir"
-		local url got=""
-		for url in "${SAURON_URLS[@]}"; do
-			info "fetching sauron plugin from $url"
-			if curl -fsSL -o "$sauron.tmp" "$url" 2>/dev/null; then
-				got="$url"
-				break
-			fi
-		done
-		if [ -z "$got" ]; then
-			rm -f "$sauron.tmp"
-			error "could not download sauron.py from any known URL:"
-			for url in "${SAURON_URLS[@]}"; do error "    $url"; done
-			error "the upstream layout may have changed — check"
-			error "    https://github.com/lightningd/plugins"
-			error "and drop the file at:"
-			error "    $sauron   (chmod +x)"
-			return 1
-		fi
-		mv "$sauron.tmp" "$sauron"
-		chmod +x "$sauron"
-		info "installed $sauron (from $got)"
-	fi
-
-	# Dependency check. Recent sauron.py uses PEP 723 inline metadata
-	# with `uv run --script` as the shebang, so if uv is installed
-	# the Python deps install themselves on first run. Otherwise fall
-	# back to checking for the system Python modules.
-	if head -1 "$sauron" 2>/dev/null | grep -q 'uv run'; then
-		if ! command -v uv >/dev/null 2>&1; then
-			error "sauron.py uses 'uv run --script' (PEP 723 metadata),"
-			error "but uv isn't installed. Install one of:"
-			error "    brew install uv                                   # macOS"
-			error "    curl -LsSf https://astral.sh/uv/install.sh | sh   # any *nix"
-			error "(uv auto-installs the inline Python deps on first run)"
-		else
-			info "sauron.py uses uv — Python deps auto-install on first run"
-		fi
+	if [ -x "$bin" ]; then
+		info "trustedcoin plugin already present at $bin"
 		return 0
 	fi
-	local py; py=$(command -v python3 || command -v python)
-	if [ -z "$py" ]; then
-		error "neither python3 nor python is on PATH — sauron needs Python 3"
+
+	mkdir -p "$plugins_dir"
+
+	local os arch
+	case "$(uname -s)" in
+		Linux)   os=linux   ;;
+		Darwin)  os=darwin  ;;
+		FreeBSD) os=freebsd ;;
+		OpenBSD) os=openbsd ;;
+		*) error "trustedcoin: unsupported OS '$(uname -s)'"; return 1 ;;
+	esac
+	case "$(uname -m)" in
+		x86_64|amd64)   arch=amd64 ;;
+		arm64|aarch64)  arch=arm64 ;;
+		*) error "trustedcoin: unsupported arch '$(uname -m)'"; return 1 ;;
+	esac
+
+	if [ "$os" = "darwin" ]; then
+		install_trustedcoin_via_go "$bin"
+		return $?
+	fi
+
+	if ! command -v curl >/dev/null 2>&1; then
+		error "curl not found — install it, or fetch trustedcoin manually from"
+		error "    https://github.com/$TRUSTEDCOIN_REPO/releases"
 		return 1
 	fi
-	local missing=""
-	"$py" -c 'import pyln.client' 2>/dev/null || missing="pyln-client"
-	"$py" -c 'import requests'    2>/dev/null || missing="${missing:+$missing }requests"
-	if [ -n "$missing" ]; then
-		error "sauron needs Python deps not yet installed: $missing"
-		error "install with one of:"
-		error "    pip install --user $missing"
-		error "    pipx install $missing               # if you prefer pipx"
-		error "    brew install python-$missing       # macOS"
+
+	local tarball="trustedcoin-$TRUSTEDCOIN_VERSION-$os-$arch.tar.gz"
+	local url="https://github.com/$TRUSTEDCOIN_REPO/releases/download/$TRUSTEDCOIN_VERSION/$tarball"
+	local tmp; tmp=$(mktemp -d)
+
+	info "fetching trustedcoin $TRUSTEDCOIN_VERSION for $os-$arch"
+	info "  $url"
+	if ! curl -fsSL -o "$tmp/$tarball" "$url"; then
+		rm -rf "$tmp"
+		error "failed to download $tarball — check the URL or your network"
+		error "manual install:"
+		error "    curl -fsSL -o /tmp/$tarball $url"
+		error "    tar -xzf /tmp/$tarball -C $plugins_dir"
+		error "    chmod +x $bin"
+		return 1
 	fi
+	if ! tar -xzf "$tmp/$tarball" -C "$tmp" 2>/dev/null; then
+		rm -rf "$tmp"
+		error "failed to extract $tarball"
+		return 1
+	fi
+	local extracted; extracted=$(find "$tmp" -name 'trustedcoin' -type f | head -1)
+	if [ -z "$extracted" ]; then
+		rm -rf "$tmp"
+		error "no 'trustedcoin' binary found inside $tarball"
+		return 1
+	fi
+	mv "$extracted" "$bin"
+	chmod +x "$bin"
+	rm -rf "$tmp"
+	info "installed $bin"
 }
 
-# Strip the managed sauron block from $LIGHTNING_CONF.
-esplora_disable() {
-	[ -f "$LIGHTNING_CONF" ] || return 0
-	# Portable sed -i (BSD and GNU): write to a tmp + rename.
-	local tmp; tmp=$(mktemp "$LIGHTNING_CONF.XXXXXX")
-	awk -v begin="$ESPLORA_BLOCK_BEGIN" -v end="$ESPLORA_BLOCK_END" '
-		$0 == begin {in_block=1; next}
-		$0 == end   {in_block=0; next}
-		!in_block   {print}
-	' "$LIGHTNING_CONF" > "$tmp"
-	mv "$tmp" "$LIGHTNING_CONF"
-	# Trim trailing blank lines we may have left behind.
-	[ -s "$LIGHTNING_CONF" ] && sed -e :a -e '/^$/{$d;N;ba' -e '}' -i.bak "$LIGHTNING_CONF" 2>/dev/null
-	rm -f "$LIGHTNING_CONF.bak"
+# macOS path: trustedcoin doesn't ship prebuilt darwin binaries, so
+# build from source via the Go toolchain. GOBIN drops the binary
+# straight into the plugins dir.
+install_trustedcoin_via_go() {
+	local bin="$1"
+	local gobin_dir; gobin_dir=$(dirname "$bin")
+	if ! command -v go >/dev/null 2>&1; then
+		error "trustedcoin doesn't ship a prebuilt macOS binary."
+		error "build from source with Go:"
+		error "    brew install go"
+		error "    GOBIN=$gobin_dir go install github.com/$TRUSTEDCOIN_REPO@$TRUSTEDCOIN_VERSION"
+		return 1
+	fi
+	info "no prebuilt macOS binary upstream — building via 'go install'"
+	info "  GOBIN=$gobin_dir go install github.com/$TRUSTEDCOIN_REPO@$TRUSTEDCOIN_VERSION"
+	if ! GOBIN="$gobin_dir" go install "github.com/$TRUSTEDCOIN_REPO@$TRUSTEDCOIN_VERSION"; then
+		error "go install failed — try the @latest pseudo-version, then:"
+		error "    cp \"\$(go env GOPATH)/bin/trustedcoin\" $bin"
+		return 1
+	fi
+	chmod +x "$bin"
+	info "installed $bin"
 }
 
 # Surface the most recent BROKEN/FATAL line and the daemon log path
@@ -295,7 +321,7 @@ cmd_start() {
 		return 0
 	fi
 	# Best-effort pre-flight. Warn-only — the user may be using a
-	# non-bcli backend (sauron) or a non-default bitcoind setup.
+	# non-bcli backend (trustedcoin) or a non-default bitcoind setup.
 	check_bitcoind || true
 	# Detection order: installed supervisor first. The launchd /
 	# systemd unit handles --daemon (or Type=simple via `daemon run`)
@@ -422,8 +448,8 @@ cmd_restart() {
 cmd_status() {
 	local rc=0
 	local backend="bitcoind/bcli"
-	if esplora_enabled; then
-		backend="esplora ($(esplora_endpoint))"
+	if backend_enabled; then
+		backend="$(backend_name)"
 	fi
 	if daemon_running; then
 		local info; info=$(cli getinfo)
@@ -481,34 +507,27 @@ cmd_logs() {
 }
 
 cmd_install() {
-	# Tri-state: -1 leave backend config alone, 1 enable esplora,
-	# 0 disable esplora (back to bcli/bitcoind default).
-	local system=0 migrate=0 esplora=-1 esplora_url=""
+	# Tri-state backend toggle:
+	#   -1  leave backend config alone
+	#    1  enable trustedcoin (multi-explorer fallback)
+	#    0  disable any managed backend block (back to bitcoind/bcli)
+	local system=0 migrate=0 backend=-1
 	while [ $# -gt 0 ]; do
 		case "$1" in
-			--system)  system=1; shift ;;
-			--migrate) migrate=1; shift ;;
-			--esplora)
-				esplora=1
-				# Optional endpoint URL as the next positional.
-				if [ $# -ge 2 ] && [[ "$2" != --* ]]; then
-					esplora_url="$2"; shift 2
-				else
-					shift
-				fi
-				;;
-			--no-esplora|--bcli)
-				esplora=0; shift
-				;;
+			--system)      system=1; shift ;;
+			--migrate)     migrate=1; shift ;;
+			--trustedcoin) backend=1; shift ;;
+			--bitcoind|--bcli|--no-public-backend)
+			               backend=0; shift ;;
 			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
 
 	# Apply the backend toggle BEFORE writing the service unit, so
-	# subsequent post-install hints reflect the chosen backend.
-	case "$esplora" in
-		1) esplora_enable "$esplora_url" ;;
-		0) esplora_disable && info "esplora disabled — using bitcoind (default bcli)" ;;
+	# the post-install hints reflect the chosen backend.
+	case "$backend" in
+		1) backend_enable_trustedcoin ;;
+		0) backend_disable && info "managed backend block removed — using bitcoind (default bcli)" ;;
 	esac
 
 	if is_macos; then
@@ -846,7 +865,7 @@ EOF
 		install)
 			cat <<EOF
 usage: lightning daemon install [--system] [--migrate]
-                                [--esplora [<url>] | --no-esplora]
+                                [--trustedcoin | --bitcoind]
 
 Write a service unit for the daemon. Platform-aware:
 
@@ -868,16 +887,17 @@ daemon never runs as root.
 
 --migrate moves an existing ~/.lightning into the system state dir.
 
-Backend selection (writes a managed block to $LIGHTNING_DIR/config):
---esplora [<url>]   route Bitcoin RPC through the sauron plugin
-                    (default URL: $ESPLORA_DEFAULT).
-                    Removes the need for a local bitcoind — but
-                    trusts the endpoint with all chain queries.
-                    Requires sauron.py installed at
-                    \$LIGHTNING_DIR/plugins/sauron.py (the command
-                    prints curl instructions if not present).
---no-esplora        strip the managed esplora block, fall back to
-                    bitcoind/bcli (the CLN default).
+Backend selection (writes a managed block to \$LIGHTNING_DIR/config):
+--trustedcoin    swap bcli for the trustedcoin plugin, which
+                 fetches chain data from multiple public block
+                 explorers (blockstream.info, mempool.space, ...)
+                 with automatic fallback. Removes the need for a
+                 local bitcoind, at the cost of trusting the
+                 explorers jointly. The command auto-installs the
+                 plugin binary (prebuilt for Linux/BSD, builds via
+                 'go install' on macOS).
+--bitcoind       strip any managed backend block, fall back to
+                 bitcoind/bcli (the CLN default).
 Omit both to leave existing backend config untouched.
 EOF
 			;;
