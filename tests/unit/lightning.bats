@@ -38,6 +38,21 @@ teardown() {
 	rm -f "$MOCK_STATE"
 }
 
+# Stubs curl so `daemon install --esplora` writes a placeholder
+# sauron.py instead of hitting GitHub. Tests that want to exercise
+# the failure path should write their own curl stub.
+_stub_sauron_curl() {
+	cat > "$BIN_SHIM/curl" <<'EOF'
+#!/bin/sh
+while [ $# -gt 0 ]; do
+	case "$1" in -o) target=$2; shift 2 ;; *) shift ;; esac
+done
+[ -n "$target" ] && printf '#!/usr/bin/env python3\n# stub sauron.py\n' > "$target"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/curl"
+}
+
 # ---------------------------------------------------------------------------
 # Smoke + semver contract (FEAT-005)
 # ---------------------------------------------------------------------------
@@ -384,22 +399,68 @@ EOF
 	grep -q "<integer>30</integer>" "$plist"
 }
 
-@test "FEAT-183: daemon install --esplora writes managed sauron block" {
+@test "FEAT-183: daemon install --esplora writes managed sauron block + auto-installs plugin" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
+	# Stub curl so we don't hit the network; write a placeholder
+	# sauron.py to whatever path the dispatcher requested.
+	cat > "$BIN_SHIM/curl" <<'EOF'
+#!/bin/sh
+# Pull the -o argument and write a minimal Python file there.
+while [ $# -gt 0 ]; do
+	case "$1" in -o) target=$2; shift 2 ;; *) shift ;; esac
+done
+[ -n "$target" ] && printf '#!/usr/bin/env python3\n# stub sauron.py\n' > "$target"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/curl"
 	run "$LIGHTNING_BIN" daemon install --esplora
 	[ "$status" -eq 0 ]
 	[ -f "$HOME/.lightning/config" ]
 	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
 	grep -q "sauron-api-endpoint=https://blockstream.info/api" "$HOME/.lightning/config"
 	grep -q "lightning esplora" "$HOME/.lightning/config"
-	# Warning about missing sauron.py should appear (file isn't present).
-	[[ "$output" == *"sauron plugin file isn't installed"* ]]
+	# The plugin file should have been downloaded and made executable.
+	[ -x "$HOME/.lightning/plugins/sauron.py" ]
+}
+
+@test "FEAT-183: daemon install --esplora skips fetch if sauron.py already present" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	# Pre-place a sauron.py.
+	mkdir -p "$HOME/.lightning/plugins"
+	echo "stub" > "$HOME/.lightning/plugins/sauron.py"
+	chmod +x "$HOME/.lightning/plugins/sauron.py"
+	# Fail loudly if curl gets called.
+	printf '#!/bin/sh\necho "curl should not be called" >&2; exit 99\n' > "$BIN_SHIM/curl"
+	chmod +x "$BIN_SHIM/curl"
+	run "$LIGHTNING_BIN" -v daemon install --esplora
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"already present"* ]]
+	[[ "$output" != *"fetching sauron plugin"* ]]
+	# File unchanged.
+	[ "$(cat $HOME/.lightning/plugins/sauron.py)" = "stub" ]
+}
+
+@test "FEAT-183: daemon install --esplora reports failure when curl fails" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	# curl that always fails — exercises both fallback URLs.
+	printf '#!/bin/sh\nexit 22\n' > "$BIN_SHIM/curl"
+	chmod +x "$BIN_SHIM/curl"
+	run "$LIGHTNING_BIN" daemon install --esplora
+	# Config is still written (the toggle succeeded), but the
+	# operation prints a clear error about the failed download.
+	grep -q "sauron-api-endpoint" "$HOME/.lightning/config"
+	[[ "$output" == *"could not download sauron.py from any known URL"* ]]
+	# Both candidate URLs should be listed in the manual hint.
+	[[ "$output" == *"github.com/lightningd/plugins"* ]]
 }
 
 @test "FEAT-183: daemon install --esplora <url> honors custom endpoint" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
+	_stub_sauron_curl
 	run "$LIGHTNING_BIN" daemon install --esplora "https://mempool.space/api"
 	[ "$status" -eq 0 ]
 	grep -q "sauron-api-endpoint=https://mempool.space/api" "$HOME/.lightning/config"
@@ -410,6 +471,7 @@ EOF
 @test "FEAT-183: daemon install --no-esplora strips the managed block" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
+	_stub_sauron_curl
 	# First enable esplora.
 	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
 	grep -q "sauron-api-endpoint" "$HOME/.lightning/config"
@@ -423,6 +485,7 @@ EOF
 @test "FEAT-183: daemon install --esplora is idempotent (no duplicate blocks)" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
+	_stub_sauron_curl
 	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
 	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
 	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1

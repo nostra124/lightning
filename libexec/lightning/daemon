@@ -153,10 +153,14 @@ esplora_enable() {
   WARNING: enabling sauron / Esplora backend.
   The Lightning node will fetch chain data over HTTPS from:
       $endpoint
-  This is a single point of failure and trust — the endpoint sees
-  all your address queries and can lie about block contents. Use
-  only if you can't run bitcoind. Pruned bitcoind (prune=550,
-  ~550 MB) is the recommended self-sovereign alternative.
+  Two important caveats:
+  1. Trust — the endpoint sees all your address queries and can
+     lie about block contents. Single point of failure.
+  2. The sauron plugin itself is ARCHIVED in upstream lightningd/
+     plugins (no longer maintained, may break with future CLN
+     releases). Use only if you can't run bitcoind.
+  Pruned bitcoind (prune=550, ~550 MB) is the recommended
+  self-sovereign alternative.
 
 EOF
 	{
@@ -170,19 +174,87 @@ EOF
 	info "esplora enabled — endpoint: $endpoint"
 	info "config block written to $LIGHTNING_CONF"
 
-	# sauron is an external plugin — emit at error level (always shown,
-	# even under -q) because lightningd will refuse to start without it.
+	# sauron is an external plugin shipped separately from CLN.
+	# Fetch it automatically — small text file, well-known URL.
+	install_sauron_plugin
+}
+
+# Candidate URLs to try, in order. As of 2026 sauron lives under
+# archived/ (it failed CI and is marked unmaintained). The pre-2024
+# location is kept as a fallback in case upstream un-archives it.
+SAURON_URLS=(
+	"https://raw.githubusercontent.com/lightningd/plugins/master/archived/sauron/sauron.py"
+	"https://raw.githubusercontent.com/lightningd/plugins/master/sauron/sauron.py"
+	"https://raw.githubusercontent.com/lightningd/plugins/main/sauron/sauron.py"
+)
+
+install_sauron_plugin() {
 	local plugins_dir="$LIGHTNING_DIR/plugins"
-	if [ ! -f "$plugins_dir/sauron.py" ]; then
-		error "the sauron plugin file isn't installed yet at:"
-		error "    $plugins_dir/sauron.py"
-		error "without it, lightningd will refuse to start (no Bitcoin backend)."
-		error "install with:"
-		error "    mkdir -p $plugins_dir"
-		error "    curl -fsSL -o $plugins_dir/sauron.py \\"
-		error "      https://raw.githubusercontent.com/lightningd/plugins/master/sauron/sauron.py"
-		error "    chmod +x $plugins_dir/sauron.py"
-		error "    pip install --user pyln-client requests   # python deps"
+	local sauron="$plugins_dir/sauron.py"
+
+	if [ -f "$sauron" ]; then
+		info "sauron plugin already present at $sauron"
+	else
+		if ! command -v curl >/dev/null 2>&1; then
+			error "curl not found — install it, or fetch sauron.py manually:"
+			error "    ${SAURON_URLS[0]}"
+			error "    -> $sauron"
+			return 1
+		fi
+		mkdir -p "$plugins_dir"
+		local url got=""
+		for url in "${SAURON_URLS[@]}"; do
+			info "fetching sauron plugin from $url"
+			if curl -fsSL -o "$sauron.tmp" "$url" 2>/dev/null; then
+				got="$url"
+				break
+			fi
+		done
+		if [ -z "$got" ]; then
+			rm -f "$sauron.tmp"
+			error "could not download sauron.py from any known URL:"
+			for url in "${SAURON_URLS[@]}"; do error "    $url"; done
+			error "the upstream layout may have changed — check"
+			error "    https://github.com/lightningd/plugins"
+			error "and drop the file at:"
+			error "    $sauron   (chmod +x)"
+			return 1
+		fi
+		mv "$sauron.tmp" "$sauron"
+		chmod +x "$sauron"
+		info "installed $sauron (from $got)"
+	fi
+
+	# Dependency check. Recent sauron.py uses PEP 723 inline metadata
+	# with `uv run --script` as the shebang, so if uv is installed
+	# the Python deps install themselves on first run. Otherwise fall
+	# back to checking for the system Python modules.
+	if head -1 "$sauron" 2>/dev/null | grep -q 'uv run'; then
+		if ! command -v uv >/dev/null 2>&1; then
+			error "sauron.py uses 'uv run --script' (PEP 723 metadata),"
+			error "but uv isn't installed. Install one of:"
+			error "    brew install uv                                   # macOS"
+			error "    curl -LsSf https://astral.sh/uv/install.sh | sh   # any *nix"
+			error "(uv auto-installs the inline Python deps on first run)"
+		else
+			info "sauron.py uses uv — Python deps auto-install on first run"
+		fi
+		return 0
+	fi
+	local py; py=$(command -v python3 || command -v python)
+	if [ -z "$py" ]; then
+		error "neither python3 nor python is on PATH — sauron needs Python 3"
+		return 1
+	fi
+	local missing=""
+	"$py" -c 'import pyln.client' 2>/dev/null || missing="pyln-client"
+	"$py" -c 'import requests'    2>/dev/null || missing="${missing:+$missing }requests"
+	if [ -n "$missing" ]; then
+		error "sauron needs Python deps not yet installed: $missing"
+		error "install with one of:"
+		error "    pip install --user $missing"
+		error "    pipx install $missing               # if you prefer pipx"
+		error "    brew install python-$missing       # macOS"
 	fi
 }
 
