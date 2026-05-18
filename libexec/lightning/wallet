@@ -600,18 +600,154 @@ cmd_restore() {
 	fi
 }
 
-case "$1" in
-	info)    shift; cmd_info "$@" ;;
-	id)      shift; cmd_id "$@" ;;
-	peers)   shift; cmd_peers "$@" ;;
-	balance) shift; cmd_balance "$@" ;;
-	unlock)  shift; cmd_unlock "$@" ;;
-	seed)    shift; cmd_seed "$@" ;;
-	init)    shift; cmd_init "$@" ;;
-	push)    shift; cmd_push "$@" ;;
-	pull)    shift; cmd_pull "$@" ;;
-	sync)    shift; cmd_sync "$@" ;;
-	backup)  shift; cmd_backup "$@" ;;
-	restore) shift; cmd_restore "$@" ;;
+subhelp() {
+	case "$1" in
+		info)
+			cat <<'EOF'
+usage: lightning wallet info
+
+Summary of `lightning-cli getinfo`: id, alias, color, network,
+version, blockheight, channel counts (active/pending/inactive),
+peer count. Requires the daemon to be running and unlocked.
+EOF
+			;;
+		id)
+			cat <<'EOF'
+usage: lightning wallet id
+
+Print this node's public key (the `.id` field of getinfo). The
+pubkey is your stable identity on the Lightning network.
+EOF
+			;;
+		peers)
+			cat <<'EOF'
+usage: lightning wallet peers
+
+TSV of connected peers. Columns:
+   pubkey<TAB>connected<TAB>features<TAB>addr
+EOF
+			;;
+		balance)
+			cat <<'EOF'
+usage: lightning wallet balance [--on-chain]
+
+Without flags: TSV row of on-chain and channel balance in sats:
+   onchain_confirmed_sat<TAB>onchain_unconfirmed_sat<TAB>channels_sat
+With --on-chain: print a fresh receive address for funding the node.
+EOF
+			;;
+		unlock)
+			cat <<'EOF'
+usage: lightning wallet unlock [--stored | rotate | forget]
+       lightning wallet unlock [--wallet <name>]
+
+Release the clightning HSM. With no flags, prompts for the password
+interactively and stores it under `secret/lightning.<wallet>.unlock`
+for future auto-unlock. --stored reads the stored secret instead.
+rotate changes the password (daemon + secret store atomically).
+forget drops the stored secret.
+EOF
+			;;
+		seed)
+			cat <<'EOF'
+usage: lightning wallet seed <export|import|verify> [args]
+
+Manage the 12/24-word BIP-39 seed phrase that controls all funds.
+   export [--out <file>]  print or write the seed (DANGEROUS)
+   import                 paste a phrase to create a new hsm_secret
+   verify                 prompt-verify two random words
+
+The seed is the ONLY thing that survives a full disk loss. Treat
+the export like the keys to your bank vault.
+EOF
+			;;
+		init)
+			cat <<'EOF'
+usage: lightning wallet init
+
+Create the local state repo at $LIGHTNING_DIR/wallet/default/.
+Initialises a SQLite store (state.db) and a git repo with a
+pre-commit hook that auto-dumps state.db to state.sql. Idempotent:
+refuses to overwrite an existing wallet.
+EOF
+			;;
+		push)
+			cat <<'EOF'
+usage: lightning wallet push [<remote>]
+
+Regenerate state.sql from state.db, commit any changes, then
+`git push <remote>` (default: origin). Configure the remote with
+`git -C $LIGHTNING_DIR/wallet/default remote add origin <url>`.
+EOF
+			;;
+		pull)
+			cat <<'EOF'
+usage: lightning wallet pull [<remote>]
+
+`git pull <remote>` (default: origin) then rebuild state.db by
+replaying state.sql. Use after restoring on a fresh machine or
+when another device has pushed new state.
+EOF
+			;;
+		sync)
+			cat <<'EOF'
+usage: lightning wallet sync [<remote>]
+
+Shortcut for `wallet pull` followed by `wallet push`. Run this on
+each device that shares the wallet repo to keep them in step.
+EOF
+			;;
+		backup)
+			cat <<'EOF'
+usage: lightning wallet backup [--seed]
+       lightning wallet backup verify
+
+Emit a fresh Static Channel Backup snapshot (via `channel scb emit`),
+then `wallet push`. With --seed, also exports the seed phrase into
+the repo as seed.enc (WARNING: anyone with git access can read it).
+`verify` does a read-only sanity check of the backup structure.
+EOF
+			;;
+		restore)
+			cat <<'EOF'
+usage: lightning wallet restore <wallet-remote>
+
+Clone <wallet-remote> into $LIGHTNING_DIR/wallet/default/ and
+rebuild state.db from state.sql. Refuses if a wallet already
+exists at the target. After restore, run `wallet seed import`,
+`wallet unlock`, and `channel scb restore <latest.json>` to
+recover channel state.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+# --help / -h interception: print sub-command help and exit.
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h)
+		subhelp "$SUB"
+		exit
+		;;
+esac
+
+case "$SUB" in
+	info)    cmd_info "$@" ;;
+	id)      cmd_id "$@" ;;
+	peers)   cmd_peers "$@" ;;
+	balance) cmd_balance "$@" ;;
+	unlock)  cmd_unlock "$@" ;;
+	seed)    cmd_seed "$@" ;;
+	init)    cmd_init "$@" ;;
+	push)    cmd_push "$@" ;;
+	pull)    cmd_pull "$@" ;;
+	sync)    cmd_sync "$@" ;;
+	backup)  cmd_backup "$@" ;;
+	restore) cmd_restore "$@" ;;
+	help)    subhelp "${1:-}" || usage; exit ;;
 	*) usage; exit 1 ;;
 esac
