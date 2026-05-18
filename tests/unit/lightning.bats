@@ -443,6 +443,33 @@ teardown() {
 	[[ "$output" == *"already exists"* ]]
 }
 
+@test "FEAT-174: lightning wallet init output is clean (no git status leak)" {
+	# Regression: git commit's "nothing to commit" hint went to STDOUT
+	# (not stderr), so --quiet and 2>/dev/null didn't suppress it.
+	# Output must be exactly two lines: 'ok' and 'wallet: <path>'.
+	run "$LIGHTNING_BIN" wallet init
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 2 ]
+	[ "${lines[0]}" = "ok" ]
+	[[ "${lines[1]}" == "wallet: "* ]]
+	# These tokens (English + German) would appear if git status leaked.
+	[[ "$output" != *"nothing to commit"* ]]
+	[[ "$output" != *"Untracked files"* ]]
+	[[ "$output" != *"Unversionierte Dateien"* ]]
+	[[ "$output" != *"Initial commit"* ]]
+	[[ "$output" != *"Initialer Commit"* ]]
+}
+
+@test "FEAT-174: lightning wallet init creates state.sql + commits all three files" {
+	"$LIGHTNING_BIN" wallet init
+	local wdir="$HOME/.lightning/wallet/default"
+	[ -f "$wdir/state.sql" ]
+	# The pre-commit hook should have auto-dumped state.db -> state.sql
+	# and the initial commit should include all three tracked files.
+	local files; files=$(git -C "$wdir" ls-tree --name-only HEAD | sort | tr '\n' ' ')
+	[ "$files" = ".gitignore lightning-dir state.sql " ]
+}
+
 @test "FEAT-174: lightning account create creates an account" {
 	"$LIGHTNING_BIN" wallet init
 	run "$LIGHTNING_BIN" account create alice "Alice's account"
