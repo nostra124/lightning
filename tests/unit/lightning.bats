@@ -3,10 +3,13 @@
 # Unit tests for bin/lightning — the educational Lightning Network
 # frontend on clightning (FEAT-170..196). Covers the 0.2.0–0.5.0
 # surface: dispatcher, lightning.sh source-mode guard, and the
-# libexec object dispatchers (node / channel / daemon / wallet /
-# account / ledger / invoice / offer / address / lnurl / liquidity).
-# As of 0.5.x the CLI is purely object-oriented: top-level commands
-# are objects, actions live as sub-commands.
+# libexec object dispatchers (wallet / channel / daemon / account /
+# ledger / invoice / offer / address / lnurl / liquidity). As of
+# 0.5.x the CLI is purely object-oriented: top-level commands are
+# objects, actions live as sub-commands. The wallet object is your
+# Lightning identity — it owns both the clightning daemon's identity
+# (info/peers/balance/seed/unlock) and the git-backed state repo
+# (init/push/pull/backup/restore).
 
 setup() {
 	BATS_TMPDIR=${BATS_TMPDIR:-$(mktemp -d)}
@@ -93,7 +96,6 @@ teardown() {
 
 @test "help lists the top-level objects" {
 	run "$LIGHTNING_BIN" help
-	[[ "$output" == *"node"* ]]
 	[[ "$output" == *"wallet"* ]]
 	[[ "$output" == *"account"* ]]
 	[[ "$output" == *"channel"* ]]
@@ -145,21 +147,21 @@ teardown() {
 # FEAT-171: clightning backend wiring
 # ---------------------------------------------------------------------------
 
-@test "FEAT-171: lightning node info renders getinfo summary" {
-	run "$LIGHTNING_BIN" node info
+@test "FEAT-171: lightning wallet info renders getinfo summary" {
+	run "$LIGHTNING_BIN" wallet info
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"TESTNODE"* ]]
 	[[ "$output" == *"regtest"* ]]
 }
 
-@test "FEAT-171: lightning node id returns the pubkey" {
-	run "$LIGHTNING_BIN" node id
+@test "FEAT-171: lightning wallet id returns the pubkey" {
+	run "$LIGHTNING_BIN" wallet id
 	[ "$status" -eq 0 ]
 	[ "$output" = "020000000000000000000000000000000000000000000000000000000000000001" ]
 }
 
-@test "FEAT-171: lightning node peers returns the TSV header" {
-	run "$LIGHTNING_BIN" node peers
+@test "FEAT-171: lightning wallet peers returns the TSV header" {
+	run "$LIGHTNING_BIN" wallet peers
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "pubkey	connected	features	addr" ]]
 }
@@ -170,15 +172,15 @@ teardown() {
 	[[ "${lines[0]}" == "id	peer	capacity	local	remote	state" ]]
 }
 
-@test "FEAT-171: lightning node balance returns the TSV header + row" {
-	run "$LIGHTNING_BIN" node balance
+@test "FEAT-171: lightning wallet balance returns the TSV header + row" {
+	run "$LIGHTNING_BIN" wallet balance
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "onchain_confirmed_sat	onchain_unconfirmed_sat	channels_sat" ]]
 	[[ "${lines[1]}" == "0	0	0" ]]
 }
 
-@test "FEAT-171: lightning node balance --on-chain prints an address" {
-	run "$LIGHTNING_BIN" node balance --on-chain
+@test "FEAT-171: lightning wallet balance --on-chain prints an address" {
+	run "$LIGHTNING_BIN" wallet balance --on-chain
 	[ "$status" -eq 0 ]
 	[[ "$output" == bcrt1q* ]]
 }
@@ -186,14 +188,14 @@ teardown() {
 @test "FEAT-171: verbs exit 127 when lightning-cli is absent" {
 	# Hide lightning-cli from PATH.
 	export PATH="/usr/bin:/bin"
-	run -127 "$LIGHTNING_BIN" node info
+	run -127 "$LIGHTNING_BIN" wallet info
 	[[ "$output" == *"install Core Lightning"* ]]
 }
 
-@test "lightning node (no args) prints usage" {
-	run "$LIGHTNING_BIN" node
+@test "lightning wallet (no args) prints usage" {
+	run "$LIGHTNING_BIN" wallet
 	[ "$status" -ne 0 ]
-	[[ "$output" == *"subcommands"* ]]
+	[[ "$output" == *"subcommands"* || "$output" == *"node"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -232,20 +234,20 @@ teardown() {
 # FEAT-184: unlock
 # ---------------------------------------------------------------------------
 
-@test "FEAT-184: lightning node unlock --stored is a no-op when not encrypted" {
+@test "FEAT-184: lightning wallet unlock --stored is a no-op when not encrypted" {
 	# No hsm_secret exists yet → not encrypted.
 	mkdir -p "$HOME/.lightning/bitcoin"
 	# 32-byte file = unencrypted.
 	dd if=/dev/zero of="$HOME/.lightning/bitcoin/hsm_secret" bs=32 count=1 status=none
 	# Mock `secret` so the dep check passes even though we won't call it.
 	ln -sf /bin/true "$BIN_SHIM/secret"
-	run "$LIGHTNING_BIN" node unlock --stored
+	run "$LIGHTNING_BIN" wallet unlock --stored
 	[ "$status" -eq 0 ]
 }
 
-@test "FEAT-184: lightning node unlock errors clearly when lightning-cli absent" {
+@test "FEAT-184: lightning wallet unlock errors clearly when lightning-cli absent" {
 	export PATH="/usr/bin:/bin"
-	run -127 "$LIGHTNING_BIN" node unlock --stored
+	run -127 "$LIGHTNING_BIN" wallet unlock --stored
 }
 
 # ---------------------------------------------------------------------------
@@ -422,7 +424,7 @@ teardown() {
 }
 
 # ---------------------------------------------------------------------------
-# FEAT-174: wallet init, list, use, accounts
+# FEAT-174: wallet init + accounts (no multi-wallet — there is one wallet)
 # ---------------------------------------------------------------------------
 
 @test "FEAT-174: lightning wallet init creates wallet directory + state.db" {
@@ -439,33 +441,6 @@ teardown() {
 	run "$LIGHTNING_BIN" wallet init
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"already exists"* ]]
-}
-
-@test "FEAT-174: lightning wallet new creates a second wallet" {
-	"$LIGHTNING_BIN" wallet init
-	run "$LIGHTNING_BIN" wallet new testwallet
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"ok"* ]]
-	[ -f "$HOME/.lightning/wallet/testwallet/state.db" ]
-}
-
-@test "FEAT-174: lightning wallet list shows wallets" {
-	"$LIGHTNING_BIN" wallet init
-	"$LIGHTNING_BIN" wallet new testwallet
-	run "$LIGHTNING_BIN" wallet list
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"default"* ]]
-	[[ "$output" == *"testwallet"* ]]
-}
-
-@test "FEAT-174: lightning wallet use switches active wallet" {
-	"$LIGHTNING_BIN" wallet init
-	"$LIGHTNING_BIN" wallet new testwallet
-	run "$LIGHTNING_BIN" wallet use testwallet
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"ok"* ]]
-	[[ "$output" == *"testwallet"* ]]
-	[[ "$(cat $HOME/.lightning/wallet/.active)" == "testwallet" ]]
 }
 
 @test "FEAT-174: lightning account create creates an account" {
@@ -537,18 +512,18 @@ teardown() {
 # FEAT-185: seed + scb
 # ---------------------------------------------------------------------------
 
-@test "FEAT-185: lightning node seed export refuses without hsm_secret" {
-	run "$LIGHTNING_BIN" node seed export
+@test "FEAT-185: lightning wallet seed export refuses without hsm_secret" {
+	run "$LIGHTNING_BIN" wallet seed export
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"hsm_secret"* ]]
 }
 
-@test "FEAT-185: lightning node seed export writes to --out file" {
+@test "FEAT-185: lightning wallet seed export writes to --out file" {
 	# Create a fake hsm_secret (32 bytes = unencrypted).
 	mkdir -p "$HOME/.lightning/bitcoin"
 	dd if=/dev/zero of="$HOME/.lightning/bitcoin/hsm_secret" bs=32 count=1 status=none
 	out="$BATS_TMPDIR/seed.$$.out"
-	run "$LIGHTNING_BIN" node seed export --out "$out"
+	run "$LIGHTNING_BIN" wallet seed export --out "$out"
 	[ "$status" -eq 0 ]
 	[ -s "$out" ]
 	rm -f "$out"

@@ -1,25 +1,30 @@
 #!/bin/bash
-# lightning wallet — git-backed wallet storage (FEAT-174).
+# lightning wallet — your Lightning identity.
 #
-# Layout:
-#   ~/.lightning/wallet/<name>/
-#     .git/
-#     lightning-dir     # path to clightning's data dir
-#     state.db          # SQLite store (gitignored)
-#     state.sql         # sqlite3 .dump (tracked by git)
-#     .gitignore
+# A single object covering the clightning node (FEAT-171, FEAT-184,
+# FEAT-185) and the git-backed state repo (FEAT-174, FEAT-187). There
+# is exactly one active wallet per machine; the on-disk layout lives at
+# $LIGHTNING_DIR/wallet/default/.
 #
-# Usage:
-#   lightning wallet init          — create default wallet
-#   lightning wallet new <name>    — create a new wallet
-#   lightning wallet use <name>    — switch active wallet
-#   lightning wallet list          — list wallets
-#   lightning wallet push [remote] — git push
-#   lightning wallet pull [remote] — git pull
-#   lightning wallet sync [remote] — pull + push
-#   lightning wallet backup [--seed] — emit SCB + git push (FEAT-187)
-#   lightning wallet backup verify   — sanity-check the wallet backup
-#   lightning wallet restore <remote> — clone + rebuild from a wallet remote
+# Subcommands — node-side (lightning-cli):
+#   info                    summary of `lightning-cli getinfo`
+#   id                      this node's pubkey
+#   peers                   connected peers (TSV)
+#   balance [--on-chain]    on-chain + LN balance / receive addr
+#   unlock [--stored|rotate|forget]
+#                           HSM unlock + secret-store integration
+#   seed export [--out <f>] export the seed phrase
+#   seed import             import a seed phrase
+#   seed verify             prompt-verify the stored seed
+#
+# Subcommands — storage-side (git + sqlite):
+#   init                    create the local state repo
+#   push [remote]           git push
+#   pull [remote]           git pull (rebuild state.db)
+#   sync [remote]           pull + push
+#   backup [--seed]         emit SCB + git push (FEAT-187)
+#   backup verify           sanity-check the wallet backup
+#   restore <remote>        clone wallet remote + rebuild state.db
 
 set -e
 
@@ -27,49 +32,338 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning wallet <subcommand> [args]
 
-subcommands:
-   init                  create default wallet
-   new <name>            create a new wallet
-   use <name>            switch active wallet
-   list                  list wallets
-   push [remote]         git push wallet
-   pull [remote]         git pull wallet
-   sync [remote]         pull + push
-   backup [--seed]       emit SCB + git push (FEAT-187)
-   backup verify         sanity-check the wallet backup
-   restore <remote>      clone wallet remote + rebuild state.db
+node:
+   info                     summary of \`lightning-cli getinfo\`
+   id                       this node's pubkey
+   peers                    connected peers (TSV)
+   balance [--on-chain]     on-chain + LN balance (TSV) / receive addr
+   unlock [--stored|rotate|forget]
+                            HSM unlock + secret-store integration
+   seed export [--out <f>]  export the seed phrase
+   seed import              import a seed phrase
+   seed verify              prompt-verify the stored seed
+
+storage:
+   init                     create the local state repo
+   push [remote]            git push
+   pull [remote]            git pull (rebuild state.db)
+   sync [remote]            pull + push
+   backup [--seed]          emit SCB + git push
+   backup verify            sanity-check the wallet backup
+   restore <remote>         clone wallet remote + rebuild state.db
 EOF
 }
 
 [ $# -lt 1 ] && { usage; exit 1; }
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
-command -v sqlite3 >/dev/null || {
-	echo "lightning: sqlite3 not found — install sqlite3" >&2; exit 127; }
-
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 WALLET_ROOT="$LIGHTNING_DIR/wallet"
+WALLET_NAME="default"
 
-active_wallet() {
-	cat "$WALLET_ROOT/.active" 2>/dev/null || echo "default"
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		echo "lightning: lightning-cli not found — install Core Lightning (lightningd) and ensure lightning-cli is on PATH" >&2
+		exit 127
+	}
 }
 
-wallet_path() {
-	echo "$WALLET_ROOT/$1"
+require_secret() {
+	command -v secret >/dev/null || {
+		echo "lightning: the \`secret\` package is required (https://github.com/nostra124/secret)" >&2
+		exit 127
+	}
 }
 
-ensure_wallet_root() {
-	mkdir -p "$WALLET_ROOT"
+require_sqlite() {
+	command -v sqlite3 >/dev/null || {
+		echo "lightning: sqlite3 not found — install sqlite3" >&2; exit 127; }
 }
 
-set_active() {
-	echo "$1" > "$WALLET_ROOT/.active"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+wallet_dir() { echo "$WALLET_ROOT/$WALLET_NAME"; }
+wallet_db()  { echo "$(wallet_dir)/state.db"; }
+
+hsm_secret_path() {
+	local p="$LIGHTNING_DIR/$LIGHTNING_NETWORK/hsm_secret"
+	[ -f "$p" ] || p="$LIGHTNING_DIR/hsm_secret"
+	echo "$p"
 }
 
-db_path() {
-	echo "$(wallet_path "$(active_wallet)")/state.db"
+is_encrypted() {
+	local p; p=$(hsm_secret_path)
+	[ -f "$p" ] || return 1
+	local n; n=$(stat -c%s "$p" 2>/dev/null || stat -f%z "$p")
+	[ "$n" -gt 32 ]
 }
 
-# Create the SQLite schema (5 tables per FEAT-193).
+# -----------------------------------------------------------------------------
+# node-side: info / id / peers / balance (FEAT-171)
+# -----------------------------------------------------------------------------
+
+cmd_info() {
+	require_cli
+	local json; json=$(cli getinfo) || {
+		echo "lightning: lightning-cli getinfo failed (is the daemon running? try \`lightning daemon status\`)" >&2
+		exit 2
+	}
+
+	if command -v jq >/dev/null; then
+		j() { jq -r "$1" <<<"$json"; }
+		printf "id:          %s\n" "$(j .id)"
+		printf "alias:       %s\n" "$(j .alias)"
+		printf "color:       %s\n" "$(j .color)"
+		printf "network:     %s\n" "$(j .network)"
+		printf "version:     %s\n" "$(j .version)"
+		printf "blockheight: %s\n" "$(j .blockheight)"
+		printf "channels:    active=%s pending=%s inactive=%s\n" \
+			"$(j .num_active_channels)" "$(j .num_pending_channels)" "$(j .num_inactive_channels)"
+		printf "peers:       %s\n" "$(j .num_peers)"
+	else
+		echo "$json"
+	fi
+}
+
+cmd_id() {
+	require_cli
+	cli getinfo | jq -r .id
+}
+
+cmd_peers() {
+	require_cli
+	printf "pubkey\tconnected\tfeatures\taddr\n"
+	cli listpeers \
+		| jq -r '.peers[] | [.id, (.connected|tostring), (.features // "-"), ((.netaddr // [])[0] // "-")] | @tsv'
+}
+
+cmd_balance() {
+	require_cli
+	if [ "${1:-}" = "--on-chain" ]; then
+		cli newaddr | jq -r '.bech32 // .p2tr // .p2wkh'
+		return
+	fi
+	local json; json=$(cli listfunds)
+	printf "onchain_confirmed_sat\tonchain_unconfirmed_sat\tchannels_sat\n"
+	jq -r '[
+		([.outputs[]? | select(.status == "confirmed") | (.amount_msat // (.value*1000)) ] | add // 0 | . / 1000 | floor),
+		([.outputs[]? | select(.status == "unconfirmed") | (.amount_msat // (.value*1000)) ] | add // 0 | . / 1000 | floor),
+		([.channels[]? | (.our_amount_msat // (.channel_sat*1000)) ] | add // 0 | . / 1000 | floor)
+	] | @tsv' <<<"$json"
+}
+
+# -----------------------------------------------------------------------------
+# node-side: unlock (FEAT-184)
+# -----------------------------------------------------------------------------
+
+unlock_interactive() {
+	require_cli; require_secret
+
+	if ! is_encrypted; then
+		echo "lightning: hsm_secret is not encrypted (32 bytes); nothing to unlock"
+		exit 0
+	fi
+
+	echo -n "lightning: HSM password for $WALLET_NAME: " >&2
+	local pw; read -rs pw; echo >&2
+
+	if ! echo "$pw" | cli hsmtool decrypt "$(hsm_secret_path)" >/dev/null 2>&1; then
+		if ! cli unlock "$pw" >/dev/null 2>&1; then
+			echo "lightning: unlock failed (wrong password?)" >&2
+			exit 3
+		fi
+	fi
+
+	echo "$pw" | secret put "lightning.$WALLET_NAME.unlock" >/dev/null
+	echo "lightning: unlocked and stored under secret/lightning.$WALLET_NAME.unlock"
+}
+
+unlock_stored() {
+	require_cli; require_secret
+
+	if ! is_encrypted; then exit 0; fi
+
+	local pw
+	pw=$(secret get "lightning.$WALLET_NAME.unlock" 2>/dev/null) || {
+		echo "lightning: no stored unlock secret at lightning.$WALLET_NAME.unlock" >&2
+		exit 4
+	}
+
+	if ! echo "$pw" | cli hsmtool decrypt "$(hsm_secret_path)" >/dev/null 2>&1; then
+		cli unlock "$pw" >/dev/null 2>&1 || {
+			echo "lightning: stored secret rejected (was the password rotated outside this tool?)" >&2
+			exit 3
+		}
+	fi
+}
+
+unlock_rotate() {
+	require_cli; require_secret
+
+	echo -n "lightning: current HSM password: " >&2; read -rs old; echo >&2
+	echo -n "lightning: new HSM password:     " >&2; read -rs new1; echo >&2
+	echo -n "lightning: confirm new password: " >&2; read -rs new2; echo >&2
+
+	if [ "$new1" != "$new2" ]; then
+		echo "lightning: new passwords don't match" >&2
+		exit 5
+	fi
+
+	if ! printf '%s\n%s\n' "$old" "$new1" | cli hsmtool generatehsm "$(hsm_secret_path)" 2>/dev/null; then
+		echo "lightning: rotate via hsmtool failed; trying RPC \`changepw\`" >&2
+		cli changepw "$old" "$new1" >/dev/null || {
+			echo "lightning: rotate failed" >&2
+			exit 3
+		}
+	fi
+
+	echo "$new1" | secret put "lightning.$WALLET_NAME.unlock" >/dev/null
+	echo "lightning: password rotated; secret store updated"
+}
+
+unlock_forget() {
+	require_secret
+	secret rm "lightning.$WALLET_NAME.unlock" 2>/dev/null || true
+	echo "lightning: stored unlock secret removed; future restarts will prompt"
+}
+
+cmd_unlock() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--stored) shift; unlock_stored "$@"; return ;;
+			rotate)   shift; unlock_rotate "$@"; return ;;
+			forget)   shift; unlock_forget "$@"; return ;;
+			--help|-h) usage; return ;;
+			*) echo "lightning wallet unlock: unknown arg '$1'" >&2; exit 1 ;;
+		esac
+	done
+	unlock_interactive
+}
+
+# -----------------------------------------------------------------------------
+# node-side: seed (FEAT-185)
+# -----------------------------------------------------------------------------
+
+seed_export() {
+	require_cli
+	local outfile=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--out) outfile="$2"; shift 2 ;;
+			*) echo "lightning wallet seed export: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	local hs; hs=$(hsm_secret_path)
+	[ -f "$hs" ] || { echo "lightning: no hsm_secret found at $hs" >&2; exit 4; }
+
+	local mnemonic
+	mnemonic=$(cli hsmtool gethsmsecret "$hs" 2>/dev/null | tr -d '"\n' || true)
+	if [ -z "$mnemonic" ]; then
+		mnemonic=$(xxd -p "$hs" 2>/dev/null | tr -d '\n')
+	fi
+
+	if [ -n "$outfile" ]; then
+		echo "$mnemonic" > "$outfile"
+		chmod 600 "$outfile"
+		echo "lightning: seed written to $outfile (keep this safe!)" >&2
+	else
+		cat >&2 <<'BANNER'
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                    WARNING                            !
+!    This seed controls ALL your Lightning funds.       !
+!    Anyone with this phrase can steal your money.      !
+!    Read it once, then store it OFFLINE.               !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+BANNER
+		echo >&2
+		echo "$mnemonic"
+	fi
+}
+
+seed_import() {
+	require_cli
+	echo -n "lightning: paste your seed phrase (12/24 words) and press Enter: " >&2
+	read -r phrase
+
+	local hs; hs=$(hsm_secret_path)
+	if [ -f "$hs" ] && [ ! -s "$hs" ]; then
+		rm -f "$hs"
+	fi
+	[ -f "$hs" ] && {
+		echo "lightning: hsm_secret already exists; refusing to overwrite" >&2
+		exit 3
+	}
+
+	if ! cli hsmtool generatehsm "$hs" 2>/dev/null <<<"$phrase"; then
+		echo "lightning: seed import failed (wrong phrase length?)" >&2
+		exit 4
+	fi
+	echo "ok"
+	echo "lightning: seed imported; daemon ready for unlock" >&2
+}
+
+seed_verify() {
+	require_cli
+	local hs; hs=$(hsm_secret_path)
+	[ -f "$hs" ] || { echo "lightning: no hsm_secret found" >&2; exit 4; }
+
+	local mnemonic
+	mnemonic=$(cli hsmtool gethsmsecret "$hs" 2>/dev/null | tr -d '"\n' || true)
+	[ -z "$mnemonic" ] && {
+		echo "lightning: could not read seed from daemon" >&2
+		exit 4
+	}
+
+	IFS=' ' read -ra words <<<"$mnemonic"
+	local n=${#words[@]}
+	[ "$n" -lt 12 ] && { echo "lightning: seed phrase too short ($n words)" >&2; exit 4; }
+
+	local i1 i2
+	i1=$(( ($(od -An -N2 -i /dev/random) % n) ))
+	i2=$(( ($(od -An -N2 -i /dev/random 2>/dev/null || echo 42) % n) ))
+	while [ "$i2" = "$i1" ]; do
+		i2=$(( (i2 + 1) % n ))
+	done
+
+	echo -n "lightning: verify seed — word $((i1+1)): " >&2
+	read -r w1
+	echo -n "lightning: verify seed — word $((i2+1)): " >&2
+	read -r w2
+
+	if [ "${words[$i1]}" = "$w1" ] && [ "${words[$i2]}" = "$w2" ]; then
+		echo "ok"
+		echo "lightning: seed verified" >&2
+	else
+		echo "lightning: seed verification FAILED — phrases do not match" >&2
+		exit 2
+	fi
+}
+
+cmd_seed() {
+	[ $# -lt 1 ] && {
+		cat >&2 <<EOF
+usage: lightning wallet seed <subcommand> [args]
+
+subcommands:
+   export [--out <file>]
+   import
+   verify
+EOF
+		exit 1
+	}
+	case "$1" in
+		export) shift; seed_export "$@" ;;
+		import) shift; seed_import "$@" ;;
+		verify) shift; seed_verify "$@" ;;
+		*) echo "lightning wallet seed: unknown subcommand '$1'" >&2; exit 1 ;;
+	esac
+}
+
+# -----------------------------------------------------------------------------
+# storage-side: init / push / pull / sync (FEAT-174)
+# -----------------------------------------------------------------------------
+
 init_db() {
 	local db="$1"
 	sqlite3 "$db" <<'EOSQL'
@@ -122,27 +416,23 @@ EOF
 }
 
 cmd_init() {
-	local name="${1:-default}"
-	local wdir; wdir=$(wallet_path "$name")
+	require_sqlite
+	local wdir; wdir=$(wallet_dir)
 
 	if [ -d "$wdir" ]; then
-		echo "lightning: wallet '$name' already exists at $wdir" >&2
+		echo "lightning: wallet already exists at $wdir" >&2
 		exit 3
 	fi
 
 	mkdir -p "$wdir"
 	init_db "$wdir/state.db"
 	init_gitignore "$wdir"
-
-	# Write lightning-dir pointer.
 	echo "$LIGHTNING_DIR" > "$wdir/lightning-dir"
 
-	# Git init.
 	git -C "$wdir" init --quiet
 	git -C "$wdir" add .gitignore state.sql lightning-dir 2>/dev/null || true
-	git -C "$wdir" commit -m "wallet: init $name" --quiet 2>/dev/null || true
+	git -C "$wdir" commit -m "wallet: init" --quiet 2>/dev/null || true
 
-	# Pre-commit hook: regenerate state.sql before every commit.
 	mkdir -p "$wdir/.git/hooks"
 	cat > "$wdir/.git/hooks/pre-commit" <<'EOF'
 #!/bin/bash
@@ -156,51 +446,19 @@ fi
 EOF
 	chmod +x "$wdir/.git/hooks/pre-commit"
 
-	set_active "$name"
 	echo "ok"
-	echo "wallet: $name"
-}
-
-cmd_new() {
-	[ $# -lt 1 ] && { echo "usage: lightning wallet new <name>" >&2; exit 1; }
-	cmd_init "$1"
-}
-
-cmd_use() {
-	[ $# -lt 1 ] && { echo "usage: lightning wallet use <name>" >&2; exit 1; }
-	local wdir; wdir=$(wallet_path "$1")
-	[ -d "$wdir" ] || {
-		echo "lightning: wallet '$1' not found — run 'lightning wallet init' or 'lightning wallet new $1'" >&2
-		exit 4
-	}
-	set_active "$1"
-	echo "ok"
-	echo "active: $1"
-}
-
-cmd_list() {
-	ensure_wallet_root
-	local active; active=$(active_wallet)
-	for d in "$WALLET_ROOT"/*/; do
-		[ -d "$d" ] || continue
-		local name; name=$(basename "$d")
-		[ "$name" = ".git" ] && continue
-		[ -f "$d/state.db" ] || continue
-		if [ "$name" = "$active" ]; then
-			echo "$name	*active"
-		else
-			echo "$name"
-		fi
-	done
+	echo "wallet: $wdir"
 }
 
 cmd_push() {
+	require_sqlite
 	local remote="${1:-origin}"
-	local wdir; wdir=$(wallet_path "$(active_wallet)")
+	local wdir; wdir=$(wallet_dir)
 	[ -d "$wdir/.git" ] || {
-		echo "lightning: wallet not initialized at $wdir" >&2; exit 5; }
+		echo "lightning: wallet not initialized at $wdir — run \`lightning wallet init\`" >&2
+		exit 5
+	}
 
-	# Regenerate state.sql before push.
 	if [ -f "$wdir/state.db" ]; then
 		sqlite3 "$wdir/state.db" .dump > "$wdir/state.sql.tmp"
 		mv "$wdir/state.sql.tmp" "$wdir/state.sql"
@@ -212,18 +470,19 @@ cmd_push() {
 }
 
 cmd_pull() {
+	require_sqlite
 	local remote="${1:-origin}"
-	local wdir; wdir=$(wallet_path "$(active_wallet)")
+	local wdir; wdir=$(wallet_dir)
 	[ -d "$wdir/.git" ] || {
-		echo "lightning: wallet not initialized at $wdir" >&2; exit 5; }
+		echo "lightning: wallet not initialized at $wdir — run \`lightning wallet init\`" >&2
+		exit 5
+	}
 
 	git -C "$wdir" pull "$remote" 2>&1 || echo "lightning: pull failed" >&2
 
-	# Rebuild state.db from state.sql if pulled.
 	if [ -f "$wdir/state.sql" ] && [ ! -f "$wdir/state.db" ]; then
 		sqlite3 "$wdir/state.db" < "$wdir/state.sql"
 	elif [ -f "$wdir/state.sql" ]; then
-		# Merge: rebuild in temp, swap.
 		sqlite3 "$wdir/state.db.tmp" < "$wdir/state.sql" 2>/dev/null && \
 			mv "$wdir/state.db.tmp" "$wdir/state.db" || true
 	fi
@@ -235,7 +494,10 @@ cmd_sync() {
 	cmd_push "$@"
 }
 
-# FEAT-187: backup umbrella. Delegates to sibling verbs (channel scb, node seed).
+# -----------------------------------------------------------------------------
+# storage-side: backup / restore (FEAT-187)
+# -----------------------------------------------------------------------------
+
 _sibling() {
 	local lib="${SELF_LIBEXEC:+$SELF_LIBEXEC/lightning}"
 	lib="${lib:-$(cd "$(dirname "$0")" && pwd)}"
@@ -251,10 +513,8 @@ backup_emit() {
 		esac
 	done
 
-	# 1. Emit SCB via channel dispatcher.
 	"$(_sibling channel)" scb emit
 
-	# 2. Optional seed export into wallet.
 	if [ "$include_seed" -eq 1 ]; then
 		cat >&2 <<'BANNER'
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -263,27 +523,24 @@ backup_emit() {
 !   history. Only use --seed if you understand this.    !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 BANNER
-		local active; active=$(active_wallet)
-		local seed_path="$LIGHTNING_DIR/wallet/$active/seed.enc"
-		"$(_sibling node)" seed export --out "$seed_path"
+		local seed_path; seed_path="$(wallet_dir)/seed.enc"
+		seed_export --out "$seed_path"
 		echo "lightning: seed exported to $seed_path" >&2
 
-		local wdir="$LIGHTNING_DIR/wallet/$active"
+		local wdir; wdir=$(wallet_dir)
 		if [ -d "$wdir/.git" ]; then
 			git -C "$wdir" add "$seed_path" 2>/dev/null || true
 			git -C "$wdir" commit -m "backup: seed export" --quiet 2>/dev/null || true
 		fi
 	fi
 
-	# 3. Git push.
 	cmd_push
 
 	echo "lightning: backup complete" >&2
 }
 
 backup_verify() {
-	local active; active=$(active_wallet)
-	local wdir; wdir=$(wallet_path "$active")
+	local wdir; wdir=$(wallet_dir)
 	local scb_count; scb_count=$(ls "$wdir/scb/"*.json 2>/dev/null | wc -l)
 
 	[ "$scb_count" -gt 0 ] || {
@@ -292,7 +549,7 @@ backup_verify() {
 
 	local remote
 	remote=$(git -C "$wdir" remote get-url origin 2>/dev/null) || remote="(none)"
-	echo "wallet:      $active"
+	echo "wallet:      $WALLET_NAME"
 	echo "remote:      $remote"
 	echo "scb_count:   $scb_count"
 
@@ -314,16 +571,19 @@ cmd_backup() {
 
 cmd_restore() {
 	[ $# -lt 1 ] && { echo "usage: lightning wallet restore <remote>" >&2; exit 1; }
+	require_sqlite
 	local remote="$1"
-	local name; name=$(basename "$remote" .git)
+	local wdir; wdir=$(wallet_dir)
 
-	ensure_wallet_root
-	git clone "$remote" "$LIGHTNING_DIR/wallet/$name" 2>/dev/null || {
+	[ -d "$wdir" ] && {
+		echo "lightning: wallet already exists at $wdir — move it aside before restoring" >&2
+		exit 3
+	}
+
+	mkdir -p "$WALLET_ROOT"
+	git clone "$remote" "$wdir" 2>/dev/null || {
 		echo "lightning: failed to clone $remote" >&2; exit 4; }
 
-	set_active "$name"
-
-	local wdir; wdir=$(wallet_path "$name")
 	if [ -f "$wdir/state.sql" ] && ! [ -f "$wdir/state.db" ]; then
 		sqlite3 "$wdir/state.db" < "$wdir/state.sql"
 	fi
@@ -331,8 +591,8 @@ cmd_restore() {
 	local latest_scb; latest_scb=$(ls -t "$wdir/scb/"*.json 2>/dev/null | head -1)
 
 	echo "lightning: wallet restored from $remote" >&2
-	echo "lightning: now run 'lightning node seed import' to restore your seed," >&2
-	echo "          then 'lightning node unlock' to unlock the daemon." >&2
+	echo "lightning: now run 'lightning wallet seed import' to restore your seed," >&2
+	echo "          then 'lightning wallet unlock' to unlock the daemon." >&2
 
 	if [ -n "$latest_scb" ]; then
 		echo "lightning: latest SCB: $latest_scb" >&2
@@ -341,10 +601,13 @@ cmd_restore() {
 }
 
 case "$1" in
+	info)    shift; cmd_info "$@" ;;
+	id)      shift; cmd_id "$@" ;;
+	peers)   shift; cmd_peers "$@" ;;
+	balance) shift; cmd_balance "$@" ;;
+	unlock)  shift; cmd_unlock "$@" ;;
+	seed)    shift; cmd_seed "$@" ;;
 	init)    shift; cmd_init "$@" ;;
-	new)     shift; cmd_new "$@" ;;
-	use)     shift; cmd_use "$@" ;;
-	list)    shift; cmd_list "$@" ;;
 	push)    shift; cmd_push "$@" ;;
 	pull)    shift; cmd_pull "$@" ;;
 	sync)    shift; cmd_sync "$@" ;;

@@ -89,8 +89,8 @@ generic:
    version                 print the version of $SELF
 
 objects:
-   node                    local clightning node (info, peers, seed, unlock)
-   wallet                  wallet repo (init, new, push/pull, backup/restore)
+   wallet                  your Lightning identity (info, peers, balance,
+                           seed, unlock, push/pull, backup/restore)
    account                 logical accounts and api keys
    channel                 Lightning channels (open, close, balance, scb)
    daemon                  lightningd lifecycle (start, stop, logs, install)
