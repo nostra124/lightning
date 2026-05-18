@@ -18,6 +18,13 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning ledger <subcommand> [args]
 
+   The derived accounting view over the wallet's \`ledger\` table —
+   every payment, fee, and credit ever recorded, attributable to
+   accounts. Useful for accounting (sum, balance, statement),
+   research (list with filters) and reporting (export).
+   Storage: \$LIGHTNING_DIR/wallet/<active>/state.db (SQLite, WAL).
+   Each sub-command also accepts --help. See FEAT-193.
+
 subcommands:
    list [--account <n>] [--since <date>] [--limit N]
    sum  [--by account|day|month|year] [--account <n>]
@@ -31,9 +38,10 @@ EOF
 [ $# -lt 1 ] && { usage; exit 1; }
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
-
-command -v sqlite3 >/dev/null || {
-	echo "lightning: sqlite3 not found — install sqlite3" >&2; exit 127; }
+require_sqlite() {
+	command -v sqlite3 >/dev/null || {
+		error "sqlite3 not found — install sqlite3"; exit 127; }
+}
 
 wallet_db() {
 	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
@@ -44,7 +52,7 @@ DB=$(wallet_db)
 
 ensure_db() {
 	[ -f "$DB" ] || {
-		echo "lightning: no wallet database at $DB — run 'lightning wallet init' first" >&2
+		error "no wallet database at $DB — run 'lightning wallet init' first"
 		exit 5
 	}
 }
@@ -62,7 +70,7 @@ cmd_list() {
 			--account) account="$2"; shift 2 ;;
 			--since)   since="$2"; shift 2 ;;
 			--limit)   limit="$2"; shift 2 ;;
-			*) echo "lightning ledger list: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "ledger list: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -82,7 +90,7 @@ cmd_sum() {
 		case "$1" in
 			--by)      by="$2"; shift 2 ;;
 			--account) account="$2"; shift 2 ;;
-			*) echo "lightning ledger sum: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "ledger sum: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -92,7 +100,7 @@ cmd_sum() {
 		day)     group="date(ts)" ;;
 		month)   group="strftime('%Y-%m', ts)" ;;
 		year)    group="strftime('%Y', ts)" ;;
-		*) echo "lightning ledger sum: --by must be account|day|month|year" >&2; exit 1 ;;
+		*) error "ledger sum: --by must be account|day|month|year"; exit 1 ;;
 	esac
 
 	local sql="SELECT $group AS period, SUM(amount_msat) AS total_msat FROM ledger WHERE 1=1"
@@ -140,7 +148,7 @@ cmd_export() {
 				"SELECT id, ts, account, direction, amount_msat, peer, payment_hash, message, note FROM ledger ORDER BY ts" | \
 				jq -c '.[]'
 			;;
-		*) echo "lightning ledger export: format must be csv|jsonl|tsv" >&2; exit 1 ;;
+		*) error "ledger export: format must be csv|jsonl|tsv"; exit 1 ;;
 	esac
 }
 
@@ -151,11 +159,11 @@ cmd_statement() {
 		case "$1" in
 			--account) account="$2"; shift 2 ;;
 			--period)  period="$2"; shift 2 ;;
-			*) echo "lightning ledger statement: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "ledger statement: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
-	[ -z "$account" ] && { echo "lightning ledger statement: --account is required" >&2; exit 1; }
-	[ -z "$period" ]  && { echo "lightning ledger statement: --period is required (YYYY-MM|YYYY-QN|YYYY)" >&2; exit 1; }
+	[ -z "$account" ] && { error "ledger statement: --account is required"; exit 1; }
+	[ -z "$period" ]  && { error "ledger statement: --period is required (YYYY-MM|YYYY-QN|YYYY)"; exit 1; }
 
 	local esc; esc=$(echo "$account" | sed "s/'/''/g")
 
@@ -183,7 +191,7 @@ cmd_statement() {
 			ts_start="${period}-01-01"
 			ts_end="$((period+1))-01-01"
 			;;
-		*) echo "lightning: --period must be YYYY-MM, YYYY-QN, or YYYY" >&2; exit 1 ;;
+		*) error "--period must be YYYY-MM, YYYY-QN, or YYYY"; exit 1 ;;
 	esac
 
 	# Opening balance: sum of all entries BEFORE the period.
@@ -225,12 +233,91 @@ cmd_statement() {
 	echo "Net for period:         $(printf "%'d" $net) sat"
 }
 
-case "$1" in
-	list)      shift; cmd_list "$@" ;;
-	sum)       shift; cmd_sum "$@" ;;
-	balance)   shift; cmd_balance "$@" ;;
-	annotate)  shift; cmd_annotate "$@" ;;
-	export)    shift; cmd_export "$@" ;;
-	statement) shift; cmd_statement "$@" ;;
+subhelp() {
+	case "$1" in
+		list)
+			cat <<'EOF'
+usage: lightning ledger list [--account <n>] [--since <date>] [--limit N]
+
+TSV of ledger rows (newest first). Columns: id, ts, account,
+direction (in|out|fee), amount_msat, peer, payment_hash, message,
+note. Filter by --account or --since (ISO timestamp prefix);
+cap rows with --limit.
+EOF
+			;;
+		sum)
+			cat <<'EOF'
+usage: lightning ledger sum [--by account|day|month|year]
+            [--account <n>]
+
+Aggregate amount_msat. --by selects the grouping (default:
+account). Combine with --account to restrict to one account.
+Output: period<TAB>total_msat.
+EOF
+			;;
+		balance)
+			cat <<'EOF'
+usage: lightning ledger balance [<account>]
+
+Without args: per-account balance (TSV: account<TAB>msat).
+With <account>: single integer msat balance for that account.
+EOF
+			;;
+		annotate)
+			cat <<'EOF'
+usage: lightning ledger annotate <payment_hash> <note>
+
+Set the local-only `note` field on every ledger row sharing the
+given payment_hash (typically the payment + its fee row). Useful
+for retroactively labeling payments.
+EOF
+			;;
+		export)
+			cat <<'EOF'
+usage: lightning ledger export <csv|jsonl|tsv>
+
+Dump the full ledger in the requested format.
+   tsv    tab-separated, no header
+   csv    comma-separated, headers on
+   jsonl  one JSON object per line
+EOF
+			;;
+		statement)
+			cat <<'EOF'
+usage: lightning ledger statement --account <n>
+            --period <YYYY-MM | YYYY-QN | YYYY>
+
+Bank-style statement for one account in one period. Prints
+opening balance, each ledger entry in the period, closing balance,
+fees paid, net change. Period grammars:
+   2026-03    one month
+   2026-Q2    one quarter (Apr-Jun)
+   2026       one year
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+require_sqlite
+
+case "$SUB" in
+	list)      cmd_list "$@" ;;
+	sum)       cmd_sum "$@" ;;
+	balance)   cmd_balance "$@" ;;
+	annotate)  cmd_annotate "$@" ;;
+	export)    cmd_export "$@" ;;
+	statement) cmd_statement "$@" ;;
 	*) usage; exit 1 ;;
 esac

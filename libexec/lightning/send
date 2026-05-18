@@ -16,7 +16,7 @@ usage() { echo "usage: lightning send <node-id> <sat> [--message <text>] [--acco
 [ $# -lt 2 ] && { usage; exit 1; }
 
 command -v lightning-cli >/dev/null || {
-	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
+	error "lightning-cli not found — install Core Lightning"; exit 127; }
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
@@ -37,7 +37,7 @@ while [ $# -gt 0 ]; do
 		--message) message="$2"; shift 2 ;;
 		--account) account="$2"; shift 2 ;;
 		--note)    note="$2"; shift 2 ;;
-		*) echo "lightning send: unknown flag '$1'" >&2; exit 1 ;;
+		*) error "send: unknown flag '$1'"; exit 1 ;;
 	esac
 done
 
@@ -54,12 +54,12 @@ if [ -n "$account" ]; then
 
 		if [ "$policy" = "deny" ] && [ "$balance_sat" -lt "$sat" ] 2>/dev/null; then
 			shortfall=$(( sat - balance_sat ))
-			echo "lightning: would overdraw account '$account' by ${shortfall} sat (balance: ${balance_sat} sat, policy: deny)" >&2
+			error "would overdraw account '$account' by ${shortfall} sat (balance: ${balance_sat} sat, policy: deny)"
 			exit 3
 		fi
 		if [ "$policy" = "warn" ] && [ "$balance_sat" -lt "$sat" ] 2>/dev/null; then
 			shortfall=$(( sat - balance_sat ))
-			echo "lightning: warning — keysend of $sat sat would overdraw '$account' by ${shortfall} sat" >&2
+			warn "warning — keysend of $sat sat would overdraw '$account' by ${shortfall} sat"
 		fi
 	fi
 fi

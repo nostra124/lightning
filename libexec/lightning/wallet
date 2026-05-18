@@ -32,6 +32,13 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning wallet <subcommand> [args]
 
+   Your Lightning identity: the clightning node (seed, channels,
+   funds) plus the git-backed state repo that records everything
+   you've done. Exactly one wallet per machine; the on-disk
+   layout lives at \$LIGHTNING_DIR/wallet/default/. Sub-commands
+   split into node (lightning-cli wrappers) and storage (git +
+   sqlite). Each sub-command also accepts --help.
+
 node:
    info                     summary of \`lightning-cli getinfo\`
    id                       this node's pubkey
@@ -63,21 +70,21 @@ WALLET_NAME="default"
 
 require_cli() {
 	command -v lightning-cli >/dev/null || {
-		echo "lightning: lightning-cli not found — install Core Lightning (lightningd) and ensure lightning-cli is on PATH" >&2
+		error "lightning-cli not found — install Core Lightning (lightningd) and ensure lightning-cli is on PATH"
 		exit 127
 	}
 }
 
 require_secret() {
 	command -v secret >/dev/null || {
-		echo "lightning: the \`secret\` package is required (https://github.com/nostra124/secret)" >&2
+		error "the \`secret\` package is required (https://github.com/nostra124/secret)"
 		exit 127
 	}
 }
 
 require_sqlite() {
 	command -v sqlite3 >/dev/null || {
-		echo "lightning: sqlite3 not found — install sqlite3" >&2; exit 127; }
+		error "sqlite3 not found — install sqlite3"; exit 127; }
 }
 
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
@@ -105,7 +112,7 @@ is_encrypted() {
 cmd_info() {
 	require_cli
 	local json; json=$(cli getinfo) || {
-		echo "lightning: lightning-cli getinfo failed (is the daemon running? try \`lightning daemon status\`)" >&2
+		error "lightning-cli getinfo failed (is the daemon running? try \`lightning daemon status\`)"
 		exit 2
 	}
 
@@ -160,7 +167,7 @@ unlock_interactive() {
 	require_cli; require_secret
 
 	if ! is_encrypted; then
-		echo "lightning: hsm_secret is not encrypted (32 bytes); nothing to unlock"
+		info "hsm_secret is not encrypted (32 bytes); nothing to unlock"
 		exit 0
 	fi
 
@@ -169,13 +176,13 @@ unlock_interactive() {
 
 	if ! echo "$pw" | cli hsmtool decrypt "$(hsm_secret_path)" >/dev/null 2>&1; then
 		if ! cli unlock "$pw" >/dev/null 2>&1; then
-			echo "lightning: unlock failed (wrong password?)" >&2
+			error "unlock failed (wrong password?)"
 			exit 3
 		fi
 	fi
 
 	echo "$pw" | secret put "lightning.$WALLET_NAME.unlock" >/dev/null
-	echo "lightning: unlocked and stored under secret/lightning.$WALLET_NAME.unlock"
+	info "unlocked and stored under secret/lightning.$WALLET_NAME.unlock"
 }
 
 unlock_stored() {
@@ -185,13 +192,13 @@ unlock_stored() {
 
 	local pw
 	pw=$(secret get "lightning.$WALLET_NAME.unlock" 2>/dev/null) || {
-		echo "lightning: no stored unlock secret at lightning.$WALLET_NAME.unlock" >&2
+		error "no stored unlock secret at lightning.$WALLET_NAME.unlock"
 		exit 4
 	}
 
 	if ! echo "$pw" | cli hsmtool decrypt "$(hsm_secret_path)" >/dev/null 2>&1; then
 		cli unlock "$pw" >/dev/null 2>&1 || {
-			echo "lightning: stored secret rejected (was the password rotated outside this tool?)" >&2
+			error "stored secret rejected (was the password rotated outside this tool?)"
 			exit 3
 		}
 	fi
@@ -205,26 +212,26 @@ unlock_rotate() {
 	echo -n "lightning: confirm new password: " >&2; read -rs new2; echo >&2
 
 	if [ "$new1" != "$new2" ]; then
-		echo "lightning: new passwords don't match" >&2
+		error "new passwords don't match"
 		exit 5
 	fi
 
 	if ! printf '%s\n%s\n' "$old" "$new1" | cli hsmtool generatehsm "$(hsm_secret_path)" 2>/dev/null; then
-		echo "lightning: rotate via hsmtool failed; trying RPC \`changepw\`" >&2
+		warn "rotate via hsmtool failed; trying RPC \`changepw\`"
 		cli changepw "$old" "$new1" >/dev/null || {
-			echo "lightning: rotate failed" >&2
+			error "rotate failed"
 			exit 3
 		}
 	fi
 
 	echo "$new1" | secret put "lightning.$WALLET_NAME.unlock" >/dev/null
-	echo "lightning: password rotated; secret store updated"
+	info "password rotated; secret store updated"
 }
 
 unlock_forget() {
 	require_secret
 	secret rm "lightning.$WALLET_NAME.unlock" 2>/dev/null || true
-	echo "lightning: stored unlock secret removed; future restarts will prompt"
+	info "stored unlock secret removed; future restarts will prompt"
 }
 
 cmd_unlock() {
@@ -234,7 +241,7 @@ cmd_unlock() {
 			rotate)   shift; unlock_rotate "$@"; return ;;
 			forget)   shift; unlock_forget "$@"; return ;;
 			--help|-h) usage; return ;;
-			*) echo "lightning wallet unlock: unknown arg '$1'" >&2; exit 1 ;;
+			*) error "wallet unlock: unknown arg '$1'"; exit 1 ;;
 		esac
 	done
 	unlock_interactive
@@ -250,12 +257,12 @@ seed_export() {
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--out) outfile="$2"; shift 2 ;;
-			*) echo "lightning wallet seed export: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "wallet seed export: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
 	local hs; hs=$(hsm_secret_path)
-	[ -f "$hs" ] || { echo "lightning: no hsm_secret found at $hs" >&2; exit 4; }
+	[ -f "$hs" ] || { error "no hsm_secret found at $hs"; exit 4; }
 
 	local mnemonic
 	mnemonic=$(cli hsmtool gethsmsecret "$hs" 2>/dev/null | tr -d '"\n' || true)
@@ -266,7 +273,7 @@ seed_export() {
 	if [ -n "$outfile" ]; then
 		echo "$mnemonic" > "$outfile"
 		chmod 600 "$outfile"
-		echo "lightning: seed written to $outfile (keep this safe!)" >&2
+		warn "seed written to $outfile (keep this safe!)"
 	else
 		cat >&2 <<'BANNER'
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -291,33 +298,33 @@ seed_import() {
 		rm -f "$hs"
 	fi
 	[ -f "$hs" ] && {
-		echo "lightning: hsm_secret already exists; refusing to overwrite" >&2
+		error "hsm_secret already exists; refusing to overwrite"
 		exit 3
 	}
 
 	if ! cli hsmtool generatehsm "$hs" 2>/dev/null <<<"$phrase"; then
-		echo "lightning: seed import failed (wrong phrase length?)" >&2
+		error "seed import failed (wrong phrase length?)"
 		exit 4
 	fi
 	echo "ok"
-	echo "lightning: seed imported; daemon ready for unlock" >&2
+	warn "seed imported; daemon ready for unlock"
 }
 
 seed_verify() {
 	require_cli
 	local hs; hs=$(hsm_secret_path)
-	[ -f "$hs" ] || { echo "lightning: no hsm_secret found" >&2; exit 4; }
+	[ -f "$hs" ] || { error "no hsm_secret found"; exit 4; }
 
 	local mnemonic
 	mnemonic=$(cli hsmtool gethsmsecret "$hs" 2>/dev/null | tr -d '"\n' || true)
 	[ -z "$mnemonic" ] && {
-		echo "lightning: could not read seed from daemon" >&2
+		error "could not read seed from daemon"
 		exit 4
 	}
 
 	IFS=' ' read -ra words <<<"$mnemonic"
 	local n=${#words[@]}
-	[ "$n" -lt 12 ] && { echo "lightning: seed phrase too short ($n words)" >&2; exit 4; }
+	[ "$n" -lt 12 ] && { error "seed phrase too short ($n words)"; exit 4; }
 
 	local i1 i2
 	i1=$(( ($(od -An -N2 -i /dev/random) % n) ))
@@ -333,9 +340,9 @@ seed_verify() {
 
 	if [ "${words[$i1]}" = "$w1" ] && [ "${words[$i2]}" = "$w2" ]; then
 		echo "ok"
-		echo "lightning: seed verified" >&2
+		warn "seed verified"
 	else
-		echo "lightning: seed verification FAILED — phrases do not match" >&2
+		error "seed verification FAILED — phrases do not match"
 		exit 2
 	fi
 }
@@ -356,7 +363,7 @@ EOF
 		export) shift; seed_export "$@" ;;
 		import) shift; seed_import "$@" ;;
 		verify) shift; seed_verify "$@" ;;
-		*) echo "lightning wallet seed: unknown subcommand '$1'" >&2; exit 1 ;;
+		*) error "wallet seed: unknown subcommand '$1'"; exit 1 ;;
 	esac
 }
 
@@ -420,7 +427,7 @@ cmd_init() {
 	local wdir; wdir=$(wallet_dir)
 
 	if [ -d "$wdir" ]; then
-		echo "lightning: wallet already exists at $wdir" >&2
+		error "wallet already exists at $wdir"
 		exit 3
 	fi
 
@@ -455,7 +462,7 @@ cmd_push() {
 	local remote="${1:-origin}"
 	local wdir; wdir=$(wallet_dir)
 	[ -d "$wdir/.git" ] || {
-		echo "lightning: wallet not initialized at $wdir — run \`lightning wallet init\`" >&2
+		error "wallet not initialized at $wdir — run \`lightning wallet init\`"
 		exit 5
 	}
 
@@ -465,7 +472,7 @@ cmd_push() {
 	fi
 	git -C "$wdir" add -A
 	git -C "$wdir" commit --allow-empty -m "wallet: auto-sync $(date -u +%Y-%m-%dT%H:%M:%SZ)" --quiet 2>/dev/null || true
-	git -C "$wdir" push "$remote" 2>&1 || echo "lightning: push failed — set remote with 'git -C $wdir remote add $remote <url>'" >&2
+	git -C "$wdir" push "$remote" 2>&1 || warn "push failed — set remote with 'git -C $wdir remote add $remote <url>'"
 	echo "ok"
 }
 
@@ -474,11 +481,11 @@ cmd_pull() {
 	local remote="${1:-origin}"
 	local wdir; wdir=$(wallet_dir)
 	[ -d "$wdir/.git" ] || {
-		echo "lightning: wallet not initialized at $wdir — run \`lightning wallet init\`" >&2
+		error "wallet not initialized at $wdir — run \`lightning wallet init\`"
 		exit 5
 	}
 
-	git -C "$wdir" pull "$remote" 2>&1 || echo "lightning: pull failed" >&2
+	git -C "$wdir" pull "$remote" 2>&1 || warn "pull failed"
 
 	if [ -f "$wdir/state.sql" ] && [ ! -f "$wdir/state.db" ]; then
 		sqlite3 "$wdir/state.db" < "$wdir/state.sql"
@@ -509,7 +516,7 @@ backup_emit() {
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--seed) include_seed=1; shift ;;
-			*) echo "lightning wallet backup: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "wallet backup: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -525,7 +532,7 @@ backup_emit() {
 BANNER
 		local seed_path; seed_path="$(wallet_dir)/seed.enc"
 		seed_export --out "$seed_path"
-		echo "lightning: seed exported to $seed_path" >&2
+		warn "seed exported to $seed_path"
 
 		local wdir; wdir=$(wallet_dir)
 		if [ -d "$wdir/.git" ]; then
@@ -536,7 +543,7 @@ BANNER
 
 	cmd_push
 
-	echo "lightning: backup complete" >&2
+	warn "backup complete"
 }
 
 backup_verify() {
@@ -544,7 +551,7 @@ backup_verify() {
 	local scb_count; scb_count=$(ls "$wdir/scb/"*.json 2>/dev/null | wc -l)
 
 	[ "$scb_count" -gt 0 ] || {
-		echo "lightning: WARNING — no SCB snapshots found in wallet" >&2
+		warn "WARNING — no SCB snapshots found in wallet"
 	}
 
 	local remote
@@ -558,7 +565,7 @@ backup_verify() {
 	else
 		echo "seed:        not stored in wallet (expected — use --seed at backup time)"
 	fi
-	echo "lightning: backup structure looks intact" >&2
+	warn "backup structure looks intact"
 }
 
 cmd_backup() {
@@ -576,13 +583,13 @@ cmd_restore() {
 	local wdir; wdir=$(wallet_dir)
 
 	[ -d "$wdir" ] && {
-		echo "lightning: wallet already exists at $wdir — move it aside before restoring" >&2
+		error "wallet already exists at $wdir — move it aside before restoring"
 		exit 3
 	}
 
 	mkdir -p "$WALLET_ROOT"
 	git clone "$remote" "$wdir" 2>/dev/null || {
-		echo "lightning: failed to clone $remote" >&2; exit 4; }
+		error "failed to clone $remote"; exit 4; }
 
 	if [ -f "$wdir/state.sql" ] && ! [ -f "$wdir/state.db" ]; then
 		sqlite3 "$wdir/state.db" < "$wdir/state.sql"
@@ -590,12 +597,12 @@ cmd_restore() {
 
 	local latest_scb; latest_scb=$(ls -t "$wdir/scb/"*.json 2>/dev/null | head -1)
 
-	echo "lightning: wallet restored from $remote" >&2
-	echo "lightning: now run 'lightning wallet seed import' to restore your seed," >&2
+	warn "wallet restored from $remote"
+	warn "now run 'lightning wallet seed import' to restore your seed,"
 	echo "          then 'lightning wallet unlock' to unlock the daemon." >&2
 
 	if [ -n "$latest_scb" ]; then
-		echo "lightning: latest SCB: $latest_scb" >&2
+		warn "latest SCB: $latest_scb"
 		echo "          run 'lightning channel scb restore $latest_scb' after unlock" >&2
 	fi
 }

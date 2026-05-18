@@ -18,6 +18,13 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning account <subcommand> [args]
 
+   Logical sub-accounts inside the wallet. All accounts share the
+   same node, seed, channels and on-chain funds — they're a
+   tagging mechanism for attributing payments in the ledger. Each
+   account has a limit, an overdraft policy (FEAT-195 bank mode),
+   and optional API keys for the .well-known/lightning HTTP API
+   (FEAT-196). Each sub-command also accepts --help.
+
 subcommands:
    list [--balances]
    create <name> [<description>] [--limit <sat>] [--overdraft deny|warn|allow] [--host <domain>]
@@ -32,8 +39,10 @@ EOF
 [ $# -lt 1 ] && { usage; exit 1; }
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
-command -v sqlite3 >/dev/null || {
-	echo "lightning: sqlite3 not found — install sqlite3" >&2; exit 127; }
+require_sqlite() {
+	command -v sqlite3 >/dev/null || {
+		error "sqlite3 not found — install sqlite3"; exit 127; }
+}
 
 wallet_db() {
 	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
@@ -45,7 +54,7 @@ DB=$(wallet_db)
 
 ensure_db() {
 	[ -f "$DB" ] || {
-		echo "lightning: no wallet database at $DB — run 'lightning wallet init' first" >&2
+		error "no wallet database at $DB — run 'lightning wallet init' first"
 		exit 5
 	}
 }
@@ -56,7 +65,7 @@ cmd_list() {
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--balances) with_balances=1; shift ;;
-			*) echo "lightning account list: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "account list: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -89,15 +98,15 @@ cmd_create() {
 
 	case "$overdraft" in
 		deny|warn|allow) ;;
-		*) echo "lightning: --overdraft must be deny|warn|allow" >&2; exit 1 ;;
+		*) error "--overdraft must be deny|warn|allow"; exit 1 ;;
 	esac
 
 	if [ -n "$limit_sat" ]; then
 		sqlite3 "$DB" "INSERT INTO accounts (name, description, limit_sat, overdraft) VALUES ('$(echo "$name" | sed "s/'/''/g")', '$(echo "$desc" | sed "s/'/''/g")', $limit_sat, '$overdraft')" 2>/dev/null || {
-			echo "lightning: account '$name' already exists" >&2; exit 3; }
+			error "account '$name' already exists"; exit 3; }
 	else
 		sqlite3 "$DB" "INSERT INTO accounts (name, description, overdraft) VALUES ('$(echo "$name" | sed "s/'/''/g")', '$(echo "$desc" | sed "s/'/''/g")', '$overdraft')" 2>/dev/null || {
-			echo "lightning: account '$name' already exists" >&2; exit 3; }
+			error "account '$name' already exists"; exit 3; }
 	fi
 	echo "ok"
 	echo "account: $name"
@@ -127,7 +136,7 @@ cmd_show() {
 
 	local info; info=$(sqlite3 -readonly "$DB" -cmd ".mode tabs" \
 		"SELECT name, description, COALESCE(limit_sat, 'NULL'), overdraft FROM accounts WHERE name = '$esc'") || {
-		echo "lightning: account '$name' not found" >&2; exit 4; }
+		error "account '$name' not found"; exit 4; }
 	echo "$info" | while IFS=$'\t' read -r n desc lim od; do
 		echo "account:	$n"
 		echo "description:	$desc"
@@ -147,7 +156,7 @@ cmd_show() {
 
 require_secret() {
 	command -v secret >/dev/null || {
-		echo "lightning: the \`secret\` package is required (https://github.com/nostra124/secret)" >&2; exit 127; }
+		error "the \`secret\` package is required (https://github.com/nostra124/secret)"; exit 127; }
 }
 
 cmd_apikey() {
@@ -163,7 +172,7 @@ cmd_apikey() {
 			while [ $# -gt 0 ]; do
 				case "$1" in
 					--scope) scope="$2"; shift 2 ;;
-					*) echo "lightning account apikey: unknown flag '$1'" >&2; exit 1 ;;
+					*) error "account apikey: unknown flag '$1'"; exit 1 ;;
 				esac
 			done
 			local key; key=$(uuidgen 2>/dev/null || openssl rand -hex 16)
@@ -189,7 +198,7 @@ cmd_apikey() {
 			while [ $# -gt 0 ]; do
 				case "$1" in
 					--scope) scope="$2"; shift 2 ;;
-					*) echo "lightning account apikey: unknown flag '$1'" >&2; exit 1 ;;
+					*) error "account apikey: unknown flag '$1'"; exit 1 ;;
 				esac
 			done
 			if [ -n "$scope" ]; then
@@ -202,15 +211,89 @@ cmd_apikey() {
 				echo "ok (all scopes)"
 			fi
 			;;
-		*) echo "lightning account apikey: unknown subcommand '$sub'" >&2; exit 1 ;;
+		*) error "account apikey: unknown subcommand '$sub'"; exit 1 ;;
 	esac
 }
 
-case "$1" in
-	list)   shift; cmd_list "$@" ;;
-	create) shift; cmd_create "$@" ;;
-	delete) shift; cmd_delete "$@" ;;
-	show)   shift; cmd_show "$@" ;;
-	apikey) shift; cmd_apikey "$@" ;;
+subhelp() {
+	case "$1" in
+		list)
+			cat <<'EOF'
+usage: lightning account list [--balances]
+
+TSV of accounts: name, description, limit_sat, overdraft. With
+--balances, replaces description with the current ledger balance
+(sum of amount_msat / 1000) for each account.
+EOF
+			;;
+		create)
+			cat <<'EOF'
+usage: lightning account create <name> [<description>]
+            [--limit <sat>] [--overdraft deny|warn|allow]
+            [--host <domain>]
+
+Create a logical account in the wallet's accounts table.
+--limit caps the running balance (informational). --overdraft
+sets policy when a pay would push the account negative:
+   deny  (default) refuse the payment
+   warn  print warning, allow
+   allow silent
+--host auto-creates a matching Lightning Address <name>@<domain>.
+EOF
+			;;
+		delete)
+			cat <<'EOF'
+usage: lightning account delete <name>
+
+Remove the account row. Existing ledger entries tagged with the
+account are NOT deleted — they remain in the historical record
+but become orphan-tagged.
+EOF
+			;;
+		show)
+			cat <<'EOF'
+usage: lightning account show <name>
+
+Print the account's metadata (name, description, limit_sat,
+overdraft), its current balance, and the last 10 ledger entries
+tagged to it.
+EOF
+			;;
+		apikey)
+			cat <<'EOF'
+usage: lightning account apikey <create|list|revoke> <name>
+            [--scope read|write]
+
+Issue or revoke an API key for the well-known HTTP endpoints
+(FEAT-196). Keys are stored under the `secret` package as
+   lightning.<name>.apikey.<scope>
+   create   mint a fresh UUID, print it once, store it
+   list     list issued scopes for <name> (read/write)
+   revoke   drop the key (omit --scope to drop all scopes)
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+require_sqlite
+
+case "$SUB" in
+	list)   cmd_list "$@" ;;
+	create) cmd_create "$@" ;;
+	delete) cmd_delete "$@" ;;
+	show)   cmd_show "$@" ;;
+	apikey) cmd_apikey "$@" ;;
 	*) usage; exit 1 ;;
 esac

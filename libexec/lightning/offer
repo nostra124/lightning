@@ -14,6 +14,13 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning offer <subcommand> [args]
 
+   BOLT-12 offers — reusable invoices. A single offer string can
+   be paid many times; each payer fetches a fresh BOLT-12 invoice
+   on the wire. Requires clightning ≥ 22.11 with
+   experimental-offers enabled. See
+   share/doc/lightning/standards/bolts/12-offer-encoding.md.
+   Each sub-command also accepts --help.
+
 subcommands:
    create <sat>|any <description> [--qr]
    pay <bolt12-offer> [<sat>] [--message <text>]
@@ -22,12 +29,13 @@ EOF
 
 [ $# -lt 1 ] && { usage; exit 1; }
 
-command -v lightning-cli >/dev/null || {
-	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
-
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
+}
 
 cmd_create() {
 	[ $# -lt 2 ] && { echo "usage: lightning offer create <sat>|any <description> [--qr]" >&2; exit 1; }
@@ -38,7 +46,7 @@ cmd_create() {
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--qr) want_qr=1; shift ;;
-			*) echo "lightning offer create: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "offer create: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -73,7 +81,7 @@ cmd_pay() {
 		case "$1" in
 			--message) message="$2"; shift 2 ;;
 			[0-9]*)    amount_arg="$(( $1 * 1000 ))msat"; shift ;;
-			*) echo "lightning offer pay: unknown arg '$1'" >&2; exit 1 ;;
+			*) error "offer pay: unknown arg '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -99,8 +107,48 @@ cmd_pay() {
 	fi
 }
 
-case "$1" in
-	create) shift; cmd_create "$@" ;;
-	pay)    shift; cmd_pay "$@" ;;
+subhelp() {
+	case "$1" in
+		create)
+			cat <<'EOF'
+usage: lightning offer create <sat>|any <description> [--qr]
+
+Create a BOLT-12 offer — a reusable invoice that payers can fetch
+repeatedly. Use `any` for unrestricted amount (payer chooses) or a
+specific sats figure. Prints the lno1… string; --qr also renders
+it as a QR. The daemon must support BOLT-12 (CLN 22.11+ with
+experimental-offers).
+EOF
+			;;
+		pay)
+			cat <<'EOF'
+usage: lightning offer pay <bolt12-offer> [<sat>] [--message <text>]
+
+Fetch an invoice for the offer (BOLT-12 invoice_request round)
+and pay it. <sat> is required if the offer was created with `any`;
+omit it otherwise. --message attaches a payer_note visible to the
+recipient.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+require_cli
+
+case "$SUB" in
+	create) cmd_create "$@" ;;
+	pay)    cmd_pay "$@" ;;
 	*) usage; exit 1 ;;
 esac

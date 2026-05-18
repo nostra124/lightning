@@ -14,6 +14,13 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning address <subcommand> [args]
 
+   Lightning Addresses (LUD-16): the user@domain form that
+   resolves to LNURL-pay endpoints via
+   https://<domain>/.well-known/lnurlp/<user>. Supports both
+   consumption (resolve, pay) and self-hosting on Apache
+   (create, list, remove). Each sub-command also accepts --help.
+   See FEAT-176.
+
 subcommands:
    resolve <addr>                          get LNURL-pay endpoint metadata
    pay <addr> <sat> [--comment <text>]     resolve + pay
@@ -34,7 +41,7 @@ cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NET
 
 require_cli() {
 	command -v lightning-cli >/dev/null || {
-		echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
 }
 
 wallet_db() {
@@ -45,7 +52,7 @@ wallet_db() {
 # Parse "user@domain" → user + domain
 parse_addr() {
 	local addr="$1"
-	[[ "$addr" == *@* ]] || { echo "lightning: invalid address '$addr' — expected user@domain" >&2; exit 2; }
+	[[ "$addr" == *@* ]] || { error "invalid address '$addr' — expected user@domain"; exit 2; }
 	local user="${addr%%@*}"
 	local domain="${addr#*@}"
 	echo "$user $domain"
@@ -62,7 +69,7 @@ resolve_lnurlp() {
 		# Fallback: try http if https fails.
 		url="http://$domain/.well-known/lnurlp/$user"
 		curl -sfL "$url" 2>/dev/null || {
-			echo "lightning: failed to resolve $addr — is the remote running?" >&2
+			error "failed to resolve $addr — is the remote running?"
 			exit 4
 		}
 	}
@@ -91,7 +98,7 @@ cmd_pay() {
 		case "$1" in
 			--comment) comment="$2"; shift 2 ;;
 			--account) account="$2"; shift 2 ;;
-			*) echo "lightning address pay: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "address pay: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -100,11 +107,11 @@ cmd_pay() {
 	# Resolve LNURL-pay endpoint.
 	local lnurlp_url; lnurlp_url=$(resolve_lnurlp "$addr")
 	local meta; meta=$(curl -sfL "$lnurlp_url") || {
-		echo "lightning: failed to fetch LNURL-pay metadata for $addr" >&2; exit 4; }
+		error "failed to fetch LNURL-pay metadata for $addr"; exit 4; }
 
 	local callback; callback=$(jq -r '.callback' <<<"$meta")
-	[ -z "$callback" ] && { echo "lightning: no callback URL in LNURL-pay response" >&2; exit 4; }
-	[ "$callback" = "null" ] && { echo "lightning: no callback URL in LNURL-pay response" >&2; exit 4; }
+	[ -z "$callback" ] && { error "no callback URL in LNURL-pay response"; exit 4; }
+	[ "$callback" = "null" ] && { error "no callback URL in LNURL-pay response"; exit 4; }
 
 	local comment_max; comment_max=$(jq -r '.commentAllowed // 0' <<<"$meta")
 	local min_msat; min_msat=$(jq -r '.minSendable // 0' <<<"$meta")
@@ -113,10 +120,10 @@ cmd_pay() {
 
 	# Validate amount.
 	if [ "$msat" -lt "$min_msat" ] 2>/dev/null; then
-		echo "lightning: $sat sat too small (min: $(( min_msat / 1000 )) sat)" >&2; exit 3
+		error "$sat sat too small (min: $(( min_msat / 1000 )) sat)"; exit 3
 	fi
 	if [ "$msat" -gt "$max_msat" ] 2>/dev/null; then
-		echo "lightning: $sat sat too large (max: $(( max_msat / 1000 )) sat)" >&2; exit 3
+		error "$sat sat too large (max: $(( max_msat / 1000 )) sat)"; exit 3
 	fi
 
 	# Truncate comment if needed.
@@ -136,7 +143,7 @@ cmd_pay() {
 	fi
 
 	local bolt11; bolt11=$(jq -r '.pr // .invoice // ""' <<<"$cb_result")
-	[ -z "$bolt11" ] && { echo "lightning: no invoice in callback response" >&2; exit 4; }
+	[ -z "$bolt11" ] && { error "no invoice in callback response"; exit 4; }
 
 	# Pay the invoice.
 	ARGS=()
@@ -152,7 +159,7 @@ cmd_create() {
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--account) account="$2"; shift 2 ;;
-			*) echo "lightning address create: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "address create: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -163,7 +170,7 @@ cmd_create() {
 	command -v apache2 >/dev/null && apache="apache2"
 	command -v httpd >/dev/null && apache="httpd"
 	if [ -z "$apache" ]; then
-		echo "lightning: Apache not found — install apache2 and try again" >&2
+		error "Apache not found — install apache2 and try again"
 		echo "  Debian/Ubuntu: sudo apt install apache2" >&2
 		echo "  RHEL/Fedora:   sudo dnf install httpd" >&2
 		exit 5
@@ -172,7 +179,7 @@ cmd_create() {
 	# Insert into users table.
 	DB=$(wallet_db)
 	[ -f "$DB" ] || {
-		echo "lightning: no wallet database — run 'lightning wallet init' first" >&2; exit 5; }
+		error "no wallet database — run 'lightning wallet init' first"; exit 5; }
 
 	local acct="${account:-$user}"
 	sqlite3 "$DB" "INSERT OR REPLACE INTO users (user, account) VALUES ('$(echo "$user" | sed "s/'/''/g")', '$(echo "$acct" | sed "s/'/''/g")')" 2>/dev/null
@@ -192,7 +199,7 @@ cmd_create() {
 
 cmd_list() {
 	DB=$(wallet_db)
-	[ -f "$DB" ] || { echo "lightning: no wallet — run 'lightning wallet init' first" >&2; exit 5; }
+	[ -f "$DB" ] || { error "no wallet — run 'lightning wallet init' first"; exit 5; }
 	sqlite3 -readonly "$DB" -cmd ".mode tabs" "SELECT user, account, min_sat, max_sat FROM users ORDER BY user"
 }
 
@@ -202,17 +209,80 @@ cmd_remove() {
 	read -r user domain <<<"$(parse_addr "$addr")"
 
 	DB=$(wallet_db)
-	[ -f "$DB" ] || { echo "lightning: no wallet — run 'lightning wallet init' first" >&2; exit 5; }
+	[ -f "$DB" ] || { error "no wallet — run 'lightning wallet init' first"; exit 5; }
 	sqlite3 "$DB" "DELETE FROM users WHERE user = '$(echo "$user" | sed "s/'/''/g")'"
 	echo "ok"
 	echo "address $addr removed"
 }
 
-case "$1" in
-	resolve) shift; cmd_resolve "$@" ;;
-	pay)     shift; cmd_pay "$@" ;;
-	create)  shift; cmd_create "$@" ;;
-	list)    shift; cmd_list "$@" ;;
-	remove)  shift; cmd_remove "$@" ;;
+subhelp() {
+	case "$1" in
+		resolve)
+			cat <<'EOF'
+usage: lightning address resolve <addr>
+
+Fetch the LNURL-pay metadata for user@domain by GETting
+https://<domain>/.well-known/lnurlp/<user> (LUD-16). Prints the
+JSON: callback URL, minSendable / maxSendable, commentAllowed, etc.
+EOF
+			;;
+		pay)
+			cat <<'EOF'
+usage: lightning address pay <addr> <sat>
+            [--comment <text>] [--account <name>]
+
+Resolve <addr> (LUD-16), fetch an invoice for <sat> sats from the
+callback (LUD-06), and pay it. --comment is sent to the recipient
+(truncated to their commentAllowed). --account tags the payment
+in the ledger.
+EOF
+			;;
+		create)
+			cat <<'EOF'
+usage: lightning address create <addr> [--account <name>]
+
+Register <addr> (user@domain) as one of your Lightning Addresses.
+Requires Apache (apache2 or httpd) on the host so the CGI
+endpoints at .well-known/lnurlp/<user> can serve invoices.
+Inserts into the wallet's users table; prints the BIP-353 TXT
+record and a pointer to the Apache config snippet.
+EOF
+			;;
+		list)
+			cat <<'EOF'
+usage: lightning address list
+
+TSV of owned addresses (rows from the users table):
+   user<TAB>account<TAB>min_sat<TAB>max_sat
+EOF
+			;;
+		remove)
+			cat <<'EOF'
+usage: lightning address remove <addr>
+
+Delete the user row for <addr>. Does NOT touch the Apache config
+or remove existing payment history — only stops new invoices from
+being issued via .well-known/lnurlp/<user>.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+
+case "$SUB" in
+	resolve) cmd_resolve "$@" ;;
+	pay)     cmd_pay "$@" ;;
+	create)  cmd_create "$@" ;;
+	list)    cmd_list "$@" ;;
+	remove)  cmd_remove "$@" ;;
+	help)    subhelp "${1:-}" || usage; exit ;;
 	*) usage; exit 1 ;;
 esac

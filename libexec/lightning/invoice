@@ -16,6 +16,12 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning invoice <subcommand> [args]
 
+   BOLT-11 invoices — single-use, addressed payment requests.
+   Mint one to receive a payment; pay one to send. Each invoice
+   has a unique payment_hash and amount. See
+   share/doc/lightning/standards/bolts/11-payment-encoding.md
+   for the encoding spec. Each sub-command also accepts --help.
+
 subcommands:
    create <sat> <label> [--description <text>] [--expiry <sec>]
                         [--qr] [--account <name>]
@@ -26,12 +32,13 @@ EOF
 
 [ $# -lt 1 ] && { usage; exit 1; }
 
-command -v lightning-cli >/dev/null || {
-	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
-
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
+}
 
 wallet_db() {
 	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
@@ -53,7 +60,7 @@ cmd_create() {
 			--expiry)      expiry="$2"; shift 2 ;;
 			--qr)          want_qr=1; shift ;;
 			--account)     account="$2"; shift 2 ;;
-			*) echo "lightning invoice create: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "invoice create: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -96,7 +103,7 @@ cmd_pay() {
 			--timeout)     timeout="$2"; shift 2 ;;
 			--account)     account="$2"; shift 2 ;;
 			--note)        note="$2"; shift 2 ;;
-			*) echo "lightning invoice pay: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "invoice pay: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -118,12 +125,12 @@ cmd_pay() {
 
 					if [ "$policy" = "deny" ] && [ "$balance_sat" -lt "$pay_sat" ] 2>/dev/null; then
 						local shortfall=$(( pay_sat - balance_sat ))
-						echo "lightning: would overdraw account '$account' by ${shortfall} sat (balance: ${balance_sat} sat, policy: deny)" >&2
+						error "would overdraw account '$account' by ${shortfall} sat (balance: ${balance_sat} sat, policy: deny)"
 						exit 3
 					fi
 					if [ "$policy" = "warn" ] && [ "$balance_sat" -lt "$pay_sat" ] 2>/dev/null; then
 						local shortfall=$(( pay_sat - balance_sat ))
-						echo "lightning: warning — payment of $pay_sat sat would overdraw '$account' by ${shortfall} sat" >&2
+						warn "warning — payment of $pay_sat sat would overdraw '$account' by ${shortfall} sat"
 					fi
 				fi
 			fi
@@ -162,8 +169,52 @@ cmd_pay() {
 	fi
 }
 
-case "$1" in
-	create) shift; cmd_create "$@" ;;
-	pay)    shift; cmd_pay "$@" ;;
+subhelp() {
+	case "$1" in
+		create)
+			cat <<'EOF'
+usage: lightning invoice create <sat> <label>
+            [--description <text>] [--expiry <sec>]
+            [--qr] [--account <name>]
+
+Mint a BOLT-11 invoice for <sat> sats. <label> is a daemon-side
+unique identifier; --description sets the human-readable memo (or
+reuses label). --expiry defaults to 3600s. --qr also renders the
+invoice as a QR code. --account tags it in the wallet's invoices
+table for the ledger.
+EOF
+			;;
+		pay)
+			cat <<'EOF'
+usage: lightning invoice pay <bolt11>
+            [--max-fee-sat N] [--timeout S]
+            [--account <name>] [--note <text>]
+
+Pay a BOLT-11 invoice. --max-fee-sat caps routing fees; --timeout
+gives up after S seconds (default 60). --account writes the payment
+to the ledger and enforces overdraft policy (deny/warn/allow);
+--note attaches a local-only annotation.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+require_cli
+
+case "$SUB" in
+	create) cmd_create "$@" ;;
+	pay)    cmd_pay "$@" ;;
 	*) usage; exit 1 ;;
 esac

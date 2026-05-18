@@ -24,6 +24,12 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning daemon <subcommand> [args]
 
+   Lifecycle of the underlying clightningd process. Supports
+   user-mode (systemctl --user) and system-mode (FEAT-183
+   three-user layout: dedicated \`clightning\` user owns the
+   daemon, the operator owns the wallet repo, www-data runs the
+   CGI). Each sub-command also accepts --help.
+
 subcommands:
    start                  start lightningd (foreground or systemd)
    stop                   graceful shutdown
@@ -47,19 +53,19 @@ system_mode() {
 
 cmd_start() {
 	if daemon_running; then
-		echo "lightning: daemon already running" >&2
+		error "daemon already running"
 		exit 0
 	fi
 	if system_mode; then
-		echo "lightning: starting systemd unit clightningd.service"
+		info "starting systemd unit clightningd.service"
 		sudo systemctl start clightningd.service
 	else
 		command -v lightningd >/dev/null || {
-			echo "lightning: lightningd not found — install Core Lightning" >&2
+			error "lightningd not found — install Core Lightning"
 			exit 127
 		}
 		mkdir -p "$LIGHTNING_DIR"
-		echo "lightning: starting lightningd (user-mode, --daemon)"
+		info "starting lightningd (user-mode, --daemon)"
 		lightningd --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" --daemon
 	fi
 
@@ -80,7 +86,7 @@ cmd_start() {
 
 cmd_stop() {
 	if ! daemon_running; then
-		echo "lightning: daemon not running" >&2
+		error "daemon not running"
 		exit 0
 	fi
 	if system_mode; then
@@ -88,7 +94,7 @@ cmd_stop() {
 	else
 		cli stop >/dev/null
 	fi
-	echo "lightning: daemon stopped"
+	info "daemon stopped"
 }
 
 cmd_restart() {
@@ -128,8 +134,8 @@ cmd_logs() {
 	local logfile="$LIGHTNING_DIR/log"
 	[ -f "$logfile" ] || logfile="$NETWORK_DIR/log"
 	[ -f "$logfile" ] || {
-		echo "lightning: no log file at $LIGHTNING_DIR/log or $NETWORK_DIR/log" >&2
-		echo "lightning: configure log-file=log in lightningd.conf to enable" >&2
+		warn "no log file at $LIGHTNING_DIR/log or $NETWORK_DIR/log"
+		error "configure log-file=log in lightningd.conf to enable"
 		exit 2
 	}
 	exec tail "$@" "$logfile"
@@ -141,7 +147,7 @@ cmd_install() {
 		case "$1" in
 			--system)  system=1; shift ;;
 			--migrate) migrate=1; shift ;;
-			*) echo "lightning daemon install: unknown flag $1" >&2; exit 1 ;;
+			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
 
@@ -173,21 +179,21 @@ RestartSec=5
 WantedBy=default.target
 EOF
 	systemctl --user daemon-reload 2>/dev/null || true
-	echo "lightning: wrote $unit"
-	echo "lightning: enable with: systemctl --user enable --now lightning"
-	echo "lightning: to survive logout: loginctl enable-linger $USER"
+	info "wrote $unit"
+	info "enable with: systemctl --user enable --now lightning"
+	info "to survive logout: loginctl enable-linger $USER"
 }
 
 install_system() {
 	local migrate=$1
 
 	if [ $migrate -eq 0 ] && [ -d "$HOME/.lightning" ] && [ ! -L "$HOME/.lightning" ]; then
-		echo "lightning: ~/.lightning exists (user-mode install detected); refusing" >&2
-		echo "lightning: pass --migrate to move it to /var/lib/clightning" >&2
+		warn "~/.lightning exists (user-mode install detected); refusing"
+		error "pass --migrate to move it to /var/lib/clightning"
 		exit 3
 	fi
 
-	command -v sudo >/dev/null || { echo "lightning: sudo required for --system" >&2; exit 127; }
+	command -v sudo >/dev/null || { error "sudo required for --system"; exit 127; }
 
 	# 1. Create the clightning system user (idempotent).
 	if ! getent passwd clightning >/dev/null; then
@@ -233,21 +239,94 @@ WantedBy=multi-user.target
 EOF
 	sudo systemctl daemon-reload
 
-	echo "lightning: installed system-mode at /var/lib/clightning"
-	echo "lightning: user 'clightning' created; '$USER' added to group 'clightning'"
-	echo "lightning: enable with: sudo systemctl enable --now clightningd"
-	echo "lightning: log out and back in for group membership to take effect"
+	info "installed system-mode at /var/lib/clightning"
+	info "user 'clightning' created; '$USER' added to group 'clightning'"
+	info "enable with: sudo systemctl enable --now clightningd"
+	info "log out and back in for group membership to take effect"
 }
 
 SELF_LIBEXEC="${SELF_LIBEXEC:-$(cd "$(dirname "$0")/.." && pwd)}"
 
+subhelp() {
+	case "$1" in
+		start)
+			cat <<'EOF'
+usage: lightning daemon start
+
+Bring up lightningd. If a systemd unit `clightningd.service` is
+enabled, starts it; otherwise launches `lightningd --daemon` in
+user-mode under $LIGHTNING_DIR. Triggers auto-unlock (FEAT-184)
+when the `secret` package is installed.
+EOF
+			;;
+		stop)
+			cat <<'EOF'
+usage: lightning daemon stop
+
+Graceful shutdown via `lightning-cli stop` (or systemctl stop
+clightningd in system-mode). No-op if the daemon isn't running.
+EOF
+			;;
+		restart)
+			cat <<'EOF'
+usage: lightning daemon restart
+
+`stop` then `start`, waiting up to 5s for the RPC socket to
+disappear in between. Re-triggers auto-unlock on the way up.
+EOF
+			;;
+		status)
+			cat <<'EOF'
+usage: lightning daemon status
+
+Health check. Exits 0 (healthy), 1 (syncing), or 2 (down).
+Output names the mode (user|system) and current blockheight, plus
+any warning_lightningd_sync / warning_bitcoind_sync from getinfo.
+EOF
+			;;
+		logs)
+			cat <<'EOF'
+usage: lightning daemon logs [tail-flags...]
+
+Tail the daemon log. In system-mode reads `journalctl -u
+clightningd.service` (forwards extra flags); in user-mode tails
+$LIGHTNING_DIR/log or $LIGHTNING_DIR/$LIGHTNING_NETWORK/log.
+Add -f to follow.
+EOF
+			;;
+		install)
+			cat <<'EOF'
+usage: lightning daemon install [--system] [--migrate]
+
+Write a systemd unit for the daemon. Default is user-mode at
+~/.config/systemd/user/lightning.service. --system writes a
+system-mode unit at /etc/systemd/system/clightningd.service,
+creates the `clightning` system user, and adds you to its group
+(FEAT-183 three-user layout). --migrate moves an existing
+~/.lightning into /var/lib/clightning.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="${1:-}"
+[ -n "$SUB" ] && shift
 case "${1:-}" in
-	start)   shift; cmd_start "$@" ;;
-	stop)    shift; cmd_stop "$@" ;;
-	restart) shift; cmd_restart "$@" ;;
-	status)  shift; cmd_status "$@" ;;
-	logs)    shift; cmd_logs "$@" ;;
-	install) shift; cmd_install "$@" ;;
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+
+case "$SUB" in
+	start)   cmd_start "$@" ;;
+	stop)    cmd_stop "$@" ;;
+	restart) cmd_restart "$@" ;;
+	status)  cmd_status "$@" ;;
+	logs)    cmd_logs "$@" ;;
+	install) cmd_install "$@" ;;
+	help)    subhelp "${1:-}" || usage; exit ;;
 	"")      usage; exit 1 ;;
-	*)       echo "lightning daemon: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+	*)       warn "daemon: unknown subcommand '$SUB'"; usage; exit 1 ;;
 esac
