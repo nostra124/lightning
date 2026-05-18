@@ -26,16 +26,42 @@ cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NET
 is_macos() { [ "$(uname -s)" = "Darwin" ]; }
 
 launchd_plist() {
-	if [ "$EUID" -eq 0 ]; then
-		echo "/Library/LaunchDaemons/${LAUNCHD_LABEL}.plist"
+	# Per-user LaunchAgent first; fall back to the system path if a
+	# LaunchDaemon plist exists (running as the operator usually
+	# means the per-user one; --system install writes the other).
+	local user_plist="$HOME/Library/LaunchAgents/${LAUNCHD_LABEL}.plist"
+	local sys_plist="/Library/LaunchDaemons/${LAUNCHD_LABEL}.plist"
+	if [ -f "$user_plist" ]; then
+		echo "$user_plist"
+	elif [ -f "$sys_plist" ]; then
+		echo "$sys_plist"
+	elif [ "$EUID" -eq 0 ]; then
+		echo "$sys_plist"
 	else
-		echo "$HOME/Library/LaunchAgents/${LAUNCHD_LABEL}.plist"
+		echo "$user_plist"
 	fi
 }
 
-launchd_mode() {
+# A plist is *installed* (file on disk).
+launchd_installed() {
+	is_macos && [ -f "$(launchd_plist)" ]
+}
+
+# A plist is *loaded* into launchd (live job).
+launchd_loaded() {
 	is_macos && command -v launchctl >/dev/null 2>&1 && \
 		launchctl list "$LAUNCHD_LABEL" >/dev/null 2>&1
+}
+
+# Linux systemd --user unit installed for this account.
+systemd_user_installed() {
+	[ -f "$HOME/.config/systemd/user/lightning.service" ]
+}
+
+# Linux systemd system unit enabled.
+system_mode() {
+	command -v systemctl >/dev/null 2>&1 && \
+		systemctl --quiet is-enabled clightningd.service 2>/dev/null
 }
 
 usage() {
@@ -69,21 +95,31 @@ daemon_running() {
 	command -v lightning-cli >/dev/null 2>&1 && cli getinfo >/dev/null 2>&1
 }
 
-system_mode() {
-	systemctl --quiet is-enabled clightningd.service 2>/dev/null
-}
-
 cmd_start() {
 	if daemon_running; then
 		info "daemon already running"
 		return 0
 	fi
-	if launchd_mode; then
-		info "starting launchd service $LAUNCHD_LABEL"
-		launchctl start "$LAUNCHD_LABEL"
+	# Detection order: installed supervisor first. The launchd /
+	# systemd unit handles --daemon (or Type=simple via `daemon run`)
+	# and writes its own logs. Falling through to a direct
+	# `lightningd --daemon` is for users who skipped `daemon install`.
+	if launchd_installed; then
+		local plist; plist=$(launchd_plist)
+		if launchd_loaded; then
+			info "launchctl kickstart $LAUNCHD_LABEL"
+			launchctl kickstart "gui/$(id -u)/$LAUNCHD_LABEL" >/dev/null 2>&1 || \
+				launchctl start "$LAUNCHD_LABEL"
+		else
+			info "launchctl load -w $plist"
+			launchctl load -w "$plist"
+		fi
 	elif system_mode; then
-		info "starting systemd unit clightningd.service"
+		info "sudo systemctl start clightningd.service"
 		sudo systemctl start clightningd.service
+	elif systemd_user_installed; then
+		info "systemctl --user start lightning"
+		systemctl --user start lightning
 	else
 		command -v lightningd >/dev/null || {
 			error "lightningd not found — install Core Lightning"
@@ -91,7 +127,9 @@ cmd_start() {
 		}
 		mkdir -p "$LIGHTNING_DIR"
 		local logfile="$LIGHTNING_DIR/log"
-		info "starting lightningd (user-mode, --daemon, log: $logfile)"
+		info "starting lightningd directly (no service unit installed)"
+		info "   tip: run \`lightning daemon install\` to set up launchd / systemd"
+		info "   log: $logfile"
 		# lightningd writes startup messages to stderr BEFORE forking
 		# (--daemon detaches afterwards), so redirect both streams to
 		# the log file. Otherwise the parent shell sees the leak.
@@ -142,10 +180,19 @@ cmd_stop() {
 		info "daemon not running"
 		return 0
 	fi
-	if launchd_mode; then
-		launchctl stop "$LAUNCHD_LABEL"
+	if launchd_loaded; then
+		# `launchctl stop` would SIGTERM but KeepAlive=true would
+		# restart immediately. Unload removes the job entirely;
+		# `daemon start` reloads it. This matches brew services.
+		local plist; plist=$(launchd_plist)
+		info "launchctl unload $plist"
+		launchctl unload "$plist"
 	elif system_mode; then
+		info "sudo systemctl stop clightningd.service"
 		sudo systemctl stop clightningd.service
+	elif systemd_user_installed; then
+		info "systemctl --user stop lightning"
+		systemctl --user stop lightning
 	else
 		cli stop >/dev/null
 	fi
@@ -168,9 +215,11 @@ cmd_status() {
 		local info; info=$(cli getinfo)
 		local block; block=$(jq -r .blockheight <<<"$info")
 		local warning; warning=$(jq -r '.warning_lightningd_sync // .warning_bitcoind_sync // empty' <<<"$info")
-		local mode="user"
-		launchd_mode && mode="launchd"
-		system_mode  && mode="system"
+		local mode="direct"
+		if launchd_loaded;             then mode="launchd"
+		elif system_mode;              then mode="systemd-system"
+		elif systemd_user_installed;   then mode="systemd-user"
+		fi
 		if [ -n "$warning" ]; then
 			echo "syncing ($mode-mode, block $block): $warning"
 			rc=1
@@ -188,9 +237,12 @@ cmd_logs() {
 	if system_mode; then
 		exec journalctl -u clightningd.service "$@"
 	fi
-	# Check the well-known locations in order. cmd_start /
-	# install_macos_user both write to $LIGHTNING_DIR/log;
-	# lightningd's own default is $LIGHTNING_DIR/<network>/log.
+	if systemd_user_installed; then
+		exec journalctl --user -u lightning.service "$@"
+	fi
+	# launchd's StandardOutPath and our direct `cmd_start` both write
+	# to $LIGHTNING_DIR/log; lightningd's own default is
+	# $LIGHTNING_DIR/<network>/log.
 	local logfile
 	for candidate in "$LIGHTNING_DIR/log" "$NETWORK_DIR/log"; do
 		if [ -f "$candidate" ]; then
@@ -200,7 +252,7 @@ cmd_logs() {
 	done
 	[ -n "$logfile" ] || {
 		error "no log file yet at $LIGHTNING_DIR/log or $NETWORK_DIR/log"
-		if launchd_mode; then
+		if launchd_loaded; then
 			warn "the LaunchAgent is loaded but hasn't produced a log entry yet"
 		elif daemon_running; then
 			warn "the daemon is running but logging to an unexpected path"
@@ -275,13 +327,11 @@ install_macos_user() {
 </plist>
 EOF
 	info "wrote $plist"
-	info "next: load the agent — this also starts the daemon (RunAtLoad=true)"
-	info "    launchctl load -w $plist"
-	info "verify:"
+	info "next:"
+	info "    lightning daemon start         # routes through launchctl"
 	info "    lightning daemon status"
 	info "    lightning daemon logs -f"
-	info "stop + unload:"
-	info "    launchctl unload $plist"
+	info "stop:  lightning daemon stop"
 }
 
 install_macos_system() {
@@ -374,8 +424,9 @@ EOF
 
 	info "installed system-mode at $state_dir"
 	info "user '$svc_user' created (uid $svc_uid); '$USER' added to its group"
-	info "next: load the daemon — this also starts it (RunAtLoad=true)"
-	info "    sudo launchctl load -w $plist"
+	info "next:"
+	info "    sudo launchctl load -w $plist  # one-time, run as root"
+	info "    lightning daemon status"
 	info "log out and back in for your group membership to take effect"
 }
 
@@ -401,12 +452,12 @@ WantedBy=default.target
 EOF
 	systemctl --user daemon-reload 2>/dev/null || true
 	info "wrote $unit"
-	info "next: enable + start — --now does both"
-	info "    systemctl --user enable --now lightning"
-	info "verify:"
+	info "next:"
+	info "    lightning daemon start         # routes through systemctl --user"
 	info "    lightning daemon status"
 	info "    lightning daemon logs -f"
-	info "to survive logout: loginctl enable-linger $USER"
+	info "to survive logout:  loginctl enable-linger $USER"
+	info "to autostart at login:  systemctl --user enable lightning"
 }
 
 install_system() {
@@ -466,8 +517,10 @@ EOF
 
 	info "installed system-mode at /var/lib/clightning"
 	info "user 'clightning' created; '$USER' added to group 'clightning'"
-	info "next: enable + start — --now does both"
-	info "    sudo systemctl enable --now clightningd"
+	info "next:"
+	info "    sudo systemctl enable clightningd"
+	info "    lightning daemon start         # routes through systemctl"
+	info "    lightning daemon status"
 	info "log out and back in for your group membership to take effect"
 }
 
@@ -479,11 +532,18 @@ subhelp() {
 			cat <<'EOF'
 usage: lightning daemon start
 
-Bring up lightningd in the background. Detects the supervisor in
-this order: launchd (macOS) -> systemd (Linux) -> direct fork via
-`lightningd --daemon`. In direct mode, stdout/stderr are redirected
-to $LIGHTNING_DIR/log so the terminal stays clean. Triggers
-auto-unlock (FEAT-184) when the `secret` package is installed.
+Bring up lightningd in the background. Routes through the installed
+supervisor (detected by file presence):
+   1. launchd       — ~/Library/LaunchAgents/<label>.plist or
+                      /Library/LaunchDaemons/<label>.plist
+                      => `launchctl load -w` (or `kickstart` if loaded)
+   2. systemd-system — clightningd.service enabled
+                      => `sudo systemctl start clightningd.service`
+   3. systemd-user   — ~/.config/systemd/user/lightning.service
+                      => `systemctl --user start lightning`
+   4. direct         — no service unit installed
+                      => `lightningd --daemon`, output -> log file
+Triggers auto-unlock (FEAT-184) when the `secret` package is installed.
 EOF
 			;;
 		run)
@@ -501,8 +561,13 @@ EOF
 			cat <<'EOF'
 usage: lightning daemon stop
 
-Graceful shutdown. Detects launchd / systemctl / direct and uses
-the matching stop command (falls back to `lightning-cli stop`).
+Graceful shutdown. Same detection order as `start`:
+   launchd       => `launchctl unload <plist>` (KeepAlive would
+                    fight a plain stop; unload removes the job
+                    until the next `daemon start`)
+   systemd-system => `sudo systemctl stop clightningd.service`
+   systemd-user   => `systemctl --user stop lightning`
+   direct         => `lightning-cli stop`
 No-op if the daemon isn't running.
 EOF
 			;;

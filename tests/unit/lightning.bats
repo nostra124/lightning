@@ -272,6 +272,69 @@ teardown() {
 	[[ "$output" == *"foreground"* ]]
 }
 
+@test "FEAT-183: daemon start routes through installed LaunchAgent (macOS)" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — exercises launchctl detection"
+	fi
+	# Daemon must be down so start doesn't short-circuit.
+	echo "down" > "$MOCK_STATE"
+	# Pretend the plist is installed (file presence is what detection checks).
+	mkdir -p "$HOME/Library/LaunchAgents"
+	touch "$HOME/Library/LaunchAgents/network.lightning.lightningd.plist"
+	# Stub launchctl so we can prove start invoked it (not lightningd directly).
+	cat > "$BIN_SHIM/launchctl" <<'EOF'
+#!/bin/sh
+[ "$1" = "list" ] && exit 1   # report "not loaded"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/launchctl"
+	# Stub lightningd as a real script (ln -sf /bin/true would be a
+	# dangling symlink on macOS where /bin/true doesn't exist).
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"launchctl load -w"* ]]
+	# Must NOT have fallen through to the direct path.
+	[[ "$output" != *"no service unit installed"* ]]
+}
+
+@test "FEAT-183: daemon start routes through systemd --user when unit installed (Linux)" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "Linux-only — exercises systemctl --user detection"
+	fi
+	echo "down" > "$MOCK_STATE"
+	mkdir -p "$HOME/.config/systemd/user"
+	touch "$HOME/.config/systemd/user/lightning.service"
+	# Stub systemctl so the routing is observable without a real systemd.
+	cat > "$BIN_SHIM/systemctl" <<'EOF'
+#!/bin/sh
+[ "$1" = "--quiet" ] && exit 1   # report system-mode NOT enabled
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/systemctl"
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"systemctl --user start lightning"* ]]
+}
+
+@test "FEAT-183: daemon start falls through to direct mode without a service unit" {
+	echo "down" > "$MOCK_STATE"
+	# Ensure no plist / unit exists.
+	rm -f "$HOME/Library/LaunchAgents/network.lightning.lightningd.plist" 2>/dev/null
+	rm -f "$HOME/.config/systemd/user/lightning.service" 2>/dev/null
+	# Real shebang script — see launchd test above for why not ln -sf.
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	# Verbose so the info messages surface (test fixture sets SELF_QUIET=1).
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"no service unit installed"* ]]
+	[[ "$output" == *"daemon install"* ]]
+}
+
 # ---------------------------------------------------------------------------
 # FEAT-184: unlock
 # ---------------------------------------------------------------------------
