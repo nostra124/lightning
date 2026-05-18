@@ -282,9 +282,12 @@ teardown() {
 	mkdir -p "$HOME/Library/LaunchAgents"
 	touch "$HOME/Library/LaunchAgents/network.lightning.lightningd.plist"
 	# Stub launchctl so we can prove start invoked it (not lightningd directly).
-	cat > "$BIN_SHIM/launchctl" <<'EOF'
+	cat > "$BIN_SHIM/launchctl" <<EOF
 #!/bin/sh
-[ "$1" = "list" ] && exit 1   # report "not loaded"
+[ "\$1" = "list" ] && exit 1   # report "not loaded"
+# load/kickstart succeeds — flip MOCK_STATE so the post-start
+# probe sees a healthy daemon.
+rm -f "$MOCK_STATE"
 exit 0
 EOF
 	chmod +x "$BIN_SHIM/launchctl"
@@ -307,9 +310,11 @@ EOF
 	mkdir -p "$HOME/.config/systemd/user"
 	touch "$HOME/.config/systemd/user/lightning.service"
 	# Stub systemctl so the routing is observable without a real systemd.
-	cat > "$BIN_SHIM/systemctl" <<'EOF'
+	cat > "$BIN_SHIM/systemctl" <<EOF
 #!/bin/sh
-[ "$1" = "--quiet" ] && exit 1   # report system-mode NOT enabled
+[ "\$1" = "--quiet" ] && exit 1   # report system-mode NOT enabled
+# start command succeeds — flip MOCK_STATE so post-start probe passes.
+rm -f "$MOCK_STATE"
 exit 0
 EOF
 	chmod +x "$BIN_SHIM/systemctl"
@@ -320,13 +325,78 @@ EOF
 	[[ "$output" == *"systemctl --user start lightning"* ]]
 }
 
+@test "FEAT-183: daemon status down surfaces last BROKEN line from log" {
+	echo "down" > "$MOCK_STATE"
+	mkdir -p "$HOME/.lightning"
+	cat > "$HOME/.lightning/log" <<'EOF'
+2026-05-18T21:00:00.000Z INFO lightningd: v26.04.1
+2026-05-18T21:00:01.000Z **BROKEN** plugin-bcli: The Bitcoin backend died.
+2026-05-18T21:00:01.500Z INFO lightningd: shutting down
+EOF
+	run "$LIGHTNING_BIN" daemon status
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"down"* ]]
+	[[ "$output" == *"BROKEN"* ]]
+	[[ "$output" == *"Bitcoin backend died"* ]]
+	[[ "$output" == *"daemon logs"* ]]
+}
+
+@test "FEAT-183: daemon start warns when bitcoin-cli is missing" {
+	echo "down" > "$MOCK_STATE"
+	# bitcoin-cli absent (the BIN_SHIM doesn't define it).
+	# Stub lightningd so the lightningd-not-found branch doesn't fire first.
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	# Daemon stays "down" after start → expect non-zero, but the
+	# warning should appear in output regardless.
+	run "$LIGHTNING_BIN" -v daemon start
+	[[ "$output" == *"bitcoin-cli not found"* ]]
+}
+
+@test "FEAT-183: daemon start surfaces the error when daemon dies during startup" {
+	echo "down" > "$MOCK_STATE"
+	mkdir -p "$HOME/.lightning"
+	# Pre-seed a log with a fatal line — simulates the daemon
+	# crashing during startup.
+	cat > "$HOME/.lightning/log" <<'EOF'
+2026-05-18T22:00:00.000Z **BROKEN** plugin-bcli: The Bitcoin backend died.
+EOF
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" -v daemon start
+	# Exit 2 = post-start probe found the daemon down.
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"did not come up"* ]]
+	[[ "$output" == *"BROKEN"* ]]
+}
+
+@test "FEAT-183: daemon install plist sets ThrottleInterval (macOS)" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — checks the launchd plist"
+	fi
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	local plist="$HOME/Library/LaunchAgents/network.lightning.lightningd.plist"
+	grep -q "<key>ThrottleInterval</key>" "$plist"
+	grep -q "<integer>30</integer>" "$plist"
+}
+
 @test "FEAT-183: daemon start falls through to direct mode without a service unit" {
 	echo "down" > "$MOCK_STATE"
 	# Ensure no plist / unit exists.
 	rm -f "$HOME/Library/LaunchAgents/network.lightning.lightningd.plist" 2>/dev/null
 	rm -f "$HOME/.config/systemd/user/lightning.service" 2>/dev/null
-	# Real shebang script — see launchd test above for why not ln -sf.
-	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	# Stub lightningd that flips MOCK_STATE so the post-start
+	# probe sees a healthy daemon (real lightningd would do that
+	# by responding to lightning-cli getinfo).
+	cat > "$BIN_SHIM/lightningd" <<EOF
+#!/bin/sh
+rm -f "$MOCK_STATE"
+exit 0
+EOF
 	chmod +x "$BIN_SHIM/lightningd"
 	# Verbose so the info messages surface (test fixture sets SELF_QUIET=1).
 	run "$LIGHTNING_BIN" -v daemon start

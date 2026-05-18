@@ -95,11 +95,51 @@ daemon_running() {
 	command -v lightning-cli >/dev/null 2>&1 && cli getinfo >/dev/null 2>&1
 }
 
+# Non-blocking sanity check on the Bitcoin backend. lightningd's bcli
+# plugin needs a reachable bitcoind; without it the daemon prints
+# "BROKEN plugin-bcli: The Bitcoin backend died" and exits seconds
+# after startup. Returns 0 if bitcoind looks usable, 1 otherwise.
+# Callers should warn-and-continue, not exit — the user may be using
+# a non-default backend (e.g. sauron / Esplora plugin).
+check_bitcoind() {
+	if ! command -v bitcoin-cli >/dev/null 2>&1; then
+		warn "bitcoin-cli not found — lightningd needs a Bitcoin backend"
+		warn "  install bitcoind, or configure clightning with the sauron"
+		warn "  plugin to use a public Esplora endpoint (degrades trust)"
+		return 1
+	fi
+	if ! bitcoin-cli -getinfo >/dev/null 2>&1; then
+		warn "bitcoind isn't reachable — lightningd will likely crash on startup"
+		warn "  start it:  bitcoind -daemon"
+		warn "  or run a pruned node:  bitcoind -daemon -prune=550"
+		return 1
+	fi
+	return 0
+}
+
+# Surface the most recent BROKEN/FATAL line and the daemon log path
+# so the user has a starting point when status is "down".
+report_last_error() {
+	local logfile
+	for candidate in "$LIGHTNING_DIR/log" "$NETWORK_DIR/log"; do
+		[ -f "$candidate" ] && logfile="$candidate" && break
+	done
+	[ -n "$logfile" ] || return 0
+	local last; last=$(grep -E 'BROKEN|FATAL|backend died|died' "$logfile" 2>/dev/null | tail -1)
+	if [ -n "$last" ]; then
+		echo "  last error: $last"
+	fi
+	echo "  log: $logfile  (tail with: lightning daemon logs -f)"
+}
+
 cmd_start() {
 	if daemon_running; then
 		info "daemon already running"
 		return 0
 	fi
+	# Best-effort pre-flight. Warn-only — the user may be using a
+	# non-bcli backend (sauron) or a non-default bitcoind setup.
+	check_bitcoind || true
 	# Detection order: installed supervisor first. The launchd /
 	# systemd unit handles --daemon (or Type=simple via `daemon run`)
 	# and writes its own logs. Falling through to a direct
@@ -154,6 +194,18 @@ cmd_start() {
 			sleep 1
 		done
 	fi
+
+	# Post-start probe: supervisors (launchd / systemd) report success
+	# the moment they fork the process — but lightningd may still die
+	# during init (no bitcoind, port in use, bad config). Give it a
+	# couple of seconds, then surface what happened if it's not up.
+	for _ in 1 2 3 4 5; do
+		daemon_running && return 0
+		sleep 1
+	done
+	error "daemon did not come up — exited during startup"
+	report_last_error
+	exit 2
 }
 
 cmd_run() {
@@ -168,6 +220,7 @@ cmd_run() {
 		error "lightningd not found — install Core Lightning"
 		exit 127
 	}
+	check_bitcoind || true
 	mkdir -p "$LIGHTNING_DIR"
 	info "running lightningd in foreground"
 	exec lightningd \
@@ -228,6 +281,8 @@ cmd_status() {
 		fi
 	else
 		echo "down"
+		# Hint at *why* — recent BROKEN/FATAL line + log path.
+		report_last_error
 		rc=2
 	fi
 	exit $rc
@@ -319,6 +374,8 @@ install_macos_user() {
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
     <key>StandardOutPath</key>
     <string>${LIGHTNING_DIR}/log</string>
     <key>StandardErrorPath</key>
@@ -412,6 +469,8 @@ EOF
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
     <key>StandardOutPath</key>
     <string>${state_dir}/log</string>
     <key>StandardErrorPath</key>
@@ -445,7 +504,9 @@ ExecStart=$(command -v lightningd) --lightning-dir=$LIGHTNING_DIR --network=$LIG
 ExecStop=$(command -v lightning-cli) --lightning-dir=$LIGHTNING_DIR --network=$LIGHTNING_NETWORK stop
 PIDFile=$LIGHTNING_DIR/lightningd-${LIGHTNING_NETWORK}.pid
 Restart=on-failure
-RestartSec=5
+RestartSec=30
+StartLimitIntervalSec=300
+StartLimitBurst=3
 
 [Install]
 WantedBy=default.target
@@ -505,7 +566,9 @@ User=clightning
 Group=clightning
 ExecStart=$(command -v lightningd) --lightning-dir=/var/lib/clightning --conf=$cfg
 Restart=on-failure
-RestartSec=5
+RestartSec=30
+StartLimitIntervalSec=300
+StartLimitBurst=3
 ProtectSystem=full
 ProtectHome=true
 NoNewPrivileges=true
