@@ -437,9 +437,9 @@ cmd_init() {
 	echo "$LIGHTNING_DIR" > "$wdir/lightning-dir"
 
 	git -C "$wdir" init --quiet
-	git -C "$wdir" add .gitignore state.sql lightning-dir 2>/dev/null || true
-	git -C "$wdir" commit -m "wallet: init" --quiet 2>/dev/null || true
 
+	# Install the pre-commit hook BEFORE the first commit so it can
+	# auto-dump state.db to state.sql and stage it during this commit.
 	mkdir -p "$wdir/.git/hooks"
 	cat > "$wdir/.git/hooks/pre-commit" <<'EOF'
 #!/bin/bash
@@ -452,6 +452,13 @@ if [ -f state.db ]; then
 fi
 EOF
 	chmod +x "$wdir/.git/hooks/pre-commit"
+
+	# git commit prints a "nothing to commit" hint on STDOUT (not
+	# stderr) when staging is empty; redirect both. --quiet only
+	# suppresses success output.
+	git -C "$wdir" add .gitignore lightning-dir >/dev/null 2>&1
+	git -C "$wdir" commit -m "wallet: init" --quiet >/dev/null 2>&1 || \
+		warn "initial commit failed — wallet created but unversioned (check 'git config user.email')"
 
 	echo "ok"
 	echo "wallet: $wdir"
@@ -470,9 +477,10 @@ cmd_push() {
 		sqlite3 "$wdir/state.db" .dump > "$wdir/state.sql.tmp"
 		mv "$wdir/state.sql.tmp" "$wdir/state.sql"
 	fi
-	git -C "$wdir" add -A
-	git -C "$wdir" commit --allow-empty -m "wallet: auto-sync $(date -u +%Y-%m-%dT%H:%M:%SZ)" --quiet 2>/dev/null || true
-	git -C "$wdir" push "$remote" 2>&1 || warn "push failed — set remote with 'git -C $wdir remote add $remote <url>'"
+	git -C "$wdir" add -A >/dev/null 2>&1
+	git -C "$wdir" commit --allow-empty -m "wallet: auto-sync $(date -u +%Y-%m-%dT%H:%M:%SZ)" --quiet >/dev/null 2>&1 || true
+	git -C "$wdir" push "$remote" >/dev/null 2>&1 || \
+		warn "push failed — set remote with 'git -C $wdir remote add $remote <url>'"
 	echo "ok"
 }
 
