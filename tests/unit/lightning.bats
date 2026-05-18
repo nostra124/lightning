@@ -384,6 +384,100 @@ EOF
 	grep -q "<integer>30</integer>" "$plist"
 }
 
+@test "FEAT-183: daemon install --esplora writes managed sauron block" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install --esplora
+	[ "$status" -eq 0 ]
+	[ -f "$HOME/.lightning/config" ]
+	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
+	grep -q "sauron-api-endpoint=https://blockstream.info/api" "$HOME/.lightning/config"
+	grep -q "lightning esplora" "$HOME/.lightning/config"
+	# Warning about missing sauron.py should appear (file isn't present).
+	[[ "$output" == *"sauron plugin file isn't installed"* ]]
+}
+
+@test "FEAT-183: daemon install --esplora <url> honors custom endpoint" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install --esplora "https://mempool.space/api"
+	[ "$status" -eq 0 ]
+	grep -q "sauron-api-endpoint=https://mempool.space/api" "$HOME/.lightning/config"
+	# Must not contain the default endpoint as a fallback.
+	! grep -q "sauron-api-endpoint=https://blockstream.info/api" "$HOME/.lightning/config"
+}
+
+@test "FEAT-183: daemon install --no-esplora strips the managed block" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	# First enable esplora.
+	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
+	grep -q "sauron-api-endpoint" "$HOME/.lightning/config"
+	# Then disable.
+	run "$LIGHTNING_BIN" daemon install --no-esplora
+	[ "$status" -eq 0 ]
+	! grep -q "sauron-api-endpoint" "$HOME/.lightning/config"
+	! grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
+}
+
+@test "FEAT-183: daemon install --esplora is idempotent (no duplicate blocks)" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
+	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
+	"$LIGHTNING_BIN" daemon install --esplora >/dev/null 2>&1
+	# Exactly one block, not three.
+	local count; count=$(grep -c "lightning esplora" "$HOME/.lightning/config" || true)
+	[ "$count" -eq 2 ]   # begin + end markers
+}
+
+@test "FEAT-183: daemon start skips bitcoind check in esplora mode" {
+	echo "down" > "$MOCK_STATE"
+	mkdir -p "$HOME/.lightning"
+	# Pre-seed esplora config (bypass install's WARNING banner).
+	cat > "$HOME/.lightning/config" <<EOF
+# >>> lightning esplora — managed by 'daemon install --esplora'
+disable-plugin=bcli
+sauron-api-endpoint=https://blockstream.info/api
+# <<< lightning esplora
+EOF
+	# Stub lightningd that flips MOCK_STATE so post-start probe passes.
+	cat > "$BIN_SHIM/lightningd" <<EOF
+#!/bin/sh
+rm -f "$MOCK_STATE"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/lightningd"
+	# Pretend bitcoin-cli is absent (would normally warn).
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	# Skip message present, warning absent.
+	[[ "$output" == *"esplora backend"* ]]
+	[[ "$output" == *"skipping bitcoind check"* ]]
+	[[ "$output" != *"bitcoin-cli not found"* ]]
+}
+
+@test "FEAT-183: daemon status reports backend in healthy + down output" {
+	mkdir -p "$HOME/.lightning"
+	cat > "$HOME/.lightning/config" <<EOF
+# >>> lightning esplora — managed by 'daemon install --esplora'
+disable-plugin=bcli
+sauron-api-endpoint=https://example.com/api
+# <<< lightning esplora
+EOF
+	# Healthy path.
+	run "$LIGHTNING_BIN" daemon status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"backend: esplora"* ]]
+	[[ "$output" == *"https://example.com/api"* ]]
+	# Down path.
+	echo "down" > "$MOCK_STATE"
+	run "$LIGHTNING_BIN" daemon status
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"backend: esplora"* ]]
+}
+
 @test "FEAT-183: daemon start falls through to direct mode without a service unit" {
 	echo "down" > "$MOCK_STATE"
 	# Ensure no plist / unit exists.
