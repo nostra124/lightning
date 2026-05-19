@@ -31,7 +31,37 @@ to run it.
 
 ## Implementation
 
-### Surface
+The fix splits into two layers — a cheap-and-reliable persistence
+layer (`--important-peer`), and an opportunistic re-seed layer
+(`peer keepalive`) for the case where lightningd itself was paused.
+
+### Layer 1 (primary): lightningd `--important-peer`
+
+clightning ships a built-in `--important-peer=<id>@<host>:<port>`
+config flag that flips the named node into channel-peer retry
+semantics — retries forever with exponential backoff — *without*
+requiring a channel to exist. Same persistence as channel-pinning,
+zero capital locked, zero new processes.
+
+`peer bootstrap` and `daemon install --trustedcoin` (or any flag
+that touches the managed config block) should append an
+`important-peer=` line per bootstrap node to
+`$LIGHTNING_DIR/config`. Same managed-block pattern as the
+backend config — markers wrap a generated section that can be
+re-written or stripped.
+
+Catch: `important-peer` is read at lightningd startup. Adding /
+removing one requires a daemon restart for clightning to pick it
+up. `peer bootstrap` already produces *runtime* connections via
+`lightning-cli connect`, so the persisted important-peer lines
+are belt-and-braces for the *next* lightningd startup.
+
+### Layer 2 (fallback): `peer keepalive` for laptop-sleep recovery
+
+`--important-peer` doesn't help when lightningd itself was paused
+(SIGSTOP / laptop suspend). lightningd wakes up with stale TCP
+state, has to reconnect; if the network came back at a different
+NAT'd IP it may take minutes. A scheduler can speed this up.
 
 ```
 lightning peer keepalive [--threshold N] [--target N]
@@ -100,17 +130,23 @@ have their own monitoring.
 
 ## Acceptance Criteria
 
-1. `lightning peer keepalive` with no flags exits 0 and runs
+1. `peer bootstrap` (and `daemon install`) appends an
+   `important-peer=<uri>` line per bootstrap node to
+   $LIGHTNING_DIR/config, wrapped in a managed-block marker so
+   the same writer can re-run without duplicating lines.
+2. `lightning peer keepalive` with no flags exits 0 and runs
    bootstrap iff connected-peer count is < 3.
-2. `lightning peer keepalive --threshold 0 --target 0` is a no-op
+3. `lightning peer keepalive --threshold 0 --target 0` is a no-op
    that always exits 0 (for users who want the verb registered
    but no automation).
-3. On macOS, `daemon install` writes BOTH the lightningd plist
+4. On macOS, `daemon install` writes BOTH the lightningd plist
    AND the keepalive plist. `launchctl unload` of the lightningd
    plist alone leaves the keepalive untouched (and vice versa).
-4. On Linux, `daemon install` writes lightning-keepalive.timer +
+5. On Linux, `daemon install` writes lightning-keepalive.timer +
    lightning-keepalive.service alongside lightning.service.
-5. Bats coverage:
+6. Bats coverage:
+   - bootstrap writes managed important-peer block; re-runs
+     overwrite, don't duplicate
    - keepalive runs bootstrap when peers below threshold (stub
      listpeers to return N peers, assert bootstrap was called)
    - keepalive is a no-op when peers >= threshold
@@ -119,11 +155,16 @@ have their own monitoring.
 
 ## Out of scope
 
-- Channel-pinning approaches (open a tiny channel to a bootstrap
-  node so clightning treats it as a retryable peer). Real
-  on-chain commitment + dust risk.
-- Generic event-bus / clightning-plugin approach. A simple timer
-  + network-event hook is enough for the laptop use case.
+- **Channel-pinning** (open a tiny channel to a bootstrap node so
+  clightning treats it as a retryable peer). Same persistence
+  as `--important-peer` but with on-chain capital lock-up +
+  privacy cost (publishes the bootstrap link on the chain).
+  `--important-peer` is strictly better for our pure-gossip use.
+- **clightning plugin** (subscribe to disconnect notifications,
+  drive reconnects from inside lightningd). Event-driven and
+  cleaner in theory, but original code to maintain, and useless
+  for the laptop-sleep case (paused with the daemon). Layer 1 +
+  Layer 2 covers everything a plugin would, with less code.
 
 ## Milestone
 
