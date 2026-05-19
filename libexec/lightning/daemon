@@ -382,13 +382,40 @@ cmd_start() {
 	# the moment they fork the process — but lightningd may still die
 	# during init (no bitcoind, port in use, bad config). Give it a
 	# couple of seconds, then surface what happened if it's not up.
+	local up=0
 	for _ in 1 2 3 4 5; do
-		daemon_running && return 0
+		if daemon_running; then up=1; break; fi
 		sleep 1
 	done
-	error "daemon did not come up — exited during startup"
-	report_last_error
-	exit 2
+	if [ "$up" -ne 1 ]; then
+		error "daemon did not come up — exited during startup"
+		report_last_error
+		exit 2
+	fi
+
+	# Auto-bootstrap the gossip graph on first start. lightningd
+	# has no peer-discovery built in: a fresh node sits at zero
+	# peers, can't route, and LSPs can't reach it to open inbound.
+	# `peer bootstrap` connects to ~5 well-known nodes.
+	auto_bootstrap_peers
+}
+
+# Called from cmd_start after the daemon is confirmed running.
+# Runs `peer bootstrap` once when the peer count is zero, which is
+# the case on a fresh install. Subsequent starts skip it because
+# clightning persists peer state.
+auto_bootstrap_peers() {
+	if [ -n "$LIGHTNING_NO_BOOTSTRAP" ]; then
+		return 0
+	fi
+	[ -x "$SELF_LIBEXEC/lightning/peer" ] || return 0
+	local count
+	count=$(cli listpeers 2>/dev/null | jq -r '.peers | length' 2>/dev/null) || count=""
+	[ -n "$count" ] || return 0
+	if [ "$count" -eq 0 ] 2>/dev/null; then
+		info "zero peers — bootstrapping the gossip graph"
+		"$SELF_LIBEXEC/lightning/peer" bootstrap || true
+	fi
 }
 
 cmd_run() {

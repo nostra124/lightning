@@ -1,0 +1,233 @@
+#!/bin/bash
+# lightning peer — Lightning network peering.
+#
+# Peers in clightning are persistent TCP connections to other nodes.
+# Channels are owned by `lightning channel`; this object covers the
+# bare peering layer (connect, disconnect, list, bootstrap). Bare
+# peering is the prerequisite for gossip graph sync, BOLT-12
+# fetchinvoice, and LSPS1 / LSP channel-open requests.
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning peer <subcommand> [args]
+
+   Manage Lightning network peering — persistent TCP connections
+   to other nodes. Peers don't imply channels; they're the
+   prerequisite for gossip sync, BOLT-12 fetchinvoice, and any
+   LSP / LSPS1 inbound-liquidity request.
+
+subcommands:
+   list                       connected peers (TSV)
+   connect <node-uri>         open a bare TCP connection
+                              (pubkey@host:port)
+   disconnect <node-id>       tear down the connection
+   bootstrap [-n N]           connect to N well-known nodes
+                              (default 5; reads
+                              \$PREFIX/share/lightning/bootstrap-nodes.txt
+                              with ~/.lightning/bootstrap-nodes.txt or
+                              \$LIGHTNING_BOOTSTRAP_NODES overriding)
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
+}
+
+# -----------------------------------------------------------------------------
+# list / connect / disconnect
+# -----------------------------------------------------------------------------
+
+cmd_list() {
+	require_cli
+	printf "pubkey\tconnected\tfeatures\taddr\n"
+	cli listpeers | jq -r '.peers[] | [
+		.id,
+		(.connected|tostring),
+		(.features // "-"),
+		((.netaddr // [])[0] // "-")
+	] | @tsv'
+}
+
+cmd_connect() {
+	[ $# -lt 1 ] && { error "connect needs <node-uri> (pubkey@host:port)"; exit 1; }
+	require_cli
+	local uri="$1"
+	info "connecting to $uri"
+	local result; result=$(cli connect "$uri") || {
+		error "connect failed"; exit 4; }
+	local id; id=$(jq -r '.id // empty' <<<"$result")
+	echo "ok"
+	echo "id: ${id:-$uri}"
+}
+
+cmd_disconnect() {
+	[ $# -lt 1 ] && { error "disconnect needs <node-id>"; exit 1; }
+	require_cli
+	local id="$1"
+	info "disconnecting $id"
+	cli disconnect "$id" force=true >/dev/null || {
+		error "disconnect failed"; exit 4; }
+	echo "ok"
+}
+
+# -----------------------------------------------------------------------------
+# bootstrap — seed the gossip graph from well-known nodes
+# -----------------------------------------------------------------------------
+
+# Resolve the bootstrap-nodes file, in precedence order:
+#   1. $LIGHTNING_BOOTSTRAP_NODES (env var)
+#   2. ~/.lightning/bootstrap-nodes.txt (user override)
+#   3. $PREFIX/share/lightning/bootstrap-nodes.txt (shipped default)
+#      — discovered relative to $SELF_LIBEXEC; falls back to in-tree.
+bootstrap_nodes_file() {
+	if [ -n "$LIGHTNING_BOOTSTRAP_NODES" ] && [ -f "$LIGHTNING_BOOTSTRAP_NODES" ]; then
+		echo "$LIGHTNING_BOOTSTRAP_NODES"; return
+	fi
+	if [ -f "$LIGHTNING_DIR/bootstrap-nodes.txt" ]; then
+		echo "$LIGHTNING_DIR/bootstrap-nodes.txt"; return
+	fi
+	# Locate the shipped file relative to SELF_LIBEXEC (set by bin/lightning).
+	local share_dir; share_dir="${SELF_LIBEXEC%/libexec}/share/lightning"
+	if [ -f "$share_dir/bootstrap-nodes.txt" ]; then
+		echo "$share_dir/bootstrap-nodes.txt"; return
+	fi
+	return 1
+}
+
+cmd_bootstrap() {
+	require_cli
+	local n=5
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			-n|--count) n="$2"; shift 2 ;;
+			*) error "bootstrap: unknown arg '$1'"; exit 1 ;;
+		esac
+	done
+
+	if [ -n "$LIGHTNING_NO_BOOTSTRAP" ]; then
+		info "LIGHTNING_NO_BOOTSTRAP set — skipping bootstrap"
+		return 0
+	fi
+
+	local file; file=$(bootstrap_nodes_file) || {
+		error "no bootstrap-nodes file found. Drop one at"
+		error "    $LIGHTNING_DIR/bootstrap-nodes.txt"
+		error "or set LIGHTNING_BOOTSTRAP_NODES to its path."
+		exit 4
+	}
+	info "bootstrap source: $file"
+
+	# Parse the file: ignore comments + blanks, take the first whitespace-
+	# delimited token of each line (the URI), then random-sample N entries.
+	local uris; uris=$(grep -v '^\s*\(#\|$\)' "$file" | awk '{print $1}')
+	if [ -z "$uris" ]; then
+		warn "bootstrap-nodes file is empty after filtering"
+		return 0
+	fi
+
+	# Randomise + truncate to N. `shuf` on Linux, `sort -R` everywhere else.
+	local picks
+	if command -v shuf >/dev/null 2>&1; then
+		picks=$(printf '%s\n' "$uris" | shuf | head -n "$n")
+	else
+		picks=$(printf '%s\n' "$uris" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -k1,1 | cut -f2- | head -n "$n")
+	fi
+
+	local ok=0 fail=0
+	while IFS= read -r uri; do
+		[ -n "$uri" ] || continue
+		if cli connect "$uri" >/dev/null 2>&1; then
+			info "  connected $uri"
+			ok=$((ok + 1))
+		else
+			warn "  failed    $uri"
+			fail=$((fail + 1))
+		fi
+	done <<<"$picks"
+
+	echo "ok"
+	echo "connected: $ok"
+	echo "failed:    $fail"
+}
+
+# -----------------------------------------------------------------------------
+# Per-sub help
+# -----------------------------------------------------------------------------
+
+subhelp() {
+	case "$1" in
+		list)
+			cat <<'EOF'
+usage: lightning peer list
+
+TSV of connected peers. Columns:
+   pubkey<TAB>connected<TAB>features<TAB>addr
+EOF
+			;;
+		connect)
+			cat <<'EOF'
+usage: lightning peer connect <node-uri>
+
+Open a bare TCP connection to <node-uri> (pubkey@host:port).
+The connection persists for gossip + LSPS messaging; no channel
+is opened. Idempotent — connecting to an already-connected peer
+is a no-op.
+EOF
+			;;
+		disconnect)
+			cat <<'EOF'
+usage: lightning peer disconnect <node-id>
+
+Tear down an existing connection. Uses force=true so connections
+with no open channels disconnect immediately.
+EOF
+			;;
+		bootstrap)
+			cat <<'EOF'
+usage: lightning peer bootstrap [-n N]
+
+Connect to N well-known nodes (default 5) to seed the local
+gossip graph. Without peers, lightningd has no channel-graph
+to route payments through, and LSPs can't reach you to open
+inbound channels.
+
+Source resolution (first hit wins):
+   $LIGHTNING_BOOTSTRAP_NODES        env-var path
+   ~/.lightning/bootstrap-nodes.txt  user override
+   $PREFIX/share/lightning/bootstrap-nodes.txt  (shipped)
+
+Set LIGHTNING_NO_BOOTSTRAP=1 to skip entirely — useful in CI
+or for nodes that already have a curated peer set.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+case "$SUB" in
+	list)       cmd_list "$@" ;;
+	connect)    cmd_connect "$@" ;;
+	disconnect) cmd_disconnect "$@" ;;
+	bootstrap)  cmd_bootstrap "$@" ;;
+	*) error "peer: unknown subcommand '$SUB'"; usage; exit 1 ;;
+esac

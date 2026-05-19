@@ -140,8 +140,9 @@ generic:
    version                 print the version of $SELF
 
 objects:
-   wallet                  your Lightning identity (info, peers, balance,
-                           seed, unlock, push/pull, backup/restore)
+   wallet                  your Lightning identity (info, balance, seed,
+                           unlock, push/pull, backup/restore)
+   peer                    network peering (list, connect, bootstrap)
    account                 logical accounts and api keys
    channel                 Lightning channels (open, close, balance, scb)
    daemon                  lightningd lifecycle (start, stop, logs, install)
@@ -149,8 +150,8 @@ objects:
    invoice                 BOLT-11 invoices (create, pay)
    offer                   BOLT-12 offers (create, pay)
    address                 Lightning Addresses (resolve, pay, create)
-   lnurl                   LNURL (decode, pay)
-   liquidity               inbound / outbound (status, loop, boltz, lsp)
+   lnurl                   LNURL (decode, pay; LSPS1)
+   liquidity               inbound / outbound (totals, loop, boltz, lsp)
    ledger                  derived ledger (list, sum, balance, export)
 
 one-shots:

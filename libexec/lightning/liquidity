@@ -14,7 +14,7 @@ set -e
 
 usage() {
 	cat >&2 <<EOF
-usage: lightning liquidity <subcommand> [args]
+usage: lightning liquidity [<subcommand> [args]]
 
    Inbound/outbound liquidity management. Channels are
    bidirectional but capacity sits asymmetrically on one side or
@@ -23,8 +23,12 @@ usage: lightning liquidity <subcommand> [args]
    (LSPS1 / BLIP-51). Each sub-command also accepts --help.
    See FEAT-175.
 
+   With no subcommand, prints a single-record recfile summary:
+   outbound_sat / inbound_sat / channels / ratio.
+
 subcommands:
-   status                              per-channel + total capacity
+   status                              per-channel TSV
+   totals                              same as no-arg invocation (recfile)
    in <amount> [--provider <name>]     acquire inbound (default provider)
    out <amount> [--provider <name>]    acquire outbound
    loop in|out <amount>               Lightning Loop
@@ -34,7 +38,10 @@ subcommands:
 EOF
 }
 
-[ $# -lt 1 ] && { usage; exit 1; }
+# No-arg invocation prints the totals (recfile). Anything else
+# dispatches normally below.
+NO_ARGS=0
+[ $# -lt 1 ] && NO_ARGS=1
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
@@ -56,23 +63,34 @@ default_provider() {
 	cat "$dir/default-provider" 2>/dev/null || echo "loop"
 }
 
+# Multi-row per-channel TSV. Totals moved out to cmd_totals so the
+# format stays uniform (TSV-only here; recfile-only there).
 cmd_status() {
-	echo "# per-channel inbound/outbound capacity (msat)" >&2
 	cli listpeerchannels | jq -r '
-		["channel_id","peer","inbound_msat","outbound_msat","state"],
+		["channel_id","peer","inbound_sat","outbound_sat","state"],
 		(.channels[] | [
 			(.short_channel_id // .channel_id // "-"),
 			.peer_id,
-			(.inbound_msat // 0),
-			(.total_msat - .to_us_msat // 0),
+			((.inbound_msat // 0) / 1000 | floor),
+			(((.total_msat // 0) - (.to_us_msat // 0)) / 1000 | floor),
 			.state
 		]) | @tsv'
-	echo "# totals:" >&2
-	cli listpeerchannels | jq -r '
-		[.channels | length] as $n |
-		[([.channels[].inbound_msat // 0] | add) // 0,
-		 ([.channels[].to_us_msat // 0] | add) // 0] |
-		"inbound_total_msat: \(.[0])\noutbound_total_msat: \(.[1])\nchannels: \($n[0])"' 2>/dev/null
+}
+
+# Single-record summary as a recfile (key: value). This is what
+# `lightning liquidity` (no args) prints — at-a-glance totals.
+cmd_totals() {
+	local json; json=$(cli listpeerchannels 2>/dev/null) || {
+		error "lightning-cli listpeerchannels failed (is the daemon running?)"
+		exit 2
+	}
+	jq -r '
+		((.channels // []) | length) as $n |
+		(([(.channels // [])[].to_us_msat  // 0] | add) // 0 | . / 1000 | floor) as $out |
+		(([(.channels // [])[].inbound_msat // 0] | add) // 0 | . / 1000 | floor) as $in_ |
+		(if ($out + $in_) > 0 then (($out * 100) / ($out + $in_) | floor) else 0 end) as $ratio |
+		"outbound_sat:  \($out)\ninbound_sat:   \($in_)\nchannels:      \($n)\nratio:         \($ratio)/\(100 - $ratio)"
+	' <<<"$json"
 }
 
 cmd_in() {
@@ -262,6 +280,13 @@ EOF
 	esac
 }
 
+# Bare `lightning liquidity` → totals (recfile).
+if [ "$NO_ARGS" -eq 1 ]; then
+	require_cli
+	cmd_totals
+	exit 0
+fi
+
 SUB="$1"; shift || true
 case "${1:-}" in
 	--help|-h) subhelp "$SUB"; exit ;;
@@ -274,6 +299,7 @@ require_cli
 
 case "$SUB" in
 	status)   cmd_status "$@" ;;
+	totals)   cmd_totals "$@" ;;
 	in)       cmd_in "$@" ;;
 	out)      cmd_out "$@" ;;
 	loop)     cmd_loop "$@" ;;

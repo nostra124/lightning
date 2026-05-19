@@ -193,8 +193,14 @@ EOF
 	[ "$output" = "020000000000000000000000000000000000000000000000000000000000000001" ]
 }
 
-@test "FEAT-171: lightning wallet peers returns the TSV header" {
+@test "FEAT-171: wallet peers is deprecated -> hints at 'peer list'" {
 	run "$LIGHTNING_BIN" wallet peers
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"peer list"* ]]
+}
+
+@test "FEAT-171: lightning peer list returns the TSV header" {
+	run "$LIGHTNING_BIN" peer list
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "pubkey	connected	features	addr" ]]
 }
@@ -205,11 +211,18 @@ EOF
 	[[ "${lines[0]}" == "id	peer	capacity	local	remote	state" ]]
 }
 
-@test "FEAT-171: lightning wallet balance returns the TSV header + row" {
+@test "FEAT-171: lightning wallet balance is a recfile (single record)" {
 	run "$LIGHTNING_BIN" wallet balance
 	[ "$status" -eq 0 ]
-	[[ "${lines[0]}" == "onchain_confirmed_sat	onchain_unconfirmed_sat	channels_sat" ]]
-	[[ "${lines[1]}" == "0	0	0" ]]
+	# Three key: value lines, no TSV header.
+	[ "${#lines[@]}" -eq 3 ]
+	[[ "${lines[0]}" == "onchain_confirmed_sat:"* ]]
+	[[ "${lines[1]}" == "onchain_unconfirmed_sat:"* ]]
+	[[ "${lines[2]}" == "channels_sat:"* ]]
+	# Each line ends in the expected zero value (mocked listfunds).
+	[[ "${lines[0]}" == *"0" ]]
+	[[ "${lines[1]}" == *"0" ]]
+	[[ "${lines[2]}" == *"0" ]]
 }
 
 @test "FEAT-171: lightning wallet balance --on-chain prints an address" {
@@ -1021,10 +1034,20 @@ EOF
 # FEAT-175: Liquidity
 # ---------------------------------------------------------------------------
 
-@test "FEAT-175: lightning liquidity (no args) prints usage" {
+@test "FEAT-175: lightning liquidity (no args) prints recfile totals" {
 	run "$LIGHTNING_BIN" liquidity
-	[ "$status" -ne 0 ]
-	[[ "$output" == *"usage"* ]]
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"outbound_sat:"* ]]
+	[[ "$output" == *"inbound_sat:"* ]]
+	[[ "$output" == *"channels:"* ]]
+	[[ "$output" == *"ratio:"* ]]
+}
+
+@test "FEAT-175: lightning liquidity totals matches the no-arg invocation" {
+	run "$LIGHTNING_BIN" liquidity totals
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"outbound_sat:"* ]]
+	[[ "$output" == *"inbound_sat:"* ]]
 }
 
 @test "FEAT-175: lightning liquidity status returns TSV" {
@@ -1276,4 +1299,133 @@ EOF
 	run "$LIGHTNING_BIN" help
 	[[ "$output" == *"plugin"* ]]
 	[[ "$output" == *"reckless"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-198 (peer verb + auto-bootstrap)
+# ---------------------------------------------------------------------------
+
+@test "FEAT-198: lightning peer (no args) prints usage" {
+	run "$LIGHTNING_BIN" peer
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
+}
+
+@test "FEAT-198: lightning peer list returns the TSV header" {
+	run "$LIGHTNING_BIN" peer list
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "pubkey	connected	features	addr" ]]
+}
+
+@test "FEAT-198: lightning peer connect requires a node-uri" {
+	run "$LIGHTNING_BIN" peer connect
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"node-uri"* ]]
+}
+
+@test "FEAT-198: lightning peer bootstrap honors LIGHTNING_NO_BOOTSTRAP" {
+	export LIGHTNING_NO_BOOTSTRAP=1
+	run "$LIGHTNING_BIN" -v peer bootstrap
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"skipping bootstrap"* ]]
+}
+
+@test "FEAT-198: peer bootstrap reads share/lightning/bootstrap-nodes.txt" {
+	# Disable lightning-cli connect so we don't depend on a real
+	# daemon — bootstrap will report all-failed but exit 0.
+	# rm -f first because BIN_SHIM/lightning-cli is a symlink to the
+	# real fixture; cat > would follow the link and clobber the mock.
+	rm -f "$BIN_SHIM/lightning-cli"
+	cat > "$BIN_SHIM/lightning-cli" <<EOF
+#!/bin/sh
+[ "\$1" = "connect" ] && exit 1
+exec "$FIXTURES/lightning-cli-mock" "\$@"
+EOF
+	chmod +x "$BIN_SHIM/lightning-cli"
+	run "$LIGHTNING_BIN" -v peer bootstrap -n 3
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"bootstrap source:"* ]]
+	[[ "$output" == *"share/lightning/bootstrap-nodes.txt"* ]]
+}
+
+@test "FEAT-198: peer bootstrap respects \$LIGHTNING_BOOTSTRAP_NODES override" {
+	# Custom file with one bogus node.
+	local f="$BATS_TMPDIR/boot.$$"
+	printf '# header\n%s\n' "deadbeef@127.0.0.1:9999  # custom" > "$f"
+	export LIGHTNING_BOOTSTRAP_NODES="$f"
+	rm -f "$BIN_SHIM/lightning-cli"
+	cat > "$BIN_SHIM/lightning-cli" <<EOF
+#!/bin/sh
+[ "\$1" = "connect" ] && exit 1
+exec "$FIXTURES/lightning-cli-mock" "\$@"
+EOF
+	chmod +x "$BIN_SHIM/lightning-cli"
+	run "$LIGHTNING_BIN" -v peer bootstrap
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"$f"* ]]
+	rm -f "$f"
+}
+
+@test "FEAT-198: daemon start auto-bootstraps when peer count is 0" {
+	# Daemon down at first, then comes up. Peers count = 0 → bootstrap should run.
+	echo "down" > "$MOCK_STATE"
+	# Stub lightningd: turns the mock state on AND seeds an empty peers
+	# response. The wrapper around lightning-cli needs to return success
+	# for getinfo + listpeers with empty .peers, and track 'connect' calls.
+	rm -f "$HOME/Library/LaunchAgents/network.lightning.lightningd.plist" 2>/dev/null
+	rm -f "$HOME/.config/systemd/user/lightning.service" 2>/dev/null
+	cat > "$BIN_SHIM/lightningd" <<EOF
+#!/bin/sh
+rm -f "$MOCK_STATE"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/lightningd"
+
+	# Wrap lightning-cli: getinfo + listpeers (empty) succeed; connect
+	# attempts are silently dropped so bootstrap completes.
+	rm -f "$BIN_SHIM/lightning-cli"
+	cat > "$BIN_SHIM/lightning-cli" <<EOF
+#!/bin/sh
+# Drop --lightning-dir=/--network= flags.
+while [ \$# -gt 0 ]; do case "\$1" in --*=*) shift ;; *) break ;; esac; done
+case "\$1" in
+	getinfo)
+		[ -f "$MOCK_STATE" ] && exit 1
+		echo '{"id":"x","alias":"x","color":"x","network":"regtest","version":"v","blockheight":1,"num_active_channels":0,"num_pending_channels":0,"num_inactive_channels":0,"num_peers":0}'
+		;;
+	listpeers)  echo '{"peers": []}' ;;
+	listfunds)  echo '{"outputs": [], "channels": []}' ;;
+	connect)    echo "{\"id\":\"\$2\"}" ;;   # claim success
+	*) exit 0 ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/lightning-cli"
+
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"zero peers"* ]]
+	[[ "$output" == *"bootstrapping"* ]]
+}
+
+@test "FEAT-198: daemon start skips bootstrap when LIGHTNING_NO_BOOTSTRAP set" {
+	echo "down" > "$MOCK_STATE"
+	rm -f "$HOME/Library/LaunchAgents/network.lightning.lightningd.plist" 2>/dev/null
+	rm -f "$HOME/.config/systemd/user/lightning.service" 2>/dev/null
+	cat > "$BIN_SHIM/lightningd" <<EOF
+#!/bin/sh
+rm -f "$MOCK_STATE"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/lightningd"
+	export LIGHTNING_NO_BOOTSTRAP=1
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	# Should NOT have run the bootstrap path.
+	[[ "$output" != *"bootstrapping the gossip graph"* ]]
+}
+
+@test "FEAT-198: top-level help lists peer" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"peer"* ]]
+	[[ "$output" == *"bootstrap"* ]]
 }
