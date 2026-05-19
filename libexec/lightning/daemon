@@ -20,22 +20,57 @@ LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 NETWORK_DIR="$LIGHTNING_DIR/$LIGHTNING_NETWORK"
 RPC_FILE="$NETWORK_DIR/lightning-rpc"
 LAUNCHD_LABEL="network.lightning.lightningd"
+LIGHTNING_CONF="$LIGHTNING_DIR/config"
+BACKEND_BLOCK_BEGIN="# >>> lightning backend — managed by 'daemon install'"
+BACKEND_BLOCK_END="# <<< lightning backend"
+# Legacy markers from the dropped --esplora path; stripped on every
+# install so existing configs migrate cleanly.
+LEGACY_ESPLORA_BEGIN="# >>> lightning esplora — managed by 'daemon install --esplora'"
+LEGACY_ESPLORA_END="# <<< lightning esplora"
+TRUSTEDCOIN_REPO="nbd-wtf/trustedcoin"
+TRUSTEDCOIN_VERSION="v0.8.6"
 
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 
 is_macos() { [ "$(uname -s)" = "Darwin" ]; }
 
 launchd_plist() {
-	if [ "$EUID" -eq 0 ]; then
-		echo "/Library/LaunchDaemons/${LAUNCHD_LABEL}.plist"
+	# Per-user LaunchAgent first; fall back to the system path if a
+	# LaunchDaemon plist exists (running as the operator usually
+	# means the per-user one; --system install writes the other).
+	local user_plist="$HOME/Library/LaunchAgents/${LAUNCHD_LABEL}.plist"
+	local sys_plist="/Library/LaunchDaemons/${LAUNCHD_LABEL}.plist"
+	if [ -f "$user_plist" ]; then
+		echo "$user_plist"
+	elif [ -f "$sys_plist" ]; then
+		echo "$sys_plist"
+	elif [ "$EUID" -eq 0 ]; then
+		echo "$sys_plist"
 	else
-		echo "$HOME/Library/LaunchAgents/${LAUNCHD_LABEL}.plist"
+		echo "$user_plist"
 	fi
 }
 
-launchd_mode() {
+# A plist is *installed* (file on disk).
+launchd_installed() {
+	is_macos && [ -f "$(launchd_plist)" ]
+}
+
+# A plist is *loaded* into launchd (live job).
+launchd_loaded() {
 	is_macos && command -v launchctl >/dev/null 2>&1 && \
 		launchctl list "$LAUNCHD_LABEL" >/dev/null 2>&1
+}
+
+# Linux systemd --user unit installed for this account.
+systemd_user_installed() {
+	[ -f "$HOME/.config/systemd/user/lightning.service" ]
+}
+
+# Linux systemd system unit enabled.
+system_mode() {
+	command -v systemctl >/dev/null 2>&1 && \
+		systemctl --quiet is-enabled clightningd.service 2>/dev/null
 }
 
 usage() {
@@ -69,8 +104,215 @@ daemon_running() {
 	command -v lightning-cli >/dev/null 2>&1 && cli getinfo >/dev/null 2>&1
 }
 
-system_mode() {
-	systemctl --quiet is-enabled clightningd.service 2>/dev/null
+# Non-blocking sanity check on the Bitcoin backend. lightningd's bcli
+# plugin needs a reachable bitcoind; without it the daemon prints
+# "BROKEN plugin-bcli: The Bitcoin backend died" and exits seconds
+# after startup. Returns 0 if bitcoind looks usable, 1 otherwise.
+# Callers should warn-and-continue, not exit — the user may be using
+# a non-default backend (e.g. trustedcoin).
+check_bitcoind() {
+	# Skip the check entirely when the user opted into a public backend.
+	if backend_enabled; then
+		info "$(backend_name) backend — skipping bitcoind check"
+		return 0
+	fi
+	if ! command -v bitcoin-cli >/dev/null 2>&1; then
+		warn "bitcoin-cli not found — lightningd needs a Bitcoin backend"
+		warn "  install bitcoind, or run \`lightning daemon install --trustedcoin\`"
+		warn "  to use public block explorers (degrades trust)"
+		return 1
+	fi
+	if ! bitcoin-cli -getinfo >/dev/null 2>&1; then
+		warn "bitcoind isn't reachable — lightningd will likely crash on startup"
+		warn "  start it:            bitcoind -daemon"
+		warn "  pruned (~550 MB):    bitcoind -daemon -prune=550"
+		warn "  or public explorers: lightning daemon install --trustedcoin"
+		return 1
+	fi
+	return 0
+}
+
+# Generic managed-backend-block helpers. The same markers wrap any
+# non-default backend — switching backends rewrites the block, and
+# `--bitcoind` (or no flag on a fresh install) leaves no block at all.
+
+# Returns 0 if a managed backend block is present.
+backend_enabled() {
+	[ -f "$LIGHTNING_CONF" ] && grep -qF "$BACKEND_BLOCK_BEGIN" "$LIGHTNING_CONF"
+}
+
+# Names the currently-enabled non-default backend: trustedcoin / bitcoind.
+backend_name() {
+	if [ -f "$LIGHTNING_CONF" ] && \
+	   awk -v begin="$BACKEND_BLOCK_BEGIN" -v end="$BACKEND_BLOCK_END" '
+		$0 == begin {in_block=1; next}
+		$0 == end   {in_block=0; next}
+		in_block && $0 ~ /trustedcoin/ {found=1}
+		END {exit !found}
+	   ' "$LIGHTNING_CONF"; then
+		echo "trustedcoin"
+	else
+		echo "bitcoind"
+	fi
+}
+
+# Strip the managed backend block (and the legacy esplora block from
+# the dropped --esplora path) so we start from a clean slate.
+backend_disable() {
+	[ -f "$LIGHTNING_CONF" ] || return 0
+	local tmp; tmp=$(mktemp "$LIGHTNING_CONF.XXXXXX")
+	awk \
+		-v b1="$BACKEND_BLOCK_BEGIN"  -v e1="$BACKEND_BLOCK_END" \
+		-v b2="$LEGACY_ESPLORA_BEGIN" -v e2="$LEGACY_ESPLORA_END" '
+		$0 == b1 || $0 == b2 {in_block=1; next}
+		$0 == e1 || $0 == e2 {in_block=0; next}
+		!in_block   {print}
+	' "$LIGHTNING_CONF" > "$tmp"
+	mv "$tmp" "$LIGHTNING_CONF"
+	# Trim trailing blank lines.
+	[ -s "$LIGHTNING_CONF" ] && sed -e :a -e '/^$/{$d;N;ba' -e '}' -i.bak "$LIGHTNING_CONF" 2>/dev/null
+	rm -f "$LIGHTNING_CONF.bak"
+}
+
+# Enable trustedcoin: idempotent, replaces any previous managed block.
+backend_enable_trustedcoin() {
+	mkdir -p "$LIGHTNING_DIR"
+	backend_disable
+
+	cat >&2 <<'EOF'
+
+  WARNING: enabling trustedcoin backend.
+  The Lightning node will fetch chain data over HTTPS from public
+  block explorers (blockstream.info, mempool.space, mempool.emzy.de,
+  blockchair.com, blockchain.info — trustedcoin rotates through
+  them as a fallback chain).
+  Trade-off: those endpoints see all your address queries and could
+  lie about block contents. They also charge you implicit trust
+  jointly — a coordinated lie would land. Use only if you can't
+  run bitcoind. Pruned bitcoind (prune=550, ~550 MB) is the
+  self-sovereign alternative.
+
+EOF
+	{
+		[ -s "$LIGHTNING_CONF" ] && echo
+		echo "$BACKEND_BLOCK_BEGIN"
+		echo "# Replace bitcoind/bcli with the trustedcoin plugin"
+		echo "# (https://github.com/$TRUSTEDCOIN_REPO)."
+		echo "disable-plugin=bcli"
+		echo "$BACKEND_BLOCK_END"
+	} >> "$LIGHTNING_CONF"
+
+	info "trustedcoin enabled (multi-explorer fallback)"
+	info "config block written to $LIGHTNING_CONF"
+
+	install_trustedcoin_plugin
+}
+
+install_trustedcoin_plugin() {
+	local plugins_dir="$LIGHTNING_DIR/plugins"
+	local bin="$plugins_dir/trustedcoin"
+
+	if [ -x "$bin" ]; then
+		info "trustedcoin plugin already present at $bin"
+		return 0
+	fi
+
+	mkdir -p "$plugins_dir"
+
+	local os arch
+	case "$(uname -s)" in
+		Linux)   os=linux   ;;
+		Darwin)  os=darwin  ;;
+		FreeBSD) os=freebsd ;;
+		OpenBSD) os=openbsd ;;
+		*) error "trustedcoin: unsupported OS '$(uname -s)'"; return 1 ;;
+	esac
+	case "$(uname -m)" in
+		x86_64|amd64)   arch=amd64 ;;
+		arm64|aarch64)  arch=arm64 ;;
+		*) error "trustedcoin: unsupported arch '$(uname -m)'"; return 1 ;;
+	esac
+
+	if [ "$os" = "darwin" ]; then
+		install_trustedcoin_via_go "$bin"
+		return $?
+	fi
+
+	if ! command -v curl >/dev/null 2>&1; then
+		error "curl not found — install it, or fetch trustedcoin manually from"
+		error "    https://github.com/$TRUSTEDCOIN_REPO/releases"
+		return 1
+	fi
+
+	local tarball="trustedcoin-$TRUSTEDCOIN_VERSION-$os-$arch.tar.gz"
+	local url="https://github.com/$TRUSTEDCOIN_REPO/releases/download/$TRUSTEDCOIN_VERSION/$tarball"
+	local tmp; tmp=$(mktemp -d)
+
+	info "fetching trustedcoin $TRUSTEDCOIN_VERSION for $os-$arch"
+	info "  $url"
+	if ! curl -fsSL -o "$tmp/$tarball" "$url"; then
+		rm -rf "$tmp"
+		error "failed to download $tarball — check the URL or your network"
+		error "manual install:"
+		error "    curl -fsSL -o /tmp/$tarball $url"
+		error "    tar -xzf /tmp/$tarball -C $plugins_dir"
+		error "    chmod +x $bin"
+		return 1
+	fi
+	if ! tar -xzf "$tmp/$tarball" -C "$tmp" 2>/dev/null; then
+		rm -rf "$tmp"
+		error "failed to extract $tarball"
+		return 1
+	fi
+	local extracted; extracted=$(find "$tmp" -name 'trustedcoin' -type f | head -1)
+	if [ -z "$extracted" ]; then
+		rm -rf "$tmp"
+		error "no 'trustedcoin' binary found inside $tarball"
+		return 1
+	fi
+	mv "$extracted" "$bin"
+	chmod +x "$bin"
+	rm -rf "$tmp"
+	info "installed $bin"
+}
+
+# macOS path: trustedcoin doesn't ship prebuilt darwin binaries, so
+# build from source via the Go toolchain. GOBIN drops the binary
+# straight into the plugins dir.
+install_trustedcoin_via_go() {
+	local bin="$1"
+	local gobin_dir; gobin_dir=$(dirname "$bin")
+	if ! command -v go >/dev/null 2>&1; then
+		error "trustedcoin doesn't ship a prebuilt macOS binary."
+		error "build from source with Go:"
+		error "    brew install go"
+		error "    GOBIN=$gobin_dir go install github.com/$TRUSTEDCOIN_REPO@$TRUSTEDCOIN_VERSION"
+		return 1
+	fi
+	info "no prebuilt macOS binary upstream — building via 'go install'"
+	info "  GOBIN=$gobin_dir go install github.com/$TRUSTEDCOIN_REPO@$TRUSTEDCOIN_VERSION"
+	if ! GOBIN="$gobin_dir" go install "github.com/$TRUSTEDCOIN_REPO@$TRUSTEDCOIN_VERSION"; then
+		error "go install failed — try the @latest pseudo-version, then:"
+		error "    cp \"\$(go env GOPATH)/bin/trustedcoin\" $bin"
+		return 1
+	fi
+	chmod +x "$bin"
+	info "installed $bin"
+}
+
+# Surface the most recent BROKEN/FATAL line and the daemon log path
+# so the user has a starting point when status is "down".
+report_last_error() {
+	local logfile
+	for candidate in "$LIGHTNING_DIR/log" "$NETWORK_DIR/log"; do
+		[ -f "$candidate" ] && logfile="$candidate" && break
+	done
+	[ -n "$logfile" ] || return 0
+	local last; last=$(grep -E 'BROKEN|FATAL|backend died|died' "$logfile" 2>/dev/null | tail -1)
+	if [ -n "$last" ]; then
+		echo "  last error: $last"
+	fi
+	echo "  log: $logfile  (tail with: lightning daemon logs -f)"
 }
 
 cmd_start() {
@@ -78,12 +320,29 @@ cmd_start() {
 		info "daemon already running"
 		return 0
 	fi
-	if launchd_mode; then
-		info "starting launchd service $LAUNCHD_LABEL"
-		launchctl start "$LAUNCHD_LABEL"
+	# Best-effort pre-flight. Warn-only — the user may be using a
+	# non-bcli backend (trustedcoin) or a non-default bitcoind setup.
+	check_bitcoind || true
+	# Detection order: installed supervisor first. The launchd /
+	# systemd unit handles --daemon (or Type=simple via `daemon run`)
+	# and writes its own logs. Falling through to a direct
+	# `lightningd --daemon` is for users who skipped `daemon install`.
+	if launchd_installed; then
+		local plist; plist=$(launchd_plist)
+		if launchd_loaded; then
+			info "launchctl kickstart $LAUNCHD_LABEL"
+			launchctl kickstart "gui/$(id -u)/$LAUNCHD_LABEL" >/dev/null 2>&1 || \
+				launchctl start "$LAUNCHD_LABEL"
+		else
+			info "launchctl load -w $plist"
+			launchctl load -w "$plist"
+		fi
 	elif system_mode; then
-		info "starting systemd unit clightningd.service"
+		info "sudo systemctl start clightningd.service"
 		sudo systemctl start clightningd.service
+	elif systemd_user_installed; then
+		info "systemctl --user start lightning"
+		systemctl --user start lightning
 	else
 		command -v lightningd >/dev/null || {
 			error "lightningd not found — install Core Lightning"
@@ -91,7 +350,9 @@ cmd_start() {
 		}
 		mkdir -p "$LIGHTNING_DIR"
 		local logfile="$LIGHTNING_DIR/log"
-		info "starting lightningd (user-mode, --daemon, log: $logfile)"
+		info "starting lightningd directly (no service unit installed)"
+		info "   tip: run \`lightning daemon install\` to set up launchd / systemd"
+		info "   log: $logfile"
 		# lightningd writes startup messages to stderr BEFORE forking
 		# (--daemon detaches afterwards), so redirect both streams to
 		# the log file. Otherwise the parent shell sees the leak.
@@ -116,6 +377,45 @@ cmd_start() {
 			sleep 1
 		done
 	fi
+
+	# Post-start probe: supervisors (launchd / systemd) report success
+	# the moment they fork the process — but lightningd may still die
+	# during init (no bitcoind, port in use, bad config). Give it a
+	# couple of seconds, then surface what happened if it's not up.
+	local up=0
+	for _ in 1 2 3 4 5; do
+		if daemon_running; then up=1; break; fi
+		sleep 1
+	done
+	if [ "$up" -ne 1 ]; then
+		error "daemon did not come up — exited during startup"
+		report_last_error
+		exit 2
+	fi
+
+	# Auto-bootstrap the gossip graph on first start. lightningd
+	# has no peer-discovery built in: a fresh node sits at zero
+	# peers, can't route, and LSPs can't reach it to open inbound.
+	# `peer bootstrap` connects to ~5 well-known nodes.
+	auto_bootstrap_peers
+}
+
+# Called from cmd_start after the daemon is confirmed running.
+# Runs `peer bootstrap` once when the peer count is zero, which is
+# the case on a fresh install. Subsequent starts skip it because
+# clightning persists peer state.
+auto_bootstrap_peers() {
+	if [ -n "$LIGHTNING_NO_BOOTSTRAP" ]; then
+		return 0
+	fi
+	[ -x "$SELF_LIBEXEC/lightning/peer" ] || return 0
+	local count
+	count=$(cli listpeers 2>/dev/null | jq -r '.peers | length' 2>/dev/null) || count=""
+	[ -n "$count" ] || return 0
+	if [ "$count" -eq 0 ] 2>/dev/null; then
+		info "zero peers — bootstrapping the gossip graph"
+		"$SELF_LIBEXEC/lightning/peer" bootstrap || true
+	fi
 }
 
 cmd_run() {
@@ -130,6 +430,7 @@ cmd_run() {
 		error "lightningd not found — install Core Lightning"
 		exit 127
 	}
+	check_bitcoind || true
 	mkdir -p "$LIGHTNING_DIR"
 	info "running lightningd in foreground"
 	exec lightningd \
@@ -142,10 +443,19 @@ cmd_stop() {
 		info "daemon not running"
 		return 0
 	fi
-	if launchd_mode; then
-		launchctl stop "$LAUNCHD_LABEL"
+	if launchd_loaded; then
+		# `launchctl stop` would SIGTERM but KeepAlive=true would
+		# restart immediately. Unload removes the job entirely;
+		# `daemon start` reloads it. This matches brew services.
+		local plist; plist=$(launchd_plist)
+		info "launchctl unload $plist"
+		launchctl unload "$plist"
 	elif system_mode; then
+		info "sudo systemctl stop clightningd.service"
 		sudo systemctl stop clightningd.service
+	elif systemd_user_installed; then
+		info "systemctl --user stop lightning"
+		systemctl --user stop lightning
 	else
 		cli stop >/dev/null
 	fi
@@ -164,21 +474,29 @@ cmd_restart() {
 
 cmd_status() {
 	local rc=0
+	local backend="bitcoind/bcli"
+	if backend_enabled; then
+		backend="$(backend_name)"
+	fi
 	if daemon_running; then
 		local info; info=$(cli getinfo)
 		local block; block=$(jq -r .blockheight <<<"$info")
 		local warning; warning=$(jq -r '.warning_lightningd_sync // .warning_bitcoind_sync // empty' <<<"$info")
-		local mode="user"
-		launchd_mode && mode="launchd"
-		system_mode  && mode="system"
+		local mode="direct"
+		if launchd_loaded;             then mode="launchd"
+		elif system_mode;              then mode="systemd-system"
+		elif systemd_user_installed;   then mode="systemd-user"
+		fi
 		if [ -n "$warning" ]; then
-			echo "syncing ($mode-mode, block $block): $warning"
+			echo "syncing ($mode-mode, block $block, backend: $backend): $warning"
 			rc=1
 		else
-			echo "healthy ($mode-mode, block $block)"
+			echo "healthy ($mode-mode, block $block, backend: $backend)"
 		fi
 	else
-		echo "down"
+		echo "down (backend: $backend)"
+		# Hint at *why* — recent BROKEN/FATAL line + log path.
+		report_last_error
 		rc=2
 	fi
 	exit $rc
@@ -188,9 +506,12 @@ cmd_logs() {
 	if system_mode; then
 		exec journalctl -u clightningd.service "$@"
 	fi
-	# Check the well-known locations in order. cmd_start /
-	# install_macos_user both write to $LIGHTNING_DIR/log;
-	# lightningd's own default is $LIGHTNING_DIR/<network>/log.
+	if systemd_user_installed; then
+		exec journalctl --user -u lightning.service "$@"
+	fi
+	# launchd's StandardOutPath and our direct `cmd_start` both write
+	# to $LIGHTNING_DIR/log; lightningd's own default is
+	# $LIGHTNING_DIR/<network>/log.
 	local logfile
 	for candidate in "$LIGHTNING_DIR/log" "$NETWORK_DIR/log"; do
 		if [ -f "$candidate" ]; then
@@ -200,7 +521,7 @@ cmd_logs() {
 	done
 	[ -n "$logfile" ] || {
 		error "no log file yet at $LIGHTNING_DIR/log or $NETWORK_DIR/log"
-		if launchd_mode; then
+		if launchd_loaded; then
 			warn "the LaunchAgent is loaded but hasn't produced a log entry yet"
 		elif daemon_running; then
 			warn "the daemon is running but logging to an unexpected path"
@@ -213,14 +534,28 @@ cmd_logs() {
 }
 
 cmd_install() {
-	local system=0 migrate=0
+	# Tri-state backend toggle:
+	#   -1  leave backend config alone
+	#    1  enable trustedcoin (multi-explorer fallback)
+	#    0  disable any managed backend block (back to bitcoind/bcli)
+	local system=0 migrate=0 backend=-1
 	while [ $# -gt 0 ]; do
 		case "$1" in
-			--system)  system=1; shift ;;
-			--migrate) migrate=1; shift ;;
+			--system)      system=1; shift ;;
+			--migrate)     migrate=1; shift ;;
+			--trustedcoin) backend=1; shift ;;
+			--bitcoind|--bcli|--no-public-backend)
+			               backend=0; shift ;;
 			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
+
+	# Apply the backend toggle BEFORE writing the service unit, so
+	# the post-install hints reflect the chosen backend.
+	case "$backend" in
+		1) backend_enable_trustedcoin ;;
+		0) backend_disable && info "managed backend block removed — using bitcoind (default bcli)" ;;
+	esac
 
 	if is_macos; then
 		if [ $system -eq 1 ]; then
@@ -267,6 +602,8 @@ install_macos_user() {
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
     <key>StandardOutPath</key>
     <string>${LIGHTNING_DIR}/log</string>
     <key>StandardErrorPath</key>
@@ -275,13 +612,11 @@ install_macos_user() {
 </plist>
 EOF
 	info "wrote $plist"
-	info "next: load the agent — this also starts the daemon (RunAtLoad=true)"
-	info "    launchctl load -w $plist"
-	info "verify:"
+	info "next:"
+	info "    lightning daemon start         # routes through launchctl"
 	info "    lightning daemon status"
 	info "    lightning daemon logs -f"
-	info "stop + unload:"
-	info "    launchctl unload $plist"
+	info "stop:  lightning daemon stop"
 }
 
 install_macos_system() {
@@ -362,6 +697,8 @@ EOF
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
     <key>StandardOutPath</key>
     <string>${state_dir}/log</string>
     <key>StandardErrorPath</key>
@@ -374,8 +711,9 @@ EOF
 
 	info "installed system-mode at $state_dir"
 	info "user '$svc_user' created (uid $svc_uid); '$USER' added to its group"
-	info "next: load the daemon — this also starts it (RunAtLoad=true)"
-	info "    sudo launchctl load -w $plist"
+	info "next:"
+	info "    sudo launchctl load -w $plist  # one-time, run as root"
+	info "    lightning daemon status"
 	info "log out and back in for your group membership to take effect"
 }
 
@@ -394,19 +732,21 @@ ExecStart=$(command -v lightningd) --lightning-dir=$LIGHTNING_DIR --network=$LIG
 ExecStop=$(command -v lightning-cli) --lightning-dir=$LIGHTNING_DIR --network=$LIGHTNING_NETWORK stop
 PIDFile=$LIGHTNING_DIR/lightningd-${LIGHTNING_NETWORK}.pid
 Restart=on-failure
-RestartSec=5
+RestartSec=30
+StartLimitIntervalSec=300
+StartLimitBurst=3
 
 [Install]
 WantedBy=default.target
 EOF
 	systemctl --user daemon-reload 2>/dev/null || true
 	info "wrote $unit"
-	info "next: enable + start — --now does both"
-	info "    systemctl --user enable --now lightning"
-	info "verify:"
+	info "next:"
+	info "    lightning daemon start         # routes through systemctl --user"
 	info "    lightning daemon status"
 	info "    lightning daemon logs -f"
-	info "to survive logout: loginctl enable-linger $USER"
+	info "to survive logout:  loginctl enable-linger $USER"
+	info "to autostart at login:  systemctl --user enable lightning"
 }
 
 install_system() {
@@ -454,7 +794,9 @@ User=clightning
 Group=clightning
 ExecStart=$(command -v lightningd) --lightning-dir=/var/lib/clightning --conf=$cfg
 Restart=on-failure
-RestartSec=5
+RestartSec=30
+StartLimitIntervalSec=300
+StartLimitBurst=3
 ProtectSystem=full
 ProtectHome=true
 NoNewPrivileges=true
@@ -466,8 +808,10 @@ EOF
 
 	info "installed system-mode at /var/lib/clightning"
 	info "user 'clightning' created; '$USER' added to group 'clightning'"
-	info "next: enable + start — --now does both"
-	info "    sudo systemctl enable --now clightningd"
+	info "next:"
+	info "    sudo systemctl enable clightningd"
+	info "    lightning daemon start         # routes through systemctl"
+	info "    lightning daemon status"
 	info "log out and back in for your group membership to take effect"
 }
 
@@ -479,11 +823,18 @@ subhelp() {
 			cat <<'EOF'
 usage: lightning daemon start
 
-Bring up lightningd in the background. Detects the supervisor in
-this order: launchd (macOS) -> systemd (Linux) -> direct fork via
-`lightningd --daemon`. In direct mode, stdout/stderr are redirected
-to $LIGHTNING_DIR/log so the terminal stays clean. Triggers
-auto-unlock (FEAT-184) when the `secret` package is installed.
+Bring up lightningd in the background. Routes through the installed
+supervisor (detected by file presence):
+   1. launchd       — ~/Library/LaunchAgents/<label>.plist or
+                      /Library/LaunchDaemons/<label>.plist
+                      => `launchctl load -w` (or `kickstart` if loaded)
+   2. systemd-system — clightningd.service enabled
+                      => `sudo systemctl start clightningd.service`
+   3. systemd-user   — ~/.config/systemd/user/lightning.service
+                      => `systemctl --user start lightning`
+   4. direct         — no service unit installed
+                      => `lightningd --daemon`, output -> log file
+Triggers auto-unlock (FEAT-184) when the `secret` package is installed.
 EOF
 			;;
 		run)
@@ -501,8 +852,13 @@ EOF
 			cat <<'EOF'
 usage: lightning daemon stop
 
-Graceful shutdown. Detects launchd / systemctl / direct and uses
-the matching stop command (falls back to `lightning-cli stop`).
+Graceful shutdown. Same detection order as `start`:
+   launchd       => `launchctl unload <plist>` (KeepAlive would
+                    fight a plain stop; unload removes the job
+                    until the next `daemon start`)
+   systemd-system => `sudo systemctl stop clightningd.service`
+   systemd-user   => `systemctl --user stop lightning`
+   direct         => `lightning-cli stop`
 No-op if the daemon isn't running.
 EOF
 			;;
@@ -534,14 +890,15 @@ Add -f to follow.
 EOF
 			;;
 		install)
-			cat <<'EOF'
+			cat <<EOF
 usage: lightning daemon install [--system] [--migrate]
+                                [--trustedcoin | --bitcoind]
 
 Write a service unit for the daemon. Platform-aware:
 
 Default (user-mode) — runs as the current user, no sudo needed:
    macOS  ~/Library/LaunchAgents/network.lightning.lightningd.plist
-          (LaunchAgent calling `lightning daemon run` so launchd
+          (LaunchAgent calling \`lightning daemon run\` so launchd
           supervises lightningd).
    Linux  ~/.config/systemd/user/lightning.service.
 
@@ -556,6 +913,19 @@ daemon never runs as root.
           (FEAT-183 three-user layout).
 
 --migrate moves an existing ~/.lightning into the system state dir.
+
+Backend selection (writes a managed block to \$LIGHTNING_DIR/config):
+--trustedcoin    swap bcli for the trustedcoin plugin, which
+                 fetches chain data from multiple public block
+                 explorers (blockstream.info, mempool.space, ...)
+                 with automatic fallback. Removes the need for a
+                 local bitcoind, at the cost of trusting the
+                 explorers jointly. The command auto-installs the
+                 plugin binary (prebuilt for Linux/BSD, builds via
+                 'go install' on macOS).
+--bitcoind       strip any managed backend block, fall back to
+                 bitcoind/bcli (the CLN default).
+Omit both to leave existing backend config untouched.
 EOF
 			;;
 		*)

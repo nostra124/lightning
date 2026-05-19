@@ -1,0 +1,365 @@
+#!/bin/bash
+# lightning peer — Lightning network peering.
+#
+# Peers in clightning are persistent TCP connections to other nodes.
+# Channels are owned by `lightning channel`; this object covers the
+# bare peering layer (connect, disconnect, list, bootstrap). Bare
+# peering is the prerequisite for gossip graph sync, BOLT-12
+# fetchinvoice, and LSPS1 / LSP channel-open requests.
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning peer <subcommand> [args]
+
+   Manage Lightning network peering — persistent TCP connections
+   to other nodes. Peers don't imply channels; they're the
+   prerequisite for gossip sync, BOLT-12 fetchinvoice, and any
+   LSP / LSPS1 inbound-liquidity request.
+
+subcommands:
+   list                       connected peers (TSV); --raw keeps the
+                              BOLT-9 feature hex instead of decoding
+   connect <node-uri>         open a bare TCP connection
+                              (pubkey@host:port)
+   disconnect <node-id>       tear down the connection
+   bootstrap [-n N]           connect to N well-known nodes
+                              (default 5; reads
+                              \$PREFIX/share/lightning/bootstrap-nodes.txt
+                              with ~/.lightning/bootstrap-nodes.txt or
+                              \$LIGHTNING_BOOTSTRAP_NODES overriding)
+   reconnect [-n N]           alias for bootstrap — convenient name
+                              after a network outage / laptop sleep
+EOF
+}
+
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
+}
+
+# BOLT-9 bit -> canonical short name. Each entry covers both the
+# even (mandatory) and odd (optional) bit. Anything we don't know
+# is printed as `bit<N>` so the user still sees that something is
+# set, just unnamed. Update with new bits as BOLT-9 grows.
+# Source: https://github.com/lightning/bolts/blob/master/09-features.md
+feature_name() {
+	case "$1" in
+		0|1)   echo data_loss_protect ;;
+		3)     echo initial_routing_sync ;;
+		4|5)   echo upfront_shutdown ;;
+		6|7)   echo gossip_queries ;;
+		8|9)   echo var_onion ;;
+		10|11) echo gossip_queries_ex ;;
+		12|13) echo static_remotekey ;;
+		14|15) echo payment_secret ;;
+		16|17) echo basic_mpp ;;
+		18|19) echo wumbo ;;
+		20|21) echo anchor ;;
+		22|23) echo anchors_zero_fee_htlc ;;
+		26|27) echo shutdown_anysegwit ;;
+		28|29) echo dual_fund ;;
+		38|39) echo onion_messages ;;
+		44|45) echo channel_type ;;
+		46|47) echo scid_alias ;;
+		48|49) echo zeroconf ;;
+		54|55) echo route_blinding ;;
+		56|57) echo quiesce ;;
+		60|61) echo splice ;;
+		*)     echo "bit$1" ;;
+	esac
+}
+
+# Decode a hex feature bitmap to a comma-separated, deduplicated
+# list of canonical short names. BOLT-9 is big-endian: the
+# right-most byte holds bits 0-7. Pure bash so we don't need
+# Python; jq can't handle 2000-bit integers losslessly.
+decode_features() {
+	local hex="${1,,}"           # lowercase
+	[ -z "$hex" ] && { echo "-"; return; }
+	local len=${#hex} i=0
+	local -a names
+	while [ $i -lt $len ]; do
+		local nibble="${hex:$((len-1-i)):1}"
+		local val=$((16#$nibble))
+		local b
+		for b in 0 1 2 3; do
+			if (( val & (1 << b) )); then
+				names+=("$(feature_name $((i*4 + b)))")
+			fi
+		done
+		i=$((i + 1))
+	done
+	# Dedupe (mandatory + optional bit share a name) while
+	# preserving first-seen order. printf+awk is plenty.
+	printf '%s\n' "${names[@]}" | awk '!seen[$0]++' | paste -sd, -
+}
+
+# -----------------------------------------------------------------------------
+# list / connect / disconnect
+# -----------------------------------------------------------------------------
+
+cmd_list() {
+	require_cli
+	local raw=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--raw) raw=1; shift ;;
+			*) error "peer list: unknown flag '$1'"; exit 1 ;;
+		esac
+	done
+
+	# Fail loudly when the daemon isn't reachable — otherwise the
+	# header-only output is indistinguishable from "0 peers".
+	local json; json=$(cli listpeers 2>/dev/null) || {
+		error "lightning-cli listpeers failed (is the daemon running? \`lightning daemon status\`)"
+		exit 2
+	}
+
+	printf "pubkey\tconnected\tfeatures\taddr\n"
+
+	if [ "$raw" -eq 1 ]; then
+		jq -r '.peers[] | [
+			.id, (.connected|tostring),
+			(.features // "-"),
+			((.netaddr // [])[0] // "-")
+		] | @tsv' <<<"$json"
+	else
+		# Decoded: pull rows, then run each feature hex through the
+		# bash decoder. Tab-safe because decode_features only emits
+		# comma-separated alphanumeric names.
+		jq -r '.peers[] | [
+			.id, (.connected|tostring),
+			(.features // ""),
+			((.netaddr // [])[0] // "-")
+		] | @tsv' <<<"$json" | while IFS=$'\t' read -r id connected features addr; do
+			printf "%s\t%s\t%s\t%s\n" "$id" "$connected" "$(decode_features "$features")" "$addr"
+		done
+	fi
+
+	# Hint when peers is empty. clightning gives up on bare-peer
+	# reconnects after a network outage — they live only as long
+	# as the TCP connection. Plain echo (not warn) so the hint
+	# survives -q; goes to stderr so the TSV stays clean for scripts.
+	local n; n=$(jq -r '.peers | length' <<<"$json")
+	if [ "$n" -eq 0 ]; then
+		{
+			echo "# 0 peers — gossip and routing won't work."
+			echo "# bare peers don't survive network outages; re-seed with:"
+			echo "#     lightning peer bootstrap"
+		} >&2
+	fi
+}
+
+# `peer reconnect` is a discovery-friendly alias for `peer bootstrap`
+# — what most users want to type after a laptop sleep / wifi drop.
+# Same semantics: random-sample the bootstrap list, idempotent.
+cmd_reconnect() {
+	cmd_bootstrap "$@"
+}
+
+cmd_connect() {
+	[ $# -lt 1 ] && { error "connect needs <node-uri> (pubkey@host:port)"; exit 1; }
+	require_cli
+	local uri="$1"
+	info "connecting to $uri"
+	local result; result=$(cli connect "$uri") || {
+		error "connect failed"; exit 4; }
+	local id; id=$(jq -r '.id // empty' <<<"$result")
+	echo "ok"
+	echo "id: ${id:-$uri}"
+}
+
+cmd_disconnect() {
+	[ $# -lt 1 ] && { error "disconnect needs <node-id>"; exit 1; }
+	require_cli
+	local id="$1"
+	info "disconnecting $id"
+	cli disconnect "$id" force=true >/dev/null || {
+		error "disconnect failed"; exit 4; }
+	echo "ok"
+}
+
+# -----------------------------------------------------------------------------
+# bootstrap — seed the gossip graph from well-known nodes
+# -----------------------------------------------------------------------------
+
+# Resolve the bootstrap-nodes file, in precedence order:
+#   1. $LIGHTNING_BOOTSTRAP_NODES (env var)
+#   2. ~/.lightning/bootstrap-nodes.txt (user override)
+#   3. $PREFIX/share/lightning/bootstrap-nodes.txt (shipped default)
+#      — discovered relative to $SELF_LIBEXEC; falls back to in-tree.
+bootstrap_nodes_file() {
+	if [ -n "$LIGHTNING_BOOTSTRAP_NODES" ] && [ -f "$LIGHTNING_BOOTSTRAP_NODES" ]; then
+		echo "$LIGHTNING_BOOTSTRAP_NODES"; return
+	fi
+	if [ -f "$LIGHTNING_DIR/bootstrap-nodes.txt" ]; then
+		echo "$LIGHTNING_DIR/bootstrap-nodes.txt"; return
+	fi
+	# Locate the shipped file relative to SELF_LIBEXEC (set by bin/lightning).
+	local share_dir; share_dir="${SELF_LIBEXEC%/libexec}/share/lightning"
+	if [ -f "$share_dir/bootstrap-nodes.txt" ]; then
+		echo "$share_dir/bootstrap-nodes.txt"; return
+	fi
+	return 1
+}
+
+cmd_bootstrap() {
+	require_cli
+	local n=5
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			-n|--count) n="$2"; shift 2 ;;
+			*) error "bootstrap: unknown arg '$1'"; exit 1 ;;
+		esac
+	done
+
+	if [ -n "$LIGHTNING_NO_BOOTSTRAP" ]; then
+		info "LIGHTNING_NO_BOOTSTRAP set — skipping bootstrap"
+		return 0
+	fi
+
+	local file; file=$(bootstrap_nodes_file) || {
+		error "no bootstrap-nodes file found. Drop one at"
+		error "    $LIGHTNING_DIR/bootstrap-nodes.txt"
+		error "or set LIGHTNING_BOOTSTRAP_NODES to its path."
+		exit 4
+	}
+	info "bootstrap source: $file"
+
+	# Parse the file: ignore comments + blanks, take the first whitespace-
+	# delimited token of each line (the URI), then random-sample N entries.
+	local uris; uris=$(grep -v '^\s*\(#\|$\)' "$file" | awk '{print $1}')
+	if [ -z "$uris" ]; then
+		warn "bootstrap-nodes file is empty after filtering"
+		return 0
+	fi
+
+	# Randomise + truncate to N. `shuf` on Linux, `sort -R` everywhere else.
+	local picks
+	if command -v shuf >/dev/null 2>&1; then
+		picks=$(printf '%s\n' "$uris" | shuf | head -n "$n")
+	else
+		picks=$(printf '%s\n' "$uris" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -k1,1 | cut -f2- | head -n "$n")
+	fi
+
+	local ok=0 fail=0
+	while IFS= read -r uri; do
+		[ -n "$uri" ] || continue
+		if cli connect "$uri" >/dev/null 2>&1; then
+			info "  connected $uri"
+			ok=$((ok + 1))
+		else
+			warn "  failed    $uri"
+			fail=$((fail + 1))
+		fi
+	done <<<"$picks"
+
+	echo "ok"
+	echo "connected: $ok"
+	echo "failed:    $fail"
+}
+
+# -----------------------------------------------------------------------------
+# Per-sub help
+# -----------------------------------------------------------------------------
+
+subhelp() {
+	case "$1" in
+		list)
+			cat <<'EOF'
+usage: lightning peer list [--raw]
+
+TSV of connected peers. Columns:
+   pubkey<TAB>connected<TAB>features<TAB>addr
+
+The features column decodes the BOLT-9 bitmap to a comma-separated
+list of canonical short names (anchor, blinded, mpp, splice, …).
+Unrecognised bits are printed as `bit<N>`.
+
+--raw prints the original hex bitmap instead (useful when feeding
+the output back to a parser that expects BOLT-9 hex).
+EOF
+			;;
+		connect)
+			cat <<'EOF'
+usage: lightning peer connect <node-uri>
+
+Open a bare TCP connection to <node-uri> (pubkey@host:port).
+The connection persists for gossip + LSPS messaging; no channel
+is opened. Idempotent — connecting to an already-connected peer
+is a no-op.
+EOF
+			;;
+		disconnect)
+			cat <<'EOF'
+usage: lightning peer disconnect <node-id>
+
+Tear down an existing connection. Uses force=true so connections
+with no open channels disconnect immediately.
+EOF
+			;;
+		bootstrap)
+			cat <<'EOF'
+usage: lightning peer bootstrap [-n N]
+
+Connect to N well-known nodes (default 5) to seed the local
+gossip graph. Without peers, lightningd has no channel-graph
+to route payments through, and LSPs can't reach you to open
+inbound channels.
+
+Source resolution (first hit wins):
+   $LIGHTNING_BOOTSTRAP_NODES        env-var path
+   ~/.lightning/bootstrap-nodes.txt  user override
+   $PREFIX/share/lightning/bootstrap-nodes.txt  (shipped)
+
+Set LIGHTNING_NO_BOOTSTRAP=1 to skip entirely — useful in CI
+or for nodes that already have a curated peer set.
+EOF
+			;;
+		reconnect)
+			cat <<'EOF'
+usage: lightning peer reconnect [-n N]
+
+Alias for `peer bootstrap`. clightning gives up on bare-peer
+reconnects after a network outage (it only retries forever for
+peers with whom you share a channel), so after a laptop sleep
+or wifi blip `peer list` often empties out. Re-run this to
+re-seed the gossip graph. Idempotent.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+# Source-mode guard: when sourced (e.g. by a test wanting to call
+# decode_features directly), the function defs above are all the
+# caller needs — return before touching $@ or dispatching.
+[[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0 2>/dev/null
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+case "$SUB" in
+	list)       cmd_list "$@" ;;
+	connect)    cmd_connect "$@" ;;
+	disconnect) cmd_disconnect "$@" ;;
+	bootstrap)  cmd_bootstrap "$@" ;;
+	reconnect)  cmd_reconnect "$@" ;;
+	*) error "peer: unknown subcommand '$SUB'"; usage; exit 1 ;;
+esac

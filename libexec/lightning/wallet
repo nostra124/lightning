@@ -9,7 +9,6 @@
 # Subcommands — node-side (lightning-cli):
 #   info                    summary of `lightning-cli getinfo`
 #   id                      this node's pubkey
-#   peers                   connected peers (TSV)
 #   balance [--on-chain]    on-chain + LN balance / receive addr
 #   unlock [--stored|rotate|forget]
 #                           HSM unlock + secret-store integration
@@ -42,8 +41,7 @@ usage: lightning wallet <subcommand> [args]
 node:
    info                     summary of \`lightning-cli getinfo\`
    id                       this node's pubkey
-   peers                    connected peers (TSV)
-   balance [--on-chain]     on-chain + LN balance (TSV) / receive addr
+   balance [--on-chain]     on-chain + LN balance (recfile) / receive addr
    unlock [--stored|rotate|forget]
                             HSM unlock + secret-store integration
    seed export [--out <f>]  export the seed phrase
@@ -106,7 +104,7 @@ is_encrypted() {
 }
 
 # -----------------------------------------------------------------------------
-# node-side: info / id / peers / balance (FEAT-171)
+# node-side: info / id / balance (FEAT-171)
 # -----------------------------------------------------------------------------
 
 cmd_info() {
@@ -137,26 +135,21 @@ cmd_id() {
 	cli getinfo | jq -r .id
 }
 
-cmd_peers() {
-	require_cli
-	printf "pubkey\tconnected\tfeatures\taddr\n"
-	cli listpeers \
-		| jq -r '.peers[] | [.id, (.connected|tostring), (.features // "-"), ((.netaddr // [])[0] // "-")] | @tsv'
-}
-
 cmd_balance() {
 	require_cli
 	if [ "${1:-}" = "--on-chain" ]; then
 		cli newaddr | jq -r '.bech32 // .p2tr // .p2wkh'
 		return
 	fi
+	# Single-record output → recfile (key: value). Multi-record
+	# views stay TSV; this one was always 1 row + header, awkward.
 	local json; json=$(cli listfunds)
-	printf "onchain_confirmed_sat\tonchain_unconfirmed_sat\tchannels_sat\n"
-	jq -r '[
-		([.outputs[]? | select(.status == "confirmed") | (.amount_msat // (.value*1000)) ] | add // 0 | . / 1000 | floor),
-		([.outputs[]? | select(.status == "unconfirmed") | (.amount_msat // (.value*1000)) ] | add // 0 | . / 1000 | floor),
-		([.channels[]? | (.our_amount_msat // (.channel_sat*1000)) ] | add // 0 | . / 1000 | floor)
-	] | @tsv' <<<"$json"
+	jq -r '
+		([.outputs[]? | select(.status == "confirmed")   | (.amount_msat // (.value*1000))] | add // 0 | . / 1000 | floor) as $oc |
+		([.outputs[]? | select(.status == "unconfirmed") | (.amount_msat // (.value*1000))] | add // 0 | . / 1000 | floor) as $ou |
+		([.channels[]? | (.our_amount_msat // (.channel_sat*1000))] | add // 0 | . / 1000 | floor) as $ch |
+		"onchain_confirmed_sat:    \($oc)\nonchain_unconfirmed_sat:  \($ou)\nchannels_sat:             \($ch)"
+	' <<<"$json"
 }
 
 # -----------------------------------------------------------------------------
@@ -438,6 +431,13 @@ cmd_init() {
 
 	git -C "$wdir" init --quiet
 
+	# Set repo-local user identity so commits work even when the
+	# user hasn't configured git globally (CI runners, fresh shells,
+	# etc.). Without this, `git commit` aborts BEFORE running our
+	# pre-commit hook — and state.sql never gets created.
+	git -C "$wdir" config user.name "lightning"
+	git -C "$wdir" config user.email "lightning@localhost"
+
 	# Install the pre-commit hook BEFORE the first commit so it can
 	# auto-dump state.db to state.sql and stage it during this commit.
 	mkdir -p "$wdir/.git/hooks"
@@ -634,20 +634,14 @@ Print this node's public key (the `.id` field of getinfo). The
 pubkey is your stable identity on the Lightning network.
 EOF
 			;;
-		peers)
-			cat <<'EOF'
-usage: lightning wallet peers
-
-TSV of connected peers. Columns:
-   pubkey<TAB>connected<TAB>features<TAB>addr
-EOF
-			;;
 		balance)
 			cat <<'EOF'
 usage: lightning wallet balance [--on-chain]
 
-Without flags: TSV row of on-chain and channel balance in sats:
-   onchain_confirmed_sat<TAB>onchain_unconfirmed_sat<TAB>channels_sat
+Without flags: recfile-style key/value lines:
+   onchain_confirmed_sat:    <int>
+   onchain_unconfirmed_sat:  <int>
+   channels_sat:             <int>
 With --on-chain: print a fresh receive address for funding the node.
 EOF
 			;;
@@ -753,7 +747,7 @@ esac
 case "$SUB" in
 	info)    cmd_info "$@" ;;
 	id)      cmd_id "$@" ;;
-	peers)   cmd_peers "$@" ;;
+	peers)   error "wallet peers moved to 'lightning peer list'"; exit 2 ;;
 	balance) cmd_balance "$@" ;;
 	unlock)  cmd_unlock "$@" ;;
 	seed)    cmd_seed "$@" ;;
