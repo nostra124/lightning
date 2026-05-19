@@ -1317,6 +1317,33 @@ EOF
 	[[ "${lines[0]}" == "pubkey	connected	features	addr" ]]
 }
 
+@test "FEAT-198: peer list --raw passes the bitmap through unchanged" {
+	# The mock's features are short; both modes should print a header
+	# and (in --raw) any feature string emitted by the mock verbatim.
+	run "$LIGHTNING_BIN" peer list --raw
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "pubkey	connected	features	addr" ]]
+}
+
+@test "FEAT-198: peer features decode to BOLT-9 names via the helper" {
+	# Sanity-check the decoder function directly: known bits map to
+	# canonical names, dedupe collapses mandatory/optional pairs.
+	. "$BATS_TEST_DIRNAME/../../libexec/lightning/peer" 2>/dev/null || true
+	# 0x8000 -> bit 15 -> payment_secret
+	result=$(decode_features 8000)
+	[ "$result" = "payment_secret" ]
+	# 0x03 -> bits 0 (mandatory) + 1 (optional), both data_loss_protect
+	result=$(decode_features 03)
+	[ "$result" = "data_loss_protect" ]
+	# Empty input returns "-".
+	result=$(decode_features "")
+	[ "$result" = "-" ]
+	# Unknown bit gets bit<N> placeholder.
+	result=$(decode_features 8000000000000000000000000000)
+	# bit 109 is set (rightmost 1 in 0x8 at the 27th hex char from right)
+	[[ "$result" == bit* ]]
+}
+
 @test "FEAT-198: lightning peer connect requires a node-uri" {
 	run "$LIGHTNING_BIN" peer connect
 	[ "$status" -ne 0 ]

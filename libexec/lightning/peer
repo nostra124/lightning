@@ -34,12 +34,67 @@ subcommands:
 EOF
 }
 
-[ $# -lt 1 ] && { usage; exit 1; }
-
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 require_cli() {
 	command -v lightning-cli >/dev/null || {
 		error "lightning-cli not found — install Core Lightning"; exit 127; }
+}
+
+# BOLT-9 bit -> canonical short name. Each entry covers both the
+# even (mandatory) and odd (optional) bit. Anything we don't know
+# is printed as `bit<N>` so the user still sees that something is
+# set, just unnamed. Update with new bits as BOLT-9 grows.
+# Source: https://github.com/lightning/bolts/blob/master/09-features.md
+feature_name() {
+	case "$1" in
+		0|1)   echo data_loss_protect ;;
+		3)     echo initial_routing_sync ;;
+		4|5)   echo upfront_shutdown ;;
+		6|7)   echo gossip_queries ;;
+		8|9)   echo var_onion ;;
+		10|11) echo gossip_queries_ex ;;
+		12|13) echo static_remotekey ;;
+		14|15) echo payment_secret ;;
+		16|17) echo basic_mpp ;;
+		18|19) echo wumbo ;;
+		20|21) echo anchor ;;
+		22|23) echo anchors_zero_fee_htlc ;;
+		26|27) echo shutdown_anysegwit ;;
+		28|29) echo dual_fund ;;
+		38|39) echo onion_messages ;;
+		44|45) echo channel_type ;;
+		46|47) echo scid_alias ;;
+		48|49) echo zeroconf ;;
+		54|55) echo route_blinding ;;
+		56|57) echo quiesce ;;
+		60|61) echo splice ;;
+		*)     echo "bit$1" ;;
+	esac
+}
+
+# Decode a hex feature bitmap to a comma-separated, deduplicated
+# list of canonical short names. BOLT-9 is big-endian: the
+# right-most byte holds bits 0-7. Pure bash so we don't need
+# Python; jq can't handle 2000-bit integers losslessly.
+decode_features() {
+	local hex="${1,,}"           # lowercase
+	[ -z "$hex" ] && { echo "-"; return; }
+	local len=${#hex} i=0
+	local -a names
+	while [ $i -lt $len ]; do
+		local nibble="${hex:$((len-1-i)):1}"
+		local val=$((16#$nibble))
+		local b
+		for b in 0 1 2 3; do
+			if (( val & (1 << b) )); then
+				names+=("$(feature_name $((i*4 + b)))")
+			fi
+		done
+		i=$((i + 1))
+	done
+	# Dedupe (mandatory + optional bit share a name) while
+	# preserving first-seen order. printf+awk is plenty.
+	printf '%s\n' "${names[@]}" | awk '!seen[$0]++' | paste -sd, -
 }
 
 # -----------------------------------------------------------------------------
@@ -48,13 +103,35 @@ require_cli() {
 
 cmd_list() {
 	require_cli
+	local raw=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--raw) raw=1; shift ;;
+			*) error "peer list: unknown flag '$1'"; exit 1 ;;
+		esac
+	done
+
 	printf "pubkey\tconnected\tfeatures\taddr\n"
+
+	if [ "$raw" -eq 1 ]; then
+		cli listpeers | jq -r '.peers[] | [
+			.id, (.connected|tostring),
+			(.features // "-"),
+			((.netaddr // [])[0] // "-")
+		] | @tsv'
+		return
+	fi
+
+	# Decoded: pull rows, then run each feature hex through the
+	# bash decoder. Tab-safe because decode_features only emits
+	# comma-separated alphanumeric names.
 	cli listpeers | jq -r '.peers[] | [
-		.id,
-		(.connected|tostring),
-		(.features // "-"),
+		.id, (.connected|tostring),
+		(.features // ""),
 		((.netaddr // [])[0] // "-")
-	] | @tsv'
+	] | @tsv' | while IFS=$'\t' read -r id connected features addr; do
+		printf "%s\t%s\t%s\t%s\n" "$id" "$connected" "$(decode_features "$features")" "$addr"
+	done
 }
 
 cmd_connect() {
@@ -167,10 +244,17 @@ subhelp() {
 	case "$1" in
 		list)
 			cat <<'EOF'
-usage: lightning peer list
+usage: lightning peer list [--raw]
 
 TSV of connected peers. Columns:
    pubkey<TAB>connected<TAB>features<TAB>addr
+
+The features column decodes the BOLT-9 bitmap to a comma-separated
+list of canonical short names (anchor, blinded, mpp, splice, …).
+Unrecognised bits are printed as `bit<N>`.
+
+--raw prints the original hex bitmap instead (useful when feeding
+the output back to a parser that expects BOLT-9 hex).
 EOF
 			;;
 		connect)
@@ -215,6 +299,13 @@ EOF
 			;;
 	esac
 }
+
+# Source-mode guard: when sourced (e.g. by a test wanting to call
+# decode_features directly), the function defs above are all the
+# caller needs — return before touching $@ or dispatching.
+[[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0 2>/dev/null
+
+[ $# -lt 1 ] && { usage; exit 1; }
 
 SUB="$1"; shift || true
 case "${1:-}" in
