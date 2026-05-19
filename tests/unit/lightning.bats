@@ -1111,3 +1111,169 @@ EOF
 	[ "$status" -eq 0 ]
 	[ -n "$output" ]
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-197: plugin management (reckless wrapper)
+# ---------------------------------------------------------------------------
+
+# Stubs reckless so `plugin install/remove/search` are observable in
+# tests without hitting GitHub or building anything. The stub records
+# its invocations to $BATS_TMPDIR/reckless.log for assertion.
+_stub_reckless() {
+	cat > "$BIN_SHIM/reckless" <<EOF
+#!/bin/sh
+# Drop the global flags (-v, --json, etc.) so we can match \$1 against
+# the actual subcommand.
+while [ \$# -gt 0 ]; do
+	case "\$1" in -v|--verbose|-j|--json|-r|--regtest) shift ;; *) break ;; esac
+done
+echo "reckless \$*" >> "$BATS_TMPDIR/reckless.log"
+case "\$1" in
+	install)
+		# Plant a placeholder binary so 'plugin list' sees it.
+		mkdir -p "$HOME/.lightning/plugins"
+		printf '#!/bin/sh\nexit 0\n' > "$HOME/.lightning/plugins/\$2"
+		chmod +x "$HOME/.lightning/plugins/\$2"
+		exit 0
+		;;
+	uninstall)
+		rm -f "$HOME/.lightning/plugins/\$2"
+		exit 0
+		;;
+	search)
+		echo "stub-result for \$2"
+		exit 0
+		;;
+	enable|disable|source) exit 0 ;;
+	*) exit 0 ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/reckless"
+	: > "$BATS_TMPDIR/reckless.log"
+}
+
+@test "FEAT-197: lightning plugin (no args) prints usage" {
+	run "$LIGHTNING_BIN" plugin
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
+}
+
+@test "FEAT-197: plugin list on empty plugins dir is exit 0" {
+	run "$LIGHTNING_BIN" plugin list
+	[ "$status" -eq 0 ]
+}
+
+@test "FEAT-197: plugin list shows installed plugins" {
+	mkdir -p "$HOME/.lightning/plugins"
+	printf '#!/bin/sh\nexit 0\n' > "$HOME/.lightning/plugins/rebalance"
+	chmod +x "$HOME/.lightning/plugins/rebalance"
+	printf '#!/bin/sh\nexit 0\n' > "$HOME/.lightning/plugins/summary"
+	chmod +x "$HOME/.lightning/plugins/summary"
+	run "$LIGHTNING_BIN" plugin list
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"rebalance"* ]]
+	[[ "$output" == *"summary"* ]]
+}
+
+@test "FEAT-197: plugin list skips dotfiles and non-executables" {
+	mkdir -p "$HOME/.lightning/plugins"
+	echo "non-exec content" > "$HOME/.lightning/plugins/.hidden"
+	echo "non-exec content" > "$HOME/.lightning/plugins/notaplugin"
+	printf '#!/bin/sh\nexit 0\n' > "$HOME/.lightning/plugins/realplugin"
+	chmod +x "$HOME/.lightning/plugins/realplugin"
+	run "$LIGHTNING_BIN" plugin list
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"realplugin"* ]]
+	[[ "$output" != *".hidden"* ]]
+	[[ "$output" != *"notaplugin"* ]]
+}
+
+@test "FEAT-197: plugin install routes through reckless when available" {
+	_stub_reckless
+	run "$LIGHTNING_BIN" plugin install rebalance
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+	[ -x "$HOME/.lightning/plugins/rebalance" ]
+	grep -q "install rebalance" "$BATS_TMPDIR/reckless.log"
+}
+
+@test "FEAT-197: plugin install <name> <owner/repo> registers source first" {
+	_stub_reckless
+	run "$LIGHTNING_BIN" plugin install trustedcoin nbd-wtf/trustedcoin
+	[ "$status" -eq 0 ]
+	# Source registration ran before install.
+	grep -q "source add https://github.com/nbd-wtf/trustedcoin" "$BATS_TMPDIR/reckless.log"
+	grep -q "install trustedcoin" "$BATS_TMPDIR/reckless.log"
+}
+
+@test "FEAT-197: plugin install <name> <full-url> registers source as URL" {
+	_stub_reckless
+	run "$LIGHTNING_BIN" plugin install foo https://gitlab.com/x/foo
+	[ "$status" -eq 0 ]
+	grep -q "source add https://gitlab.com/x/foo" "$BATS_TMPDIR/reckless.log"
+}
+
+@test "FEAT-197: plugin install errors clearly when reckless is absent" {
+	export PATH="/usr/bin:/bin"
+	run "$LIGHTNING_BIN" plugin install rebalance
+	[ "$status" -eq 127 ]
+	[[ "$output" == *"reckless not found"* ]]
+	[[ "$output" == *"install/update CLN"* || "$output" == *"core-lightning"* ]]
+}
+
+@test "FEAT-197: plugin remove uses reckless when available" {
+	_stub_reckless
+	mkdir -p "$HOME/.lightning/plugins"
+	printf '#!/bin/sh\nexit 0\n' > "$HOME/.lightning/plugins/rebalance"
+	chmod +x "$HOME/.lightning/plugins/rebalance"
+	run "$LIGHTNING_BIN" plugin remove rebalance
+	[ "$status" -eq 0 ]
+	grep -q "uninstall rebalance" "$BATS_TMPDIR/reckless.log"
+	[ ! -f "$HOME/.lightning/plugins/rebalance" ]
+}
+
+@test "FEAT-197: plugin remove falls back to rm when reckless is absent" {
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	mkdir -p "$HOME/.lightning/plugins"
+	printf '#!/bin/sh\nexit 0\n' > "$HOME/.lightning/plugins/rebalance"
+	chmod +x "$HOME/.lightning/plugins/rebalance"
+	run "$LIGHTNING_BIN" plugin remove rebalance
+	[ "$status" -eq 0 ]
+	[ ! -f "$HOME/.lightning/plugins/rebalance" ]
+}
+
+@test "FEAT-197: plugin remove errors when target doesn't exist" {
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	run "$LIGHTNING_BIN" plugin remove nonexistent
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"no plugin"* ]]
+}
+
+@test "FEAT-197: plugin search requires reckless" {
+	export PATH="/usr/bin:/bin"
+	run "$LIGHTNING_BIN" plugin search rebalance
+	[ "$status" -eq 127 ]
+	[[ "$output" == *"reckless not found"* ]]
+}
+
+@test "FEAT-197: plugin search forwards the query to reckless" {
+	_stub_reckless
+	run "$LIGHTNING_BIN" plugin search rebalance
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"stub-result for rebalance"* ]]
+	grep -q "search rebalance" "$BATS_TMPDIR/reckless.log"
+}
+
+@test "FEAT-197: plugin pre-creates the network config so reckless doesn't prompt" {
+	_stub_reckless
+	# Make sure the file doesn't exist before.
+	rm -f "$HOME/.lightning/bitcoin/config"
+	"$LIGHTNING_BIN" plugin install rebalance >/dev/null 2>&1
+	[ -f "$HOME/.lightning/bitcoin/config" ]
+}
+
+@test "FEAT-197: top-level help lists plugin" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"plugin"* ]]
+	[[ "$output" == *"reckless"* ]]
+}
