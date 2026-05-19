@@ -22,7 +22,8 @@ usage: lightning peer <subcommand> [args]
    LSP / LSPS1 inbound-liquidity request.
 
 subcommands:
-   list                       connected peers (TSV)
+   list                       connected peers (TSV); --raw keeps the
+                              BOLT-9 feature hex instead of decoding
    connect <node-uri>         open a bare TCP connection
                               (pubkey@host:port)
    disconnect <node-id>       tear down the connection
@@ -31,6 +32,8 @@ subcommands:
                               \$PREFIX/share/lightning/bootstrap-nodes.txt
                               with ~/.lightning/bootstrap-nodes.txt or
                               \$LIGHTNING_BOOTSTRAP_NODES overriding)
+   reconnect [-n N]           alias for bootstrap — convenient name
+                              after a network outage / laptop sleep
 EOF
 }
 
@@ -111,27 +114,53 @@ cmd_list() {
 		esac
 	done
 
+	# Fail loudly when the daemon isn't reachable — otherwise the
+	# header-only output is indistinguishable from "0 peers".
+	local json; json=$(cli listpeers 2>/dev/null) || {
+		error "lightning-cli listpeers failed (is the daemon running? \`lightning daemon status\`)"
+		exit 2
+	}
+
 	printf "pubkey\tconnected\tfeatures\taddr\n"
 
 	if [ "$raw" -eq 1 ]; then
-		cli listpeers | jq -r '.peers[] | [
+		jq -r '.peers[] | [
 			.id, (.connected|tostring),
 			(.features // "-"),
 			((.netaddr // [])[0] // "-")
-		] | @tsv'
-		return
+		] | @tsv' <<<"$json"
+	else
+		# Decoded: pull rows, then run each feature hex through the
+		# bash decoder. Tab-safe because decode_features only emits
+		# comma-separated alphanumeric names.
+		jq -r '.peers[] | [
+			.id, (.connected|tostring),
+			(.features // ""),
+			((.netaddr // [])[0] // "-")
+		] | @tsv' <<<"$json" | while IFS=$'\t' read -r id connected features addr; do
+			printf "%s\t%s\t%s\t%s\n" "$id" "$connected" "$(decode_features "$features")" "$addr"
+		done
 	fi
 
-	# Decoded: pull rows, then run each feature hex through the
-	# bash decoder. Tab-safe because decode_features only emits
-	# comma-separated alphanumeric names.
-	cli listpeers | jq -r '.peers[] | [
-		.id, (.connected|tostring),
-		(.features // ""),
-		((.netaddr // [])[0] // "-")
-	] | @tsv' | while IFS=$'\t' read -r id connected features addr; do
-		printf "%s\t%s\t%s\t%s\n" "$id" "$connected" "$(decode_features "$features")" "$addr"
-	done
+	# Hint when peers is empty. clightning gives up on bare-peer
+	# reconnects after a network outage — they live only as long
+	# as the TCP connection. Plain echo (not warn) so the hint
+	# survives -q; goes to stderr so the TSV stays clean for scripts.
+	local n; n=$(jq -r '.peers | length' <<<"$json")
+	if [ "$n" -eq 0 ]; then
+		{
+			echo "# 0 peers — gossip and routing won't work."
+			echo "# bare peers don't survive network outages; re-seed with:"
+			echo "#     lightning peer bootstrap"
+		} >&2
+	fi
+}
+
+# `peer reconnect` is a discovery-friendly alias for `peer bootstrap`
+# — what most users want to type after a laptop sleep / wifi drop.
+# Same semantics: random-sample the bootstrap list, idempotent.
+cmd_reconnect() {
+	cmd_bootstrap "$@"
 }
 
 cmd_connect() {
@@ -293,6 +322,17 @@ Set LIGHTNING_NO_BOOTSTRAP=1 to skip entirely — useful in CI
 or for nodes that already have a curated peer set.
 EOF
 			;;
+		reconnect)
+			cat <<'EOF'
+usage: lightning peer reconnect [-n N]
+
+Alias for `peer bootstrap`. clightning gives up on bare-peer
+reconnects after a network outage (it only retries forever for
+peers with whom you share a channel), so after a laptop sleep
+or wifi blip `peer list` often empties out. Re-run this to
+re-seed the gossip graph. Idempotent.
+EOF
+			;;
 		*)
 			usage
 			return 1
@@ -320,5 +360,6 @@ case "$SUB" in
 	connect)    cmd_connect "$@" ;;
 	disconnect) cmd_disconnect "$@" ;;
 	bootstrap)  cmd_bootstrap "$@" ;;
+	reconnect)  cmd_reconnect "$@" ;;
 	*) error "peer: unknown subcommand '$SUB'"; usage; exit 1 ;;
 esac

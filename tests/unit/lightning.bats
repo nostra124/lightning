@@ -1325,6 +1325,37 @@ EOF
 	[[ "${lines[0]}" == "pubkey	connected	features	addr" ]]
 }
 
+@test "FEAT-198: peer list errors clearly when daemon is down" {
+	echo "down" > "$MOCK_STATE"
+	run "$LIGHTNING_BIN" peer list
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"listpeers failed"* ]]
+	[[ "$output" == *"daemon status"* ]]
+}
+
+@test "FEAT-198: peer list hints at bootstrap when 0 peers" {
+	# Default mock returns an empty peers array.
+	run "$LIGHTNING_BIN" peer list
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "pubkey	connected	features	addr" ]]
+	[[ "$output" == *"0 peers"* ]]
+	[[ "$output" == *"peer bootstrap"* ]]
+}
+
+@test "FEAT-198: peer reconnect is an alias for bootstrap" {
+	# Honor the skip env var so we don't need lightning-cli connect calls.
+	export LIGHTNING_NO_BOOTSTRAP=1
+	run "$LIGHTNING_BIN" -v peer reconnect
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"skipping bootstrap"* ]]
+}
+
+@test "FEAT-198: peer reconnect --help mentions the laptop-sleep use case" {
+	run "$LIGHTNING_BIN" peer reconnect --help
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"laptop sleep"* || "$output" == *"network outage"* ]]
+}
+
 @test "FEAT-198: peer features decode to BOLT-9 names via the helper" {
 	# Sanity-check the decoder function directly: known bits map to
 	# canonical names, dedupe collapses mandatory/optional pairs.
