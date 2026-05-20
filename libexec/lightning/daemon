@@ -21,6 +21,7 @@ NETWORK_DIR="$LIGHTNING_DIR/$LIGHTNING_NETWORK"
 RPC_FILE="$NETWORK_DIR/lightning-rpc"
 LAUNCHD_LABEL="network.lightning.lightningd"
 KEEPALIVE_LABEL="network.lightning.keepalive"
+ALERT_LABEL="network.lightning.alert"
 LIGHTNING_CONF="$LIGHTNING_DIR/config"
 BACKEND_BLOCK_BEGIN="# >>> lightning backend — managed by 'daemon install'"
 BACKEND_BLOCK_END="# <<< lightning backend"
@@ -539,7 +540,7 @@ cmd_install() {
 	#   -1  leave backend config alone
 	#    1  enable trustedcoin (multi-explorer fallback)
 	#    0  disable any managed backend block (back to bitcoind/bcli)
-	local system=0 migrate=0 backend=-1 keepalive=1
+	local system=0 migrate=0 backend=-1 keepalive=1 alert=1
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--system)      system=1; shift ;;
@@ -548,6 +549,7 @@ cmd_install() {
 			--bitcoind|--bcli|--no-public-backend)
 			               backend=0; shift ;;
 			--no-keepalive) keepalive=0; shift ;;
+			--no-alert)     alert=0; shift ;;
 			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
@@ -577,6 +579,12 @@ cmd_install() {
 	# monitoring usually.
 	if [ "$keepalive" -eq 1 ] && [ "$system" -eq 0 ]; then
 		install_keepalive_sidecar
+	fi
+
+	# FEAT-204 sidecar — alert scheduler. Same gate as keepalive
+	# (user-mode default-on; --no-alert opts out).
+	if [ "$alert" -eq 1 ] && [ "$system" -eq 0 ]; then
+		install_alert_sidecar
 	fi
 }
 
@@ -718,6 +726,90 @@ EOF
 	info "wrote $dir/lightning-keepalive.{service,timer}"
 	info "  enable + start with: systemctl --user enable --now lightning-keepalive.timer"
 	info "  opt out:  lightning daemon install --no-keepalive"
+}
+
+# FEAT-204 — alert scheduler sidecar. Same pattern as keepalive
+# but at 1-minute granularity (alerts need to fire quickly).
+install_alert_sidecar() {
+	local self_bin="$SELF_LIBEXEC/../bin/lightning"
+	self_bin=$(cd "$(dirname "$self_bin")" && pwd)/$(basename "$self_bin")
+
+	if is_macos; then
+		local plist="$HOME/Library/LaunchAgents/${ALERT_LABEL}.plist"
+		mkdir -p "$(dirname "$plist")"
+		cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${ALERT_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${self_bin}</string>
+        <string>alert</string>
+        <string>run</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LIGHTNING_DIR</key>
+        <string>${LIGHTNING_DIR}</string>
+        <key>LIGHTNING_NETWORK</key>
+        <string>${LIGHTNING_NETWORK}</string>
+        <key>PATH</key>
+        <string>${PATH}</string>
+        <key>SELF_QUIET</key>
+        <string>1</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>60</integer>
+    <key>StandardOutPath</key>
+    <string>${LIGHTNING_DIR}/alert.log</string>
+    <key>StandardErrorPath</key>
+    <string>${LIGHTNING_DIR}/alert.log</string>
+</dict>
+</plist>
+EOF
+		info "wrote $plist (alert sidecar)"
+		info "  triggers: every 60s"
+		info "  log:      $LIGHTNING_DIR/alert.log"
+		info "  opt out:  lightning daemon install --no-alert"
+		return 0
+	fi
+
+	# Linux systemd --user.
+	local dir="$HOME/.config/systemd/user"
+	mkdir -p "$dir"
+	cat > "$dir/lightning-alert.service" <<EOF
+[Unit]
+Description=Lightning alert evaluator (FEAT-204)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=SELF_QUIET=1
+Environment=LIGHTNING_DIR=$LIGHTNING_DIR
+Environment=LIGHTNING_NETWORK=$LIGHTNING_NETWORK
+ExecStart=$self_bin alert run
+EOF
+	cat > "$dir/lightning-alert.timer" <<EOF
+[Unit]
+Description=Lightning alert evaluator timer (every 1min)
+
+[Timer]
+OnBootSec=30sec
+OnUnitActiveSec=1min
+Unit=lightning-alert.service
+
+[Install]
+WantedBy=timers.target
+EOF
+	systemctl --user daemon-reload 2>/dev/null || true
+	info "wrote $dir/lightning-alert.{service,timer}"
+	info "  enable + start with: systemctl --user enable --now lightning-alert.timer"
+	info "  opt out:  lightning daemon install --no-alert"
 }
 
 install_macos_system() {
@@ -994,7 +1086,7 @@ EOF
 			cat <<EOF
 usage: lightning daemon install [--system] [--migrate]
                                 [--trustedcoin | --bitcoind]
-                                [--no-keepalive]
+                                [--no-keepalive] [--no-alert]
 
 Write a service unit for the daemon. Platform-aware:
 
@@ -1029,13 +1121,16 @@ Backend selection (writes a managed block to \$LIGHTNING_DIR/config):
                  bitcoind/bcli (the CLN default).
 Omit both to leave existing backend config untouched.
 
-Sidecar (user-mode only, default ON):
---no-keepalive   skip writing the FEAT-199 keepalive sidecar.
-                 The sidecar runs \`lightning peer keepalive\`
-                 every 10min + on every network state change
-                 (macOS), or via systemd .timer (Linux). Keeps
-                 the gossip graph reseeded after laptop sleep
-                 and wifi blips.
+Sidecars (user-mode only, default ON):
+--no-keepalive   skip the FEAT-199 keepalive sidecar.
+                 Runs \`peer keepalive\` every 10min + on every
+                 network state change (macOS), or via systemd
+                 .timer (Linux). Reseeds the gossip graph after
+                 laptop sleep / wifi blips.
+--no-alert       skip the FEAT-204 alert sidecar.
+                 Runs \`alert run\` every 60s. Evaluates rules
+                 under \$LIGHTNING_DIR/alerts/ and fires
+                 webhooks when conditions trip.
 EOF
 			;;
 		*)

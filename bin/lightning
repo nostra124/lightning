@@ -146,6 +146,7 @@ objects:
    account                 logical accounts and api keys
    channel                 Lightning channels (open, close, balance, scb)
    fee                     per-channel fees (get, set, policy)
+   alert                   threshold-driven webhooks (create, list, run)
    daemon                  lightningd lifecycle (start, stop, logs, install)
    plugin                  CLN plugins via reckless (list, install, remove)
    invoice                 BOLT-11 invoices (create, pay)

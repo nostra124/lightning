@@ -1,0 +1,490 @@
+#!/bin/bash
+# lightning alert — threshold-driven webhooks (FEAT-204).
+#
+# Rules live as recfiles under $LIGHTNING_DIR/alerts/<name>.conf.
+# `alert run` evaluates every rule, fires the matching webhook
+# when the condition trips, honours per-rule cooldown.
+#
+# Designed to be invoked from a scheduler — `daemon install`
+# writes a sidecar (launchd / systemd .timer) that calls
+# `alert run` every minute.
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+ALERTS_DIR="$LIGHTNING_DIR/alerts"
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning alert <subcommand> [args]
+
+   Threshold-driven webhooks for node monitoring. Rules live
+   as recfiles under \$LIGHTNING_DIR/alerts/<name>.conf;
+   \`alert run\` evaluates them and fires webhooks when
+   conditions trip. Designed for scheduler invocation.
+
+subcommands:
+   create <name> --on <condition> --webhook <url>
+          [--threshold <value>] [--cooldown <duration>]
+                              create or replace a rule
+   list                       all rules (recfile, multi-record)
+   remove <name>              delete a rule and its cooldown state
+   test <name>                evaluate once; if firing, send a
+                              [TEST] webhook even past cooldown
+   run [--once]               evaluate every rule, fire matching
+                              webhooks (sidecar entry point)
+
+conditions:
+   peer_offline               any peer in .connected = false
+   channel_offline            any normal channel with peer offline
+   channel_ratio_outside      any normal channel outside
+                              [<lo>%, <hi>%] (threshold "lo,hi";
+                              default "10,90")
+   daemon_down                lightning-cli getinfo fails
+   balance_below              on-chain balance < threshold sat
+   low_inbound_capacity       total inbound < threshold sat
+
+webhooks:
+   https://hooks.slack.com/...    Slack incoming webhook
+   https://discord.com/api/...    Discord webhook
+   https://api.telegram.org/...   Telegram bot sendMessage
+   mailto:<addr>                  shells out to mail(1)
+   https://other/...              generic POST {alert: "<msg>"}
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
+}
+
+require_curl() {
+	command -v curl >/dev/null || {
+		error "curl not found — install it (used for webhook delivery)"; exit 127; }
+}
+
+# -----------------------------------------------------------------------------
+# Rule storage helpers
+# -----------------------------------------------------------------------------
+
+rule_path() { echo "$ALERTS_DIR/${1}.conf"; }
+
+# Read one field from a rule recfile. Usage: rule_get <name> <field>
+rule_get() {
+	local file; file=$(rule_path "$1")
+	[ -f "$file" ] || return 1
+	awk -F': *' -v key="$2" '$1 == key {sub(/^[^:]+: */,""); print; exit}' "$file"
+}
+
+rule_set() {
+	# Replace or append a single field. Usage: rule_set <name> <field> <value>
+	local file; file=$(rule_path "$1")
+	[ -f "$file" ] || return 1
+	if grep -q "^$2:" "$file"; then
+		# Portable in-place rewrite via tmp + mv.
+		local tmp; tmp=$(mktemp "$file.XXXXXX")
+		awk -F': *' -v key="$2" -v val="$3" '
+			$1 == key {print key ":        " val; next}
+			{print}
+		' "$file" > "$tmp"
+		mv "$tmp" "$file"
+	else
+		echo "$2:        $3" >> "$file"
+	fi
+}
+
+# -----------------------------------------------------------------------------
+# Duration parsing (e.g. "5m" -> 300)
+# -----------------------------------------------------------------------------
+
+parse_duration() {
+	local s="$1"
+	case "$s" in
+		*s) echo "${s%s}" ;;
+		*m) echo $(( ${s%m} * 60 )) ;;
+		*h) echo $(( ${s%h} * 3600 )) ;;
+		*d) echo $(( ${s%d} * 86400 )) ;;
+		*[0-9]) echo "$s" ;;
+		*) echo 0 ;;
+	esac
+}
+
+now_epoch()  { date -u +%s; }
+now_iso()    { date -u +%Y-%m-%dT%H:%M:%SZ; }
+iso_epoch()  { date -d "$1" +%s 2>/dev/null || date -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null || echo 0; }
+
+# -----------------------------------------------------------------------------
+# Condition evaluators
+# Each returns 0 + a one-liner reason on stdout if firing,
+# returns 1 with no output if not. They share access to the
+# `threshold` shell variable set by the caller.
+# -----------------------------------------------------------------------------
+
+cond_daemon_down() {
+	cli getinfo >/dev/null 2>&1 || { echo "daemon not responding to RPC"; return 0; }
+	return 1
+}
+
+cond_peer_offline() {
+	local n
+	n=$(cli listpeers 2>/dev/null | jq -r '[.peers[] | select(.connected == false)] | length' 2>/dev/null) || n=0
+	if [ "$n" -gt 0 ]; then
+		echo "$n peer(s) disconnected"
+		return 0
+	fi
+	return 1
+}
+
+cond_channel_offline() {
+	local out
+	out=$(cli listpeerchannels 2>/dev/null | jq -r '
+		.channels[]
+		| select(.state == "CHANNELD_NORMAL")
+		| select(.peer_connected == false or .peer_connected == null)
+		| .short_channel_id
+	' 2>/dev/null) || out=""
+	if [ -n "$out" ]; then
+		echo "channels with peer offline: $(echo "$out" | tr '\n' ' ')"
+		return 0
+	fi
+	return 1
+}
+
+cond_channel_ratio_outside() {
+	local lo hi
+	lo="${threshold%,*}"; hi="${threshold#*,}"
+	[ -n "$lo" ] || lo=10
+	[ -n "$hi" ] || hi=90
+	local out
+	out=$(cli listpeerchannels 2>/dev/null | jq -r --argjson lo "$lo" --argjson hi "$hi" '
+		.channels[]
+		| select(.state == "CHANNELD_NORMAL")
+		| ((.to_us_msat // 0) * 100 / (.total_msat // 1) | floor) as $r
+		| select($r < $lo or $r > $hi)
+		| "\(.short_channel_id)(\($r)%)"
+	' 2>/dev/null) || out=""
+	if [ -n "$out" ]; then
+		echo "channels outside [${lo}%, ${hi}%]: $(echo "$out" | tr '\n' ' ')"
+		return 0
+	fi
+	return 1
+}
+
+cond_balance_below() {
+	local cap="${threshold:-0}"
+	local bal
+	bal=$(cli listfunds 2>/dev/null | jq -r '
+		[.outputs[]? | (.amount_msat // (.value*1000))] | add // 0 | . / 1000 | floor
+	' 2>/dev/null) || bal=0
+	if [ "$bal" -lt "$cap" ] 2>/dev/null; then
+		echo "on-chain balance $bal sat < threshold $cap sat"
+		return 0
+	fi
+	return 1
+}
+
+cond_low_inbound_capacity() {
+	local cap="${threshold:-0}"
+	local in_
+	in_=$(cli listpeerchannels 2>/dev/null | jq -r '
+		[.channels[]?.inbound_msat // 0] | add // 0 | . / 1000 | floor
+	' 2>/dev/null) || in_=0
+	if [ "$in_" -lt "$cap" ] 2>/dev/null; then
+		echo "inbound capacity $in_ sat < threshold $cap sat"
+		return 0
+	fi
+	return 1
+}
+
+# Dispatch table.
+evaluate_condition() {
+	local cond="$1"
+	case "$cond" in
+		daemon_down)             cond_daemon_down ;;
+		peer_offline)            cond_peer_offline ;;
+		channel_offline)         cond_channel_offline ;;
+		channel_ratio_outside)   cond_channel_ratio_outside ;;
+		balance_below)           cond_balance_below ;;
+		low_inbound_capacity)    cond_low_inbound_capacity ;;
+		*) error "unknown condition '$cond'"; return 1 ;;
+	esac
+}
+
+# -----------------------------------------------------------------------------
+# Webhook delivery
+# -----------------------------------------------------------------------------
+
+webhook_send() {
+	require_curl
+	local url="$1" message="$2"
+	case "$url" in
+		https://hooks.slack.com/*)
+			curl -fsSL -X POST -H 'Content-Type: application/json' \
+				--data "$(jq -nc --arg t "$message" '{text:$t}')" \
+				"$url" >/dev/null 2>&1
+			;;
+		https://discord.com/api/*|https://discordapp.com/api/*)
+			curl -fsSL -X POST -H 'Content-Type: application/json' \
+				--data "$(jq -nc --arg t "$message" '{content:$t}')" \
+				"$url" >/dev/null 2>&1
+			;;
+		https://api.telegram.org/*)
+			# The URL already encodes the bot token + sendMessage; the
+			# chat_id is expected as a query parameter on the URL itself
+			# or we just append it. Simplest: GET with text= param.
+			curl -fsSL -G --data-urlencode "text=$message" "$url" >/dev/null 2>&1
+			;;
+		mailto:*)
+			local addr="${url#mailto:}"
+			if command -v mail >/dev/null 2>&1; then
+				echo "$message" | mail -s "lightning alert" "$addr" 2>/dev/null
+			else
+				error "mailto: needs mail(1) installed"
+				return 1
+			fi
+			;;
+		http*://*)
+			curl -fsSL -X POST -H 'Content-Type: application/json' \
+				--data "$(jq -nc --arg m "$message" '{alert:$m}')" \
+				"$url" >/dev/null 2>&1
+			;;
+		*)
+			error "unsupported webhook scheme: $url"
+			return 1
+			;;
+	esac
+}
+
+# -----------------------------------------------------------------------------
+# Sub-commands
+# -----------------------------------------------------------------------------
+
+cmd_create() {
+	[ $# -lt 1 ] && { error "create needs <name>"; exit 1; }
+	local name="$1"; shift
+	local cond="" webhook="" threshold="" cooldown="1h"
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--on)        cond="$2"; shift 2 ;;
+			--webhook)   webhook="$2"; shift 2 ;;
+			--threshold) threshold="$2"; shift 2 ;;
+			--cooldown)  cooldown="$2"; shift 2 ;;
+			*) error "create: unknown flag '$1'"; exit 1 ;;
+		esac
+	done
+	[ -n "$cond" ]    || { error "create: --on <condition> required"; exit 1; }
+	[ -n "$webhook" ] || { error "create: --webhook <url> required"; exit 1; }
+
+	mkdir -p "$ALERTS_DIR"
+	local file; file=$(rule_path "$name")
+	cat > "$file" <<EOF
+name:        $name
+on:          $cond
+threshold:   $threshold
+webhook:     $webhook
+cooldown:    $cooldown
+last_fired:
+EOF
+	echo "ok"
+	echo "rule:        $name"
+	echo "stored:      $file"
+}
+
+cmd_list() {
+	[ -d "$ALERTS_DIR" ] || { info "no alerts configured"; return 0; }
+	local files; files=$(ls "$ALERTS_DIR"/*.conf 2>/dev/null)
+	[ -n "$files" ] || { info "no alerts configured"; return 0; }
+	local first=1
+	for f in $files; do
+		[ "$first" -eq 1 ] || echo
+		cat "$f"
+		first=0
+	done
+}
+
+cmd_remove() {
+	[ $# -lt 1 ] && { error "remove needs <name>"; exit 1; }
+	local file; file=$(rule_path "$1")
+	[ -f "$file" ] || { error "no rule named '$1'"; exit 4; }
+	rm -f "$file"
+	echo "ok"
+	echo "removed: $1"
+}
+
+# Evaluate one rule. Sets globals so cond_* fns can read `threshold`.
+# Echoes the firing message on stdout if it fires, returns 0/1.
+eval_rule() {
+	local name="$1"
+	threshold=$(rule_get "$name" threshold)
+	local cond; cond=$(rule_get "$name" on)
+	evaluate_condition "$cond"
+}
+
+cmd_test() {
+	[ $# -lt 1 ] && { error "test needs <name>"; exit 1; }
+	local name="$1"
+	local file; file=$(rule_path "$name")
+	[ -f "$file" ] || { error "no rule named '$name'"; exit 4; }
+
+	local reason
+	reason=$(eval_rule "$name") || {
+		echo "rule:       $name"
+		echo "status:     not_firing"
+		return 0
+	}
+	local webhook; webhook=$(rule_get "$name" webhook)
+	echo "rule:       $name"
+	echo "status:     would_fire"
+	echo "reason:     $reason"
+	echo "webhook:    $webhook"
+	echo "(sending [TEST] webhook now)"
+	webhook_send "$webhook" "[TEST] lightning alert '$name': $reason" || \
+		warn "webhook delivery failed"
+}
+
+cmd_run() {
+	local once=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--once) once=1; shift ;;
+			*) error "run: unknown flag '$1'"; exit 1 ;;
+		esac
+	done
+
+	[ -d "$ALERTS_DIR" ] || { info "no alerts directory yet — nothing to run"; return 0; }
+	local files; files=$(ls "$ALERTS_DIR"/*.conf 2>/dev/null)
+	[ -n "$files" ] || { info "no alerts configured"; return 0; }
+
+	local fired=0 skipped=0 quiet=0
+	local now; now=$(now_epoch)
+	for f in $files; do
+		local name; name=$(basename "$f" .conf)
+		local cond;     cond=$(rule_get "$name" on)
+		local webhook;  webhook=$(rule_get "$name" webhook)
+		local cooldown; cooldown=$(rule_get "$name" cooldown)
+		local last_fired; last_fired=$(rule_get "$name" last_fired)
+		threshold=$(rule_get "$name" threshold)
+
+		local reason
+		if ! reason=$(evaluate_condition "$cond" 2>/dev/null); then
+			quiet=$((quiet + 1))
+			continue
+		fi
+
+		# Cooldown check.
+		if [ -n "$last_fired" ]; then
+			local cd_sec; cd_sec=$(parse_duration "$cooldown")
+			local last_sec; last_sec=$(iso_epoch "$last_fired")
+			if [ "$last_sec" -gt 0 ] && [ $(( now - last_sec )) -lt "$cd_sec" ]; then
+				skipped=$((skipped + 1))
+				continue
+			fi
+		fi
+
+		# Fire.
+		info "firing alert '$name' ($cond): $reason"
+		if webhook_send "$webhook" "lightning alert '$name': $reason"; then
+			rule_set "$name" "last_fired" "$(now_iso)"
+			fired=$((fired + 1))
+		else
+			warn "webhook delivery failed for '$name'"
+		fi
+	done
+
+	echo "fired:      $fired"
+	echo "quiet:      $quiet"
+	echo "cooled:     $skipped"
+}
+
+# -----------------------------------------------------------------------------
+# Per-sub help
+# -----------------------------------------------------------------------------
+
+subhelp() {
+	case "$1" in
+		create)
+			cat <<'EOF'
+usage: lightning alert create <name> --on <condition>
+                                     --webhook <url>
+                                     [--threshold <value>]
+                                     [--cooldown <duration>]
+
+Records a rule under $LIGHTNING_DIR/alerts/<name>.conf
+(recfile). Re-running create with the same name overwrites.
+
+Conditions (the --on value):
+   daemon_down            no threshold
+   peer_offline           threshold ignored (any disconnect fires)
+   channel_offline        same
+   channel_ratio_outside  threshold "<lo>,<hi>" (default "10,90")
+   balance_below          threshold in sat
+   low_inbound_capacity   threshold in sat
+
+Cooldown: "5m", "1h", "30s", "1d". Default 1h. Prevents the
+same rule from firing repeatedly while the condition persists.
+EOF
+			;;
+		list)
+			cat <<'EOF'
+usage: lightning alert list
+
+Multi-record recfile of every alert under $LIGHTNING_DIR/alerts/.
+EOF
+			;;
+		remove)
+			cat <<'EOF'
+usage: lightning alert remove <name>
+
+Delete the rule file. Cooldown state is in the rule file so it
+goes too — re-creating the rule with the same name starts fresh.
+EOF
+			;;
+		test)
+			cat <<'EOF'
+usage: lightning alert test <name>
+
+Evaluate the rule once, ignoring cooldown. If the condition
+fires, sends a [TEST]-prefixed webhook so you can verify
+delivery without waiting for a real condition.
+EOF
+			;;
+		run)
+			cat <<'EOF'
+usage: lightning alert run [--once]
+
+Evaluate every rule, fire matching webhooks. Honours per-rule
+cooldown — a firing rule won't fire again until the cooldown
+window has elapsed. Designed to be invoked from a scheduler
+(the FEAT-204 sidecar that `daemon install` wires up). The
+--once flag is a hint for future work; today every run is
+single-shot anyway.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+case "$SUB" in
+	create) cmd_create "$@" ;;
+	list)   cmd_list "$@" ;;
+	remove) cmd_remove "$@" ;;
+	test)   cmd_test "$@" ;;
+	run)    cmd_run "$@" ;;
+	*) error "alert: unknown subcommand '$SUB'"; usage; exit 1 ;;
+esac
