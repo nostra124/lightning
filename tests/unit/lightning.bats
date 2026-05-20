@@ -83,10 +83,10 @@ EOF
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 1.1.0" {
+@test "lightning version returns 1.1.1" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.1.0" ]
+	[ "$output" = "1.1.1" ]
 }
 
 @test "lightning help prints usage" {
@@ -1600,4 +1600,43 @@ EOF
 	[[ "$output" == *"tower"* ]]
 	[[ "$output" == *"fee"* ]]
 	[[ "$output" == *"forward"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# 1.1.1 — maintenance pass
+# ---------------------------------------------------------------------------
+
+@test "1.1.1: .rpk/versions lists every released version with a SHA" {
+	f="$BATS_TEST_DIRNAME/../../.rpk/versions"
+	[ -s "$f" ]
+	for v in 0.1.0 0.2.0 0.3.0 0.4.0 0.5.0 0.6.0 1.0.0 1.1.0; do
+		grep -E "^$v	[0-9a-f]{7,}" "$f"
+	done
+}
+
+@test "1.1.1: fee policy match-peer returns NOT IMPLEMENTED + exit 2" {
+	run "$LIGHTNING_BIN" fee policy match-peer
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"NOT IMPLEMENTED"* ]]
+}
+
+@test "1.1.1: help tags each verb group with the milestone it shipped in" {
+	run "$LIGHTNING_BIN" help
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"(0.2.0)"* ]]
+	[[ "$output" == *"(0.3.0"* ]]
+	[[ "$output" == *"(0.4.0"* ]]
+	[[ "$output" == *"(0.5.0"* ]]
+	[[ "$output" == *"(0.6.0)"* ]]
+	[[ "$output" == *"(1.1.0)"* ]]
+}
+
+@test "1.1.1: CI workflow explicitly installs sqlite3 + jq + python3" {
+	f="$BATS_TEST_DIRNAME/../../.github/workflows/test.yml"
+	[ -f "$f" ]
+	grep -q "sqlite3" "$f"
+	grep -q "jq" "$f"
+	grep -q "python3" "$f"
+	# shellcheck step.
+	grep -q "shellcheck" "$f"
 }
