@@ -1,0 +1,265 @@
+#!/bin/bash
+# lightning rebalance — circular self-payment + swap fallback (FEAT-201).
+#
+# Top-level one-shot verb (not an object dispatcher). Wraps the
+# `rebalance` plugin's JSON-RPC when present; falls back to a
+# `liquidity loop|boltz` swap when no LN route exists and
+# --fallback swap is set.
+#
+# Pairs with `lightning fee` (FEAT-200, passive layer) and the
+# `feeadjuster` plugin (continuous). Tier-3 of the operational
+# guide (FEAT-202): expensive enough that you don't run it from
+# cron — operator's explicit decision when a channel is stuck.
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning rebalance <amount-sat> [--from <chan>] [--to <chan>]
+                                        [--max-fee-ppm N] [--max-fee-sat N]
+                                        [--dry-run]
+                                        [--fallback swap|none]
+
+   Move <amount-sat> from one channel to another via a circular
+   self-payment (LN-internal) or a submarine swap (on-chain
+   fallback). Wraps the `rebalance` plugin's JSON-RPC; install
+   first via:
+
+       lightning plugin install rebalance
+
+Channel selection:
+   --from <chan>   source (where the sats leave). Optional.
+   --to <chan>     destination (where they arrive). Optional.
+                   With neither, the rebalance plugin picks the
+                   most asymmetric pair automatically.
+
+Fee caps (whichever is lower wins):
+   --max-fee-ppm N    default 500 (=0.05%)
+   --max-fee-sat N    absolute cap
+
+Other:
+   --dry-run          print the chosen route + estimated cost,
+                      don't pay
+   --fallback swap    if LN circular fails, try \`liquidity loop\`
+                      or \`liquidity boltz\` (default: none)
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
+}
+
+# -----------------------------------------------------------------------------
+# Plugin detection
+# -----------------------------------------------------------------------------
+
+rebalance_plugin_installed() {
+	# File-presence check is the cheapest signal — same convention
+	# as `lightning plugin list`. The plugin file lives at
+	# $LIGHTNING_DIR/plugins/rebalance.py.
+	[ -f "$LIGHTNING_DIR/plugins/rebalance.py" ] || \
+	[ -f "$LIGHTNING_DIR/plugins/rebalance/rebalance.py" ]
+}
+
+# -----------------------------------------------------------------------------
+# Help / argv parsing
+# -----------------------------------------------------------------------------
+
+# Parse top-level args (no subcommand object).
+case "${1:-}" in
+	--help|-h) usage; exit 0 ;;
+esac
+
+AMOUNT=""
+FROM=""
+TO=""
+MAX_FEE_PPM=500
+MAX_FEE_SAT=""
+DRY_RUN=0
+FALLBACK=none
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--from)        FROM="$2"; shift 2 ;;
+		--to)          TO="$2"; shift 2 ;;
+		--max-fee-ppm) MAX_FEE_PPM="$2"; shift 2 ;;
+		--max-fee-sat) MAX_FEE_SAT="$2"; shift 2 ;;
+		--dry-run)     DRY_RUN=1; shift ;;
+		--fallback)    FALLBACK="$2"; shift 2 ;;
+		--help|-h)     usage; exit 0 ;;
+		--*) error "rebalance: unknown flag '$1'"; exit 1 ;;
+		*)
+			if [ -z "$AMOUNT" ]; then AMOUNT="$1"; shift
+			else error "rebalance: unexpected arg '$1'"; exit 1
+			fi
+			;;
+	esac
+done
+
+[ -n "$AMOUNT" ] || { error "rebalance needs <amount-sat>"; usage; exit 1; }
+case "$AMOUNT" in
+	*[!0-9]*) error "<amount-sat> must be a positive integer"; exit 1 ;;
+esac
+case "$FALLBACK" in swap|none) ;; *) error "--fallback must be swap or none"; exit 1 ;; esac
+
+# -----------------------------------------------------------------------------
+# Channel-pair auto-detection (when --from/--to omitted)
+# -----------------------------------------------------------------------------
+
+# Without --from / --to, ask listpeerchannels for the channel with
+# the highest outbound capacity (source) and the lowest (dest).
+# Returns "<from-scid> <to-scid>" on stdout, or "" if there are
+# fewer than 2 normal channels.
+pick_asymmetric_pair() {
+	cli listpeerchannels 2>/dev/null | jq -r '
+		[.channels[] | select(.state == "CHANNELD_NORMAL")] as $ch
+		| if ($ch | length) < 2 then ""
+		  else
+		    ($ch | sort_by(.to_us_msat // 0) | reverse) as $sorted
+		    | "\($sorted[0].short_channel_id) \($sorted[-1].short_channel_id)"
+		  end
+	' 2>/dev/null
+}
+
+# -----------------------------------------------------------------------------
+# LN circular path (via the rebalance plugin)
+# -----------------------------------------------------------------------------
+
+ln_rebalance() {
+	require_cli
+
+	local from="$FROM" to="$TO"
+	if [ -z "$from" ] && [ -z "$to" ]; then
+		read -r from to <<<"$(pick_asymmetric_pair)"
+		if [ -z "$from" ] || [ -z "$to" ]; then
+			error "couldn't auto-select a channel pair (need >= 2 normal channels)"
+			exit 1
+		fi
+		info "auto-pair: from=$from to=$to"
+	fi
+
+	# Convert sat -> msat for the plugin RPC.
+	local outgoing_scid="${from:-null}"
+	local incoming_scid="${to:-null}"
+	local amount_msat=$(( AMOUNT * 1000 ))
+
+	# The rebalance plugin's RPC takes:
+	#   amount_msat            amount in msat
+	#   outgoing_scid          which channel to drain
+	#   incoming_scid          which channel to fill
+	#   maxfeepercent OR exemptfee     fee cap as percent
+	# We map our --max-fee-ppm to maxfeepercent (ppm/10000).
+	local max_pct
+	max_pct=$(awk -v ppm="$MAX_FEE_PPM" 'BEGIN {printf "%.6f", ppm/10000}')
+
+	local args=(rebalance "$amount_msat" "$outgoing_scid" "$incoming_scid" null null "$max_pct")
+
+	if [ "$DRY_RUN" -eq 1 ]; then
+		info "would call: lightning-cli ${args[*]}"
+		info "dry-run; pass without --dry-run to commit"
+		echo "status:        dry_run"
+		echo "from:          $from"
+		echo "to:            $to"
+		echo "amount_sat:    $AMOUNT"
+		echo "max_fee_ppm:   $MAX_FEE_PPM"
+		return 0
+	fi
+
+	local result; result=$(cli "${args[@]}" 2>&1) || {
+		# Plugin returned an error — usually "no route", "fee too high",
+		# or HTLC failure. Try the swap fallback if requested.
+		if [ "$FALLBACK" = "swap" ]; then
+			warn "LN circular failed: $result"
+			swap_rebalance "$from" "$to"
+			return $?
+		fi
+		error "rebalance failed: $result"
+		exit 4
+	}
+
+	local sent_msat; sent_msat=$(jq -r '.sent // .msatoshi_sent // empty' <<<"$result")
+	local recv_msat; recv_msat=$(jq -r '.received // .msatoshi // empty' <<<"$result")
+	local fee_msat
+	if [ -n "$sent_msat" ] && [ -n "$recv_msat" ]; then
+		fee_msat=$(( sent_msat - recv_msat ))
+	else
+		fee_msat=$(jq -r '.fee_msat // empty' <<<"$result")
+	fi
+	local fee_ppm
+	if [ -n "$fee_msat" ] && [ "$fee_msat" -gt 0 ] 2>/dev/null; then
+		fee_ppm=$(awk -v f="$fee_msat" -v a="$amount_msat" \
+			'BEGIN {printf "%.2f", (f * 1000000) / a}')
+	else
+		fee_ppm=0
+	fi
+	local hops; hops=$(jq -r '.outgoing_route_hops // .hops // "-"' <<<"$result")
+
+	echo "status:        complete"
+	echo "from:          $from"
+	echo "to:            $to"
+	echo "amount_sat:    $AMOUNT"
+	echo "fee_msat:      ${fee_msat:-0}"
+	echo "fee_ppm:       $fee_ppm"
+	echo "route_hops:    $hops"
+}
+
+# -----------------------------------------------------------------------------
+# Swap fallback
+# -----------------------------------------------------------------------------
+
+swap_rebalance() {
+	local from="$1" to="$2"
+	info "swap fallback: loop out from $from, loop in to $to (~0.1-0.5% + on-chain fees)"
+	if [ "$DRY_RUN" -eq 1 ]; then
+		echo "status:        dry_run_swap"
+		echo "from:          $from"
+		echo "to:            $to"
+		echo "amount_sat:    $AMOUNT"
+		return 0
+	fi
+	# Two-step: drain source channel, fill destination channel.
+	local self_bin="$SELF_LIBEXEC/lightning"
+	if ! "$self_bin/liquidity" loop out "$AMOUNT" >/dev/null 2>&1; then
+		error "swap fallback failed at \`liquidity loop out\`"
+		exit 4
+	fi
+	if ! "$self_bin/liquidity" loop in "$AMOUNT" >/dev/null 2>&1; then
+		error "swap fallback failed at \`liquidity loop in\`"
+		exit 4
+	fi
+	echo "status:        swap_complete"
+	echo "from:          $from"
+	echo "to:            $to"
+	echo "amount_sat:    $AMOUNT"
+	echo "method:        liquidity loop (out + in)"
+}
+
+# -----------------------------------------------------------------------------
+# Dispatch
+# -----------------------------------------------------------------------------
+
+if ! rebalance_plugin_installed; then
+	error "the rebalance plugin isn't installed at $LIGHTNING_DIR/plugins/rebalance.py"
+	error "install with:"
+	error "    lightning plugin install rebalance"
+	if [ "$FALLBACK" = "swap" ]; then
+		warn "no LN backend available — going straight to swap fallback"
+		# Pair auto-detection still wants the daemon; gate on cli.
+		require_cli
+		if [ -z "$FROM" ] || [ -z "$TO" ]; then
+			read -r FROM TO <<<"$(pick_asymmetric_pair)"
+		fi
+		swap_rebalance "$FROM" "$TO"
+		exit $?
+	fi
+	exit 127
+fi
+
+ln_rebalance

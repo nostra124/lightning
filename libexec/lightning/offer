@@ -1,48 +1,154 @@
 #!/bin/bash
-# lightning offer — create a BOLT-12 offer (reusable invoice).
+# lightning offer — BOLT-12 offers (create + pay).
 #
 # Implements: BOLT-12 per FEAT-173.
 #   share/doc/lightning/standards/bolts/12-offer-encoding.md
 #
-# Usage:
-#   lightning offer <sat>|any <description> [--qr]
+# Subcommands:
+#   create <sat>|any <description> [--qr]
+#   pay <bolt12-offer> [<sat>] [--message <text>]
 
 set -e
 
-[ $# -lt 2 ] && { echo "usage: lightning offer <sat>|any <description> [--qr]" >&2; exit 1; }
+usage() {
+	cat >&2 <<EOF
+usage: lightning offer <subcommand> [args]
 
-command -v lightning-cli >/dev/null || {
-	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
+   BOLT-12 offers — reusable invoices. A single offer string can
+   be paid many times; each payer fetches a fresh BOLT-12 invoice
+   on the wire. Requires clightning ≥ 22.11 with
+   experimental-offers enabled. See
+   share/doc/lightning/standards/bolts/12-offer-encoding.md.
+   Each sub-command also accepts --help.
+
+subcommands:
+   create <sat>|any <description> [--qr]
+   pay <bolt12-offer> [<sat>] [--message <text>]
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
+}
 
-amount="$1"; desc="$2"; shift 2
-want_qr=0
+cmd_create() {
+	[ $# -lt 2 ] && { echo "usage: lightning offer create <sat>|any <description> [--qr]" >&2; exit 1; }
 
-while [ $# -gt 0 ]; do
+	local amount="$1" desc="$2"; shift 2
+	local want_qr=0
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--qr) want_qr=1; shift ;;
+			*) error "offer create: unknown flag '$1'"; exit 1 ;;
+		esac
+	done
+
+	local amount_arg
+	if [ "$amount" = "any" ]; then
+		amount_arg="any"
+	else
+		amount_arg="$(( amount * 1000 ))msat"
+	fi
+
+	local result; result=$(cli offer "$amount_arg" "$desc")
+	local bolt12; bolt12=$(jq -r .bolt12 <<<"$result")
+	local offer_id; offer_id=$(jq -r .offer_id <<<"$result")
+
+	echo "$bolt12"
+	echo "# offer_id: $offer_id" >&2
+
+	if [ "$want_qr" -eq 1 ] && [ -x "$SELF_LIBEXEC/lightning/qr" ]; then
+		echo
+		"$SELF_LIBEXEC/lightning/qr" "lightning:$bolt12"
+	fi
+}
+
+cmd_pay() {
+	[ $# -lt 1 ] && { echo "usage: lightning offer pay <bolt12-offer> [<sat>] [--message <text>]" >&2; exit 1; }
+
+	local offer="$1"; shift
+	local amount_arg="null"
+	local message=""
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--message) message="$2"; shift 2 ;;
+			[0-9]*)    amount_arg="$(( $1 * 1000 ))msat"; shift ;;
+			*) error "offer pay: unknown arg '$1'"; exit 1 ;;
+		esac
+	done
+
+	local fetched
+	if [ -n "$message" ]; then
+		fetched=$(cli fetchinvoice "$offer" "$amount_arg" null null null null null "$message")
+	else
+		fetched=$(cli fetchinvoice "$offer" "$amount_arg")
+	fi
+
+	local bolt12_invoice; bolt12_invoice=$(jq -r .invoice <<<"$fetched")
+	local result; result=$(cli pay "$bolt12_invoice")
+	local status; status=$(jq -r .status <<<"$result")
+	local hash;   hash=$(jq -r .payment_hash <<<"$result")
+
+	if [ "$status" = "complete" ]; then
+		echo "ok"
+		echo "payment_hash: $hash"
+		exit 0
+	else
+		echo "failed: $status" >&2
+		exit 4
+	fi
+}
+
+subhelp() {
 	case "$1" in
-		--qr) want_qr=1; shift ;;
-		*) echo "lightning offer: unknown flag '$1'" >&2; exit 1 ;;
+		create)
+			cat <<'EOF'
+usage: lightning offer create <sat>|any <description> [--qr]
+
+Create a BOLT-12 offer — a reusable invoice that payers can fetch
+repeatedly. Use `any` for unrestricted amount (payer chooses) or a
+specific sats figure. Prints the lno1… string; --qr also renders
+it as a QR. The daemon must support BOLT-12 (CLN 22.11+ with
+experimental-offers).
+EOF
+			;;
+		pay)
+			cat <<'EOF'
+usage: lightning offer pay <bolt12-offer> [<sat>] [--message <text>]
+
+Fetch an invoice for the offer (BOLT-12 invoice_request round)
+and pay it. <sat> is required if the offer was created with `any`;
+omit it otherwise. --message attaches a payer_note visible to the
+recipient.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
 	esac
-done
+}
 
-# clightning's offer command takes amount in msat (or "any") + description.
-if [ "$amount" = "any" ]; then
-	amount_arg="any"
-else
-	amount_arg="$(( amount * 1000 ))msat"
-fi
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
 
-result=$(cli offer "$amount_arg" "$desc")
-bolt12=$(jq -r .bolt12 <<<"$result")
-offer_id=$(jq -r .offer_id <<<"$result")
+require_cli
 
-echo "$bolt12"
-echo "# offer_id: $offer_id" >&2
-
-if [ "$want_qr" -eq 1 ] && [ -x "$SELF_LIBEXEC/lightning/qr" ]; then
-	echo
-	"$SELF_LIBEXEC/lightning/qr" "lightning:$bolt12"
-fi
+case "$SUB" in
+	create) cmd_create "$@" ;;
+	pay)    cmd_pay "$@" ;;
+	*) usage; exit 1 ;;
+esac

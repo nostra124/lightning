@@ -1,0 +1,34 @@
+#!/bin/bash
+# lightning api-lnurlp — sudo-friendly facade for the LNURL-pay CGI handler.
+#
+# Usage (via sudo):
+#   lightning api-lnurlp <user>
+#
+# Returns TSV: user, account, min_sat, max_sat, comment_max
+# Strict argument validation: user must match [a-z][a-z0-9_-]*
+
+set -e
+
+[ $# -lt 1 ] && { echo "usage: lightning api-lnurlp <user>" >&2; exit 1; }
+
+user="$1"
+# Validate: lowercase alphanumeric + underscore + hyphen.
+[[ "$user" =~ ^[a-z][a-z0-9_-]*$ ]] || {
+	echo "lightning: invalid user '$user'" >&2; exit 2; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+
+command -v sqlite3 >/dev/null || {
+	echo "lightning: sqlite3 not found" >&2; exit 127; }
+
+wallet_db() {
+	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
+	echo "$LIGHTNING_DIR/wallet/$active/state.db"
+}
+
+DB=$(wallet_db)
+[ -f "$DB" ] || { echo "lightning: no wallet database" >&2; exit 5; }
+
+sqlite3 -readonly "$DB" -cmd ".mode tabs" \
+	"SELECT user, account, min_sat, max_sat, comment_max FROM users WHERE user = '$(echo "$user" | sed "s/'/''/g")'" || {
+	echo "lightning: user '$user' not found" >&2; exit 4; }
