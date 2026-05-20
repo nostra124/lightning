@@ -2090,3 +2090,35 @@ EOF
 	run "$LIGHTNING_BIN" help
 	[[ "$output" == *"alert"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-202 / FEAT-203 — operational guides
+# ---------------------------------------------------------------------------
+
+@test "FEAT-202: personal-node guide ships" {
+	local guide="$BATS_TEST_DIRNAME/../../share/doc/lightning/guides/personal-node.md"
+	[ -f "$guide" ]
+	# Cites every verb the guide depends on.
+	grep -q "lightning peer bootstrap" "$guide"
+	grep -q "lightning plugin install feeadjuster" "$guide"
+	grep -q "lightning fee policy balanced" "$guide"
+	grep -q "lightning rebalance" "$guide"
+	grep -q "lightning alert create" "$guide"
+	# Has the honest economics section.
+	grep -q "Realistic economics" "$guide"
+}
+
+@test "FEAT-203: routing-node guide ships and cross-links to personal-node" {
+	local guide="$BATS_TEST_DIRNAME/../../share/doc/lightning/guides/routing-node.md"
+	local personal="$BATS_TEST_DIRNAME/../../share/doc/lightning/guides/personal-node.md"
+	[ -f "$guide" ]
+	# Cross-link to the personal-node guide (and vice versa).
+	grep -q "personal-node.md" "$guide"
+	grep -q "routing-node.md" "$personal"
+	# Names the operational verbs.
+	grep -q "lightning fee" "$guide"
+	grep -q "lightning rebalance" "$guide"
+	grep -q "lightning alert" "$guide"
+	# Honest scope statement up front.
+	grep -q "5+ BTC" "$guide"
+}
