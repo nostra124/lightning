@@ -83,10 +83,10 @@ EOF
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 1.0.0" {
+@test "lightning version returns 1.1.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.0.0" ]
+	[ "$output" = "1.1.0" ]
 }
 
 @test "lightning help prints usage" {
@@ -1499,10 +1499,11 @@ EOF
 # 1.0.0 graduation smokes
 # ---------------------------------------------------------------------------
 
-@test "1.0.0: every milestone-plan file is gone (all milestones consumed)" {
+@test "1.0.0: every 0.x milestone-plan file is gone (graduation invariant)" {
 	root="$BATS_TEST_DIRNAME/../../issues"
-	# After closure, no MILESTONE-*.md should remain at the top of issues/.
-	! ls "$root"/MILESTONE-*.md 2>/dev/null
+	# 1.0.0 graduation: every 0.x milestone has been consumed and
+	# deleted. Later 1.x milestones may be open and unfinished.
+	! ls "$root"/MILESTONE-0.*.md 2>/dev/null
 }
 
 @test "1.0.0: every initial FEAT (170..195) is in issues/feature/done/" {
@@ -1513,4 +1514,90 @@ EOF
 		count=$(ls "$root"/${n}-*.md 2>/dev/null | wc -l)
 		[ "$count" -eq 1 ] || { echo "FEAT-$n missing in done/"; return 1; }
 	done
+}
+
+# ---------------------------------------------------------------------------
+# 1.1.0 — routing-node features
+# ---------------------------------------------------------------------------
+
+@test "FEAT-186: lightning tower (no args) prints usage" {
+	run "$LIGHTNING_BIN" tower
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+@test "FEAT-186: tower client-add exits 3 when plugin not loaded" {
+	run "$LIGHTNING_BIN" tower client-add 020000000000000000000000000000000000000000000000000000000000000002@127.0.0.1:9814
+	[ "$status" -eq 3 ]
+	[[ "$output" == *"altruistwatchtower"* ]]
+}
+
+@test "FEAT-186: tower client-add succeeds with plugin loaded" {
+	export MOCK_HELP_INCLUDES='"addtower","listtowers"'
+	run "$LIGHTNING_BIN" tower client-add 020000000000000000000000000000000000000000000000000000000000000002@127.0.0.1:9814
+	[ "$status" -eq 0 ]
+}
+
+@test "FEAT-186: tower client-list returns TSV header" {
+	export MOCK_HELP_INCLUDES='"addtower","listtowers"'
+	run "$LIGHTNING_BIN" tower client-list
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "pubkey	host	port	sessions" ]]
+}
+
+@test "FEAT-188: lightning fee (no args) prints usage" {
+	run "$LIGHTNING_BIN" fee
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+@test "FEAT-188: fee get returns the TSV header" {
+	run "$LIGHTNING_BIN" fee get
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "channel_id	base_msat	ppm" ]]
+}
+
+@test "FEAT-188: fee set with non-numeric base rejects" {
+	run "$LIGHTNING_BIN" fee set chan-1 not-a-number 100
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"integer required"* ]]
+}
+
+@test "FEAT-188: fee set with valid args round-trips" {
+	run "$LIGHTNING_BIN" fee set 0000000000000000000000000000000000000000000000000000000000000001 1000 5
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"fee_base_msat"* ]]
+	[[ "$output" == *"1000"* ]]
+}
+
+@test "FEAT-188: fee policy rejects unknown name" {
+	run "$LIGHTNING_BIN" fee policy bogus
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown"* ]]
+}
+
+@test "FEAT-188: forward (no args) prints usage" {
+	run "$LIGHTNING_BIN" forward
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+@test "FEAT-188: forward list returns TSV header" {
+	run "$LIGHTNING_BIN" forward list
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "received_time	in_channel	out_channel	in_msat	out_msat	fee_msat	status" ]]
+}
+
+@test "FEAT-188: forward stats returns JSON with success_rate" {
+	run "$LIGHTNING_BIN" forward stats
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"success_rate"* ]]
+	[[ "$output" == *"forwarded_msat"* ]]
+}
+
+@test "1.1.0: help lists tower / fee / forward" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"tower"* ]]
+	[[ "$output" == *"fee"* ]]
+	[[ "$output" == *"forward"* ]]
 }

@@ -1,0 +1,116 @@
+#!/bin/bash
+# lightning tower — watchtower client + server (FEAT-186).
+#
+# Wraps clightning's `altruistwatchtower` (client) and
+# `watchtower` (server) plugins. BOLT-13 is still draft;
+# see share/doc/lightning/standards/README-drafts.md.
+#
+# Subcommands:
+#   client-add <pubkey@host:port>     register a remote tower
+#   client-list                       registered towers
+#   client-stats                      sessions / breaches witnessed
+#   server-on                         enable watchtower role
+#   server-off                        disable
+#   server-status                     peers + breaches witnessed
+
+set -e
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found" >&2; exit 127; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning tower <subcommand>
+
+   client-add <pubkey@host:port>   register a remote tower
+   client-list                     show registered towers
+   client-stats                    sessions / breaches witnessed
+   server-on                       enable watchtower-server role
+   server-off                      disable
+   server-status                   peers + breaches witnessed
+
+The justice scenario: if your channel peer publishes a stale
+commitment while you're offline, a registered tower watches
+the chain on your behalf and broadcasts the penalty
+transaction. See BOLT-3 \xc2\xa7revocation-keys and the
+BOLT-13 draft for details.
+EOF
+}
+
+client_plugin_loaded() {
+	cli help 2>/dev/null | grep -q -E 'addtower|altruistwatchtower'
+}
+
+server_plugin_loaded() {
+	cli help 2>/dev/null | grep -q -E 'watchtower-stats|listtowers'
+}
+
+cmd_client_add() {
+	[ $# -lt 1 ] && { echo "usage: lightning tower client-add <pubkey@host:port>" >&2; exit 1; }
+	client_plugin_loaded || {
+		echo "lightning tower: altruistwatchtower plugin not loaded" >&2
+		echo "  add this to lightningd.conf:" >&2
+		echo "    plugin=/usr/lib/clightning/plugins/altruistwatchtower" >&2
+		exit 3
+	}
+	cli addtower "$1"
+}
+
+cmd_client_list() {
+	client_plugin_loaded || { echo "lightning tower: client plugin not loaded" >&2; exit 3; }
+	cli listtowers | jq -r '
+		["pubkey","host","port","sessions"], (
+			.towers[] | [.id, .host, .port, .num_sessions]
+		) | @tsv'
+}
+
+cmd_client_stats() {
+	client_plugin_loaded || { echo "lightning tower: client plugin not loaded" >&2; exit 3; }
+	cli listtowers | jq '{
+		towers: (.towers | length),
+		sessions: ([.towers[].num_sessions] | add // 0),
+		backups_sent: ([.towers[].num_backups] | add // 0)
+	}'
+}
+
+cmd_server_on() {
+	# clightning's watchtower plugin is dynamic-loadable.
+	cli plugin start /usr/lib/clightning/plugins/watchtower 2>/dev/null \
+		|| cli plugin start watchtower 2>/dev/null \
+		|| {
+			echo "lightning tower: watchtower plugin not available" >&2
+			echo "  install core-lightning-experimental or add the plugin" >&2
+			echo "  to lightningd.conf:" >&2
+			echo "    plugin=/usr/lib/clightning/plugins/watchtower" >&2
+			exit 3
+		}
+	echo "lightning tower: server role enabled"
+}
+
+cmd_server_off() {
+	cli plugin stop watchtower 2>/dev/null || true
+	echo "lightning tower: server role disabled"
+}
+
+cmd_server_status() {
+	server_plugin_loaded || { echo "watchtower-server: not running"; exit 1; }
+	cli watchtower-stats | jq '{
+		watching_channels: .channels // 0,
+		breaches_witnessed: .breaches // 0
+	}'
+}
+
+case "${1:-}" in
+	client-add)    shift; cmd_client_add "$@" ;;
+	client-list)   shift; cmd_client_list "$@" ;;
+	client-stats)  shift; cmd_client_stats "$@" ;;
+	server-on)     shift; cmd_server_on "$@" ;;
+	server-off)    shift; cmd_server_off "$@" ;;
+	server-status) shift; cmd_server_status "$@" ;;
+	"")            usage; exit 1 ;;
+	*)             echo "lightning tower: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

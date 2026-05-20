@@ -2,7 +2,7 @@
 id: FEAT-188
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # Lightning fee policy & forwarding (routing-node features)
