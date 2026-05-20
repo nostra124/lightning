@@ -1,0 +1,111 @@
+#!/bin/bash
+# lightning seed — clightning hsm_secret export / import / verify.
+#
+# Implements FEAT-185 §Seed.
+#
+# Subcommands:
+#   export                  print the seed-derived mnemonic (read once)
+#   import                  initialise a fresh hsm_secret from a mnemonic
+#   verify                  prompt for 2 random words; pass/fail
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+
+hsm_path() {
+	local p="$LIGHTNING_DIR/$LIGHTNING_NETWORK/hsm_secret"
+	[ -f "$p" ] || p="$LIGHTNING_DIR/hsm_secret"
+	echo "$p"
+}
+
+is_encrypted() {
+	local p; p=$(hsm_path)
+	[ -f "$p" ] || return 1
+	local n; n=$(stat -c%s "$p" 2>/dev/null || stat -f%z "$p")
+	[ "$n" -gt 32 ]
+}
+
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		echo "lightning: lightning-cli not found" >&2; exit 127; }
+}
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning seed <subcommand>
+
+   export                 print the seed-derived mnemonic
+   import                 initialise hsm_secret from a mnemonic
+   verify                 prompt for 2 random words
+EOF
+}
+
+cmd_export() {
+	require_cli
+	if is_encrypted; then
+		echo "lightning seed: hsm_secret is encrypted; run \`lightning unlock\` first" >&2
+		exit 3
+	fi
+
+	cat >&2 <<'EOF'
+
+============================================================
+  WARNING — SEED ABOUT TO BE PRINTED
+  This recovers your funds. Anyone with this can steal them.
+  Read it ONCE, write it down, then clear your terminal.
+============================================================
+
+EOF
+	# hsmtool generatehsm <path> can dump the mnemonic for an existing
+	# hsm_secret (clightning >= 24.05).  Earlier versions only support
+	# generate, not dump — fall back to the raw 32 bytes hex.
+	if lightning-hsmtool dumpmnemonic "$(hsm_path)" 2>/dev/null; then
+		return 0
+	fi
+	xxd -p -c 64 "$(hsm_path)"
+	echo "lightning seed: hsmtool dumpmnemonic unavailable — printed raw hex" >&2
+}
+
+cmd_import() {
+	require_cli
+	local hsm; hsm=$(hsm_path)
+	if [ -f "$hsm" ]; then
+		echo "lightning seed: hsm_secret already exists at $hsm; refusing to overwrite" >&2
+		exit 3
+	fi
+	mkdir -p "$(dirname "$hsm")"
+	echo -n "Paste BIP-39 mnemonic (12 or 24 words): " >&2
+	read -r mnemonic
+	echo "$mnemonic" | lightning-hsmtool generatehsm "$hsm"
+	echo "lightning seed: imported into $hsm"
+}
+
+cmd_verify() {
+	require_cli
+	if ! lightning-hsmtool dumpmnemonic "$(hsm_path)" >"$BATS_TMPDIR/seed.$$" 2>/dev/null; then
+		echo "lightning seed: hsmtool dumpmnemonic unavailable" >&2
+		exit 4
+	fi
+	local words; words=$(cat "$BATS_TMPDIR/seed.$$"); rm -f "$BATS_TMPDIR/seed.$$"
+	# Pick 2 random word positions, ask the user to type them.
+	local arr=($words)
+	local n=${#arr[@]}
+	local i1=$(( RANDOM % n )) i2=$(( RANDOM % n ))
+	while [ "$i2" = "$i1" ]; do i2=$(( RANDOM % n )); done
+	echo -n "Word $((i1+1)): " >&2; read -r w1
+	echo -n "Word $((i2+1)): " >&2; read -r w2
+	if [ "$w1" = "${arr[i1]}" ] && [ "$w2" = "${arr[i2]}" ]; then
+		echo "ok"
+	else
+		echo "mismatch" >&2; exit 5
+	fi
+}
+
+case "${1:-}" in
+	export) shift; cmd_export "$@" ;;
+	import) shift; cmd_import "$@" ;;
+	verify) shift; cmd_verify "$@" ;;
+	"")     usage; exit 1 ;;
+	*)      echo "lightning seed: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

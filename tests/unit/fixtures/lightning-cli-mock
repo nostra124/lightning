@@ -154,22 +154,10 @@ EOF
 		echo '{"active": false}'
 		;;
 	staticbackup)
-		echo '{"scb": "deadbeefcafebabe"}'
+		echo '{"scb": ["00112233445566778899aabbccddeeff", "ffeeddccbbaa99887766554433221100"]}'
 		;;
-	hsmtool)
-		case "$2" in
-			gethsmsecret)
-				# Return a 12-word BIP-39 mnemonic.
-				echo '"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"'
-				;;
-			generatehsm)
-				echo '"ok"'
-				;;
-			*)
-				echo "mock lightning-cli: unhandled hsmtool command '$2'" >&2
-				exit 1
-				;;
-		esac
+	emergencyrecover)
+		echo '{"stubs": [], "channel_count": 1}'
 		;;
 	*)
 		echo "mock lightning-cli: unhandled command '$1'" >&2

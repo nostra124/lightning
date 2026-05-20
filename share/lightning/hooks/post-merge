@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning wallet post-merge hook (FEAT-174):
+# rebuild state.db from the merged state.sql so the working DB
+# reflects what just arrived from `lightning wallet pull`.
+
+set -e
+[ -f state.sql ] || exit 0
+rm -f state.db
+sqlite3 state.db < state.sql

@@ -1,0 +1,59 @@
+#!/bin/bash
+# lightning restore — companion to backup; recovers from a remote.
+#
+# Implements FEAT-187 §restore.
+#
+# Usage:
+#   lightning restore <wallet-remote-url> [<wallet-name>]
+#
+# Clones the wallet repo, prompts for the seed (FEAT-185
+# `seed import`), unlocks the daemon, runs the latest SCB.
+
+set -e
+
+[ $# -lt 1 ] && { echo "usage: lightning restore <wallet-remote-url> [<wallet-name>]" >&2; exit 1; }
+url="$1"; name="${2:-default}"
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+dir="$WALLETS_ROOT/$name"
+
+if [ -e "$dir" ]; then
+	echo "lightning restore: $dir already exists" >&2
+	exit 2
+fi
+
+mkdir -p "$WALLETS_ROOT"
+git clone "$url" "$dir"
+
+# Rebuild state.db from the dump.
+cd "$dir"
+if [ -f state.sql ]; then
+	sqlite3 state.db < state.sql
+fi
+
+cd - >/dev/null
+
+# Mark as active.
+mkdir -p "$(dirname "${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active")"
+echo "$name" > "${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+
+# Prompt for seed import unless an hsm_secret already exists.
+hsm="${LIGHTNING_DIR:-$HOME/.lightning}/${LIGHTNING_NETWORK:-bitcoin}/hsm_secret"
+if [ ! -f "$hsm" ]; then
+	echo "lightning restore: importing seed into a fresh hsm_secret" >&2
+	"$(dirname "$0")/seed" import
+fi
+
+# Unlock and start the daemon.
+"$(dirname "$0")/daemon" start
+
+# Find the latest SCB and restore it.
+latest=$(ls -t "$dir"/scb/scb-*.hex 2>/dev/null | head -1 || true)
+if [ -n "$latest" ]; then
+	echo "lightning restore: applying SCB $latest" >&2
+	"$(dirname "$0")/scb" restore "$latest"
+else
+	echo "lightning restore: no SCB found in wallet repo; skipping" >&2
+fi
+
+echo "lightning restore: complete"

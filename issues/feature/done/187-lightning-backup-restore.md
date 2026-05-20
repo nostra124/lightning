@@ -2,7 +2,7 @@
 id: FEAT-187
 type: feature
 priority: high
-status: open
+status: done
 ---
 
 # Lightning backup / restore verbs

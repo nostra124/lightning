@@ -1,0 +1,90 @@
+#!/bin/bash
+# lightning scb — Static Channel Backup emit + restore.
+#
+# Implements FEAT-185 §SCB. clightning calls these
+# `staticbackup` (emit) and `emergencyrecover` (restore).
+#
+# Subcommands:
+#   emit [--out <file>]     write an SCB blob. Default location:
+#                           <active-wallet>/scb-<utc>.bin
+#   restore <file>          initiate SCB recovery (force-closes)
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+
+active_wallet_dir() {
+	local name="default"
+	[ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
+	echo "$WALLETS_ROOT/$name"
+}
+
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		echo "lightning: lightning-cli not found" >&2; exit 127; }
+}
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning scb emit [--out <file>]
+       lightning scb restore <file>
+EOF
+}
+
+cmd_emit() {
+	require_cli
+	local out=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--out) out="$2"; shift 2 ;;
+			*) echo "lightning scb emit: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	if [ -z "$out" ]; then
+		local dir; dir=$(active_wallet_dir)
+		mkdir -p "$dir/scb"
+		out="$dir/scb/scb-$(date -u +%Y-%m-%dT%H-%M-%SZ).hex"
+	fi
+
+	# clightning returns the SCB as a hex blob.
+	cli staticbackup | jq -r .scb[] > "$out"
+	echo "lightning scb: wrote $out"
+}
+
+cmd_restore() {
+	[ $# -lt 1 ] && { echo "usage: lightning scb restore <file>" >&2; exit 1; }
+	require_cli
+	local f="$1"
+	[ -f "$f" ] || { echo "lightning scb: no such file $f" >&2; exit 2; }
+
+	# Reads one hex line per channel.
+	while IFS= read -r line; do
+		[ -z "$line" ] && continue
+		cli emergencyrecover "$line" >/dev/null
+	done <"$f"
+
+	cat >&2 <<EOF
+
+============================================================
+  SCB restore initiated.
+  Your peers will detect a stale commitment and broadcast
+  their latest. Expect force-closes; on-chain funds become
+  spendable after the to_self_delay (typically 144 blocks).
+============================================================
+
+EOF
+}
+
+case "${1:-}" in
+	emit)    shift; cmd_emit "$@" ;;
+	restore) shift; cmd_restore "$@" ;;
+	"")      usage; exit 1 ;;
+	*)       echo "lightning scb: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

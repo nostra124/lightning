@@ -1,0 +1,148 @@
+#!/bin/bash
+# lightning unlock — clightning HSM unlock + secret-store integration.
+#
+# Implements FEAT-184. Subcommands:
+#   (default)    interactive: prompt password, unlock daemon, store in secret
+#   --stored     non-interactive: pull from secret, unlock
+#   rotate       change password (daemon + secret store atomic)
+#   forget       drop the stored secret
+#
+# Storage:
+#   secret get lightning.<wallet>.unlock
+#   <wallet> defaults to 'default'; override with --wallet <name>
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+WALLET="default"
+
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		echo "lightning: lightning-cli not found — install Core Lightning" >&2
+		exit 127
+	}
+}
+
+require_secret() {
+	command -v secret >/dev/null || {
+		echo "lightning: the \`secret\` package is required (https://github.com/nostra124/secret)" >&2
+		exit 127
+	}
+}
+
+hsm_secret_path() {
+	# clightning stores the encrypted seed at <lightning-dir>/<network>/hsm_secret
+	local p="$LIGHTNING_DIR/$LIGHTNING_NETWORK/hsm_secret"
+	[ -f "$p" ] || p="$LIGHTNING_DIR/hsm_secret"
+	echo "$p"
+}
+
+is_encrypted() {
+	# clightning's hsm_secret is 73 bytes when encrypted, 32 when not.
+	local p; p=$(hsm_secret_path)
+	[ -f "$p" ] || return 1
+	local n; n=$(stat -c%s "$p" 2>/dev/null || stat -f%z "$p")
+	[ "$n" -gt 32 ]
+}
+
+cmd_interactive() {
+	require_cli
+	require_secret
+
+	if ! is_encrypted; then
+		echo "lightning: hsm_secret is not encrypted (32 bytes); nothing to unlock"
+		exit 0
+	fi
+
+	# Read password without echo.
+	echo -n "lightning: HSM password for $WALLET: " >&2
+	local pw
+	read -rs pw
+	echo >&2
+
+	# Stuff it into clightning.
+	if ! echo "$pw" | cli hsmtool decrypt "$(hsm_secret_path)" >/dev/null 2>&1; then
+		# Some clightning builds expose the unlock via the JSON-RPC `unlock` cmd
+		# rather than hsmtool. Try that.
+		if ! cli unlock "$pw" >/dev/null 2>&1; then
+			echo "lightning: unlock failed (wrong password?)" >&2
+			exit 3
+		fi
+	fi
+
+	# Store under secret so future starts can auto-unlock.
+	echo "$pw" | secret put "lightning.$WALLET.unlock" >/dev/null
+	echo "lightning: unlocked and stored under secret/lightning.$WALLET.unlock"
+}
+
+cmd_stored() {
+	require_cli
+	require_secret
+
+	if ! is_encrypted; then
+		exit 0
+	fi
+
+	local pw
+	pw=$(secret get "lightning.$WALLET.unlock" 2>/dev/null) || {
+		echo "lightning: no stored unlock secret at lightning.$WALLET.unlock" >&2
+		exit 4
+	}
+
+	if ! echo "$pw" | cli hsmtool decrypt "$(hsm_secret_path)" >/dev/null 2>&1; then
+		cli unlock "$pw" >/dev/null 2>&1 || {
+			echo "lightning: stored secret rejected (was the password rotated outside this tool?)" >&2
+			exit 3
+		}
+	fi
+}
+
+cmd_rotate() {
+	require_cli
+	require_secret
+
+	echo -n "lightning: current HSM password: " >&2; read -rs old; echo >&2
+	echo -n "lightning: new HSM password:     " >&2; read -rs new1; echo >&2
+	echo -n "lightning: confirm new password: " >&2; read -rs new2; echo >&2
+
+	if [ "$new1" != "$new2" ]; then
+		echo "lightning: new passwords don't match" >&2
+		exit 5
+	fi
+
+	# Change in the daemon first.
+	if ! printf '%s\n%s\n' "$old" "$new1" | cli hsmtool generatehsm "$(hsm_secret_path)" 2>/dev/null; then
+		echo "lightning: rotate via hsmtool failed; trying RPC \`changepw\`" >&2
+		cli changepw "$old" "$new1" >/dev/null || {
+			echo "lightning: rotate failed" >&2
+			exit 3
+		}
+	fi
+
+	# Atomic-ish: only update secret store if the daemon change succeeded.
+	echo "$new1" | secret put "lightning.$WALLET.unlock" >/dev/null
+	echo "lightning: password rotated; secret store updated"
+}
+
+cmd_forget() {
+	require_secret
+	secret rm "lightning.$WALLET.unlock" 2>/dev/null || true
+	echo "lightning: stored unlock secret removed; future restarts will prompt"
+}
+
+# Argument parsing.
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--wallet) WALLET="$2"; shift 2 ;;
+		--stored) shift; cmd_stored "$@"; exit ;;
+		rotate)   shift; cmd_rotate "$@"; exit ;;
+		forget)   shift; cmd_forget "$@"; exit ;;
+		--help|-h) sed -n '2,12p' "$0"; exit ;;
+		*) echo "lightning unlock: unknown arg '$1'" >&2; exit 1 ;;
+	esac
+done
+
+cmd_interactive

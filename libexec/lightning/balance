@@ -1,0 +1,35 @@
+#!/bin/bash
+# lightning balance — on-chain + LN balance, TSV.
+#
+# Implements: clightning listfunds reshape per FEAT-171.
+#
+# Default output (single TSV row):
+#   onchain_confirmed_sat<TAB>onchain_unconfirmed_sat<TAB>channels_sat
+#
+# Flags:
+#   --on-chain   print the on-chain receive address from clightning's
+#                `newaddr` instead. Useful when funding the LN node.
+
+set -e
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found — install Core Lightning (lightningd) and ensure lightning-cli is on PATH" >&2
+	exit 127
+}
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+if [ "$1" = "--on-chain" ]; then
+	cli newaddr | jq -r '.bech32 // .p2tr // .p2wkh'
+	exit 0
+fi
+
+json=$(cli listfunds)
+printf "onchain_confirmed_sat\tonchain_unconfirmed_sat\tchannels_sat\n"
+jq -r '[
+	([.outputs[]? | select(.status == "confirmed") | (.amount_msat // (.value*1000)) ] | add // 0 | . / 1000 | floor),
+	([.outputs[]? | select(.status == "unconfirmed") | (.amount_msat // (.value*1000)) ] | add // 0 | . / 1000 | floor),
+	([.channels[]? | (.our_amount_msat // (.channel_sat*1000)) ] | add // 0 | . / 1000 | floor)
+] | @tsv' <<<"$json"

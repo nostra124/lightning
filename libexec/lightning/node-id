@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning node-id — print this node's pubkey.
+#
+# Implements: clightning getinfo .id per FEAT-171.
+
+set -e
+
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found — install Core Lightning (lightningd) and ensure lightning-cli is on PATH" >&2
+	exit 127
+}
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+
+lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" getinfo | jq -r .id

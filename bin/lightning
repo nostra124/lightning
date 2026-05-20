@@ -13,7 +13,7 @@
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
 # FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
 __s="${__s%.sh}"
-   VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '0.7.0')
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '0.4.0')
 unset __d
 SELF=$__s
 unset __s
@@ -156,11 +156,69 @@ objects:
    liquidity               inbound / outbound (totals, loop, boltz, lsp)
    ledger                  derived ledger (list, sum, balance, export)
 
-one-shots:
-   send <node-id> <sat>    keysend (BOLT-4 TLV)
-   rebalance <sat>         circular self-payment between channels
-   decode <string>         detect + decode any LN string
-   qr <text>               ANSI / PNG / SVG QR code
+clightning node:
+   info                     summary of \`lightning-cli getinfo\`
+   node-id                  this node's pubkey
+   peers                    connected peers (TSV)
+   channels                 channels (TSV)
+   balance                  on-chain + LN balance (TSV)
+
+channels (BOLT-2 / BOLT-5):
+   channel list             TSV of all channels
+   channel open <uri> <sats> open a channel
+   channel close <id>       cooperative close
+   channel force-close <id> --confirm   unilateral close
+   channel balance [<id>]   local / remote msat
+   channel info <id>
+   channel pending          opening / closing channels
+
+payments (BOLT-11 / BOLT-12 / LNURL):
+   invoice <sat> <label>    mint a BOLT-11; --qr renders one
+   pay <bolt11>             pay a BOLT-11 invoice
+   send <node-id> <sat>     keysend (BOLT-4 TLV)
+   offer <sat>|any <desc>   create a BOLT-12 offer
+   offer-pay <bolt12>       fetch + pay a BOLT-12 offer
+   lnurl decode <lnurl>
+   lnurl pay <addr> <sat>   LNURL-pay (LUD-06 + LUD-12)
+   decode <string>          detect + decode any of the above
+
+qr codes:
+   qr <text>                ANSI / PNG / SVG; honours \`--png\` / \`--svg\`
+
+wallet & accounts (git-backed SQLite store):
+   wallet new <name>        initialise a wallet repo
+   wallet use <name>        set active wallet
+   wallet list              list wallets
+   wallet push/pull/sync    git round-trip + state.db rebuild
+   account list             accounts in the active wallet
+   account create <name>    --limit <sat> --overdraft <policy>
+   account show <name>      balance + recent ledger
+   ledger list              TSV rows from the ledger
+   ledger sum --by month    aggregate
+   ledger annotate <hash> <note>
+   history                  alias for \`ledger list\`
+
+seed & backups:
+   seed export              print mnemonic (read once)
+   seed import              initialise hsm_secret from mnemonic
+   scb emit                 write a Static Channel Backup
+   scb restore <file>       force-close recovery
+   backup [--seed]          SCB + state.sql + git push
+   restore <url> [<name>]   clone wallet + seed import + scb restore
+
+daemon control:
+   daemon start             start lightningd
+   daemon stop              graceful shutdown
+   daemon restart           stop + start
+   daemon status            health check
+   daemon logs              tail the daemon log
+   daemon install [--system] generate a systemd unit
+
+wallet unlock:
+   unlock                   release the HSM (interactive)
+   unlock --stored          non-interactive (from \`secret\`)
+   unlock rotate            change password
+   unlock forget            drop the stored secret
 
 environment:
    LIGHTNING_DIR           path to lightningd's data dir

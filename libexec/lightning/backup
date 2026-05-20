@@ -1,0 +1,55 @@
+#!/bin/bash
+# lightning backup — composer over FEAT-174 + FEAT-185.
+#
+# Implements FEAT-187.
+#
+# By default: emits a fresh SCB, auto-commits the snapshot,
+# pushes the wallet repo. `--seed` ALSO writes an encrypted
+# seed export into the wallet repo (default off; seed lives
+# in the operator's head normally).
+
+set -e
+
+include_seed=0
+remote="origin"
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--seed) include_seed=1; shift ;;
+		--remote) remote="$2"; shift 2 ;;
+		verify) shift; exec "$(dirname "$0")/scb" emit --out /dev/null ;;
+		*) echo "lightning backup: unknown flag '$1'" >&2; exit 1 ;;
+	esac
+done
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+name="default"; [ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
+dir="$WALLETS_ROOT/$name"
+
+# 1. Emit SCB into the active wallet repo.
+"$(dirname "$0")/scb" emit
+
+# 2. Optional: also dump the seed (mnemonic) into the wallet repo.
+if [ "$include_seed" = "1" ]; then
+	mkdir -p "$dir"
+	echo "lightning backup: writing encrypted seed alongside the wallet" >&2
+	echo "lightning backup: anyone with the wallet repo + the encryption key recovers your funds" >&2
+	"$(dirname "$0")/seed" export | openssl enc -aes-256-cbc -pbkdf2 -salt -out "$dir/seed.enc"
+	chmod 0600 "$dir/seed.enc"
+fi
+
+# 3. Stage and commit anything new in the wallet repo. The pre-commit
+# hook re-dumps state.sql; we add the SCB + (optional) seed.enc.
+(
+	cd "$dir"
+	git add -A
+	if ! git diff --cached --quiet; then
+		git -c user.email=lightning@localhost -c user.name=lightning \
+			commit --quiet -m "backup snapshot $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+	fi
+)
+
+# 4. Wallet push.
+"$(dirname "$0")/wallet" push "$remote"
+
+echo "lightning backup: done"
