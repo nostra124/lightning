@@ -2112,6 +2112,84 @@ EOF
 	grep -q "Realistic economics" "$guide"
 }
 
+# ---------------------------------------------------------------------------
+# FEAT-206 — peer score (Amboss / 1ML / mempool.space)
+# ---------------------------------------------------------------------------
+
+# Stub curl: returns canned mempool.space JSON for the test node-id;
+# fails for everything else.
+_stub_score_curl() {
+	cat > "$BIN_SHIM/curl" <<'EOF'
+#!/bin/sh
+# Pull the URL (last positional). Mempool path includes /lightning/nodes/.
+url=""
+for a in "$@"; do url="$a"; done
+case "$url" in
+	*lightning/nodes/0388*)
+		cat <<'JSON'
+{"public_key":"038888888888888888888888888888888888888888888888888888888888888888",
+ "alias":"TESTNODE","color":"#abcdef","first_seen":1546452819,"updated_at":1716224000,
+ "sockets":"1.2.3.4:9735","as_number":42,"country_id":1,"longitude":0,"latitude":0,
+ "as_organization":"TestCorp","country":{"en":"Testland"},"city":null,
+ "features":[],"featuresBits":"deadbeef","active_channel_count":12,
+ "capacity":"500000000","opened_channel_count":15,"closed_channel_count":3,
+ "custom_records":{}}
+JSON
+		exit 0
+		;;
+	*) exit 22 ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/curl"
+}
+
+@test "FEAT-206: peer score requires a node-id" {
+	run "$LIGHTNING_BIN" peer score
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"node-id"* ]]
+}
+
+@test "FEAT-206: peer score from mempool emits recfile" {
+	_stub_score_curl
+	run "$LIGHTNING_BIN" peer score 0388888888888888888888888888888888888888888888888888888888888888888
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"alias:             TESTNODE"* ]]
+	[[ "$output" == *"capacity_sat:      500000000"* ]]
+	[[ "$output" == *"channels_active:   12"* ]]
+	[[ "$output" == *"country:           Testland"* ]]
+	[[ "$output" == *"source:            mempool"* ]]
+}
+
+@test "FEAT-206: peer score caches result under \$LIGHTNING_DIR" {
+	_stub_score_curl
+	"$LIGHTNING_BIN" peer score 0388888888888888888888888888888888888888888888888888888888888888888 >/dev/null
+	[ -f "$HOME/.lightning/score-cache/0388888888888888888888888888888888888888888888888888888888888888888.json" ]
+}
+
+@test "FEAT-206: peer score --json prints raw upstream JSON" {
+	_stub_score_curl
+	run "$LIGHTNING_BIN" peer score 0388888888888888888888888888888888888888888888888888888888888888888 --json
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"public_key"'* ]]
+	[[ "$output" == *'"alias":"TESTNODE"'* ]]
+}
+
+@test "FEAT-206: peer score errors clearly when all sources fail" {
+	# Stub curl to always fail.
+	printf '#!/bin/sh\nexit 22\n' > "$BIN_SHIM/curl"
+	chmod +x "$BIN_SHIM/curl"
+	run "$LIGHTNING_BIN" peer score 0388888888888888888888888888888888888888888888888888888888888888888
+	[ "$status" -eq 4 ]
+	[[ "$output" == *"no source returned data"* ]]
+}
+
+@test "FEAT-206: peer score --source rejects unknown source" {
+	_stub_score_curl
+	run "$LIGHTNING_BIN" peer score 0388888888888888888888888888888888888888888888888888888888888888888 --source bogus
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown source"* ]]
+}
+
 @test "FEAT-203: routing-node guide ships and cross-links to personal-node" {
 	local guide="$BATS_TEST_DIRNAME/../../share/doc/lightning/guides/routing-node.md"
 	local personal="$BATS_TEST_DIRNAME/../../share/doc/lightning/guides/personal-node.md"

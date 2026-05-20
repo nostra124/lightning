@@ -37,6 +37,12 @@ subcommands:
              [--target N]     designed for cron / launchd / systemd
                               timer invocation. \$LIGHTNING_NO_BOOTSTRAP
                               skips both bootstrap and keepalive.
+   score <node-id>            pre-channel-open intelligence from
+        [--source mempool|1ml|amboss|auto]
+        [--json] [--no-cache]
+                              public Lightning network analytics;
+                              recfile output. 1h cache under
+                              \$LIGHTNING_DIR/score-cache/.
 EOF
 }
 
@@ -372,6 +378,180 @@ cmd_keepalive() {
 }
 
 # -----------------------------------------------------------------------------
+# FEAT-206 — peer score (pre-channel-open intelligence)
+# -----------------------------------------------------------------------------
+
+# Sources: mempool.space (no auth, primary), 1ML (no auth, fallback),
+# Amboss (needs AMBOSS_API_KEY, last). Each returns a recfile body
+# on stdout if successful, exits non-zero if the node is unknown or
+# the source is unreachable.
+
+SCORE_CACHE_TTL=3600   # 1h
+
+score_cache_path() {
+	echo "$LIGHTNING_DIR/score-cache/${1}.json"
+}
+
+# Has the cache entry been written within SCORE_CACHE_TTL seconds?
+score_cache_fresh() {
+	local file; file=$(score_cache_path "$1")
+	[ -f "$file" ] || return 1
+	local mtime
+	mtime=$(stat -c %Y "$file" 2>/dev/null || stat -f %m "$file" 2>/dev/null) || return 1
+	local age=$(( $(date +%s) - mtime ))
+	[ "$age" -lt "$SCORE_CACHE_TTL" ]
+}
+
+# Fetch from mempool.space's lightning API. Public, no auth.
+score_fetch_mempool() {
+	local node_id="$1"
+	local url="https://mempool.space/api/v1/lightning/nodes/$node_id"
+	command -v curl >/dev/null 2>&1 || { error "curl required"; return 127; }
+	curl -fsSL "$url" 2>/dev/null || return 1
+}
+
+# Fetch from 1ML. Public, no auth.
+score_fetch_1ml() {
+	local node_id="$1"
+	local url="https://1ml.com/node/$node_id/json"
+	command -v curl >/dev/null 2>&1 || { error "curl required"; return 127; }
+	curl -fsSL "$url" 2>/dev/null || return 1
+}
+
+# Fetch from Amboss (GraphQL). Requires AMBOSS_API_KEY env var.
+score_fetch_amboss() {
+	local node_id="$1"
+	[ -n "$AMBOSS_API_KEY" ] || return 1
+	command -v curl >/dev/null 2>&1 || { error "curl required"; return 127; }
+	local query
+	query=$(jq -nc --arg id "$node_id" '{
+		query: "query($id: String!) { getNode(pubkey: $id) { graph_info { node { alias capacity channels } } } }",
+		variables: {id: $id}
+	}')
+	curl -fsSL -X POST -H 'Content-Type: application/json' \
+		-H "Authorization: Bearer $AMBOSS_API_KEY" \
+		--data "$query" "https://api.amboss.space/graphql" 2>/dev/null || return 1
+}
+
+# Map mempool.space JSON to our unified recfile schema.
+score_recfile_from_mempool() {
+	jq -r '
+		(.capacity // "0" | tonumber) as $cap_msat |
+		($cap_msat / 100000000 | floor) as $cap_btc |
+		(.first_seen | strftime("%Y-%m-%dT%H:%M:%SZ")) as $first |
+		(.updated_at | strftime("%Y-%m-%dT%H:%M:%SZ")) as $last |
+		"node_id:           \(.public_key)",
+		"alias:             \(.alias // "-")",
+		"color:             \(.color // "-")",
+		"capacity_btc:      \($cap_btc)",
+		"capacity_sat:      \($cap_msat)",
+		"channels_active:   \(.active_channel_count // 0)",
+		"channels_opened:   \(.opened_channel_count // 0)",
+		"channels_closed:   \(.closed_channel_count // 0)",
+		"first_seen:        \($first)",
+		"last_update:       \($last)",
+		"addresses:         \(.sockets // "-")",
+		"as_organization:   \(.as_organization // "-")",
+		"country:           \(.country.en // "-")",
+		"features_bits:     \(.featuresBits // "-")"
+	'
+}
+
+# Map 1ML JSON. Their schema is different — best-effort.
+score_recfile_from_1ml() {
+	jq -r '
+		"node_id:           \(.pub_key // "-")",
+		"alias:             \(.alias // "-")",
+		"color:             \(.color // "-")",
+		"capacity_sat:      \(.capacity // "-")",
+		"channels_active:   \(.channelcount // 0)",
+		"first_seen:        \(.first_seen // "-")",
+		"last_update:       \(.last_update // "-")",
+		"addresses:         \([.addresses[]? | "\(.addr):\(.port // 9735)"] | join(",") // "-")"
+	'
+}
+
+# Map Amboss GraphQL response.
+score_recfile_from_amboss() {
+	jq -r '
+		.data.getNode.graph_info.node as $n |
+		"alias:             \($n.alias // "-")",
+		"capacity_msat:     \($n.capacity // "-")",
+		"channels_active:   \($n.channels // 0)"
+	'
+}
+
+cmd_score() {
+	[ $# -lt 1 ] && { error "score needs <node-id>"; exit 1; }
+	local node_id="" source="auto" json_mode=0 no_cache=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--source)   source="$2"; shift 2 ;;
+			--json)     json_mode=1; shift ;;
+			--no-cache) no_cache=1; shift ;;
+			*) node_id="$1"; shift ;;
+		esac
+	done
+	[ -n "$node_id" ] || { error "score needs <node-id>"; exit 1; }
+
+	# Cache check (raw source JSON; format/source still respected on
+	# re-render).
+	mkdir -p "$LIGHTNING_DIR/score-cache"
+	local cache; cache=$(score_cache_path "$node_id")
+	local raw="" got=""
+
+	if [ "$no_cache" -eq 0 ] && score_cache_fresh "$node_id"; then
+		raw=$(cat "$cache")
+		got=$(head -1 "$cache.source" 2>/dev/null || echo "cache")
+	fi
+
+	# Sources in order, stopping at first success.
+	if [ -z "$raw" ]; then
+		local sources=("$source")
+		[ "$source" = "auto" ] && sources=(mempool 1ml amboss)
+		local s
+		for s in "${sources[@]}"; do
+			case "$s" in
+				mempool) raw=$(score_fetch_mempool "$node_id") || raw="" ;;
+				1ml)     raw=$(score_fetch_1ml "$node_id")     || raw="" ;;
+				amboss)  raw=$(score_fetch_amboss "$node_id")  || raw="" ;;
+				*) error "score: unknown source '$s' (try mempool|1ml|amboss|auto)"; exit 1 ;;
+			esac
+			if [ -n "$raw" ]; then got="$s"; break; fi
+		done
+	fi
+
+	if [ -z "$raw" ]; then
+		error "score: no source returned data for $node_id"
+		error "  tried: ${sources[*]:-$source}"
+		error "  (node may be unknown to the public explorers, or your"
+		error "   network can't reach them — try --no-cache later)"
+		exit 4
+	fi
+
+	# Persist cache.
+	echo "$raw" > "$cache"
+	echo "$got" > "$cache.source"
+
+	if [ "$json_mode" -eq 1 ]; then
+		echo "$raw"
+		return 0
+	fi
+
+	# Render recfile per source.
+	case "$got" in
+		mempool) echo "$raw" | score_recfile_from_mempool ;;
+		1ml)     echo "$raw" | score_recfile_from_1ml ;;
+		amboss)  echo "$raw" | score_recfile_from_amboss ;;
+		cache)   # We don't know which source the cache was from — try mempool first.
+		         echo "$raw" | score_recfile_from_mempool 2>/dev/null || \
+		         echo "$raw" | score_recfile_from_1ml ;;
+	esac
+	echo "source:            $got"
+	echo "fetched_at:        $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+
+# -----------------------------------------------------------------------------
 # Per-sub help
 # -----------------------------------------------------------------------------
 
@@ -470,6 +650,29 @@ or wifi blip `peer list` often empties out. Re-run this to
 re-seed the gossip graph. Idempotent.
 EOF
 			;;
+		score)
+			cat <<'EOF'
+usage: lightning peer score <node-id>
+                            [--source mempool|1ml|amboss|auto]
+                            [--json] [--no-cache]
+
+Pre-channel-open intelligence. Pulls metrics for <node-id>
+from one of the public Lightning network analytics endpoints
+and emits a unified recfile record (alias, capacity, channel
+counts, age, address list, country/AS).
+
+Default source is `auto` — tries mempool.space (no auth)
+first, falls back to 1ML, then Amboss (only when
+AMBOSS_API_KEY env var is set).
+
+Results cache for 1h under $LIGHTNING_DIR/score-cache/.
+--no-cache bypasses; --json prints the raw source JSON.
+
+Use this to decide whether to open a channel to a node — high
+capacity_btc + active channel_count + recent last_update are
+signs of a well-maintained routing peer.
+EOF
+			;;
 		*)
 			usage
 			return 1
@@ -499,5 +702,6 @@ case "$SUB" in
 	bootstrap)  cmd_bootstrap "$@" ;;
 	reconnect)  cmd_reconnect "$@" ;;
 	keepalive)  cmd_keepalive "$@" ;;
+	score)      cmd_score "$@" ;;
 	*) error "peer: unknown subcommand '$SUB'"; usage; exit 1 ;;
 esac
