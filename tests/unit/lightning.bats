@@ -1487,3 +1487,146 @@ EOF
 	[[ "$output" == *"peer"* ]]
 	[[ "$output" == *"bootstrap"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-199 — important-peer persistence + keepalive
+# ---------------------------------------------------------------------------
+
+@test "FEAT-199: peer bootstrap appends managed important-peer block" {
+	# Bootstrap with a known small node list so we know what to expect.
+	local f="$BATS_TMPDIR/boot.$$"
+	cat > "$f" <<'EOF'
+0301010101010101010101010101010101010101010101010101010101010101@host1:9735
+0302020202020202020202020202020202020202020202020202020202020202@host2:9735
+0303030303030303030303030303030303030303030303030303030303030303@host3:9735
+EOF
+	export LIGHTNING_BOOTSTRAP_NODES="$f"
+	# Stub the connect calls so we don't need a real daemon.
+	rm -f "$BIN_SHIM/lightning-cli"
+	cat > "$BIN_SHIM/lightning-cli" <<EOF
+#!/bin/sh
+case "\$3" in
+	connect) printf '{"id":"%s"}\n' "\$4" ;;
+	listpeers) echo '{"peers":[]}' ;;
+	*) exec "$FIXTURES/lightning-cli-mock" "\$@" ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/lightning-cli"
+	run "$LIGHTNING_BIN" peer bootstrap -n 3
+	[ "$status" -eq 0 ]
+	[ -f "$HOME/.lightning/config" ]
+	grep -q "lightning peers" "$HOME/.lightning/config"
+	# Every bootstrap URI should appear as an important-peer= line.
+	grep -q "^important-peer=0301010101010101010101010101010101010101010101010101010101010101@host1:9735$" "$HOME/.lightning/config"
+	grep -q "^important-peer=0302020202020202020202020202020202020202020202020202020202020202@host2:9735$" "$HOME/.lightning/config"
+	grep -q "^important-peer=0303030303030303030303030303030303030303030303030303030303030303@host3:9735$" "$HOME/.lightning/config"
+	rm -f "$f"
+}
+
+@test "FEAT-199: peer bootstrap re-run is idempotent (single managed block)" {
+	local f="$BATS_TMPDIR/boot.$$"
+	echo "0301010101010101010101010101010101010101010101010101010101010101@host1:9735" > "$f"
+	export LIGHTNING_BOOTSTRAP_NODES="$f"
+	rm -f "$BIN_SHIM/lightning-cli"
+	cat > "$BIN_SHIM/lightning-cli" <<EOF
+#!/bin/sh
+case "\$3" in connect) printf '{"id":"%s"}\n' "\$4" ;; *) exec "$FIXTURES/lightning-cli-mock" "\$@" ;; esac
+EOF
+	chmod +x "$BIN_SHIM/lightning-cli"
+	"$LIGHTNING_BIN" peer bootstrap >/dev/null 2>&1
+	"$LIGHTNING_BIN" peer bootstrap >/dev/null 2>&1
+	"$LIGHTNING_BIN" peer bootstrap >/dev/null 2>&1
+	# Exactly one managed block — 2 markers (begin + end), not 6.
+	local markers; markers=$(grep -c "lightning peers" "$HOME/.lightning/config" || true)
+	[ "$markers" -eq 2 ]
+	rm -f "$f"
+}
+
+@test "FEAT-199: peer keepalive is no-op when peers >= threshold" {
+	# Default mock returns 0 peers; raise threshold to 0 to force no-op.
+	run "$LIGHTNING_BIN" -v peer keepalive --threshold 0
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"no-op"* ]]
+}
+
+@test "FEAT-199: peer keepalive runs bootstrap when peers < threshold" {
+	# Mock returns 0 peers by default. Stub a small bootstrap file
+	# + stub lightning-cli connect to always succeed so bootstrap
+	# completes (no real network).
+	local f="$BATS_TMPDIR/boot.$$"
+	echo "0301010101010101010101010101010101010101010101010101010101010101@host:9735" > "$f"
+	export LIGHTNING_BOOTSTRAP_NODES="$f"
+	rm -f "$BIN_SHIM/lightning-cli"
+	cat > "$BIN_SHIM/lightning-cli" <<EOF
+#!/bin/sh
+case "\$3" in
+	connect)   printf '{"id":"%s"}\n' "\$4" ;;
+	listpeers) echo '{"peers":[]}' ;;
+	*) exec "$FIXTURES/lightning-cli-mock" "\$@" ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/lightning-cli"
+	run "$LIGHTNING_BIN" -v peer keepalive --threshold 3 --target 2
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"bootstrapping"* ]]
+	[[ "$output" == *"bootstrap source:"* ]]
+	rm -f "$f"
+}
+
+@test "FEAT-199: peer keepalive errors when daemon is down" {
+	echo "down" > "$MOCK_STATE"
+	run "$LIGHTNING_BIN" peer keepalive
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"listpeers failed"* ]]
+}
+
+@test "FEAT-199: peer keepalive honors LIGHTNING_NO_BOOTSTRAP" {
+	export LIGHTNING_NO_BOOTSTRAP=1
+	run "$LIGHTNING_BIN" -v peer keepalive
+	[ "$status" -eq 0 ]
+	# Exits early before even checking listpeers.
+	[[ "$output" == *"keepalive no-op"* ]]
+}
+
+@test "FEAT-199: daemon install writes keepalive sidecar (macOS)" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — checks the keepalive LaunchAgent plist"
+	fi
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	local plist="$HOME/Library/LaunchAgents/network.lightning.keepalive.plist"
+	[ -f "$plist" ]
+	grep -q "<string>network.lightning.keepalive</string>" "$plist"
+	grep -q "<string>peer</string>" "$plist"
+	grep -q "<string>keepalive</string>" "$plist"
+	grep -q "<key>NetworkState</key>" "$plist"
+	grep -q "<key>StartInterval</key>" "$plist"
+	grep -q "<integer>600</integer>" "$plist"
+}
+
+@test "FEAT-199: daemon install --no-keepalive skips the sidecar" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — Linux test uses different plist path"
+	fi
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install --no-keepalive
+	[ "$status" -eq 0 ]
+	[ ! -f "$HOME/Library/LaunchAgents/network.lightning.keepalive.plist" ]
+}
+
+@test "FEAT-199: daemon install on Linux writes keepalive .timer + .service" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "Linux-only — macOS uses launchd"
+	fi
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	[ -f "$HOME/.config/systemd/user/lightning-keepalive.timer" ]
+	[ -f "$HOME/.config/systemd/user/lightning-keepalive.service" ]
+	grep -q "OnUnitActiveSec=10min" "$HOME/.config/systemd/user/lightning-keepalive.timer"
+	grep -q "peer keepalive" "$HOME/.config/systemd/user/lightning-keepalive.service"
+}

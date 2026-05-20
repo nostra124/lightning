@@ -20,6 +20,7 @@ LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 NETWORK_DIR="$LIGHTNING_DIR/$LIGHTNING_NETWORK"
 RPC_FILE="$NETWORK_DIR/lightning-rpc"
 LAUNCHD_LABEL="network.lightning.lightningd"
+KEEPALIVE_LABEL="network.lightning.keepalive"
 LIGHTNING_CONF="$LIGHTNING_DIR/config"
 BACKEND_BLOCK_BEGIN="# >>> lightning backend — managed by 'daemon install'"
 BACKEND_BLOCK_END="# <<< lightning backend"
@@ -538,7 +539,7 @@ cmd_install() {
 	#   -1  leave backend config alone
 	#    1  enable trustedcoin (multi-explorer fallback)
 	#    0  disable any managed backend block (back to bitcoind/bcli)
-	local system=0 migrate=0 backend=-1
+	local system=0 migrate=0 backend=-1 keepalive=1
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--system)      system=1; shift ;;
@@ -546,6 +547,7 @@ cmd_install() {
 			--trustedcoin) backend=1; shift ;;
 			--bitcoind|--bcli|--no-public-backend)
 			               backend=0; shift ;;
+			--no-keepalive) keepalive=0; shift ;;
 			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
@@ -567,6 +569,14 @@ cmd_install() {
 		install_system "$migrate"
 	else
 		install_user
+	fi
+
+	# FEAT-199 Layer 2 sidecar — keepalive scheduler. Default on
+	# (the operator opts out with --no-keepalive). Only wired in
+	# user-mode for now; system-mode operators run their own
+	# monitoring usually.
+	if [ "$keepalive" -eq 1 ] && [ "$system" -eq 0 ]; then
+		install_keepalive_sidecar
 	fi
 }
 
@@ -617,6 +627,97 @@ EOF
 	info "    lightning daemon status"
 	info "    lightning daemon logs -f"
 	info "stop:  lightning daemon stop"
+}
+
+# FEAT-199 Layer 2 — keepalive scheduler sidecar.
+# macOS: LaunchAgent that uses both StartInterval (timer) and
+#        KeepAlive { NetworkState: true } (network-event trigger).
+# Linux: systemd --user timer + service pair.
+install_keepalive_sidecar() {
+	local self_bin="$SELF_LIBEXEC/../bin/lightning"
+	self_bin=$(cd "$(dirname "$self_bin")" && pwd)/$(basename "$self_bin")
+
+	if is_macos; then
+		local plist="$HOME/Library/LaunchAgents/${KEEPALIVE_LABEL}.plist"
+		mkdir -p "$(dirname "$plist")"
+		cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${KEEPALIVE_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${self_bin}</string>
+        <string>peer</string>
+        <string>keepalive</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LIGHTNING_DIR</key>
+        <string>${LIGHTNING_DIR}</string>
+        <key>LIGHTNING_NETWORK</key>
+        <string>${LIGHTNING_NETWORK}</string>
+        <key>PATH</key>
+        <string>${PATH}</string>
+        <key>SELF_QUIET</key>
+        <string>1</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>600</integer>
+    <key>KeepAlive</key>
+    <dict>
+        <key>NetworkState</key>
+        <true/>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>${LIGHTNING_DIR}/keepalive.log</string>
+    <key>StandardErrorPath</key>
+    <string>${LIGHTNING_DIR}/keepalive.log</string>
+</dict>
+</plist>
+EOF
+		info "wrote $plist (keepalive sidecar)"
+		info "  triggers: every 10min + on network state change"
+		info "  log:      $LIGHTNING_DIR/keepalive.log"
+		info "  opt out:  lightning daemon install --no-keepalive"
+		return 0
+	fi
+
+	# Linux systemd --user: .service + .timer.
+	local dir="$HOME/.config/systemd/user"
+	mkdir -p "$dir"
+	cat > "$dir/lightning-keepalive.service" <<EOF
+[Unit]
+Description=Lightning peer keepalive (FEAT-199)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=SELF_QUIET=1
+Environment=LIGHTNING_DIR=$LIGHTNING_DIR
+Environment=LIGHTNING_NETWORK=$LIGHTNING_NETWORK
+ExecStart=$self_bin peer keepalive
+EOF
+	cat > "$dir/lightning-keepalive.timer" <<EOF
+[Unit]
+Description=Lightning peer keepalive timer (every 10min)
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=10min
+Unit=lightning-keepalive.service
+
+[Install]
+WantedBy=timers.target
+EOF
+	systemctl --user daemon-reload 2>/dev/null || true
+	info "wrote $dir/lightning-keepalive.{service,timer}"
+	info "  enable + start with: systemctl --user enable --now lightning-keepalive.timer"
+	info "  opt out:  lightning daemon install --no-keepalive"
 }
 
 install_macos_system() {
@@ -893,6 +994,7 @@ EOF
 			cat <<EOF
 usage: lightning daemon install [--system] [--migrate]
                                 [--trustedcoin | --bitcoind]
+                                [--no-keepalive]
 
 Write a service unit for the daemon. Platform-aware:
 
@@ -926,6 +1028,14 @@ Backend selection (writes a managed block to \$LIGHTNING_DIR/config):
 --bitcoind       strip any managed backend block, fall back to
                  bitcoind/bcli (the CLN default).
 Omit both to leave existing backend config untouched.
+
+Sidecar (user-mode only, default ON):
+--no-keepalive   skip writing the FEAT-199 keepalive sidecar.
+                 The sidecar runs \`lightning peer keepalive\`
+                 every 10min + on every network state change
+                 (macOS), or via systemd .timer (Linux). Keeps
+                 the gossip graph reseeded after laptop sleep
+                 and wifi blips.
 EOF
 			;;
 		*)
