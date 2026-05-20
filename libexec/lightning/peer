@@ -27,13 +27,16 @@ subcommands:
    connect <node-uri>         open a bare TCP connection
                               (pubkey@host:port)
    disconnect <node-id>       tear down the connection
-   bootstrap [-n N]           connect to N well-known nodes
-                              (default 5; reads
-                              \$PREFIX/share/lightning/bootstrap-nodes.txt
-                              with ~/.lightning/bootstrap-nodes.txt or
-                              \$LIGHTNING_BOOTSTRAP_NODES overriding)
+   bootstrap [-n N]           connect to N well-known nodes AND
+                              persist them as important-peer= in
+                              \$LIGHTNING_DIR/config (lightningd will
+                              auto-reconnect on next start)
    reconnect [-n N]           alias for bootstrap — convenient name
                               after a network outage / laptop sleep
+   keepalive [--threshold N]  top up peer count when below threshold;
+             [--target N]     designed for cron / launchd / systemd
+                              timer invocation. \$LIGHTNING_NO_BOOTSTRAP
+                              skips both bootstrap and keepalive.
 EOF
 }
 
@@ -260,9 +263,112 @@ cmd_bootstrap() {
 		fi
 	done <<<"$picks"
 
+	# FEAT-199 Layer 1: persist the bootstrap set as `important-peer=`
+	# in $LIGHTNING_DIR/config. lightningd picks these up on its NEXT
+	# start and applies channel-peer retry semantics (forever, with
+	# exponential backoff) — no channel required.
+	important_peer_write "$picks"
+
 	echo "ok"
 	echo "connected: $ok"
 	echo "failed:    $fail"
+}
+
+# -----------------------------------------------------------------------------
+# FEAT-199 Layer 1 — important-peer config block management
+# -----------------------------------------------------------------------------
+
+LIGHTNING_CONF="$LIGHTNING_DIR/config"
+IMPORTANT_BLOCK_BEGIN="# >>> lightning peers — managed by 'peer bootstrap'"
+IMPORTANT_BLOCK_END="# <<< lightning peers"
+
+# Append a managed `important-peer=<uri>` block to $LIGHTNING_DIR/config.
+# Idempotent: strips any previous managed block first.
+# Input: newline-separated list of URIs (the same picks bootstrap used).
+important_peer_write() {
+	local picks="$1"
+	[ -n "$picks" ] || return 0
+	mkdir -p "$LIGHTNING_DIR"
+	important_peer_clear
+
+	{
+		[ -s "$LIGHTNING_CONF" ] && echo
+		echo "$IMPORTANT_BLOCK_BEGIN"
+		echo "# These nodes get channel-peer retry semantics at the next"
+		echo "# lightningd start (forever, with exponential backoff)."
+		echo "# Edit by re-running 'lightning peer bootstrap'."
+		while IFS= read -r uri; do
+			[ -n "$uri" ] || continue
+			echo "important-peer=$uri"
+		done <<<"$picks"
+		echo "$IMPORTANT_BLOCK_END"
+	} >> "$LIGHTNING_CONF"
+
+	info "persisted $(printf '%s\n' "$picks" | grep -c .) nodes as important-peer in $LIGHTNING_CONF"
+	info "  (effective on next 'lightning daemon restart')"
+}
+
+# Strip the managed important-peer block from $LIGHTNING_DIR/config.
+important_peer_clear() {
+	[ -f "$LIGHTNING_CONF" ] || return 0
+	local tmp; tmp=$(mktemp "$LIGHTNING_CONF.XXXXXX")
+	awk -v begin="$IMPORTANT_BLOCK_BEGIN" -v end="$IMPORTANT_BLOCK_END" '
+		$0 == begin {in_block=1; next}
+		$0 == end   {in_block=0; next}
+		!in_block   {print}
+	' "$LIGHTNING_CONF" > "$tmp"
+	mv "$tmp" "$LIGHTNING_CONF"
+	# Trim trailing blank lines.
+	[ -s "$LIGHTNING_CONF" ] && sed -e :a -e '/^$/{$d;N;ba' -e '}' -i.bak "$LIGHTNING_CONF" 2>/dev/null
+	rm -f "$LIGHTNING_CONF.bak"
+}
+
+# -----------------------------------------------------------------------------
+# FEAT-199 Layer 2 — keepalive
+# -----------------------------------------------------------------------------
+
+# Idempotent top-up. Designed to be invoked from a scheduler
+# (launchd / systemd timer). Counts current peers; if below
+# --threshold, runs bootstrap to reach --target.
+cmd_keepalive() {
+	require_cli
+	local threshold=3 target=5
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--threshold) threshold="$2"; shift 2 ;;
+			--target)    target="$2"; shift 2 ;;
+			*) error "keepalive: unknown arg '$1'"; exit 1 ;;
+		esac
+	done
+
+	if [ -n "$LIGHTNING_NO_BOOTSTRAP" ]; then
+		info "LIGHTNING_NO_BOOTSTRAP set — keepalive no-op"
+		return 0
+	fi
+
+	# Threshold 0 = explicit no-op (verb registered, automation off).
+	if [ "$threshold" -le 0 ]; then
+		info "keepalive threshold is 0 — no-op"
+		return 0
+	fi
+
+	# Check daemon reachability explicitly — a pipeline that ends in
+	# jq swallows the upstream exit code unless we use pipefail.
+	local json; json=$(cli listpeers 2>/dev/null) || {
+		error "lightning-cli listpeers failed (is the daemon running?)"
+		exit 2
+	}
+	local count; count=$(jq -r '.peers | length' <<<"$json" 2>/dev/null) || count=0
+
+	if [ "$count" -ge "$threshold" ]; then
+		info "$count peers >= threshold $threshold — nothing to do"
+		return 0
+	fi
+
+	local need=$(( target - count ))
+	[ "$need" -gt 0 ] || need=1
+	info "$count peers < threshold $threshold — bootstrapping $need"
+	cmd_bootstrap -n "$need"
 }
 
 # -----------------------------------------------------------------------------
@@ -308,18 +414,49 @@ EOF
 			cat <<'EOF'
 usage: lightning peer bootstrap [-n N]
 
-Connect to N well-known nodes (default 5) to seed the local
-gossip graph. Without peers, lightningd has no channel-graph
-to route payments through, and LSPs can't reach you to open
-inbound channels.
+Two-layer peer seeding:
+
+1. Immediate (runtime): connect to N well-known nodes (default 5)
+   via `lightning-cli connect` so the gossip graph has someone to
+   sync from.
+2. Persistent (config): append the same set as `important-peer=`
+   entries to $LIGHTNING_DIR/config inside a managed block. On
+   the next `lightning daemon restart`, lightningd applies
+   channel-peer retry semantics to these nodes — forever, with
+   exponential backoff, no channel required. This is what makes
+   bare bootstrap peers survive network outages.
+
+Re-running bootstrap is idempotent: the managed config block is
+stripped and rewritten with the new selection.
 
 Source resolution (first hit wins):
    $LIGHTNING_BOOTSTRAP_NODES        env-var path
    ~/.lightning/bootstrap-nodes.txt  user override
    $PREFIX/share/lightning/bootstrap-nodes.txt  (shipped)
 
-Set LIGHTNING_NO_BOOTSTRAP=1 to skip entirely — useful in CI
+Set LIGHTNING_NO_BOOTSTRAP=1 to skip both layers — useful in CI
 or for nodes that already have a curated peer set.
+EOF
+			;;
+		keepalive)
+			cat <<'EOF'
+usage: lightning peer keepalive [--threshold N] [--target N]
+
+Idempotent top-up — designed to be invoked from a scheduler
+(launchd / systemd timer). Checks connected-peer count; if
+below --threshold (default 3), runs `peer bootstrap -n
+$((target - count))` (default target 5) to top up.
+
+Set --threshold 0 to make the verb a no-op (useful when you
+want the keepalive sidecar installed for later use but disabled
+right now).
+
+LIGHTNING_NO_BOOTSTRAP=1 skips entirely.
+
+Purpose: clightning gives up on bare-peer reconnects after a
+network outage (it only retries forever for channel peers).
+This verb plus the FEAT-199 `important-peer=` config block
+together close that gap.
 EOF
 			;;
 		reconnect)
@@ -361,5 +498,6 @@ case "$SUB" in
 	disconnect) cmd_disconnect "$@" ;;
 	bootstrap)  cmd_bootstrap "$@" ;;
 	reconnect)  cmd_reconnect "$@" ;;
+	keepalive)  cmd_keepalive "$@" ;;
 	*) error "peer: unknown subcommand '$SUB'"; usage; exit 1 ;;
 esac
