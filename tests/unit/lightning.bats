@@ -1630,3 +1630,161 @@ EOF
 	grep -q "OnUnitActiveSec=10min" "$HOME/.config/systemd/user/lightning-keepalive.timer"
 	grep -q "peer keepalive" "$HOME/.config/systemd/user/lightning-keepalive.service"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-200 — fee verb (get / set / policy)
+# ---------------------------------------------------------------------------
+
+# Stub lightning-cli to return a synthetic listpeerchannels with two
+# channels (one balanced, one depleted) plus a working setchannel.
+# Records setchannel calls to $BATS_TMPDIR/setchannel.log for asserts.
+_stub_cli_with_channels() {
+	rm -f "$BIN_SHIM/lightning-cli"
+	cat > "$BIN_SHIM/lightning-cli" <<EOF
+#!/bin/sh
+# Drop the standard --lightning-dir=/--network= flags.
+while [ \$# -gt 0 ]; do
+	case "\$1" in --*=*) shift ;; *) break ;; esac
+done
+case "\$1" in
+	listpeerchannels)
+		cat <<JSON
+{"channels":[
+  {"short_channel_id":"100x1x0","peer_id":"02alice","state":"CHANNELD_NORMAL",
+   "to_us_msat":500000000,"total_msat":1000000000,
+   "fee_base_msat":1000,"fee_proportional_millionths":100,
+   "htlc_minimum_msat":1,"htlc_maximum_msat":990000000},
+  {"short_channel_id":"100x2x0","peer_id":"02bob","state":"CHANNELD_NORMAL",
+   "to_us_msat":50000000,"total_msat":1000000000,
+   "fee_base_msat":1000,"fee_proportional_millionths":100,
+   "htlc_minimum_msat":1,"htlc_maximum_msat":990000000}
+]}
+JSON
+		;;
+	setchannel)
+		echo "setchannel \$2 \$3 \$4" >> "$BATS_TMPDIR/setchannel.log"
+		echo '{"channels":[]}'
+		;;
+	getinfo)
+		echo '{"id":"02ournode"}'
+		;;
+	listchannels)
+		# match-peer asks for the per-scid update; return a fake update
+		# with .destination = our node id so the policy picks it.
+		cat <<JSON
+{"channels":[
+  {"destination":"02ournode","base_fee_millisatoshi":2222,"fee_per_millionth":333}
+]}
+JSON
+		;;
+	*) exec "$FIXTURES/lightning-cli-mock" "\$@" ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/lightning-cli"
+	: > "$BATS_TMPDIR/setchannel.log"
+}
+
+@test "FEAT-200: lightning fee (no args) prints usage" {
+	run "$LIGHTNING_BIN" fee
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
+}
+
+@test "FEAT-200: fee get on empty channels is exit 0" {
+	# Default mock returns {"channels":[]}.
+	run "$LIGHTNING_BIN" fee get
+	[ "$status" -eq 0 ]
+}
+
+@test "FEAT-200: fee get prints one recfile record per channel" {
+	_stub_cli_with_channels
+	run "$LIGHTNING_BIN" fee get
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"channel_id:     100x1x0"* ]]
+	[[ "$output" == *"channel_id:     100x2x0"* ]]
+	[[ "$output" == *"peer:           02alice"* ]]
+	[[ "$output" == *"base_msat:      1000"* ]]
+	[[ "$output" == *"ppm:            100"* ]]
+}
+
+@test "FEAT-200: fee get <channel-id> filters to one record" {
+	_stub_cli_with_channels
+	run "$LIGHTNING_BIN" fee get 100x2x0
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"100x2x0"* ]]
+	[[ "$output" != *"100x1x0"* ]]
+}
+
+@test "FEAT-200: fee get with unknown channel exits 4" {
+	_stub_cli_with_channels
+	run "$LIGHTNING_BIN" fee get nonexistent
+	[ "$status" -eq 4 ]
+	[[ "$output" == *"no channel"* ]]
+}
+
+@test "FEAT-200: fee set wraps setchannel" {
+	_stub_cli_with_channels
+	run "$LIGHTNING_BIN" fee set 100x1x0 2000 250
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]]
+	grep -q "setchannel 100x1x0 2000 250" "$BATS_TMPDIR/setchannel.log"
+}
+
+@test "FEAT-200: fee set rejects non-numeric values" {
+	_stub_cli_with_channels
+	run "$LIGHTNING_BIN" fee set 100x1x0 abc 100
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"non-negative integers"* ]]
+}
+
+@test "FEAT-200: fee policy flat (dry-run) shows would_apply" {
+	_stub_cli_with_channels
+	run "$LIGHTNING_BIN" fee policy flat
+	[ "$status" -eq 0 ]
+	# Already at base=1000 ppm=100, which is the flat policy.
+	[[ "$output" == *"unchanged"* ]]
+	# Did NOT call setchannel.
+	[ ! -s "$BATS_TMPDIR/setchannel.log" ]
+}
+
+@test "FEAT-200: fee policy balanced (dry-run) proposes asymmetric fees" {
+	_stub_cli_with_channels
+	run "$LIGHTNING_BIN" fee policy balanced
+	[ "$status" -eq 0 ]
+	# Channel 1 (50% local) -> base=1000 ppm=200 (proposed)
+	# Channel 2 (5% local)  -> higher base + ppm
+	# Just assert both records appear with different proposed values.
+	[[ "$output" == *"channel_id:   100x1x0"* ]]
+	[[ "$output" == *"channel_id:   100x2x0"* ]]
+	[[ "$output" == *"proposed:"* ]]
+	# Dry-run: no setchannel calls.
+	[ ! -s "$BATS_TMPDIR/setchannel.log" ]
+}
+
+@test "FEAT-200: fee policy balanced --apply calls setchannel" {
+	_stub_cli_with_channels
+	run "$LIGHTNING_BIN" fee policy balanced --apply
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"applied"* ]]
+	# Both channels differ from flat 1000/100 under balanced, so two calls.
+	[ "$(wc -l < $BATS_TMPDIR/setchannel.log)" -gt 0 ]
+}
+
+@test "FEAT-200: fee policy match-peer pulls peer's update" {
+	_stub_cli_with_channels
+	run "$LIGHTNING_BIN" fee policy match-peer
+	[ "$status" -eq 0 ]
+	# The stub's listchannels returns base=2222 ppm=333.
+	[[ "$output" == *"proposed:     base=2222 ppm=333"* ]]
+}
+
+@test "FEAT-200: fee policy rejects unknown name" {
+	run "$LIGHTNING_BIN" fee policy bogus
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown policy"* ]]
+}
+
+@test "FEAT-200: top-level help lists fee" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"fee"* ]]
+}
