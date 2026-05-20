@@ -13,22 +13,23 @@ command -v lightning-cli >/dev/null || {
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 
+command -v jq >/dev/null || {
+	echo "lightning: jq not found — install jq (declared in .rpk/depends/)" >&2
+	exit 127
+}
+
 json=$(lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" getinfo) || {
 	echo "lightning: lightning-cli getinfo failed (is the daemon running? try \`lightning daemon status\`)" >&2
 	exit 2
 }
 
-if command -v jq >/dev/null; then
-	j() { jq -r "$1" <<<"$json"; }
-	printf "id:          %s\n" "$(j .id)"
-	printf "alias:       %s\n" "$(j .alias)"
-	printf "color:       %s\n" "$(j .color)"
-	printf "network:     %s\n" "$(j .network)"
-	printf "version:     %s\n" "$(j .version)"
-	printf "blockheight: %s\n" "$(j .blockheight)"
-	printf "channels:    active=%s pending=%s inactive=%s\n" \
-		"$(j .num_active_channels)" "$(j .num_pending_channels)" "$(j .num_inactive_channels)"
-	printf "peers:       %s\n" "$(j .num_peers)"
-else
-	echo "$json"
-fi
+j() { jq -r "$1" <<<"$json"; }
+printf "id:          %s\n" "$(j .id)"
+printf "alias:       %s\n" "$(j .alias)"
+printf "color:       %s\n" "$(j .color)"
+printf "network:     %s\n" "$(j .network)"
+printf "version:     %s\n" "$(j .version)"
+printf "blockheight: %s\n" "$(j .blockheight)"
+printf "channels:    active=%s pending=%s inactive=%s\n" \
+	"$(j .num_active_channels)" "$(j .num_pending_channels)" "$(j .num_inactive_channels)"
+printf "peers:       %s\n" "$(j .num_peers)"

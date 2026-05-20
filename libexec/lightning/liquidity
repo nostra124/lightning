@@ -106,13 +106,14 @@ call_lsp() {
 		echo "lightning liquidity: LSPS1 only buys inbound capacity" >&2
 		return 1
 	}
-	local cfg="$(liq_dir)/lsp/$name/endpoint"
+	local cfg endpoint
+	cfg="$(liq_dir)/lsp/$name/endpoint"
 	[ -f "$cfg" ] || {
 		echo "lightning liquidity: LSP '$name' not configured" >&2
 		echo "lightning liquidity: write the LSPS1 endpoint URL into $cfg" >&2
 		return 2
 	}
-	local endpoint; endpoint=$(cat "$cfg")
+	endpoint=$(cat "$cfg")
 	# Step 1: GET info to discover the LSP's options.
 	curl -fsSL "$endpoint/info" >/dev/null
 	# Step 2: POST create-order. clightning's `lsps1-create-order` plugin
@@ -140,9 +141,10 @@ cmd_in() {
 		boltz) call_boltz in "$sat" ;;
 		lsp)
 			# Use the first configured LSP.
-			local d="$(liq_dir)/lsp"
+			local d name
+			d="$(liq_dir)/lsp"
 			[ -d "$d" ] || { echo "lightning liquidity: no LSP configured" >&2; exit 2; }
-			local name; name=$(ls "$d" 2>/dev/null | head -1)
+			name=$(ls "$d" 2>/dev/null | head -1)
 			[ -n "$name" ] || { echo "lightning liquidity: no LSP configured" >&2; exit 2; }
 			call_lsp in "$name" "$sat" ;;
 		*) echo "lightning liquidity: unknown provider '$provider'" >&2; exit 1 ;;

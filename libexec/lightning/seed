@@ -83,13 +83,18 @@ cmd_import() {
 
 cmd_verify() {
 	require_cli
-	if ! lightning-hsmtool dumpmnemonic "$(hsm_path)" >"$BATS_TMPDIR/seed.$$" 2>/dev/null; then
+	local tmp; tmp=$(mktemp)
+	# shellcheck disable=SC2064  # we want $tmp expanded at trap-set time.
+	trap "rm -f '$tmp'" RETURN
+	if ! lightning-hsmtool dumpmnemonic "$(hsm_path)" >"$tmp" 2>/dev/null; then
 		echo "lightning seed: hsmtool dumpmnemonic unavailable" >&2
 		exit 4
 	fi
-	local words; words=$(cat "$BATS_TMPDIR/seed.$$"); rm -f "$BATS_TMPDIR/seed.$$"
+	local words; words=$(cat "$tmp")
 	# Pick 2 random word positions, ask the user to type them.
-	local arr=($words)
+	# BIP-39 mnemonics are whitespace-separated; read -a is the
+	# robust split.
+	local arr; read -r -a arr <<<"$words"
 	local n=${#arr[@]}
 	local i1=$(( RANDOM % n )) i2=$(( RANDOM % n ))
 	while [ "$i2" = "$i1" ]; do i2=$(( RANDOM % n )); done

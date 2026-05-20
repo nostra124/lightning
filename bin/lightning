@@ -13,7 +13,7 @@
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
 # FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
 __s="${__s%.sh}"
-VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.1.1')
+VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.2.0')
 unset __d
 SELF=$__s
 unset __s
@@ -77,7 +77,24 @@ die() {
 	exit "${2:-1}"
 }
 
-# Checks if a certain function exists. Example: has command help
+fatal() {
+	echo "$SELF: fatal - $1" >&2
+	exit "${2:-1}"
+}
+
+debug() {
+	[ -n "$SELF_DEBUG" ] && echo "$SELF: debug - $*" >&2
+}
+
+info() {
+	if [ -z "$SELF_QUIET" ]; then echo -e "$SELF: info - \033[33;m$*\033[0m" >&2; fi
+}
+
+warn() {
+	echo -e "$SELF: warn - \033[31;1;m$*\033[0m" >&2
+}
+
+# Checks if a certain function exists.
 has() {
 	local KIND=$1
 	local NAME=$2
@@ -289,37 +306,24 @@ ENDHELP
 # define functions but do not execute the dispatcher.
 [[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
 
-# rpk-style flag parsing. -d also flips bash xtrace; -v is the
-# rpk-level "show debug lines without shell trace" knob (BUG-013).
-while getopts "qdfv" flag; do
-	case "$flag" in
-		q) SELF_QUIET=1 ;;
+while getopts "dq" _flag; do
+	case "$_flag" in
 		d) SELF_DEBUG=1 ;;
-		f) SELF_FORCE=1 ;;
-		v) SELF_VERBOSE=1 ;;
-		*) ;;
+		q) SELF_QUIET=1 ;;
+		*) command:help; exit 1 ;;
 	esac
 done
-shift $((OPTIND-1))
-
-# Export so libexec verbs and any sourced helpers inherit the mode.
-export SELF SELF_QUIET SELF_DEBUG SELF_FORCE SELF_VERBOSE
-
-# Cmdline-set debug: line-8's check catches the env-var path
-# (SELF_DEBUG=1 lightning ...); this catches the flag path.
-[ -n "$SELF_DEBUG" ] && set -vx
+shift $((OPTIND - 1))
+unset _flag
 
 if [[ $# == 0 ]]; then
 	command:help
 	exit
 fi
 
-# Verb-first dispatch. `command:<verb>` wins over an executable in
-# libexec/<self>/. Unknown verbs fall through to fatal.
 if has command "$1"; then
-	verb=$1; shift
-	debug "executing command:$verb $*"
-	command:$verb "$@"
+	debug "executing command:$1 ${*:2}"
+	command:"$1" "${@:2}"
 	exit $?
 elif test -x "$SELF_LIBEXEC/$SELF/$1"; then
 	verb=$1; shift
@@ -327,4 +331,4 @@ elif test -x "$SELF_LIBEXEC/$SELF/$1"; then
 	exec "$SELF_LIBEXEC/$SELF/$verb" "$@"
 fi
 
-fatal "unknown command: $*"
+fatal "unknown command $1 ${*:2}" 1

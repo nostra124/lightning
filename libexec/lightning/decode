@@ -26,7 +26,10 @@ s="${s#LIGHTNING:}"
 lower=$(printf '%s' "$s" | tr 'A-Z' 'a-z')
 
 case "$lower" in
-	lnbc*|lntb*|lnbcrt*|lnsb*)
+	lnbcrt*|lntb*|lnsb*|lnbc*)
+		# Order matters: lnbcrt* / lntb* / lnsb* must match before
+		# lnbc* (which is a prefix of lnbcrt*). regtest invoices
+		# decoded against this same path land here.
 		echo "type: bolt11"
 		cli decodepay "$s" | jq .
 		;;

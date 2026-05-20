@@ -16,26 +16,16 @@ LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 
-# Prefer the newer listpeerchannels (CLN 23.05+); fall back to listpeers.
-if json=$(cli listpeerchannels 2>/dev/null); then
-	printf "id\tpeer\tcapacity\tlocal\tremote\tstate\n"
-	jq -r '.channels[] | [
-		(.short_channel_id // .channel_id // "-"),
-		.peer_id,
-		((.total_msat // 0) / 1000 | floor),
-		((.to_us_msat  // 0) / 1000 | floor),
-		(((.total_msat // 0) - (.to_us_msat // 0)) / 1000 | floor),
-		.state
-	] | @tsv' <<<"$json"
-else
-	json=$(cli listpeers)
-	printf "id\tpeer\tcapacity\tlocal\tremote\tstate\n"
-	jq -r '.peers[] | . as $p | .channels[]? | [
-		(.short_channel_id // .channel_id // "-"),
-		$p.id,
-		((.msatoshi_total // 0) / 1000 | floor),
-		((.msatoshi_to_us // 0) / 1000 | floor),
-		(((.msatoshi_total // 0) - (.msatoshi_to_us // 0)) / 1000 | floor),
-		.state
-	] | @tsv' <<<"$json"
-fi
+# clightning >= 23.05 ships listpeerchannels; we don't support older
+# versions. The previous listpeers fallback used renamed-then-removed
+# fields (msatoshi_total / msatoshi_to_us) and was dead code.
+json=$(cli listpeerchannels)
+printf "id\tpeer\tcapacity\tlocal\tremote\tstate\n"
+jq -r '.channels[] | [
+	(.short_channel_id // .channel_id // "-"),
+	.peer_id,
+	((.total_msat // 0) / 1000 | floor),
+	((.to_us_msat  // 0) / 1000 | floor),
+	(((.total_msat // 0) - (.to_us_msat // 0)) / 1000 | floor),
+	.state
+] | @tsv' <<<"$json"

@@ -23,6 +23,15 @@ if [ "$state" = "down" ]; then
 	exit 1
 fi
 
+# Failure injection: MOCK_FAIL_<cmd>=1 makes that one RPC return
+# an error JSON + exit 1. Lets unit tests exercise the failure
+# branches in verbs.
+fail_var="MOCK_FAIL_$(printf '%s' "$1" | tr '[:lower:]-' '[:upper:]_')"
+if [ "${!fail_var:-}" = "1" ]; then
+	printf '{"code":-32602,"message":"mocked failure for %s"}\n' "$1" >&2
+	exit 1
+fi
+
 case "$1" in
 	getinfo)
 		cat <<'EOF'

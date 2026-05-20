@@ -18,7 +18,9 @@ name="default"; [ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
 db="$WALLETS_ROOT/$name/state.db"
 [ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
 
-account=$(sqlite3 "$db" "SELECT account FROM users WHERE user = '${user//\'/\'\'}';")
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+account=$(sqlite3 "$db" "SELECT account FROM users WHERE user = $(sql_quote "$user");")
 [ -n "$account" ] || { echo '{"error":"unknown user"}'; exit 4; }
 
 label="api-recv-$(date +%s)-$RANDOM"
@@ -26,8 +28,9 @@ label="api-recv-$(date +%s)-$RANDOM"
 bolt11=$(LIGHTNING_BIN="${LIGHTNING_BIN:-lightning}" "$(dirname "$0")/invoice" "$sat" "$label" --description "$message" 2>/dev/null | head -1)
 [ -n "$bolt11" ] || { echo '{"error":"invoice failed"}'; exit 5; }
 
-# Record the pending invoice in the SQLite store.
+# Record the pending invoice in the SQLite store. All string interpolations
+# go through sql_quote so a message containing a single quote can't break out.
 hash=$(printf '%s' "$bolt11" | openssl dgst -sha256 | awk '{print $NF}')
-sqlite3 "$db" "INSERT INTO invoices(bolt11, payment_hash, account, amount_msat, expiry, message, state) VALUES('${bolt11//\'/\'\'}', '$hash', '${account//\'/\'\'}', $((sat*1000)), datetime('now','+1 hour'), '${message//\'/\'\'}', 'pending');" 2>/dev/null || true
+sqlite3 "$db" "INSERT INTO invoices(bolt11, payment_hash, account, amount_msat, expiry, message, state) VALUES($(sql_quote "$bolt11"), $(sql_quote "$hash"), $(sql_quote "$account"), $((sat*1000)), datetime('now','+1 hour'), $(sql_quote "$message"), 'pending');" 2>/dev/null || true
 
 printf '{"bolt11":"%s","payment_hash":"%s","amount_sat":%d}\n' "$bolt11" "$hash" "$sat"
