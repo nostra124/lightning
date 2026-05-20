@@ -3,7 +3,7 @@
 ```
 milestone: 0.5.0
 title: addresses, liquidity, bank mode, web API
-status: open
+status: done
 depends_on: 0.4.0
 ```
 

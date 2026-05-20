@@ -1,0 +1,29 @@
+# Provenance ledger for the vendored standards (FEAT-178).
+#
+# One line per vendored document:
+#   <local-path>	<upstream-url>	<retrieved-on (UTC date)>
+#
+# Updated by share/doc/lightning/standards/refresh.sh.
+
+bolts/00-introduction.md	https://github.com/lightning/bolts/raw/master/00-introduction.md	2026-05-17
+bolts/01-messaging.md	https://github.com/lightning/bolts/raw/master/01-messaging.md	2026-05-17
+bolts/02-peer-protocol.md	https://github.com/lightning/bolts/raw/master/02-peer-protocol.md	2026-05-17
+bolts/03-transactions.md	https://github.com/lightning/bolts/raw/master/03-transactions.md	2026-05-17
+bolts/04-onion-routing.md	https://github.com/lightning/bolts/raw/master/04-onion-routing.md	2026-05-17
+bolts/05-onchain.md	https://github.com/lightning/bolts/raw/master/05-onchain.md	2026-05-17
+bolts/07-routing-gossip.md	https://github.com/lightning/bolts/raw/master/07-routing-gossip.md	2026-05-17
+bolts/08-transport.md	https://github.com/lightning/bolts/raw/master/08-transport.md	2026-05-17
+bolts/09-features.md	https://github.com/lightning/bolts/raw/master/09-features.md	2026-05-17
+bolts/11-payment-encoding.md	https://github.com/lightning/bolts/raw/master/11-payment-encoding.md	2026-05-17
+bolts/12-offer-encoding.md	https://github.com/lightning/bolts/raw/master/12-offer-encoding.md	2026-05-17
+lnurl-rfc/lud-01.md	https://github.com/lnurl/luds/raw/main/01.md	2026-05-17
+lnurl-rfc/lud-04.md	https://github.com/lnurl/luds/raw/main/04.md	2026-05-17
+lnurl-rfc/lud-06.md	https://github.com/lnurl/luds/raw/main/06.md	2026-05-17
+lnurl-rfc/lud-09.md	https://github.com/lnurl/luds/raw/main/09.md	2026-05-17
+lnurl-rfc/lud-12.md	https://github.com/lnurl/luds/raw/main/12.md	2026-05-17
+lnurl-rfc/lud-16.md	https://github.com/lnurl/luds/raw/main/16.md	2026-05-17
+lnurl-rfc/lud-17.md	https://github.com/lnurl/luds/raw/main/17.md	2026-05-17
+lightning-address/spec.md	https://github.com/andrerfneves/lightning-address/raw/master/README.md	2026-05-17
+bips/bip-353.md	https://github.com/bitcoin/bips/raw/master/bip-0353.mediawiki	2026-05-17
+blips/blip-50.md	https://github.com/lightning/blips/raw/master/blip-0050.md	2026-05-17
+blips/blip-51.md	https://github.com/lightning/blips/raw/master/blip-0051.md	2026-05-17

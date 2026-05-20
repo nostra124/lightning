@@ -1,0 +1,39 @@
+#!/bin/bash
+# lightning api-balance — sudo-friendly balance lookup (FEAT-196).
+#
+# Usage (via sudo):
+#   lightning api-balance <user>
+#
+# Returns: balance_sat, limit_sat, overdraft for the user's account.
+
+set -e
+
+[ $# -lt 1 ] && { echo "usage: lightning api-balance <user>" >&2; exit 1; }
+
+user="$1"
+[[ "$user" =~ ^[a-z][a-z0-9_-]*$ ]] || { echo "invalid user" >&2; exit 2; }
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+command -v sqlite3 >/dev/null || { echo "sqlite3 missing" >&2; exit 127; }
+
+wallet_db() {
+	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
+	echo "$LIGHTNING_DIR/wallet/$active/state.db"
+}
+
+DB=$(wallet_db)
+[ -f "$DB" ] || { echo "no wallet" >&2; exit 5; }
+
+esc=$(echo "$user" | sed "s/'/''/g")
+
+# Find account for this user.
+acct=$(sqlite3 -readonly "$DB" "SELECT account FROM users WHERE user = '$esc'") || acct="$user"
+
+# Get balance + limit + overdraft.
+sqlite3 -readonly "$DB" -cmd ".mode tabs" \
+	"SELECT COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = '$acct'), 0) / 1000 AS balance_sat, COALESCE((SELECT limit_sat FROM accounts WHERE name = '$acct'), 'NULL') AS limit_sat, COALESCE((SELECT overdraft FROM accounts WHERE name = '$acct'), 'deny') AS overdraft" | {
+	IFS=$'\t' read -r bal lim od
+	echo "balance_sat:	$bal"
+	echo "limit_sat:	$lim"
+	echo "overdraft:	$od"
+}

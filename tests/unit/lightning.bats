@@ -1,10 +1,19 @@
 #!/usr/bin/env bats
 #
 # Unit tests for bin/lightning — the educational Lightning Network
-# frontend on clightning (FEAT-170..195). Covers the 0.2.0 surface:
-# bin/lightning dispatcher, lightning.sh source-mode guard, and the
-# libexec verbs that wrap lightning-cli (info / node-id / peers /
-# channels / balance / daemon / unlock).
+# frontend on clightning (FEAT-170..206). Covers the 0.2.0–0.7.0
+# surface: dispatcher, lightning.sh source-mode guard, and the
+# libexec object dispatchers (wallet / channel / daemon / account /
+# ledger / invoice / offer / address / lnurl / liquidity / plugin /
+# peer / fee / alert). As of 0.5.x the CLI is purely object-oriented:
+# top-level commands are objects, actions live as sub-commands. The
+# wallet object is your Lightning identity — it owns both the
+# clightning daemon's identity (info/balance/seed/unlock) and the
+# git-backed state repo (init/push/pull/backup/restore). The peer
+# object handles bare-peering + bootstrap + keepalive (FEAT-199).
+# Operational verbs added in 0.7.0: fee (FEAT-200), rebalance
+# (FEAT-201), alert (FEAT-204), plus the personal-node + routing-node
+# operational guides (FEAT-202/203).
 
 setup() {
 	BATS_TMPDIR=${BATS_TMPDIR:-$(mktemp -d)}
@@ -31,6 +40,39 @@ setup() {
 teardown() {
 	rm -rf "$HOME" "$BIN_SHIM"
 	rm -f "$MOCK_STATE"
+}
+
+# Stubs curl+tar so `daemon install --trustedcoin` doesn't hit
+# GitHub. curl writes a fake tarball; tar extracts a placeholder
+# trustedcoin binary. Tests that want the failure path stub curl
+# themselves.
+_stub_trustedcoin_curl() {
+	cat > "$BIN_SHIM/curl" <<'EOF'
+#!/bin/sh
+# Pull the -o argument and write a placeholder file there. Real
+# tarball isn't needed — our tar stub doesn't read the contents.
+while [ $# -gt 0 ]; do
+	case "$1" in -o) target=$2; shift 2 ;; *) shift ;; esac
+done
+[ -n "$target" ] && printf 'STUB TARBALL\n' > "$target"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/curl"
+	# Stub tar to drop a placeholder trustedcoin binary into -C dir.
+	cat > "$BIN_SHIM/tar" <<'EOF'
+#!/bin/sh
+# Find -C <dir> and write trustedcoin there.
+while [ $# -gt 0 ]; do
+	case "$1" in -C) dest=$2; shift 2 ;; *) shift ;; esac
+done
+[ -n "$dest" ] && {
+	mkdir -p "$dest"
+	printf '#!/bin/sh\nexit 0\n' > "$dest/trustedcoin"
+	chmod +x "$dest/trustedcoin"
+}
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/tar"
 }
 
 # ---------------------------------------------------------------------------
@@ -91,15 +133,22 @@ teardown() {
 
 @test "help lists the 0.4.0 verb surface" {
 	run "$LIGHTNING_BIN" help
-	[[ "$output" == *"info"* ]]
-	[[ "$output" == *"node-id"* ]]
-	[[ "$output" == *"daemon"* ]]
-	[[ "$output" == *"unlock"* ]]
+	[[ "$output" == *"wallet"* ]]
+	[[ "$output" == *"account"* ]]
 	[[ "$output" == *"channel"* ]]
+	[[ "$output" == *"daemon"* ]]
 	[[ "$output" == *"invoice"* ]]
-	[[ "$output" == *"pay"* ]]
 	[[ "$output" == *"offer"* ]]
+	[[ "$output" == *"address"* ]]
 	[[ "$output" == *"lnurl"* ]]
+	[[ "$output" == *"liquidity"* ]]
+	[[ "$output" == *"ledger"* ]]
+}
+
+@test "help lists the one-shot verbs" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"send"* ]]
+	[[ "$output" == *"decode"* ]]
 	[[ "$output" == *"qr"* ]]
 	[[ "$output" == *"wallet"* ]]
 	[[ "$output" == *"account"* ]]
@@ -141,40 +190,53 @@ teardown() {
 # FEAT-171: clightning backend wiring
 # ---------------------------------------------------------------------------
 
-@test "FEAT-171: lightning info renders getinfo summary" {
-	run "$LIGHTNING_BIN" info
+@test "FEAT-171: lightning wallet info renders getinfo summary" {
+	run "$LIGHTNING_BIN" wallet info
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"TESTNODE"* ]]
 	[[ "$output" == *"regtest"* ]]
 }
 
-@test "FEAT-171: lightning node-id returns the pubkey" {
-	run "$LIGHTNING_BIN" node-id
+@test "FEAT-171: lightning wallet id returns the pubkey" {
+	run "$LIGHTNING_BIN" wallet id
 	[ "$status" -eq 0 ]
 	[ "$output" = "020000000000000000000000000000000000000000000000000000000000000001" ]
 }
 
-@test "FEAT-171: lightning peers returns the TSV header" {
-	run "$LIGHTNING_BIN" peers
+@test "FEAT-171: wallet peers is deprecated -> hints at 'peer list'" {
+	run "$LIGHTNING_BIN" wallet peers
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"peer list"* ]]
+}
+
+@test "FEAT-171: lightning peer list returns the TSV header" {
+	run "$LIGHTNING_BIN" peer list
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "pubkey	connected	features	addr" ]]
 }
 
-@test "FEAT-171: lightning channels returns the TSV header" {
-	run "$LIGHTNING_BIN" channels
+@test "FEAT-171: lightning channel list returns the TSV header" {
+	run "$LIGHTNING_BIN" channel list
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "id	peer	capacity	local	remote	state" ]]
 }
 
-@test "FEAT-171: lightning balance returns the TSV header + row" {
-	run "$LIGHTNING_BIN" balance
+@test "FEAT-171: lightning wallet balance is a recfile (single record)" {
+	run "$LIGHTNING_BIN" wallet balance
 	[ "$status" -eq 0 ]
-	[[ "${lines[0]}" == "onchain_confirmed_sat	onchain_unconfirmed_sat	channels_sat" ]]
-	[[ "${lines[1]}" == "0	0	0" ]]
+	# Three key: value lines, no TSV header.
+	[ "${#lines[@]}" -eq 3 ]
+	[[ "${lines[0]}" == "onchain_confirmed_sat:"* ]]
+	[[ "${lines[1]}" == "onchain_unconfirmed_sat:"* ]]
+	[[ "${lines[2]}" == "channels_sat:"* ]]
+	# Each line ends in the expected zero value (mocked listfunds).
+	[[ "${lines[0]}" == *"0" ]]
+	[[ "${lines[1]}" == *"0" ]]
+	[[ "${lines[2]}" == *"0" ]]
 }
 
-@test "FEAT-171: lightning balance --on-chain prints an address" {
-	run "$LIGHTNING_BIN" balance --on-chain
+@test "FEAT-171: lightning wallet balance --on-chain prints an address" {
+	run "$LIGHTNING_BIN" wallet balance --on-chain
 	[ "$status" -eq 0 ]
 	[[ "$output" == bcrt1q* ]]
 }
@@ -182,8 +244,14 @@ teardown() {
 @test "FEAT-171: verbs exit 127 when lightning-cli is absent" {
 	# Hide lightning-cli from PATH.
 	export PATH="/usr/bin:/bin"
-	run -127 "$LIGHTNING_BIN" info
+	run -127 "$LIGHTNING_BIN" wallet info
 	[[ "$output" == *"install Core Lightning"* ]]
+}
+
+@test "lightning wallet (no args) prints usage" {
+	run "$LIGHTNING_BIN" wallet
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* || "$output" == *"node"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -209,7 +277,10 @@ teardown() {
 	[[ "$output" == *"down"* ]]
 }
 
-@test "FEAT-183: lightning daemon install writes a user-mode systemd unit" {
+@test "FEAT-183: lightning daemon install writes a user-mode systemd unit (Linux)" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "Linux-only — macOS uses launchd"
+	fi
 	# Stub lightningd so install's ExecStart resolves.
 	ln -sf /bin/true "$BIN_SHIM/lightningd"
 	run "$LIGHTNING_BIN" daemon install
@@ -218,24 +289,348 @@ teardown() {
 	grep -q "Description=Lightning Network daemon" "$HOME/.config/systemd/user/lightning.service"
 }
 
+@test "FEAT-183: lightning daemon install writes a LaunchAgent plist (macOS)" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — Linux uses systemd"
+	fi
+	ln -sf /bin/true "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	local plist="$HOME/Library/LaunchAgents/network.lightning.lightningd.plist"
+	[ -f "$plist" ]
+	grep -q "<string>network.lightning.lightningd</string>" "$plist"
+	grep -q "<string>daemon</string>" "$plist"
+	grep -q "<string>run</string>" "$plist"
+	grep -q "<key>RunAtLoad</key>" "$plist"
+	grep -q "<key>KeepAlive</key>" "$plist"
+}
+
+@test "FEAT-183: lightning daemon run requires lightningd binary" {
+	# Daemon NOT running, lightningd binary NOT present → exit 127.
+	echo "down" > "$MOCK_STATE"
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	run "$LIGHTNING_BIN" daemon run
+	[ "$status" -eq 127 ]
+	[[ "$output" == *"lightningd not found"* ]]
+}
+
+@test "FEAT-183: lightning daemon run refuses when daemon is already running" {
+	# Mock lightning-cli getinfo returns success (state = up) by default.
+	run "$LIGHTNING_BIN" daemon run
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"already running"* ]]
+}
+
+@test "FEAT-183: lightning daemon help lists run alongside start" {
+	run "$LIGHTNING_BIN" daemon
+	[[ "$output" == *"run"* ]]
+	[[ "$output" == *"start"* ]]
+	[[ "$output" == *"foreground"* ]]
+}
+
+@test "FEAT-183: daemon start routes through installed LaunchAgent (macOS)" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — exercises launchctl detection"
+	fi
+	# Daemon must be down so start doesn't short-circuit.
+	echo "down" > "$MOCK_STATE"
+	# Pretend the plist is installed (file presence is what detection checks).
+	mkdir -p "$HOME/Library/LaunchAgents"
+	touch "$HOME/Library/LaunchAgents/network.lightning.lightningd.plist"
+	# Stub launchctl so we can prove start invoked it (not lightningd directly).
+	cat > "$BIN_SHIM/launchctl" <<EOF
+#!/bin/sh
+[ "\$1" = "list" ] && exit 1   # report "not loaded"
+# load/kickstart succeeds — flip MOCK_STATE so the post-start
+# probe sees a healthy daemon.
+rm -f "$MOCK_STATE"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/launchctl"
+	# Stub lightningd as a real script (ln -sf /bin/true would be a
+	# dangling symlink on macOS where /bin/true doesn't exist).
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"launchctl load -w"* ]]
+	# Must NOT have fallen through to the direct path.
+	[[ "$output" != *"no service unit installed"* ]]
+}
+
+@test "FEAT-183: daemon start routes through systemd --user when unit installed (Linux)" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "Linux-only — exercises systemctl --user detection"
+	fi
+	echo "down" > "$MOCK_STATE"
+	mkdir -p "$HOME/.config/systemd/user"
+	touch "$HOME/.config/systemd/user/lightning.service"
+	# Stub systemctl so the routing is observable without a real systemd.
+	cat > "$BIN_SHIM/systemctl" <<EOF
+#!/bin/sh
+[ "\$1" = "--quiet" ] && exit 1   # report system-mode NOT enabled
+# start command succeeds — flip MOCK_STATE so post-start probe passes.
+rm -f "$MOCK_STATE"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/systemctl"
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"systemctl --user start lightning"* ]]
+}
+
+@test "FEAT-183: daemon status down surfaces last BROKEN line from log" {
+	echo "down" > "$MOCK_STATE"
+	mkdir -p "$HOME/.lightning"
+	cat > "$HOME/.lightning/log" <<'EOF'
+2026-05-18T21:00:00.000Z INFO lightningd: v26.04.1
+2026-05-18T21:00:01.000Z **BROKEN** plugin-bcli: The Bitcoin backend died.
+2026-05-18T21:00:01.500Z INFO lightningd: shutting down
+EOF
+	run "$LIGHTNING_BIN" daemon status
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"down"* ]]
+	[[ "$output" == *"BROKEN"* ]]
+	[[ "$output" == *"Bitcoin backend died"* ]]
+	[[ "$output" == *"daemon logs"* ]]
+}
+
+@test "FEAT-183: daemon start warns when bitcoin-cli is missing" {
+	echo "down" > "$MOCK_STATE"
+	# bitcoin-cli absent (the BIN_SHIM doesn't define it).
+	# Stub lightningd so the lightningd-not-found branch doesn't fire first.
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	# Daemon stays "down" after start → expect non-zero, but the
+	# warning should appear in output regardless.
+	run "$LIGHTNING_BIN" -v daemon start
+	[[ "$output" == *"bitcoin-cli not found"* ]]
+}
+
+@test "FEAT-183: daemon start surfaces the error when daemon dies during startup" {
+	echo "down" > "$MOCK_STATE"
+	mkdir -p "$HOME/.lightning"
+	# Pre-seed a log with a fatal line — simulates the daemon
+	# crashing during startup.
+	cat > "$HOME/.lightning/log" <<'EOF'
+2026-05-18T22:00:00.000Z **BROKEN** plugin-bcli: The Bitcoin backend died.
+EOF
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" -v daemon start
+	# Exit 2 = post-start probe found the daemon down.
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"did not come up"* ]]
+	[[ "$output" == *"BROKEN"* ]]
+}
+
+@test "FEAT-183: daemon install plist sets ThrottleInterval (macOS)" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — checks the launchd plist"
+	fi
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	local plist="$HOME/Library/LaunchAgents/network.lightning.lightningd.plist"
+	grep -q "<key>ThrottleInterval</key>" "$plist"
+	grep -q "<integer>30</integer>" "$plist"
+}
+
+@test "FEAT-183: daemon install --trustedcoin writes managed block + auto-installs plugin" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	_stub_trustedcoin_curl
+	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	[ "$status" -eq 0 ]
+	[ -f "$HOME/.lightning/config" ]
+	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
+	grep -q "lightning backend" "$HOME/.lightning/config"
+	grep -q "trustedcoin" "$HOME/.lightning/config"
+	# The plugin binary should have landed in plugins/ and be executable.
+	[ -x "$HOME/.lightning/plugins/trustedcoin" ]
+}
+
+@test "FEAT-183: daemon install --trustedcoin skips fetch if binary already present" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	mkdir -p "$HOME/.lightning/plugins"
+	printf '#!/bin/sh\nexit 0\n' > "$HOME/.lightning/plugins/trustedcoin"
+	chmod +x "$HOME/.lightning/plugins/trustedcoin"
+	# Fail loudly if curl gets called.
+	printf '#!/bin/sh\necho "curl should not be called" >&2; exit 99\n' > "$BIN_SHIM/curl"
+	chmod +x "$BIN_SHIM/curl"
+	run "$LIGHTNING_BIN" -v daemon install --trustedcoin
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"already present"* ]]
+	[[ "$output" != *"fetching trustedcoin"* ]]
+}
+
+@test "FEAT-183: daemon install --trustedcoin reports failure when curl fails (Linux)" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "macOS uses go install, not curl"
+	fi
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	printf '#!/bin/sh\nexit 22\n' > "$BIN_SHIM/curl"
+	chmod +x "$BIN_SHIM/curl"
+	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	# Config is still written; download failure is surfaced.
+	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
+	[[ "$output" == *"failed to download"* ]]
+	[[ "$output" == *"manual install"* ]]
+}
+
+@test "FEAT-183: daemon install --trustedcoin needs go on macOS without one" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — prebuilt binaries cover Linux/BSD"
+	fi
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	# Hide go from PATH.
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
+	[[ "$output" == *"doesn't ship a prebuilt macOS binary"* ]]
+	[[ "$output" == *"go install"* ]]
+}
+
+@test "FEAT-183: daemon install --bitcoind strips the managed block" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	_stub_trustedcoin_curl
+	# First enable trustedcoin.
+	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
+	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
+	# Then disable.
+	run "$LIGHTNING_BIN" daemon install --bitcoind
+	[ "$status" -eq 0 ]
+	! grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
+	! grep -q "lightning backend" "$HOME/.lightning/config"
+}
+
+@test "FEAT-183: daemon install --trustedcoin is idempotent (no duplicate blocks)" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	_stub_trustedcoin_curl
+	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
+	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
+	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
+	# Exactly one block, not three.
+	local count; count=$(grep -c "lightning backend" "$HOME/.lightning/config" || true)
+	[ "$count" -eq 2 ]   # begin + end markers
+}
+
+@test "FEAT-183: daemon install --trustedcoin migrates a legacy esplora block" {
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	_stub_trustedcoin_curl
+	mkdir -p "$HOME/.lightning"
+	cat > "$HOME/.lightning/config" <<'EOF'
+# user setting that should survive
+log-level=debug
+
+# >>> lightning esplora — managed by 'daemon install --esplora'
+disable-plugin=bcli
+sauron-api-endpoint=https://blockstream.info/api
+# <<< lightning esplora
+EOF
+	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	[ "$status" -eq 0 ]
+	# Legacy block is gone; user setting preserved; new block present.
+	! grep -q "lightning esplora" "$HOME/.lightning/config"
+	! grep -q "sauron-api-endpoint" "$HOME/.lightning/config"
+	grep -q "log-level=debug" "$HOME/.lightning/config"
+	grep -q "lightning backend" "$HOME/.lightning/config"
+	grep -q "trustedcoin" "$HOME/.lightning/config"
+}
+
+@test "FEAT-183: daemon start skips bitcoind check in trustedcoin mode" {
+	echo "down" > "$MOCK_STATE"
+	mkdir -p "$HOME/.lightning"
+	# Pre-seed trustedcoin config (bypass install's WARNING banner).
+	cat > "$HOME/.lightning/config" <<EOF
+# >>> lightning backend — managed by 'daemon install'
+disable-plugin=bcli
+# trustedcoin reference
+# <<< lightning backend
+EOF
+	cat > "$BIN_SHIM/lightningd" <<EOF
+#!/bin/sh
+rm -f "$MOCK_STATE"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/lightningd"
+	# Pretend bitcoin-cli is absent (would normally warn).
+	export PATH="$BIN_SHIM:/usr/bin:/bin"
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"trustedcoin backend"* ]]
+	[[ "$output" == *"skipping bitcoind check"* ]]
+	[[ "$output" != *"bitcoin-cli not found"* ]]
+}
+
+@test "FEAT-183: daemon status reports backend in healthy + down output" {
+	mkdir -p "$HOME/.lightning"
+	cat > "$HOME/.lightning/config" <<EOF
+# >>> lightning backend — managed by 'daemon install'
+disable-plugin=bcli
+# trustedcoin reference
+# <<< lightning backend
+EOF
+	# Healthy path.
+	run "$LIGHTNING_BIN" daemon status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"backend: trustedcoin"* ]]
+	# Down path.
+	echo "down" > "$MOCK_STATE"
+	run "$LIGHTNING_BIN" daemon status
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"backend: trustedcoin"* ]]
+}
+
+@test "FEAT-183: daemon start falls through to direct mode without a service unit" {
+	echo "down" > "$MOCK_STATE"
+	# Ensure no plist / unit exists.
+	rm -f "$HOME/Library/LaunchAgents/network.lightning.lightningd.plist" 2>/dev/null
+	rm -f "$HOME/.config/systemd/user/lightning.service" 2>/dev/null
+	# Stub lightningd that flips MOCK_STATE so the post-start
+	# probe sees a healthy daemon (real lightningd would do that
+	# by responding to lightning-cli getinfo).
+	cat > "$BIN_SHIM/lightningd" <<EOF
+#!/bin/sh
+rm -f "$MOCK_STATE"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/lightningd"
+	# Verbose so the info messages surface (test fixture sets SELF_QUIET=1).
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"no service unit installed"* ]]
+	[[ "$output" == *"daemon install"* ]]
+}
+
 # ---------------------------------------------------------------------------
 # FEAT-184: unlock
 # ---------------------------------------------------------------------------
 
-@test "FEAT-184: lightning unlock --stored is a no-op when not encrypted" {
+@test "FEAT-184: lightning wallet unlock --stored is a no-op when not encrypted" {
 	# No hsm_secret exists yet → not encrypted.
 	mkdir -p "$HOME/.lightning/bitcoin"
 	# 32-byte file = unencrypted.
 	dd if=/dev/zero of="$HOME/.lightning/bitcoin/hsm_secret" bs=32 count=1 status=none
 	# Mock `secret` so the dep check passes even though we won't call it.
 	ln -sf /bin/true "$BIN_SHIM/secret"
-	run "$LIGHTNING_BIN" unlock --stored
+	run "$LIGHTNING_BIN" wallet unlock --stored
 	[ "$status" -eq 0 ]
 }
 
-@test "FEAT-184: lightning unlock errors clearly when lightning-cli absent" {
+@test "FEAT-184: lightning wallet unlock errors clearly when lightning-cli absent" {
 	export PATH="/usr/bin:/bin"
-	run -127 "$LIGHTNING_BIN" unlock --stored
+	run -127 "$LIGHTNING_BIN" wallet unlock --stored
 }
 
 # ---------------------------------------------------------------------------
@@ -286,14 +681,14 @@ teardown() {
 # FEAT-173: payments / invoices / BOLT-12 / LNURL
 # ---------------------------------------------------------------------------
 
-@test "FEAT-173: lightning invoice 1000 'beer' returns a BOLT-11" {
-	run "$LIGHTNING_BIN" invoice 1000 beer
+@test "FEAT-173: lightning invoice create 1000 'beer' returns a BOLT-11" {
+	run "$LIGHTNING_BIN" invoice create 1000 beer
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == lnbc* || "${lines[0]}" == lntb* || "${lines[0]}" == lnbcrt* ]]
 }
 
-@test "FEAT-173: lightning pay <bolt11> returns ok + payment_hash" {
-	run "$LIGHTNING_BIN" pay lnbcrt10n1pmocktest
+@test "FEAT-173: lightning invoice pay <bolt11> returns ok + payment_hash" {
+	run "$LIGHTNING_BIN" invoice pay lnbcrt10n1pmocktest
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"ok"* ]]
 	[[ "$output" == *"payment_hash"* ]]
@@ -330,16 +725,28 @@ teardown() {
 	[[ "$output" == *"bolt11"* ]]
 }
 
-@test "FEAT-173: lightning offer creates a BOLT-12 offer" {
-	run "$LIGHTNING_BIN" offer 500 donations
+@test "FEAT-173: lightning offer create makes a BOLT-12 offer" {
+	run "$LIGHTNING_BIN" offer create 500 donations
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == lno* ]]
 }
 
-@test "FEAT-173: lightning offer-pay fetches and pays" {
-	run "$LIGHTNING_BIN" offer-pay lno1pgmocktest
+@test "FEAT-173: lightning offer pay fetches and pays" {
+	run "$LIGHTNING_BIN" offer pay lno1pgmocktest
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"ok"* ]]
+}
+
+@test "FEAT-173: lightning offer (no args) prints usage" {
+	run "$LIGHTNING_BIN" offer
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
+}
+
+@test "FEAT-173: lightning invoice (no args) prints usage" {
+	run "$LIGHTNING_BIN" invoice
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
 }
 
 @test "FEAT-173: lightning send (keysend) succeeds" {
@@ -389,11 +796,11 @@ teardown() {
 	rm -f "$out"
 }
 
-@test "FEAT-192: lightning invoice --qr emits the BOLT-11 AND a QR" {
+@test "FEAT-192: lightning invoice create --qr emits the BOLT-11 AND a QR" {
 	if ! command -v qrencode >/dev/null; then
 		skip "qrencode not installed"
 	fi
-	run "$LIGHTNING_BIN" invoice 1000 beer --qr
+	run "$LIGHTNING_BIN" invoice create 1000 beer --qr
 	[ "$status" -eq 0 ]
 	# First line is the BOLT-11, then a blank line, then the QR.
 	[[ "${lines[0]}" == lnbc* || "${lines[0]}" == lntb* || "${lines[0]}" == lnbcrt* ]]
