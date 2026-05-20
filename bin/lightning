@@ -33,64 +33,128 @@ fi
 # delegating to `channels`, `invoice --qr` reaching `qr`).
 export SELF_LIBEXEC
 
+# Logging — rpk convention: "$SELF - <level>: <msg>" with ANSI colors.
+# Levels (see also rpk's skills/logging.md):
+#   fatal  red    — unrecoverable, exits 1
+#   error  red    — recoverable failure, doesn't exit
+#   warn   yellow — degraded but continuing (honours -q unless -v)
+#   info   green  — normal outcomes (honours -q unless -v)
+#   debug  grey   — internal diagnostics (only under -d or -v)
+fatal() {
+	# Always exits 1 (rpk convention). For other exit codes, use
+	# `error "..."; exit N` — keeps fatal's signature unambiguous.
+	echo -e "$SELF - fatal: \033[31;m$*\033[0m" >&2
+	exit 1
+}
+
+error() {
+	echo -e "$SELF - error: \033[31;m$*\033[0m" >&2
+}
+
+debug() {
+	# Activates under both -d (which also flips bash xtrace) and -v.
+	if [ -n "$SELF_DEBUG" ] || [ -n "$SELF_VERBOSE" ]; then
+		echo -e "$SELF - debug: \033[90;m$*\033[0m" >&2
+	fi
+}
+
+info() {
+	# -q suppresses, -v overrides -q.
+	if [ -n "$SELF_VERBOSE" ] || [ -z "$SELF_QUIET" ]; then
+		echo -e "$SELF - info:  \033[32;m$*\033[0m" >&2
+	fi
+}
+
+warn() {
+	if [ -n "$SELF_VERBOSE" ] || [ -z "$SELF_QUIET" ]; then
+		echo -e "$SELF - warn:  \033[33;1;m$*\033[0m" >&2
+	fi
+}
+
+# Kept for back-compat with old call sites — equivalent to bare echo+exit.
 die() {
 	echo "$1" >&2
 	exit "${2:-1}"
 }
 
-fatal() {
-	echo "$SELF: fatal - $1" >&2
-	exit "${2:-1}"
-}
-
-debug() {
-	[ -n "$SELF_DEBUG" ] && echo "$SELF: debug - $@" >&2
-}
-
-info() {
-	if [ ! -n "$SELF_QUIET" ]; then echo -e "$SELF: info - \033[33;m$@\033[0m" >&2; fi
-}
-
-warn() {
-	echo -e "$SELF: warn - \033[31;1;m$@\033[0m" >&2
-}
-
-# Checks if a certain function exists.
+# Checks if a certain function exists. Example: has command help
 has() {
 	local KIND=$1
 	local NAME=$2
 	type -t $KIND:$NAME | grep -q function
 }
 
+# Export the helpers so libexec verbs inherit them across exec. Bash
+# encodes exported functions via BASH_FUNC_* env entries; the child
+# shell re-evaluates them on startup. Means each libexec script can
+# call info/warn/fatal/etc. without sourcing this file.
+export -f fatal error debug info warn die has
+
 ############################################################################
 # Commands
 ############################################################################
 
 command:help() {
+	# `lightning help <verb>` routes to help:<verb> (rpk convention).
+	if [[ $# -gt 0 ]]; then
+		local verb=$1
+		if has command "$verb"; then
+			if has help "$verb"; then
+				help:$verb
+			else
+				echo "No help found for '$verb' — try '$SELF $verb --help'." >&2
+				return 3
+			fi
+		elif [ -x "$SELF_LIBEXEC/$SELF/$verb" ]; then
+			# Delegate to the object dispatcher's own --help.
+			exec "$SELF_LIBEXEC/$SELF/$verb" --help
+		else
+			echo "'$verb' is not a $SELF command. Run '$SELF help'." >&2
+			return 2
+		fi
+		return 0
+	fi
+
 	cat >&2 <<ENDHELP
-usage: $SELF <options> <command> <args>
+usage: $SELF <options> <command> [<args>]
 
    options:
-   -d                       enable debug mode
-   -q                       enable quiet mode
+   -d                      debug mode — bash xtrace + everything -v shows
+   -v                      verbose mode — show debug lines, override -q for warn/info
+   -q                      quiet mode — suppress info and warn (errors still print)
+   -f                      force mode — overwrite / bypass safety checks
 
    $SELF is the educational Lightning Network frontend on
-   clightning (Core Lightning). Verbs shell out to
-   lightning-cli; help text cites the BOLT each verb
-   implements.
+   clightning (Core Lightning). Each command is an object —
+   run \`$SELF <command>\` for its sub-commands, or
+   \`$SELF help <command>\` for a richer description. The four
+   design principles (educational, functional, decentralized,
+   simple) apply: each verb is a thin wrapper over
+   lightning-cli that cites the BOLT it implements.
 
-   Vendored standards: BOLT specs (BOLT 1..12) plus LNURL LUDs
-   and the Lightning Address spec, under share/doc/lightning/
-   standards/ (FEAT-178; pending full implementation).
+   Vendored standards (BOLT 1..12, LNURL LUDs, Lightning
+   Address) live under share/doc/lightning/standards/.
 
-   The four design principles (educational, functional,
-   decentralized, simple) apply: each verb is a thin
-   wrapper over lightning-cli that cites the BOLT it
-   implements.
+generic:
+   help [<command>]        print this help (or help for <command>)
+   version                 print the version of $SELF
 
-generic commands:
-   help                     print this help message
-   version                  print the version of $SELF
+objects:
+   wallet                  your Lightning identity (info, balance, seed,
+                           unlock, push/pull, backup/restore)
+   peer                    network peering (list, connect, bootstrap)
+   account                 logical accounts and api keys
+   channel                 Lightning channels (open, close, balance, scb)
+   fee                     per-channel fees (get, set, policy)
+   alert                   threshold-driven webhooks (create, list, run)
+   daemon                  lightningd lifecycle (start, stop, logs, install)
+   plugin                  CLN plugins via reckless (list, install, remove)
+   invoice                 BOLT-11 invoices (create, pay)
+   offer                   BOLT-12 offers (create, pay)
+   address                 Lightning Addresses (resolve, pay, create)
+   lnurl                   LNURL (decode, pay; LSPS1)
+   liquidity               inbound / outbound (totals, loop, boltz, lsp)
+   ledger                  derived ledger (list, sum, balance, export)
 
 clightning node:
    info                     summary of \`lightning-cli getinfo\`
@@ -177,18 +241,34 @@ tor:
    tor status               tor running? onion advertised? leak?
 
 environment:
-   LIGHTNING_DIR            path to lightningd's data dir
-                            (default: \$HOME/.lightning)
-   LIGHTNING_NETWORK        bitcoin / testnet / regtest / signet
-                            (default: bitcoin)
+   LIGHTNING_DIR           path to lightningd's data dir
+                           (default: \$HOME/.lightning)
+   LIGHTNING_NETWORK       bitcoin / testnet / regtest / signet
+                           (default: bitcoin)
+ENDHELP
+}
 
-(Verb surface beyond the above lands per FEAT-172..196 —
-see issues/ for the milestone plan.)
+help:help() {
+	cat >&2 <<ENDHELP
+usage: $SELF help [<command>]
+
+Print the top-level help, or, when <command> is given, print the
+detailed help for that command. For object dispatchers this is
+equivalent to '$SELF <command> --help'.
 ENDHELP
 }
 
 command:version() {
 	echo "$VERSION"
+}
+
+help:version() {
+	cat >&2 <<ENDHELP
+usage: $SELF version
+
+Print the $SELF version string. Source of truth: .rpk/version
+in the dev tree, or share/$SELF/version in an installed bundle.
+ENDHELP
 }
 
 ############################################################################
@@ -199,23 +279,42 @@ command:version() {
 # define functions but do not execute the dispatcher.
 [[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
 
-while getopts "dq" flag; do
-	if [ x"$1" = x'-q' ]; then SELF_QUIET=1; fi
-	if [ x"$1" = x'-d' ]; then SELF_DEBUG=1; fi
-	shift 1
+# rpk-style flag parsing. -d also flips bash xtrace; -v is the
+# rpk-level "show debug lines without shell trace" knob (BUG-013).
+while getopts "qdfv" flag; do
+	case "$flag" in
+		q) SELF_QUIET=1 ;;
+		d) SELF_DEBUG=1 ;;
+		f) SELF_FORCE=1 ;;
+		v) SELF_VERBOSE=1 ;;
+		*) ;;
+	esac
 done
+shift $((OPTIND-1))
+
+# Export so libexec verbs and any sourced helpers inherit the mode.
+export SELF SELF_QUIET SELF_DEBUG SELF_FORCE SELF_VERBOSE
+
+# Cmdline-set debug: line-8's check catches the env-var path
+# (SELF_DEBUG=1 lightning ...); this catches the flag path.
+[ -n "$SELF_DEBUG" ] && set -vx
 
 if [[ $# == 0 ]]; then
 	command:help
 	exit
 fi
 
-if has command $1; then
-	debug "executing command:$1 ${@:2}"
-	command:$1 "${@:2}"
+# Verb-first dispatch. `command:<verb>` wins over an executable in
+# libexec/<self>/. Unknown verbs fall through to fatal.
+if has command "$1"; then
+	verb=$1; shift
+	debug "executing command:$verb $*"
+	command:$verb "$@"
 	exit $?
 elif test -x "$SELF_LIBEXEC/$SELF/$1"; then
-	exec "$SELF_LIBEXEC/$SELF/$1" "${@:2}"
+	verb=$1; shift
+	debug "executing libexec/$SELF/$verb $*"
+	exec "$SELF_LIBEXEC/$SELF/$verb" "$@"
 fi
 
-fatal "unknown command $1 ${@:2}" 1
+fatal "unknown command: $*"
