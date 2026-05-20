@@ -42,7 +42,7 @@ while [ $# -gt 0 ]; do
 		--png) format="png"; out="$2"; shift 2 ;;
 		--svg) format="svg"; out="$2"; shift 2 ;;
 		--ansi) format="ansi"; shift ;;
-		*) echo "lightning qr: unknown flag '$1'" >&2; exit 1 ;;
+		*) error "qr: unknown flag '$1'"; exit 1 ;;
 	esac
 done
 
@@ -61,8 +61,8 @@ fi
 
 case "$format" in
 	ansi) printf '%s' "$text" | qrencode -t UTF8 -o - ;;
-	png)  [ -z "$out" ] && { echo "lightning qr: --png needs FILE" >&2; exit 1; }
+	png)  [ -z "$out" ] && { error "qr: --png needs FILE"; exit 1; }
 	      printf '%s' "$text" | qrencode -t PNG -o "$out" ;;
-	svg)  [ -z "$out" ] && { echo "lightning qr: --svg needs FILE" >&2; exit 1; }
+	svg)  [ -z "$out" ] && { error "qr: --svg needs FILE"; exit 1; }
 	      printf '%s' "$text" | qrencode -t SVG -o "$out" ;;
 esac

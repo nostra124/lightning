@@ -1,0 +1,296 @@
+#!/bin/bash
+# lightning plugin — manage clightning plugins (FEAT-197).
+#
+# Wraps the `reckless` plugin manager that ships with CLN where
+# helpful; falls back to direct filesystem inspection where reckless
+# is missing or overkill.
+#
+# Subcommands:
+#   list                       installed plugins (files in plugins/)
+#   install <name> [<source>]  install via reckless, optionally
+#                              registering a fresh source repo first
+#   remove <name>              uninstall via reckless, or rm fallback
+#   search <query>             search source repos (reckless required)
+#   enable <name>              dynamically activate
+#   disable <name>             dynamically deactivate
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+PLUGINS_DIR="$LIGHTNING_DIR/plugins"
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning plugin <subcommand> [args]
+
+   Manage clightning plugins. Wraps \`reckless\` (the plugin
+   manager shipped with CLN) where it helps, and falls back to
+   filesystem inspection where it doesn't. Each sub-command
+   also accepts --help.
+
+subcommands:
+   list                          installed plugins (\$LIGHTNING_DIR/plugins/)
+   install <name> [<source>]     install via reckless; optional source
+                                 is a GitHub owner/repo or a full URL
+                                 to register before installing
+   remove <name>                 uninstall (reckless, or rm fallback)
+   search <query>                search reckless source repos
+   enable <name>                 activate a plugin without re-installing
+   disable <name>                deactivate without removing
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+has_reckless() { command -v reckless >/dev/null 2>&1; }
+
+# Reckless refuses to run unless $LIGHTNING_DIR/<network>/config
+# exists and prompts on stdin for permission to create one. Touch
+# it ourselves so reckless is non-interactive.
+ensure_reckless_config() {
+	local cfg="$LIGHTNING_DIR/$LIGHTNING_NETWORK/config"
+	mkdir -p "$(dirname "$cfg")"
+	[ -f "$cfg" ] || : >"$cfg"
+}
+
+reckless_verbosity() {
+	[ -n "$SELF_VERBOSE" ] && echo "-v" || echo ""
+}
+
+# -----------------------------------------------------------------------------
+# list — filesystem-first; reckless adds source metadata when available
+# -----------------------------------------------------------------------------
+
+cmd_list() {
+	if [ ! -d "$PLUGINS_DIR" ]; then
+		info "no plugins directory yet ($PLUGINS_DIR)"
+		return 0
+	fi
+	# One line per installed plugin. Sort for determinism.
+	local found=0
+	for entry in "$PLUGINS_DIR"/*; do
+		[ -e "$entry" ] || continue
+		# Skip dotfiles and non-executables (a plugin must be runnable).
+		local name; name=$(basename "$entry")
+		case "$name" in .*) continue ;; esac
+		[ -x "$entry" ] || [ -d "$entry" ] || continue
+		echo "$name"
+		found=$((found + 1))
+	done | sort
+	[ "$found" -eq 0 ] && info "no plugins installed in $PLUGINS_DIR"
+	return 0
+}
+
+# -----------------------------------------------------------------------------
+# install — reckless-first with optional source registration
+# -----------------------------------------------------------------------------
+
+cmd_install() {
+	[ $# -lt 1 ] && { error "install needs a plugin name"; exit 1; }
+	local name="$1" source="${2:-}"
+
+	if ! has_reckless; then
+		error "reckless not found on PATH"
+		error "  reckless ships with Core Lightning; install/update CLN, e.g."
+		error "    brew install core-lightning           # macOS"
+		error "    apt install core-lightning            # Debian/Ubuntu"
+		error "manual install:"
+		error "  drop the plugin binary at $PLUGINS_DIR/$name"
+		error "  chmod +x $PLUGINS_DIR/$name"
+		exit 127
+	fi
+
+	ensure_reckless_config
+
+	# Optional source-repo registration first. We accept either an
+	# owner/repo shorthand (GitHub) or a full URL.
+	if [ -n "$source" ]; then
+		local url="$source"
+		case "$source" in
+			http*) ;;  # already a URL
+			*/*)   url="https://github.com/$source" ;;
+			*)     error "invalid source '$source' — expected owner/repo or full URL"; exit 1 ;;
+		esac
+		info "registering source: $url"
+		# `reckless source add` is idempotent — if the repo is already
+		# registered it returns non-zero with a clear message we swallow.
+		reckless $(reckless_verbosity) source add "$url" >/dev/null 2>&1 || true
+	fi
+
+	info "reckless install $name"
+	if ! reckless $(reckless_verbosity) install "$name"; then
+		error "reckless install failed for '$name'"
+		error "  list sources:    lightning plugin list-sources   (or 'reckless source list')"
+		error "  add a source:    lightning plugin install $name <owner/repo>"
+		exit 4
+	fi
+	echo "ok"
+	echo "installed: $name"
+}
+
+# -----------------------------------------------------------------------------
+# remove — reckless-preferred, rm fallback
+# -----------------------------------------------------------------------------
+
+cmd_remove() {
+	[ $# -lt 1 ] && { error "remove needs a plugin name"; exit 1; }
+	local name="$1"
+
+	if has_reckless; then
+		ensure_reckless_config
+		info "reckless uninstall $name"
+		if reckless $(reckless_verbosity) uninstall "$name"; then
+			echo "ok"
+			echo "removed: $name"
+			return 0
+		fi
+		warn "reckless uninstall failed — falling back to filesystem rm"
+	fi
+
+	# Filesystem fallback: clightning treats anything in plugins/ as
+	# a plugin, named after the file. Allow `name`, `name.py`, etc.
+	local target; target=$(find "$PLUGINS_DIR" -maxdepth 1 -name "$name" -o -name "$name.*" 2>/dev/null | head -1)
+	if [ -z "$target" ]; then
+		error "no plugin named '$name' in $PLUGINS_DIR"
+		exit 4
+	fi
+	rm -rf "$target"
+	echo "ok"
+	echo "removed: $target"
+}
+
+# -----------------------------------------------------------------------------
+# search — reckless only (its source-repo index)
+# -----------------------------------------------------------------------------
+
+cmd_search() {
+	[ $# -lt 1 ] && { error "search needs a query"; exit 1; }
+	if ! has_reckless; then
+		error "reckless not found — install or upgrade Core Lightning"
+		exit 127
+	fi
+	ensure_reckless_config
+	reckless search "$@"
+}
+
+# -----------------------------------------------------------------------------
+# enable / disable — dynamic activation via reckless
+# -----------------------------------------------------------------------------
+
+cmd_enable() {
+	[ $# -lt 1 ] && { error "enable needs a plugin name"; exit 1; }
+	if ! has_reckless; then
+		error "reckless not found — restart the daemon to pick up new plugins,"
+		error "or run 'lightning-cli plugin start <path>' manually"
+		exit 127
+	fi
+	ensure_reckless_config
+	info "reckless enable $1"
+	reckless enable "$1"
+}
+
+cmd_disable() {
+	[ $# -lt 1 ] && { error "disable needs a plugin name"; exit 1; }
+	if ! has_reckless; then
+		error "reckless not found — restart the daemon, or run"
+		error "'lightning-cli plugin stop <name>' manually"
+		exit 127
+	fi
+	ensure_reckless_config
+	info "reckless disable $1"
+	reckless disable "$1"
+}
+
+# -----------------------------------------------------------------------------
+# Per-subcommand help
+# -----------------------------------------------------------------------------
+
+subhelp() {
+	case "$1" in
+		list)
+			cat <<'EOF'
+usage: lightning plugin list
+
+One line per installed plugin (entries in $LIGHTNING_DIR/plugins/
+that are executable or directories). Includes plugins installed
+by `daemon install --trustedcoin`, `plugin install`, or dropped
+in by hand.
+EOF
+			;;
+		install)
+			cat <<'EOF'
+usage: lightning plugin install <name> [<source>]
+
+Install a plugin via reckless. <name> is the plugin's directory
+name in its source repo. <source> is optional and may be either:
+   owner/repo            (GitHub shorthand)
+   https://example/repo  (full URL)
+When given, the source is registered with reckless first.
+
+Examples:
+   lightning plugin install rebalance
+   lightning plugin install summary
+   lightning plugin install trustedcoin nbd-wtf/trustedcoin
+
+The first reckless run pre-creates $LIGHTNING_DIR/$LIGHTNING_NETWORK
+/config so reckless doesn't prompt for it.
+EOF
+			;;
+		remove)
+			cat <<'EOF'
+usage: lightning plugin remove <name>
+
+Uninstall a plugin. Tries `reckless uninstall <name>` first; if
+reckless is missing or fails, falls back to deleting the file at
+$LIGHTNING_DIR/plugins/<name> (or <name>.*).
+EOF
+			;;
+		search)
+			cat <<'EOF'
+usage: lightning plugin search <query>
+
+Search the registered source repos for a plugin matching <query>.
+Requires reckless (ships with Core Lightning).
+EOF
+			;;
+		enable)
+			cat <<'EOF'
+usage: lightning plugin enable <name>
+
+Dynamically activate an installed plugin without restarting the
+daemon. Wraps `reckless enable <name>`.
+EOF
+			;;
+		disable)
+			cat <<'EOF'
+usage: lightning plugin disable <name>
+
+Dynamically deactivate a plugin without removing it. Wraps
+`reckless disable <name>`.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+case "$SUB" in
+	list)    cmd_list "$@" ;;
+	install) cmd_install "$@" ;;
+	remove)  cmd_remove "$@" ;;
+	search)  cmd_search "$@" ;;
+	enable)  cmd_enable "$@" ;;
+	disable) cmd_disable "$@" ;;
+	*) error "plugin: unknown subcommand '$SUB'"; usage; exit 1 ;;
+esac
