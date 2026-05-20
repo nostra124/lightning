@@ -145,6 +145,7 @@ objects:
    peer                    network peering (list, connect, bootstrap)
    account                 logical accounts and api keys
    channel                 Lightning channels (open, close, balance, scb)
+   fee                     per-channel fees (get, set, policy)
    daemon                  lightningd lifecycle (start, stop, logs, install)
    plugin                  CLN plugins via reckless (list, install, remove)
    invoice                 BOLT-11 invoices (create, pay)

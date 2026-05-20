@@ -1,0 +1,354 @@
+#!/bin/bash
+# lightning fee — per-channel base+ppm management (FEAT-200).
+#
+# Three sub-commands:
+#   get [<channel-id>]           recfile per channel (or just one)
+#   set <channel-id> <base> <ppm>
+#   policy [<name>] [--apply]    show / apply a named fee policy
+#
+# Pairs with the feeadjuster plugin (continuous mode); this verb is
+# the one-shot CLI surface. See FEAT-200 + share/doc/lightning/
+# guides/personal-node.md (FEAT-202) tier-2.
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning fee <subcommand> [args]
+
+   Per-channel fee management — base sat (msat-encoded) + ppm
+   (parts-per-million). Apply named policies in one shot, or
+   set individual channels by hand. The feeadjuster plugin
+   handles the continuous-mode equivalent.
+
+subcommands:
+   get [<channel-id>]            recfile per channel; one record if
+                                 <channel-id> given
+   set <channel-id> <base-msat> <ppm>
+                                 wraps \`lightning-cli setchannel\`
+   policy <name> [--apply]       show or apply a named fee policy:
+                                    flat        fixed base+ppm
+                                    balanced    sigmoid on liquidity
+                                    lsp         high base, low ppm
+                                    match-peer  mirror peer's fees
+                                 Without --apply: dry-run, prints the
+                                 intended fee per channel as recfile.
+                                 With --apply: calls setchannel for
+                                 each channel where the new value differs.
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
+}
+
+# -----------------------------------------------------------------------------
+# get
+# -----------------------------------------------------------------------------
+
+# Print one recfile record for a single jq channel object on stdin.
+# All amounts converted msat -> sat where helpful for the eye.
+_print_record() {
+	jq -r '
+		. as $c
+		| ((($c.to_us_msat // 0)) / 1000 | floor) as $local
+		| ((($c.total_msat // 0) - ($c.to_us_msat // 0)) / 1000 | floor) as $remote
+		| ((($c.total_msat // 0)) / 1000 | floor) as $cap
+		| "channel_id:     \($c.short_channel_id // $c.channel_id // "-")",
+		  "peer:           \($c.peer_id // "-")",
+		  "local_sat:      \($local)",
+		  "remote_sat:     \($remote)",
+		  "capacity_sat:   \($cap)",
+		  "base_msat:      \($c.fee_base_msat // "-")",
+		  "ppm:            \($c.fee_proportional_millionths // "-")",
+		  "htlc_min_msat:  \($c.htlc_minimum_msat // "-")",
+		  "htlc_max_msat:  \($c.htlc_maximum_msat // "-")",
+		  "state:          \($c.state // "-")"
+	'
+}
+
+cmd_get() {
+	require_cli
+	local target="${1:-}"
+	local json; json=$(cli listpeerchannels 2>/dev/null) || {
+		error "lightning-cli listpeerchannels failed (is the daemon running?)"
+		exit 2
+	}
+
+	if [ -n "$target" ]; then
+		local match; match=$(jq --arg id "$target" '
+			.channels[] | select(.short_channel_id == $id or .channel_id == $id)
+		' <<<"$json")
+		[ -n "$match" ] || { error "no channel matching '$target'"; exit 4; }
+		echo "$match" | _print_record
+		return
+	fi
+
+	# Multi-record: blank line between records (recfile convention).
+	local n; n=$(jq -r '.channels | length' <<<"$json")
+	[ "$n" -gt 0 ] || { info "no channels"; return 0; }
+	local i=0
+	jq -c '.channels[]' <<<"$json" | while read -r ch; do
+		[ $i -gt 0 ] && echo
+		echo "$ch" | _print_record
+		i=$((i + 1))
+	done
+}
+
+# -----------------------------------------------------------------------------
+# set
+# -----------------------------------------------------------------------------
+
+cmd_set() {
+	require_cli
+	[ $# -lt 3 ] && { error "set needs <channel-id> <base-msat> <ppm>"; exit 1; }
+	local id="$1" base="$2" ppm="$3"
+
+	# Validate numerics — bail loudly rather than letting setchannel
+	# return a cryptic JSON error.
+	case "$base$ppm" in
+		*[!0-9]*) error "base-msat and ppm must be non-negative integers"; exit 1 ;;
+	esac
+
+	if ! cli setchannel "$id" "$base" "$ppm" >/dev/null 2>&1; then
+		error "setchannel failed for '$id' (channel id correct? daemon up?)"
+		exit 4
+	fi
+	echo "ok"
+	echo "channel_id: $id"
+	echo "base_msat:  $base"
+	echo "ppm:        $ppm"
+}
+
+# -----------------------------------------------------------------------------
+# policy
+# -----------------------------------------------------------------------------
+
+# Functions: emit "<base> <ppm>" given "<local_sat> <capacity_sat>".
+# (Reading peer fees for match-peer is handled separately because it
+# needs another RPC call per channel.)
+
+_policy_flat() {
+	echo "1000 100"
+}
+
+# Piecewise-linear sigmoid on liquidity ratio. Concrete values
+# tuned for personal-node defaults (see FEAT-202 tier-2 numbers).
+#   ratio 1.0 (full outbound) -> base=100,   ppm=50
+#   ratio 0.5 (balanced)      -> base=1000,  ppm=200
+#   ratio 0.0 (depleted)      -> base=5000,  ppm=1000
+_policy_balanced() {
+	local local_sat="$1" capacity="$2"
+	# Avoid divide-by-zero on tiny / pending channels.
+	[ "$capacity" -le 0 ] 2>/dev/null && { echo "1000 100"; return; }
+	# Integer percent ratio (0..100).
+	local pct=$(( local_sat * 100 / capacity ))
+	[ "$pct" -gt 100 ] && pct=100
+	[ "$pct" -lt 0 ]   && pct=0
+	# Linear interp on each half.
+	local base ppm
+	if [ "$pct" -ge 50 ]; then
+		# 50 -> 1000, 100 -> 100  (base), 50 -> 200, 100 -> 50 (ppm)
+		base=$((1000 - (pct - 50) * 18))    # 1000 .. 100
+		ppm=$((200  - (pct - 50) * 3))      # 200  .. 50
+	else
+		# 0 -> 5000, 50 -> 1000 (base), 0 -> 1000, 50 -> 200 (ppm)
+		base=$((5000 - pct * 80))           # 5000 .. 1000
+		ppm=$((1000 - pct * 16))            # 1000 .. 200
+	fi
+	echo "$base $ppm"
+}
+
+_policy_lsp() {
+	echo "10000 10"
+}
+
+# match-peer needs the peer's outgoing channel_update (their fees
+# for HTLCs they accept FROM us). Use listchannels <scid> and pick
+# the direction with destination = our node id.
+_policy_match_peer() {
+	local scid="$1"
+	require_cli >/dev/null 2>&1 || { echo "1000 100"; return; }
+	local our_id; our_id=$(cli getinfo 2>/dev/null | jq -r .id 2>/dev/null)
+	[ -n "$our_id" ] || { echo "1000 100"; return; }
+	# pick the channel_update whose .destination == us
+	local result; result=$(cli listchannels "$scid" 2>/dev/null | \
+		jq --arg us "$our_id" -r '
+			.channels[] | select(.destination == $us) |
+			"\(.base_fee_millisatoshi) \(.fee_per_millionth)"
+		' | head -1)
+	if [ -n "$result" ]; then
+		echo "$result"
+	else
+		echo "1000 100"   # peer never gossiped, fall back to flat
+	fi
+}
+
+# Compute (base, ppm) for one channel per the named policy.
+_apply_policy_to() {
+	local policy="$1" channel_json="$2"
+	local local_sat capacity scid
+	local_sat=$(jq -r '(.to_us_msat // 0) / 1000 | floor' <<<"$channel_json")
+	capacity=$(jq -r '(.total_msat // 0) / 1000 | floor' <<<"$channel_json")
+	scid=$(jq -r '.short_channel_id // .channel_id // ""' <<<"$channel_json")
+
+	case "$policy" in
+		flat)       _policy_flat ;;
+		balanced)   _policy_balanced "$local_sat" "$capacity" ;;
+		lsp)        _policy_lsp ;;
+		match-peer) _policy_match_peer "$scid" ;;
+		*) error "unknown policy '$policy' (try flat|balanced|lsp|match-peer)"; exit 1 ;;
+	esac
+}
+
+cmd_policy() {
+	require_cli
+	[ $# -lt 1 ] && { error "policy needs <name> [--apply]"; exit 1; }
+	local policy="$1"; shift
+	local apply=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--apply) apply=1; shift ;;
+			*) error "policy: unknown flag '$1'"; exit 1 ;;
+		esac
+	done
+
+	case "$policy" in
+		flat|balanced|lsp|match-peer) ;;
+		*) error "unknown policy '$policy' (try flat|balanced|lsp|match-peer)"; exit 1 ;;
+	esac
+
+	local json; json=$(cli listpeerchannels 2>/dev/null) || {
+		error "lightning-cli listpeerchannels failed (is the daemon running?)"
+		exit 2
+	}
+	local n; n=$(jq -r '.channels | length' <<<"$json")
+	[ "$n" -gt 0 ] || { info "no channels"; return 0; }
+
+	local changed=0 same=0 i=0
+	jq -c '.channels[]' <<<"$json" | while read -r ch; do
+		local scid; scid=$(jq -r '.short_channel_id // .channel_id // ""' <<<"$ch")
+		local cur_base; cur_base=$(jq -r '.fee_base_msat // 0' <<<"$ch")
+		local cur_ppm;  cur_ppm=$(jq -r '.fee_proportional_millionths // 0' <<<"$ch")
+
+		read -r new_base new_ppm <<<"$(_apply_policy_to "$policy" "$ch")"
+
+		[ $i -gt 0 ] && echo
+		echo "channel_id:   $scid"
+		echo "policy:       $policy"
+		echo "current:      base=$cur_base ppm=$cur_ppm"
+		echo "proposed:     base=$new_base ppm=$new_ppm"
+		i=$((i + 1))
+
+		if [ "$cur_base" = "$new_base" ] && [ "$cur_ppm" = "$new_ppm" ]; then
+			echo "action:       unchanged"
+			continue
+		fi
+
+		if [ "$apply" -eq 0 ]; then
+			echo "action:       would_apply (dry-run; pass --apply to commit)"
+		else
+			if cli setchannel "$scid" "$new_base" "$new_ppm" >/dev/null 2>&1; then
+				echo "action:       applied"
+			else
+				echo "action:       failed (setchannel rejected)"
+			fi
+		fi
+	done
+}
+
+# -----------------------------------------------------------------------------
+# Per-sub help
+# -----------------------------------------------------------------------------
+
+subhelp() {
+	case "$1" in
+		get)
+			cat <<'EOF'
+usage: lightning fee get [<channel-id>]
+
+Without args: one recfile record per channel, blank-line
+separated. Fields:
+   channel_id    short_channel_id (or channel_id if no SCID yet)
+   peer          peer pubkey
+   local_sat     our side of the channel
+   remote_sat    peer's side
+   capacity_sat  total funding
+   base_msat     current base fee (msat)
+   ppm           current proportional fee (parts per million)
+   htlc_min_msat / htlc_max_msat   per-htlc bounds
+   state         CHANNELD_NORMAL, AWAITING_LOCKIN, etc.
+
+With <channel-id>: only that channel. Matches either
+short_channel_id or channel_id.
+EOF
+			;;
+		set)
+			cat <<'EOF'
+usage: lightning fee set <channel-id> <base-msat> <ppm>
+
+Direct wrapper over `lightning-cli setchannel`. Re-broadcasts
+a channel_update with the new fees; effective immediately for
+new HTLCs. Common values:
+
+   set <id> 1000 100       conservative default
+   set <id> 0    1000      high-volume bias on ppm
+   set <id> 5000 50        anchor-channel bias on base
+
+`lightning fee policy balanced --apply` is usually what you
+want instead of setting each channel by hand.
+EOF
+			;;
+		policy)
+			cat <<'EOF'
+usage: lightning fee policy <name> [--apply]
+
+Compute fees for every channel per the named policy. Without
+--apply: dry-run (recfile, action=would_apply). With --apply:
+calls setchannel where the new value differs from the current.
+
+Policies:
+   flat        base=1000 ppm=100 on every channel (CLN default)
+   balanced    piecewise-linear sigmoid on local/capacity ratio:
+                  full outbound  -> base=100  ppm=50
+                  balanced       -> base=1000 ppm=200
+                  depleted       -> base=5000 ppm=1000
+                rewards channels that need traffic the other way;
+                pairs well with the feeadjuster plugin's continuous
+                mode (which does the same on every forward event).
+   lsp         high base, low ppm (base=10000, ppm=10) — biased
+                for small-payment LSP routing
+   match-peer  read the peer's outgoing channel_update for this
+                channel via listchannels and mirror their fees;
+                falls back to flat if the gossip update isn't
+                available yet
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+case "$SUB" in
+	get)    cmd_get "$@" ;;
+	set)    cmd_set "$@" ;;
+	policy) cmd_policy "$@" ;;
+	*) error "fee: unknown subcommand '$SUB'"; usage; exit 1 ;;
+esac
