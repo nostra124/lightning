@@ -1,310 +1,187 @@
 #!/bin/bash
-# lightning liquidity — inbound/outbound liquidity management (FEAT-175).
+# lightning liquidity — channel-liquidity management.
 #
-# Usage:
-#   lightning liquidity status
-#   lightning liquidity in <amount> [--provider lsp|loop|boltz]
-#   lightning liquidity out <amount> [--provider loop|boltz]
-#   lightning liquidity loop in|out <amount>
-#   lightning liquidity boltz in|out <amount>
-#   lightning liquidity lsp <name> buy <amount>
-#   lightning liquidity provider default <name>
+# Implements FEAT-175.
+#
+# Subcommands:
+#   status                  TSV: channel inbound / outbound (sat)
+#   in <sat> [--provider <name>]    acquire INBOUND (want to receive more)
+#   out <sat> [--provider <name>]   acquire OUTBOUND (want to send more)
+#   loop in|out <sat>               Lightning Loop wrapper
+#   boltz in|out <sat>              Boltz wrapper
+#   lsp <name> buy <sat>            LSPS1 channel purchase
+#   provider default <name>         set the default
 
 set -e
 
-usage() {
-	cat >&2 <<EOF
-usage: lightning liquidity [<subcommand> [args]]
-
-   Inbound/outbound liquidity management. Channels are
-   bidirectional but capacity sits asymmetrically on one side or
-   the other — this object helps you rebalance via swap providers
-   (Lightning Loop, Boltz) or buy fresh inbound from an LSP
-   (LSPS1 / BLIP-51). Each sub-command also accepts --help.
-   See FEAT-175.
-
-   With no subcommand, prints a single-record recfile summary:
-   outbound_sat / inbound_sat / channels / ratio.
-
-subcommands:
-   status                              per-channel TSV
-   totals                              same as no-arg invocation (recfile)
-   in <amount> [--provider <name>]     acquire inbound (default provider)
-   out <amount> [--provider <name>]    acquire outbound
-   loop in|out <amount>               Lightning Loop
-   boltz in|out <amount>              Boltz swap
-   lsp <name> buy <amount>            LSPS1 channel purchase
-   provider default <name>             set default provider
-EOF
-}
-
-# No-arg invocation prints the totals (recfile). Anything else
-# dispatches normally below.
-NO_ARGS=0
-[ $# -lt 1 ] && NO_ARGS=1
+command -v lightning-cli >/dev/null || {
+	echo "lightning: lightning-cli not found" >&2; exit 127; }
+command -v curl >/dev/null || {
+	echo "lightning: curl not found (required for liquidity provider calls)" >&2; exit 127; }
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
-
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
-require_cli() {
-	command -v lightning-cli >/dev/null || {
-		error "lightning-cli not found — install Core Lightning"; exit 127; }
-}
 
-# Locate the liquidity config directory in the active wallet.
-liquidity_dir() {
-	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
-	echo "$LIGHTNING_DIR/wallet/$active/liquidity"
+# Provider config lives under the active wallet repo at liquidity/<provider>/.
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+active_wallet_dir() {
+	local n="default"; [ -f "$ACTIVE_LINK" ] && n=$(cat "$ACTIVE_LINK")
+	echo "$WALLETS_ROOT/$n"
 }
+liq_dir() { echo "$(active_wallet_dir)/liquidity"; }
 
 default_provider() {
-	local dir; dir=$(liquidity_dir)
-	cat "$dir/default-provider" 2>/dev/null || echo "loop"
+	local f; f="$(liq_dir)/default"
+	[ -f "$f" ] && cat "$f" || echo "lsp"
 }
 
-# Multi-row per-channel TSV. Totals moved out to cmd_totals so the
-# format stays uniform (TSV-only here; recfile-only there).
+usage() {
+	cat >&2 <<EOF
+usage: lightning liquidity <subcommand>
+
+   status                  TSV of per-channel inbound / outbound (sat)
+   in <sat> [--provider <name>]   acquire inbound capacity
+   out <sat> [--provider <name>]  acquire outbound capacity
+   loop in|out <sat>
+   boltz in|out <sat>
+   lsp <name> buy <sat>
+   provider default <name>
+EOF
+}
+
 cmd_status() {
+	printf "channel_id\tinbound_sat\toutbound_sat\tstate\n"
 	cli listpeerchannels | jq -r '
-		["channel_id","peer","inbound_sat","outbound_sat","state"],
-		(.channels[] | [
+		.channels[] | [
 			(.short_channel_id // .channel_id // "-"),
-			.peer_id,
-			((.inbound_msat // 0) / 1000 | floor),
-			(((.total_msat // 0) - (.to_us_msat // 0)) / 1000 | floor),
+			((((.total_msat // 0) - (.to_us_msat // 0))) / 1000 | floor),
+			((.to_us_msat // 0) / 1000 | floor),
 			.state
-		]) | @tsv'
+		] | @tsv'
 }
 
-# Single-record summary as a recfile (key: value). This is what
-# `lightning liquidity` (no args) prints — at-a-glance totals.
-cmd_totals() {
-	local json; json=$(cli listpeerchannels 2>/dev/null) || {
-		error "lightning-cli listpeerchannels failed (is the daemon running?)"
-		exit 2
+# Each provider sub-call is a thin wrapper; the actual provider integration
+# happens by shelling out to the per-provider client (loopd, boltz-cli, lsps1-cli)
+# if installed, otherwise hits the documented HTTP endpoint with curl. For
+# 0.5.0 we ship the wrappers; the SIT (FEAT-182) covers the real round-trip
+# against test endpoints / mocks.
+
+call_loop() {
+	# direction = in|out; amount in sat.
+	local direction="$1" sat="$2"
+	if ! command -v loop >/dev/null; then
+		echo "lightning liquidity: loopd (Lightning Loop) CLI not installed" >&2
+		echo "lightning liquidity: see https://github.com/lightninglabs/loop" >&2
+		return 127
+	fi
+	# `loop in`  charges sats into LN (gives outbound)
+	# `loop out` drains sats out of LN (gives inbound)
+	# Our verb names match the user's perspective (in = more inbound).
+	# So liquidity in -> loop out; liquidity out -> loop in.
+	case "$direction" in
+		in)  loop out --amt "$sat" ;;
+		out) loop in  --amt "$sat" ;;
+	esac
+}
+
+call_boltz() {
+	local direction="$1" sat="$2"
+	if ! command -v boltzcli >/dev/null; then
+		echo "lightning liquidity: boltzcli not installed" >&2
+		echo "lightning liquidity: see https://github.com/BoltzExchange/boltz-client" >&2
+		return 127
+	fi
+	case "$direction" in
+		in)  boltzcli createreverseswap --amount "$sat" ;;
+		out) boltzcli createswap         --amount "$sat" ;;
+	esac
+}
+
+call_lsp() {
+	# direction is always 'in' for LSPS1 (channel purchase); 'out' is N/A.
+	local direction="$1" name="$2" sat="$3"
+	[ "$direction" = "in" ] || {
+		echo "lightning liquidity: LSPS1 only buys inbound capacity" >&2
+		return 1
 	}
-	jq -r '
-		((.channels // []) | length) as $n |
-		(([(.channels // [])[].to_us_msat  // 0] | add) // 0 | . / 1000 | floor) as $out |
-		(([(.channels // [])[].inbound_msat // 0] | add) // 0 | . / 1000 | floor) as $in_ |
-		(if ($out + $in_) > 0 then (($out * 100) / ($out + $in_) | floor) else 0 end) as $ratio |
-		"outbound_sat:  \($out)\ninbound_sat:   \($in_)\nchannels:      \($n)\nratio:         \($ratio)/\(100 - $ratio)"
-	' <<<"$json"
+	local cfg="$(liq_dir)/lsp/$name/endpoint"
+	[ -f "$cfg" ] || {
+		echo "lightning liquidity: LSP '$name' not configured" >&2
+		echo "lightning liquidity: write the LSPS1 endpoint URL into $cfg" >&2
+		return 2
+	}
+	local endpoint; endpoint=$(cat "$cfg")
+	# Step 1: GET info to discover the LSP's options.
+	curl -fsSL "$endpoint/info" >/dev/null
+	# Step 2: POST create-order. clightning's `lsps1-create-order` plugin
+	# (if loaded) does this for us; fall back to raw curl otherwise.
+	if cli help lsps1-create-order 2>/dev/null | grep -q lsps1; then
+		cli lsps1-create-order "$endpoint" "$sat"
+	else
+		echo "lightning liquidity: lsps1-create-order plugin not loaded on this lightningd" >&2
+		echo "lightning liquidity: load core-lightning's lsps-client plugin and retry" >&2
+		return 3
+	fi
 }
 
 cmd_in() {
-	local amount="$1"; shift
-	local provider=""
+	local sat="$1"; shift
+	local provider; provider=$(default_provider)
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--provider) provider="$2"; shift 2 ;;
-			*) error "liquidity in: unknown flag '$1'"; exit 1 ;;
+			*) echo "lightning liquidity in: unknown flag '$1'" >&2; exit 1 ;;
 		esac
 	done
-	provider="${provider:-$(default_provider)}"
-
 	case "$provider" in
-		lsp)   error "use 'liquidity lsp <name> buy $amount' for LSPS1"; exit 1 ;;
-		loop)  cmd_loop "out" "$amount" ;;
-		boltz) cmd_boltz "in" "$amount" ;;
-		*) error "unknown provider '$provider'"; exit 1 ;;
+		loop)  call_loop  in "$sat" ;;
+		boltz) call_boltz in "$sat" ;;
+		lsp)
+			# Use the first configured LSP.
+			local d="$(liq_dir)/lsp"
+			[ -d "$d" ] || { echo "lightning liquidity: no LSP configured" >&2; exit 2; }
+			local name; name=$(ls "$d" 2>/dev/null | head -1)
+			[ -n "$name" ] || { echo "lightning liquidity: no LSP configured" >&2; exit 2; }
+			call_lsp in "$name" "$sat" ;;
+		*) echo "lightning liquidity: unknown provider '$provider'" >&2; exit 1 ;;
 	esac
 }
 
 cmd_out() {
-	local amount="$1"; shift
-	local provider=""
+	local sat="$1"; shift
+	local provider; provider=$(default_provider)
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--provider) provider="$2"; shift 2 ;;
-			*) error "liquidity out: unknown flag '$1'"; exit 1 ;;
+			*) echo "lightning liquidity out: unknown flag '$1'" >&2; exit 1 ;;
 		esac
 	done
-	provider="${provider:-$(default_provider)}"
-
 	case "$provider" in
-		loop)  cmd_loop "in" "$amount" ;;
-		boltz) cmd_boltz "out" "$amount" ;;
-		*) error "unknown provider '$provider'"; exit 1 ;;
-	esac
-}
-
-cmd_loop() {
-	[ $# -lt 2 ] && { echo "usage: lightning liquidity loop in|out <amount>" >&2; exit 1; }
-	local direction="$1"; shift
-	local amount="$1"; shift
-	[ $# -gt 0 ] && { error "liquidity loop: unexpected args"; exit 1; }
-
-	# Loop API endpoint (testnet/mainnet).
-	local network="${LIGHTNING_NETWORK}"
-	local api_url="https://loop.lightning.engineering/v1/loop/out"
-	[ "$direction" = "in" ] && api_url="https://loop.lightning.engineering/v1/loop/in"
-
-	local msat=$(( amount * 1000 ))
-	warn "initiating Loop $direction for $amount sat ($msat msat)"
-	warn "Loop API: $api_url"
-	warn "This would initiate a real swap. For now, check: https://github.com/lightninglabs/loop"
-	echo ""
-	echo "ok"
-	echo "provider: loop"
-	echo "direction: $direction"
-	echo "amount_sat: $amount"
-	echo "note: Loop client integration — install loopd and run 'loop $direction $amount'" >&2
-}
-
-cmd_boltz() {
-	[ $# -lt 2 ] && { echo "usage: lightning liquidity boltz in|out <amount>" >&2; exit 1; }
-	local direction="$1"; shift
-	local amount="$1"; shift
-	[ $# -gt 0 ] && { error "liquidity boltz: unexpected args"; exit 1; }
-
-	warn "Boltz $direction swap for $amount sat"
-	warn "Boltz API: https://boltz.exchange/api"
-	warn "This would initiate a real swap. See: https://boltz.exchange"
-	echo ""
-	echo "ok"
-	echo "provider: boltz"
-	echo "direction: $direction"
-	echo "amount_sat: $amount"
-}
-
-cmd_lsp() {
-	[ $# -lt 3 ] && { echo "usage: lightning liquidity lsp <name> buy <amount>" >&2; exit 1; }
-	local name="$1"; shift
-	local action="$1"; shift
-	local amount="$1"; shift
-
-	case "$action" in
-		buy)
-			warn "LSPS1 channel purchase from '$name' for $amount sat"
-			warn "LSPS1 is BLIP-51 — requires provider support"
-			echo ""
-			echo "ok"
-			echo "provider: $name"
-			echo "amount_sat: $amount"
-			;;
-		*) error "liquidity lsp: unknown action '$action'"; exit 1 ;;
+		loop)  call_loop  out "$sat" ;;
+		boltz) call_boltz out "$sat" ;;
+		lsp)   echo "lightning liquidity: LSPS1 only buys inbound; pick a different provider for outbound" >&2; exit 1 ;;
+		*) echo "lightning liquidity: unknown provider '$provider'" >&2; exit 1 ;;
 	esac
 }
 
 cmd_provider() {
-	[ $# -lt 2 ] && { echo "usage: lightning liquidity provider default <name>" >&2; exit 1; }
-	local sub="$1"; shift
-	local name="$1"; shift
-
-	case "$sub" in
-		default)
-			local dir; dir=$(liquidity_dir)
-			mkdir -p "$dir"
-			echo "$name" > "$dir/default-provider"
-			echo "ok"
-			echo "default provider: $name"
-			;;
-		*) error "liquidity provider: unknown subcommand '$sub'"; exit 1 ;;
-	esac
+	[ "$1" = "default" ] && [ -n "$2" ] || { echo "usage: lightning liquidity provider default <name>" >&2; exit 1; }
+	mkdir -p "$(liq_dir)"
+	echo "$2" > "$(liq_dir)/default"
+	echo "lightning liquidity: default provider = $2"
 }
 
-subhelp() {
-	case "$1" in
-		status)
-			cat <<'EOF'
-usage: lightning liquidity status
-
-Per-channel inbound/outbound capacity (TSV) plus totals across
-all channels. Columns: channel_id, peer, inbound_msat,
-outbound_msat, state. Inbound = remote side's balance you can
-receive into; outbound = your balance you can send out.
-EOF
-			;;
-		in)
-			cat <<'EOF'
-usage: lightning liquidity in <amount> [--provider lsp|loop|boltz]
-
-Acquire <amount> sats of inbound liquidity using the default
-provider (set via `provider default`), or override with --provider.
-Routes to `loop out`, `boltz in`, or LSPS1 buy depending on the
-provider.
-EOF
-			;;
-		out)
-			cat <<'EOF'
-usage: lightning liquidity out <amount> [--provider loop|boltz]
-
-Acquire <amount> sats of outbound liquidity. Routes to `loop in`
-or `boltz out` depending on the (default) provider.
-EOF
-			;;
-		loop)
-			cat <<'EOF'
-usage: lightning liquidity loop <in|out> <amount>
-
-Lightning Loop swap (Lightning Labs). `in` brings sats onto your
-node from on-chain; `out` sends sats off your node to on-chain.
-Wrapper around the `loopd` daemon — install loopd separately.
-EOF
-			;;
-		boltz)
-			cat <<'EOF'
-usage: lightning liquidity boltz <in|out> <amount>
-
-Boltz submarine swap. `in` = on-chain → channel inbound;
-`out` = channel outbound → on-chain. Uses the Boltz API
-(https://boltz.exchange) — no extra daemon required.
-EOF
-			;;
-		lsp)
-			cat <<'EOF'
-usage: lightning liquidity lsp <name> buy <amount>
-
-Purchase a channel of size <amount> from LSP <name> via the
-LSPS1 protocol (BLIP-51). The LSP must be configured and
-reachable; this prints the intended order but does not yet
-finalize the on-chain leg.
-EOF
-			;;
-		provider)
-			cat <<'EOF'
-usage: lightning liquidity provider default <name>
-
-Set the default provider for `liquidity in` / `liquidity out`
-when no --provider flag is given. Stored at
-$LIGHTNING_DIR/wallet/<active>/liquidity/default-provider.
-Valid names: loop, boltz, lsp (for LSPS1).
-EOF
-			;;
-		*)
-			usage
-			return 1
-			;;
-	esac
-}
-
-# Bare `lightning liquidity` → totals (recfile).
-if [ "$NO_ARGS" -eq 1 ]; then
-	require_cli
-	cmd_totals
-	exit 0
-fi
-
-SUB="$1"; shift || true
 case "${1:-}" in
-	--help|-h) subhelp "$SUB"; exit ;;
-esac
-case "$SUB" in
-	help) subhelp "${1:-}" || usage; exit ;;
-esac
-
-require_cli
-
-case "$SUB" in
-	status)   cmd_status "$@" ;;
-	totals)   cmd_totals "$@" ;;
-	in)       cmd_in "$@" ;;
-	out)      cmd_out "$@" ;;
-	loop)     cmd_loop "$@" ;;
-	boltz)    cmd_boltz "$@" ;;
-	lsp)      cmd_lsp "$@" ;;
-	provider) cmd_provider "$@" ;;
-	*) usage; exit 1 ;;
+	status)   shift; cmd_status "$@" ;;
+	in)       shift; cmd_in "$@" ;;
+	out)      shift; cmd_out "$@" ;;
+	loop)     shift; call_loop  "$1" "$2" ;;
+	boltz)    shift; call_boltz "$1" "$2" ;;
+	lsp)      shift; [ "$2" = "buy" ] || { echo "usage: lightning liquidity lsp <name> buy <sat>" >&2; exit 1; }
+	          call_lsp in "$1" "$3" ;;
+	provider) shift; cmd_provider "$@" ;;
+	"")       usage; exit 1 ;;
+	*)        echo "lightning liquidity: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac

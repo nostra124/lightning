@@ -1,288 +1,155 @@
 #!/bin/bash
-# lightning address — Lightning Address support (FEAT-176).
+# lightning address — Lightning Address (LUD-16) management.
 #
-# Usage:
-#   lightning address resolve <addr>
-#   lightning address pay <addr> <sat> [--comment <text>] [--account <name>]
-#   lightning address create <addr> [--account <name>]
-#   lightning address list
-#   lightning address remove <addr>
+# Implements FEAT-176. Apache is the single supported host:
+# `address create` detects apache2, drops the Python CGI
+# handler under .well-known/lnurlp/, and registers the
+# <user>->account binding in the SQLite users table.
 
 set -e
 
+command -v sqlite3 >/dev/null || { echo "lightning: sqlite3 not installed" >&2; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+active_db() {
+	local n="default"; [ -f "$ACTIVE_LINK" ] && n=$(cat "$ACTIVE_LINK")
+	local db="$WALLETS_ROOT/$n/state.db"
+	[ -f "$db" ] || { echo "lightning address: no active wallet" >&2; exit 2; }
+	echo "$db"
+}
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+apache_present() {
+	command -v apache2  >/dev/null && return 0
+	command -v httpd    >/dev/null && return 0
+	command -v apachectl >/dev/null && return 0
+	return 1
+}
+
 usage() {
 	cat >&2 <<EOF
-usage: lightning address <subcommand> [args]
+usage: lightning address <subcommand>
 
-   Lightning Addresses (LUD-16): the user@domain form that
-   resolves to LNURL-pay endpoints via
-   https://<domain>/.well-known/lnurlp/<user>. Supports both
-   consumption (resolve, pay) and self-hosting on Apache
-   (create, list, remove). Each sub-command also accepts --help.
-   See FEAT-176.
-
-subcommands:
-   resolve <addr>                          get LNURL-pay endpoint metadata
-   pay <addr> <sat> [--comment <text>]     resolve + pay
-         [--account <name>]
-   create <addr> [--account <name>]        detect Apache, install handler
-   list                                    owned addresses
-   remove <addr>                           remove handler + record
+   resolve <addr>                          fetch LUD-06 metadata
+   pay <addr> <sat> [--comment <text>]     send a LUD-06 payment
+   create <user@domain> [--account <n>]    publish your own address
+   list                                    your published addresses
+   remove <user@domain>
+   apache-snippet                          emit a drop-in vhost snippet
 EOF
-}
-
-[ $# -lt 1 ] && { usage; exit 1; }
-
-LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
-LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
-SELF_LIBEXEC="${SELF_LIBEXEC:-$(cd "$(dirname "$0")" && pwd)}"
-
-cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
-
-require_cli() {
-	command -v lightning-cli >/dev/null || {
-		error "lightning-cli not found — install Core Lightning"; exit 127; }
-}
-
-wallet_db() {
-	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
-	echo "$LIGHTNING_DIR/wallet/$active/state.db"
-}
-
-# Parse "user@domain" → user + domain
-parse_addr() {
-	local addr="$1"
-	[[ "$addr" == *@* ]] || { error "invalid address '$addr' — expected user@domain"; exit 2; }
-	local user="${addr%%@*}"
-	local domain="${addr#*@}"
-	echo "$user $domain"
-}
-
-# Resolve LNURL-pay: return the JSON from the .well-known endpoint.
-resolve_lnurlp() {
-	local addr="$1"
-	read -r user domain <<<"$(parse_addr "$addr")"
-
-	# LUD-01: https://<domain>/.well-known/lnurlp/<user>
-	local url="https://$domain/.well-known/lnurlp/$user"
-	curl -sfL "$url" 2>/dev/null || {
-		# Fallback: try http if https fails.
-		url="http://$domain/.well-known/lnurlp/$user"
-		curl -sfL "$url" 2>/dev/null || {
-			error "failed to resolve $addr — is the remote running?"
-			exit 4
-		}
-	}
-	echo "$url"
 }
 
 cmd_resolve() {
 	[ $# -lt 1 ] && { echo "usage: lightning address resolve <addr>" >&2; exit 1; }
-	require_cli
-	local addr="$1"; shift
-	read -r user domain <<<"$(parse_addr "$addr")"
-
-	local cb_url; cb_url=$(resolve_lnurlp "$addr")
-	curl -sfL "$cb_url" | jq .
+	# Reuse `lnurl decode` for the work.
+	exec "$(dirname "$0")/lnurl" decode "$1"
 }
 
 cmd_pay() {
-	[ $# -lt 2 ] && { echo "usage: lightning address pay <addr> <sat> [--comment <text>] [--account <name>]" >&2; exit 1; }
-	require_cli
-	local addr="$1"; shift
-	local sat="$1"; shift
-	local comment=""
-	local account=""
-
-	while [ $# -gt 0 ]; do
-		case "$1" in
-			--comment) comment="$2"; shift 2 ;;
-			--account) account="$2"; shift 2 ;;
-			*) error "address pay: unknown flag '$1'"; exit 1 ;;
-		esac
-	done
-
-	read -r user domain <<<"$(parse_addr "$addr")"
-
-	# Resolve LNURL-pay endpoint.
-	local lnurlp_url; lnurlp_url=$(resolve_lnurlp "$addr")
-	local meta; meta=$(curl -sfL "$lnurlp_url") || {
-		error "failed to fetch LNURL-pay metadata for $addr"; exit 4; }
-
-	local callback; callback=$(jq -r '.callback' <<<"$meta")
-	[ -z "$callback" ] && { error "no callback URL in LNURL-pay response"; exit 4; }
-	[ "$callback" = "null" ] && { error "no callback URL in LNURL-pay response"; exit 4; }
-
-	local comment_max; comment_max=$(jq -r '.commentAllowed // 0' <<<"$meta")
-	local min_msat; min_msat=$(jq -r '.minSendable // 0' <<<"$meta")
-	local max_msat; max_msat=$(jq -r '.maxSendable // 0' <<<"$meta")
-	local msat=$(( sat * 1000 ))
-
-	# Validate amount.
-	if [ "$msat" -lt "$min_msat" ] 2>/dev/null; then
-		error "$sat sat too small (min: $(( min_msat / 1000 )) sat)"; exit 3
-	fi
-	if [ "$msat" -gt "$max_msat" ] 2>/dev/null; then
-		error "$sat sat too large (max: $(( max_msat / 1000 )) sat)"; exit 3
-	fi
-
-	# Truncate comment if needed.
-	local trunc_comment="$comment"
-	if [ -n "$comment" ] && [ "$comment_max" -gt 0 ] 2>/dev/null; then
-		trunc_comment="${comment:0:$comment_max}"
-	fi
-
-	# Call callback to get invoice.
-	local cb_result
-	if [ -n "$trunc_comment" ]; then
-		# URL-encode using xxd + tr (no python dependency).
-		local enc; enc=$(printf '%s' "$trunc_comment" | xxd -p -c 256 | tr -d '\n' | sed 's/\(..\)/%\1/g')
-		cb_result=$(curl -sfL "${callback}?amount=$msat&comment=$enc")
-	else
-		cb_result=$(curl -sfL "${callback}?amount=$msat")
-	fi
-
-	local bolt11; bolt11=$(jq -r '.pr // .invoice // ""' <<<"$cb_result")
-	[ -z "$bolt11" ] && { error "no invoice in callback response"; exit 4; }
-
-	# Pay the invoice.
-	ARGS=()
-	[ -n "$account" ] && ARGS+=(--account "$account")
-	[ -n "$comment" ] && ARGS+=(--note "$comment")
-	exec "$SELF_LIBEXEC/lightning/invoice" pay "$bolt11" "${ARGS[@]}"
+	[ $# -lt 2 ] && { echo "usage: lightning address pay <addr> <sat> [--comment <text>]" >&2; exit 1; }
+	# Reuse `lnurl pay`.
+	exec "$(dirname "$0")/lnurl" pay "$@"
 }
 
 cmd_create() {
-	[ $# -lt 1 ] && { echo "usage: lightning address create <addr> [--account <name>]" >&2; exit 1; }
+	[ $# -lt 1 ] && { echo "usage: lightning address create <user@domain> [--account <n>]" >&2; exit 1; }
 	local addr="$1"; shift
-	local account=""
+	local account="-"
+
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--account) account="$2"; shift 2 ;;
-			*) error "address create: unknown flag '$1'"; exit 1 ;;
+			*) echo "lightning address create: unknown flag '$1'" >&2; exit 1 ;;
 		esac
 	done
 
-	read -r user domain <<<"$(parse_addr "$addr")"
+	[[ "$addr" == *@* ]] || { echo "lightning address: expected <user>@<domain>" >&2; exit 1; }
+	local user="${addr%%@*}" domain="${addr##*@}"
+	[[ "$user" =~ ^[a-z][a-z0-9_-]*$ ]] || {
+		echo "lightning address: user part must match [a-z][a-z0-9_-]*" >&2; exit 1; }
 
-	# Check Apache.
-	local apache=""
-	command -v apache2 >/dev/null && apache="apache2"
-	command -v httpd >/dev/null && apache="httpd"
-	if [ -z "$apache" ]; then
-		error "Apache not found — install apache2 and try again"
-		echo "  Debian/Ubuntu: sudo apt install apache2" >&2
-		echo "  RHEL/Fedora:   sudo dnf install httpd" >&2
-		exit 5
+	if ! apache_present; then
+		cat >&2 <<EOF
+lightning address: apache2 not installed.
+
+Install Apache and rerun. The Lightning Address handler is a
+Python CGI script that Apache executes at
+\`/.well-known/lnurlp/$user\`. No other web server is supported
+in this version.
+
+  debian/ubuntu: sudo apt install apache2 python3
+  fedora:       sudo dnf install httpd python3
+EOF
+		exit 3
 	fi
 
-	# Insert into users table.
-	DB=$(wallet_db)
-	[ -f "$DB" ] || {
-		error "no wallet database — run 'lightning wallet init' first"; exit 5; }
+	# Register the binding.
+	sqlite3 "$(active_db)" \
+		"INSERT INTO users(user, account) VALUES($(sql_quote "$user"), $(sql_quote "$account"));"
 
-	local acct="${account:-$user}"
-	sqlite3 "$DB" "INSERT OR REPLACE INTO users (user, account) VALUES ('$(echo "$user" | sed "s/'/''/g")', '$(echo "$acct" | sed "s/'/''/g")')" 2>/dev/null
+	echo "lightning address: registered $addr -> account=$account"
 
-	# Print BIP-353 TXT record hint.
-	echo "ok"
-	echo "address: $addr"
-	echo "account: $acct"
-	echo ""
-	echo "BIP-353 DNS hint: publish this TXT record:" >&2
-	echo "  _bitcoin-payment.$user.$domain. TXT \"bitcoin:$addr?amount=&label=\"" >&2
-	echo ""
-	echo "Apache wiring:" >&2
-	echo "  Ensure CGI is enabled and the handler script is deployed." >&2
-	echo "  See share/lightning/apache/lnurlp.conf for the config snippet." >&2
+	# Print the BIP-353 TXT record the operator should publish.
+	cat >&2 <<EOF
+
+BIP-353 DNS-based payment instructions:
+
+  Add this TXT record at your DNS provider:
+
+    _bitcoin-payment.$user.$domain.   IN  TXT  "bitcoin:?lno=<your-bolt12-offer>"
+
+  Or (LUD-16 only):
+
+    No DNS change needed. The LNURL endpoint at
+    https://$domain/.well-known/lnurlp/$user
+    is what Lightning Address wallets fetch.
+
+Apache:
+
+  Drop \`lightning address apache-snippet\` into your vhost,
+  reload apache, and you're live.
+EOF
 }
 
 cmd_list() {
-	DB=$(wallet_db)
-	[ -f "$DB" ] || { error "no wallet — run 'lightning wallet init' first"; exit 5; }
-	sqlite3 -readonly "$DB" -cmd ".mode tabs" "SELECT user, account, min_sat, max_sat FROM users ORDER BY user"
+	sqlite3 -header -separator $'\t' "$(active_db)" \
+		"SELECT user, account, min_sat, max_sat, comment_max FROM users ORDER BY user;"
 }
 
 cmd_remove() {
-	[ $# -lt 1 ] && { echo "usage: lightning address remove <addr>" >&2; exit 1; }
-	local addr="$1"; shift
-	read -r user domain <<<"$(parse_addr "$addr")"
-
-	DB=$(wallet_db)
-	[ -f "$DB" ] || { error "no wallet — run 'lightning wallet init' first"; exit 5; }
-	sqlite3 "$DB" "DELETE FROM users WHERE user = '$(echo "$user" | sed "s/'/''/g")'"
-	echo "ok"
-	echo "address $addr removed"
+	[ $# -lt 1 ] && { echo "usage: lightning address remove <user@domain>" >&2; exit 1; }
+	local addr="$1" user="${1%%@*}"
+	local n
+	n=$(sqlite3 "$(active_db)" \
+		"DELETE FROM users WHERE user = $(sql_quote "$user"); SELECT changes();")
+	echo "lightning address: $n removed"
 }
 
-subhelp() {
-	case "$1" in
-		resolve)
-			cat <<'EOF'
-usage: lightning address resolve <addr>
-
-Fetch the LNURL-pay metadata for user@domain by GETting
-https://<domain>/.well-known/lnurlp/<user> (LUD-16). Prints the
-JSON: callback URL, minSendable / maxSendable, commentAllowed, etc.
-EOF
-			;;
-		pay)
-			cat <<'EOF'
-usage: lightning address pay <addr> <sat>
-            [--comment <text>] [--account <name>]
-
-Resolve <addr> (LUD-16), fetch an invoice for <sat> sats from the
-callback (LUD-06), and pay it. --comment is sent to the recipient
-(truncated to their commentAllowed). --account tags the payment
-in the ledger.
-EOF
-			;;
-		create)
-			cat <<'EOF'
-usage: lightning address create <addr> [--account <name>]
-
-Register <addr> (user@domain) as one of your Lightning Addresses.
-Requires Apache (apache2 or httpd) on the host so the CGI
-endpoints at .well-known/lnurlp/<user> can serve invoices.
-Inserts into the wallet's users table; prints the BIP-353 TXT
-record and a pointer to the Apache config snippet.
-EOF
-			;;
-		list)
-			cat <<'EOF'
-usage: lightning address list
-
-TSV of owned addresses (rows from the users table):
-   user<TAB>account<TAB>min_sat<TAB>max_sat
-EOF
-			;;
-		remove)
-			cat <<'EOF'
-usage: lightning address remove <addr>
-
-Delete the user row for <addr>. Does NOT touch the Apache config
-or remove existing payment history — only stops new invoices from
-being issued via .well-known/lnurlp/<user>.
-EOF
-			;;
-		*)
-			usage
-			return 1
-			;;
-	esac
+apache_snippet_path() {
+	for p in \
+		"$(dirname "$0")/../../share/lightning/apache/lnurlp.conf" \
+		"$HOME/.local/share/lightning/apache/lnurlp.conf" \
+		"/usr/local/share/lightning/apache/lnurlp.conf" \
+		"/usr/share/lightning/apache/lnurlp.conf"; do
+		[ -f "$p" ] && { echo "$p"; return; }
+	done
+	return 1
 }
 
-SUB="$1"; shift || true
+cmd_apache_snippet() {
+	local p; p=$(apache_snippet_path) || {
+		echo "lightning address: apache snippet not found" >&2; exit 3; }
+	cat "$p"
+}
+
 case "${1:-}" in
-	--help|-h) subhelp "$SUB"; exit ;;
-esac
-
-case "$SUB" in
-	resolve) cmd_resolve "$@" ;;
-	pay)     cmd_pay "$@" ;;
-	create)  cmd_create "$@" ;;
-	list)    cmd_list "$@" ;;
-	remove)  cmd_remove "$@" ;;
-	help)    subhelp "${1:-}" || usage; exit ;;
-	*) usage; exit 1 ;;
+	resolve)        shift; cmd_resolve "$@" ;;
+	pay)            shift; cmd_pay "$@" ;;
+	create)         shift; cmd_create "$@" ;;
+	list)           shift; cmd_list "$@" ;;
+	remove)         shift; cmd_remove "$@" ;;
+	apache-snippet) shift; cmd_apache_snippet "$@" ;;
+	"")             usage; exit 1 ;;
+	*)              echo "lightning address: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac

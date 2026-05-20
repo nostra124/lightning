@@ -1,66 +1,33 @@
 #!/usr/bin/env python3
-"""POST /.well-known/lightning/<user>/send
+"""POST /.well-known/lightning/<user>/send  (FEAT-196).
 
-Body: {"to": "user@domain", "sat": 500, "message": "...", "note": "..."}
-Auth: X-API-Key (write scope)
-Returns: {"payment_hash": "...", "fee_sat": N, "preimage": "..."}
+Body: {"to": "<addr>", "sat": <int>, "message": "<text>", "note": "<text>"}
+Returns: {"payment_hash": "...", "fee_sat": <int>, "amount_sat": <int>}
 """
 
-import json
-import os
+import re
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+import _lib
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _lib import get_user, require_auth, run_lightning, json_response, error_response
+ADDR_RE = re.compile(r"^[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]{2,}$")
 
+user = _lib.read_user()
+_lib.auth(user, "write")
+body = _lib.read_body()
 
-def main():
-    user = get_user()
-    require_auth(user, "write")
+to = body.get("to", "")
+if not isinstance(to, str) or not ADDR_RE.match(to):
+    _lib.respond("400 Bad Request", {"error": "to: Lightning Address required"})
+sat = body.get("sat")
+if not isinstance(sat, int) or sat <= 0:
+    _lib.respond("400 Bad Request", {"error": "sat: positive integer required"})
+message = body.get("message", "") or ""
+note    = body.get("note", "")    or ""
+for k, v in (("message", message), ("note", note)):
+    if not isinstance(v, str) or len(v) > 256:
+        _lib.respond("400 Bad Request", {"error": f"{k}: string ≤ 256 bytes"})
 
-    content_length = int(os.environ.get("CONTENT_LENGTH", 0))
-    body = sys.stdin.read(content_length) if content_length > 0 else ""
-    if not body:
-        error_response(400, "empty request body")
-
-    try:
-        payload = json.loads(body)
-    except json.JSONDecodeError:
-        error_response(400, "invalid JSON")
-
-    to_addr = payload.get("to", "")
-    sat = payload.get("sat", 0)
-    message = payload.get("message", "")
-    note = payload.get("note", "")
-
-    if not to_addr or not sat:
-        error_response(400, "missing 'to' or 'sat'")
-
-    # Use lightning address pay.
-    addr_args = ["address", "pay", to_addr, str(sat)]
-    if message:
-        addr_args += ["--comment", message]
-    addr_args += ["--account", user]
-
-    out = run_lightning(*addr_args)
-    if not out:
-        error_response(502, "payment failed")
-
-    # Parse output for payment_hash and fee.
-    ph = ""
-    fee = 0
-    for line in out.split("\n"):
-        if line.startswith("payment_hash:"):
-            ph = line.split(None, 1)[1]
-        elif line.startswith("fee_sat:"):
-            fee = int(line.split(None, 1)[1])
-
-    result = {
-        "payment_hash": ph or "unknown",
-        "fee_sat": fee,
-    }
-    json_response(result)
-
-
-if __name__ == "__main__":
-    main()
+result = _lib.call_verb("api-send", user, to, str(sat), message, note)
+_lib.respond("200 OK", result)

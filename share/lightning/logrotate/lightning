@@ -1,0 +1,11 @@
+# logrotate config for the FEAT-196 API log.
+# Install: sudo cp /usr/share/lightning/logrotate/lightning /etc/logrotate.d/
+
+/var/log/lightning/api.log {
+    weekly
+    rotate 8
+    compress
+    missingok
+    notifempty
+    create 0640 www-data adm
+}

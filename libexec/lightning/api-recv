@@ -1,0 +1,33 @@
+#!/bin/bash
+# lightning api-recv <user> <sat> <message>
+#
+# Sudo-bridge facade for FEAT-196 recv.py: mint an invoice for
+# the account bound to <user> in the wallet's users table.
+# Returns JSON on stdout.
+
+set -e
+[ $# -eq 3 ] || exit 1
+user="$1"; sat="$2"; message="$3"
+
+case "$user" in [a-z][a-z0-9_-]*) ;; *) exit 2 ;; esac
+[[ "$sat" =~ ^[0-9]+$ ]] || exit 2
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+name="default"; [ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$name/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+account=$(sqlite3 "$db" "SELECT account FROM users WHERE user = '${user//\'/\'\'}';")
+[ -n "$account" ] || { echo '{"error":"unknown user"}'; exit 4; }
+
+label="api-recv-$(date +%s)-$RANDOM"
+# Reuse the `invoice` verb but capture only the BOLT-11.
+bolt11=$(LIGHTNING_BIN="${LIGHTNING_BIN:-lightning}" "$(dirname "$0")/invoice" "$sat" "$label" --description "$message" 2>/dev/null | head -1)
+[ -n "$bolt11" ] || { echo '{"error":"invoice failed"}'; exit 5; }
+
+# Record the pending invoice in the SQLite store.
+hash=$(printf '%s' "$bolt11" | openssl dgst -sha256 | awk '{print $NF}')
+sqlite3 "$db" "INSERT INTO invoices(bolt11, payment_hash, account, amount_msat, expiry, message, state) VALUES('${bolt11//\'/\'\'}', '$hash', '${account//\'/\'\'}', $((sat*1000)), datetime('now','+1 hour'), '${message//\'/\'\'}', 'pending');" 2>/dev/null || true
+
+printf '{"bolt11":"%s","payment_hash":"%s","amount_sat":%d}\n' "$bolt11" "$hash" "$sat"

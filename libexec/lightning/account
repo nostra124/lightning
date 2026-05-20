@@ -34,16 +34,36 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning account <subcommand>
 
-   list                                          TSV of accounts
+   list [--balances]                             TSV of accounts
    create <name> [<desc>] [--limit <sat>]
                           [--overdraft deny|warn|allow]
+                          [--host <domain>]      auto-create user@<domain>
    delete <name>
    show <name>                                   balance + recent ledger
+   apikey create <name> --scope read|write       issue an API key
+   apikey list <name>                            which scopes exist
+   apikey revoke <name> --scope read|write
 EOF
 }
 
 cmd_list() {
-	sqh "SELECT name, description, COALESCE(limit_sat, -1) AS limit_sat, overdraft FROM accounts WHERE name != '-' ORDER BY name;"
+	local with_balances=0
+	[ "${1:-}" = "--balances" ] && with_balances=1
+	if [ $with_balances -eq 1 ]; then
+		sqlite3 -header -separator $'\t' "$(active_db)" "
+			SELECT a.name,
+			       COALESCE(a.limit_sat, -1) AS limit_sat,
+			       COALESCE(SUM(l.amount_msat),0)/1000 AS balance_sat,
+			       a.overdraft
+			FROM accounts a
+			LEFT JOIN ledger l ON l.account = a.name
+			WHERE a.name != '-'
+			GROUP BY a.name
+			ORDER BY a.name;"
+	else
+		sqlite3 -header -separator $'\t' "$(active_db)" \
+			"SELECT name, description, COALESCE(limit_sat, -1) AS limit_sat, overdraft FROM accounts WHERE name != '-' ORDER BY name;"
+	fi
 }
 
 # Bash doesn't have a clean SQL-injection-safe quoter; we constrain
@@ -52,12 +72,13 @@ cmd_list() {
 sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
 
 cmd_create() {
-	[ $# -lt 1 ] && { echo "usage: lightning account create <name> [<desc>] [--limit <sat>] [--overdraft deny|warn|allow]" >&2; exit 1; }
+	[ $# -lt 1 ] && { echo "usage: lightning account create <name> [<desc>] [--limit <sat>] [--overdraft deny|warn|allow] [--host <domain>]" >&2; exit 1; }
 	local name="$1"; shift
 	local desc=""
 	[ $# -gt 0 ] && [[ "$1" != --* ]] && { desc="$1"; shift; }
 	local limit="NULL"
 	local overdraft="deny"
+	local host=""
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -68,6 +89,8 @@ cmd_create() {
 				case "$2" in deny|warn|allow) overdraft="$2"; shift 2 ;;
 					*) echo "--overdraft: must be deny|warn|allow" >&2; exit 1 ;;
 				esac ;;
+			--host)
+				host="$2"; shift 2 ;;
 			*) echo "lightning account create: unknown flag '$1'" >&2; exit 1 ;;
 		esac
 	done
@@ -77,6 +100,13 @@ cmd_create() {
 
 	sqlite3 "$(active_db)" "INSERT INTO accounts(name, description, limit_sat, overdraft) VALUES($(sql_quote "$name"), $(sql_quote "$desc"), $limit, $(sql_quote "$overdraft"));"
 	echo "lightning account: created $name"
+
+	# Auto-address (FEAT-195): chain into `lightning address create`.
+	if [ -n "$host" ]; then
+		"$(dirname "$0")/address" create "${name}@${host}" --account "$name" || {
+			echo "lightning account: address create failed; account remains" >&2
+		}
+	fi
 }
 
 cmd_delete() {
@@ -115,11 +145,55 @@ cmd_show() {
 	sqlite3 -header -separator $'\t' "$db" "SELECT ts, direction, amount_msat, peer, message FROM ledger WHERE account = $(sql_quote "$name") ORDER BY id DESC LIMIT 10;"
 }
 
+cmd_apikey() {
+	[ $# -lt 1 ] && { echo "usage: lightning account apikey {create,list,revoke} <name> --scope read|write" >&2; exit 1; }
+	local op="$1"; shift
+	[ $# -lt 1 ] && { echo "lightning account apikey: account name required" >&2; exit 1; }
+	local name="$1"; shift
+	local scope=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--scope)
+				case "$2" in read|write) scope="$2"; shift 2 ;;
+					*) echo "--scope: must be read|write" >&2; exit 1 ;;
+				esac ;;
+			*) echo "lightning account apikey: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	command -v secret >/dev/null || {
+		echo "lightning account apikey: the \`secret\` package is required" >&2; exit 127; }
+
+	case "$op" in
+		create)
+			[ -z "$scope" ] && { echo "--scope required" >&2; exit 1; }
+			# 32 bytes -> base64url; drop trailing =.
+			local key
+			key=$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')
+			echo "$key" | secret put "lightning.$name.apikey.$scope" >/dev/null
+			echo "lightning account apikey: $name/$scope ="
+			echo "$key"
+			echo "(save it now — this is the only time it'll be printed)" >&2 ;;
+		list)
+			for s in read write; do
+				if secret get "lightning.$name.apikey.$s" >/dev/null 2>&1; then
+					echo "$s"
+				fi
+			done ;;
+		revoke)
+			[ -z "$scope" ] && { echo "--scope required" >&2; exit 1; }
+			secret rm "lightning.$name.apikey.$scope" 2>/dev/null || true
+			echo "lightning account apikey: revoked $name/$scope" ;;
+		*) echo "lightning account apikey: unknown op '$op'" >&2; exit 1 ;;
+	esac
+}
+
 case "${1:-}" in
 	list)   shift; cmd_list "$@" ;;
 	create) shift; cmd_create "$@" ;;
 	delete) shift; cmd_delete "$@" ;;
 	show)   shift; cmd_show "$@" ;;
+	apikey) shift; cmd_apikey "$@" ;;
 	"")     usage; exit 1 ;;
 	*)      echo "lightning account: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac

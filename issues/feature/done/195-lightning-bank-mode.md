@@ -2,7 +2,7 @@
 id: FEAT-195
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # Lightning bank mode — single-user, multi-account financial discipline

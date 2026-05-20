@@ -1,58 +1,25 @@
 #!/usr/bin/env python3
-"""POST /.well-known/lightning/<user>/recv
+"""POST /.well-known/lightning/<user>/recv  (FEAT-196).
 
-Body: {"sat": 1000, "message": "invoice for consulting"}
-Auth: X-API-Key (write scope)
-Returns: {"bolt11": "lnbc...", "payment_hash": "..."}
+Body: {"sat": <int>, "message": "<text>"}
+Returns: {"bolt11": "...", "payment_hash": "...", "amount_sat": <int>}
 """
 
-import json
-import os
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+import _lib
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _lib import get_user, require_auth, run_lightning, json_response, error_response
+user = _lib.read_user()
+_lib.auth(user, "write")
+body = _lib.read_body()
 
+sat = body.get("sat")
+if not isinstance(sat, int) or sat <= 0:
+    _lib.respond("400 Bad Request", {"error": "sat: positive integer required"})
+message = body.get("message", "") or ""
+if not isinstance(message, str) or len(message) > 256:
+    _lib.respond("400 Bad Request", {"error": "message: string ≤ 256 bytes"})
 
-def main():
-    user = get_user()
-    require_auth(user, "write")
-
-    content_length = int(os.environ.get("CONTENT_LENGTH", 0))
-    body = sys.stdin.read(content_length) if content_length > 0 else ""
-    if not body:
-        error_response(400, "empty request body")
-
-    try:
-        payload = json.loads(body)
-    except json.JSONDecodeError:
-        error_response(400, "invalid JSON")
-
-    sat = payload.get("sat", 0)
-    message = payload.get("message", f"invoice for {user}")
-
-    if not sat:
-        error_response(400, "missing 'sat'")
-
-    label = f"api-{user}-{os.urandom(4).hex()}"
-    inv_args = [str(sat), label, "--description", message, "--account", user]
-
-    out = run_lightning("invoice", *inv_args)
-    if not out:
-        error_response(502, "failed to create invoice")
-
-    bolt11 = out.split("\n")[0]
-    payment_hash = ""
-    for line in out.split("\n"):
-        if "payment_hash:" in line:
-            payment_hash = line.split(None, 1)[1]
-
-    result = {
-        "bolt11": bolt11,
-        "payment_hash": payment_hash or "unknown",
-    }
-    json_response(result)
-
-
-if __name__ == "__main__":
-    main()
+result = _lib.call_verb("api-recv", user, str(sat), message)
+_lib.respond("200 OK", result)

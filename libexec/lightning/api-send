@@ -1,0 +1,74 @@
+#!/bin/bash
+# lightning api-send <user> <to-addr> <sat> <message> <note>
+#
+# Sudo-bridge facade for FEAT-196 send.py.
+#
+# - Looks up <user>'s account in the SQLite users table.
+# - Enforces FEAT-195 overdraft policy + --limit.
+# - Resolves <to-addr> as a Lightning Address and pays it,
+#   passing <message> as the LUD-12 comment.
+# - Appends a ledger row tagged with <message> + <note>.
+
+set -e
+[ $# -eq 5 ] || exit 1
+user="$1"; to="$2"; sat="$3"; message="$4"; note="$5"
+
+case "$user" in [a-z][a-z0-9_-]*) ;; *) exit 2 ;; esac
+[[ "$sat" =~ ^[0-9]+$ ]] || exit 2
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+account=$(sqlite3 "$db" "SELECT account FROM users WHERE user = $(sql_quote "$user");")
+[ -n "$account" ] || { echo '{"error":"unknown user"}'; exit 4; }
+
+# Overdraft check.
+read -r balance_msat limit_sat overdraft < <(
+	sqlite3 -separator ' ' "$db" "
+		SELECT COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name),0),
+		       COALESCE(a.limit_sat, -1),
+		       a.overdraft
+		FROM accounts a WHERE a.name = $(sql_quote "$account");"
+)
+candidate_sat=$(( (balance_msat / 1000) - sat ))
+
+case "$overdraft" in
+	deny)
+		if [ "$candidate_sat" -lt 0 ]; then
+			printf '{"error":"would_overdraw","balance_sat":%d,"requested_sat":%d}\n' \
+				"$(( balance_msat / 1000 ))" "$sat"
+			exit 6
+		fi ;;
+	warn|allow) : ;;
+esac
+if [ "$limit_sat" != "-1" ] && [ "$sat" -gt "$limit_sat" ]; then
+	printf '{"error":"exceeds_limit","limit_sat":%d}\n' "$limit_sat"
+	exit 6
+fi
+
+# Pay via the LNURL pay flow (FEAT-176 / FEAT-173).
+if [ -n "$message" ]; then
+	result=$("$(dirname "$0")/lnurl" pay "$to" "$sat" --comment "$message" 2>&1) || {
+		printf '{"error":"pay_failed","detail":%s}\n' "$(printf '%s' "$result" | jq -Rs .)"
+		exit 5
+	}
+else
+	result=$("$(dirname "$0")/lnurl" pay "$to" "$sat" 2>&1) || {
+		printf '{"error":"pay_failed","detail":%s}\n' "$(printf '%s' "$result" | jq -Rs .)"
+		exit 5
+	}
+fi
+
+hash=$(printf '%s' "$result" | grep -E '^payment_hash:' | awk '{print $2}')
+[ -n "$hash" ] || hash="-"
+
+# Ledger write: outbound amount is negative msat.
+ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+sqlite3 "$db" "INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message, note) VALUES($(sql_quote "$ts"), $(sql_quote "$account"), 'out', $(( -sat * 1000 )), $(sql_quote "$to"), $(sql_quote "$hash"), $(sql_quote "$message"), $(sql_quote "$note"));"
+
+printf '{"payment_hash":"%s","fee_sat":0,"amount_sat":%d}\n' "$hash" "$sat"

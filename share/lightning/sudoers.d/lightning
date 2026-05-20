@@ -1,23 +1,19 @@
-# /etc/sudoers.d/lightning — narrow sudo bridge for the web API (FEAT-196)
+# Sudoers fragment for the FEAT-196 well-known JSON API.
 #
-# Installed by `make install-apache-bridge`. Allows www-data to run
-# a restricted set of lightning verbs as the operator (alice).
-# www-data never talks to lightningd directly.
+# Apache (www-data) crosses into the operator's account to run
+# the narrow `lightning api-*` verbs. Each glob constrains
+# argument shape (lowercase user, numeric sat); the api-* verbs
+# enforce the same constraints again.
 #
-# Each verb's arguments are validated by:
-#   1. The sudoers glob patterns below (enforced by sudo itself)
-#   2. The api-* script's own input validation
-#   3. The CGI script's pre-sudo parameter construction
+# Install with `make install-apache-bridge`. Do not edit
+# directly under /etc/sudoers.d/ — re-run the make target to
+# regenerate.
 #
-# Three layers of defence — no free-form arguments cross the boundary.
+# Replace `alice` below with the operator account name.
 
 www-data ALL=(alice) NOPASSWD: \
-    /usr/local/bin/lightning api-lnurlp [a-z][a-z0-9_-]* *, \
-    /usr/local/bin/lightning api-verify [a-z][a-z0-9_-]* read|write [a-fA-F0-9-]* *, \
-    /usr/local/bin/lightning api-balance [a-z][a-z0-9_-]* *, \
-    /usr/local/bin/lightning address pay [a-z0-9_.@-]* [0-9]* --comment [a-zA-Z0-9_ ]* --account [a-z][a-z0-9_-]* *, \
-    /usr/local/bin/lightning invoice [0-9]* [a-zA-Z0-9_-]* --description * --account [a-z][a-z0-9_-]* *, \
-    /usr/local/bin/lightning api-send-recv [a-z][a-z0-9_-]* *, \
-
-# Legacy alias for earlier installs:
-www-data ALL=(alice) NOPASSWD: /usr/local/bin/lightning api-*
+    /usr/local/bin/lightning api-recv    [a-z][a-zA-Z0-9_-]* [0-9]* *, \
+    /usr/local/bin/lightning api-send    [a-z][a-zA-Z0-9_-]* *@*.* [0-9]* * *, \
+    /usr/local/bin/lightning api-balance [a-z][a-zA-Z0-9_-]*, \
+    /usr/local/bin/lightning api-verify  [a-z][a-zA-Z0-9_-]* read *, \
+    /usr/local/bin/lightning api-verify  [a-z][a-zA-Z0-9_-]* write *

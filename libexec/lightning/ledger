@@ -139,6 +139,66 @@ cmd_add() {
 		"INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message, note) VALUES($(sql_quote "$ts"), $(sql_quote "$account"), $(sql_quote "$direction"), $amount, $(sql_quote "$peer"), $(sql_quote "$hash"), $(sql_quote "$message"), $(sql_quote "$note"));"
 }
 
+cmd_statement() {
+	local account="" period="" want_tsv=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--account) account="$2"; shift 2 ;;
+			--period)  period="$2"; shift 2 ;;
+			--tsv)     want_tsv=1; shift ;;
+			*) echo "lightning ledger statement: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	[ -z "$account" ] && { echo "--account required" >&2; exit 1; }
+	[ -z "$period" ]  && { echo "--period required (YYYY-MM | YYYY-Q[1-4] | YYYY)" >&2; exit 1; }
+
+	# Period -> ts range.
+	local start end
+	case "$period" in
+		[0-9][0-9][0-9][0-9])             start="${period}-01-01"; end="${period}-12-31" ;;
+		[0-9][0-9][0-9][0-9]-[0-9][0-9])  start="${period}-01";    end="${period}-31"    ;;
+		[0-9][0-9][0-9][0-9]-Q[1-4])
+			local y="${period%-Q*}" q="${period#*-Q}"
+			case "$q" in
+				1) start="${y}-01-01"; end="${y}-03-31" ;;
+				2) start="${y}-04-01"; end="${y}-06-30" ;;
+				3) start="${y}-07-01"; end="${y}-09-30" ;;
+				4) start="${y}-10-01"; end="${y}-12-31" ;;
+			esac ;;
+		*) echo "lightning ledger statement: bad period '$period'" >&2; exit 1 ;;
+	esac
+
+	local db; db=$(active_db)
+	local opening fee_msat closing
+	opening=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account = $(sql_quote "$account") AND ts < $(sql_quote "$start");")
+	closing=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account = $(sql_quote "$account") AND ts <= $(sql_quote "${end}T23:59:59Z");")
+	fee_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account = $(sql_quote "$account") AND direction = 'fee' AND ts >= $(sql_quote "$start") AND ts <= $(sql_quote "${end}T23:59:59Z");")
+
+	if [ $want_tsv -eq 1 ]; then
+		echo "field	value"
+		printf "opening_msat\t%s\n" "$opening"
+		printf "closing_msat\t%s\n" "$closing"
+		printf "fees_msat\t%s\n"    "$fee_msat"
+		printf "net_msat\t%s\n"     "$(( closing - opening ))"
+		echo
+		echo "ts	direction	amount_msat	peer	message"
+		sqlite3 -separator $'\t' "$db" \
+			"SELECT ts, direction, amount_msat, peer, message FROM ledger WHERE account = $(sql_quote "$account") AND ts >= $(sql_quote "$start") AND ts <= $(sql_quote "${end}T23:59:59Z") ORDER BY id;"
+		return
+	fi
+
+	printf "Statement for %s — %s\n" "$account" "$period"
+	echo   "--------------------------------"
+	printf "Opening balance: %15s sat\n" "$(( opening / 1000 ))"
+	sqlite3 -separator $'\t' "$db" \
+		"SELECT ts, amount_msat/1000, message FROM ledger WHERE account = $(sql_quote "$account") AND ts >= $(sql_quote "$start") AND ts <= $(sql_quote "${end}T23:59:59Z") ORDER BY id;" \
+		| awk -F'\t' '{ printf "  %s  %+8d  %s\n", substr($1,1,10), $2, $3 }'
+	echo   "--------------------------------"
+	printf "Closing balance: %15s sat\n" "$(( closing / 1000 ))"
+	printf "Fees paid:       %15s sat\n" "$(( fee_msat / 1000 ))"
+	printf "Net for period:  %+15d sat\n" "$(( (closing - opening) / 1000 ))"
+}
+
 cmd_export() {
 	local fmt="${1:-tsv}"
 	case "$fmt" in
@@ -156,12 +216,13 @@ cmd_export() {
 }
 
 case "${1:-}" in
-	list)     shift; cmd_list "$@" ;;
-	sum)      shift; cmd_sum "$@" ;;
-	balance)  shift; cmd_balance "$@" ;;
-	annotate) shift; cmd_annotate "$@" ;;
-	add)      shift; cmd_add "$@" ;;
-	export)   shift; cmd_export "$@" ;;
-	"")       usage; exit 1 ;;
-	*)        echo "lightning ledger: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+	list)      shift; cmd_list "$@" ;;
+	sum)       shift; cmd_sum "$@" ;;
+	balance)   shift; cmd_balance "$@" ;;
+	annotate)  shift; cmd_annotate "$@" ;;
+	add)       shift; cmd_add "$@" ;;
+	export)    shift; cmd_export "$@" ;;
+	statement) shift; cmd_statement "$@" ;;
+	"")        usage; exit 1 ;;
+	*)         echo "lightning ledger: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac
