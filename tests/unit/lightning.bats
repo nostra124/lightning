@@ -1,15 +1,19 @@
 #!/usr/bin/env bats
 #
 # Unit tests for bin/lightning — the educational Lightning Network
-# frontend on clightning (FEAT-170..196). Covers the 0.2.0–0.5.0
+# frontend on clightning (FEAT-170..206). Covers the 0.2.0–0.7.0
 # surface: dispatcher, lightning.sh source-mode guard, and the
 # libexec object dispatchers (wallet / channel / daemon / account /
-# ledger / invoice / offer / address / lnurl / liquidity). As of
-# 0.5.x the CLI is purely object-oriented: top-level commands are
-# objects, actions live as sub-commands. The wallet object is your
-# Lightning identity — it owns both the clightning daemon's identity
-# (info/peers/balance/seed/unlock) and the git-backed state repo
-# (init/push/pull/backup/restore).
+# ledger / invoice / offer / address / lnurl / liquidity / plugin /
+# peer / fee / alert). As of 0.5.x the CLI is purely object-oriented:
+# top-level commands are objects, actions live as sub-commands. The
+# wallet object is your Lightning identity — it owns both the
+# clightning daemon's identity (info/balance/seed/unlock) and the
+# git-backed state repo (init/push/pull/backup/restore). The peer
+# object handles bare-peering + bootstrap + keepalive (FEAT-199).
+# Operational verbs added in 0.7.0: fee (FEAT-200), rebalance
+# (FEAT-201), alert (FEAT-204), plus the personal-node + routing-node
+# operational guides (FEAT-202/203).
 
 setup() {
 	BATS_TMPDIR=${BATS_TMPDIR:-$(mktemp -d)}
@@ -79,10 +83,10 @@ EOF
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 0.5.0" {
+@test "lightning version returns 0.7.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "0.5.0" ]
+	[ "$output" = "0.7.0" ]
 }
 
 @test "lightning help prints usage" {
