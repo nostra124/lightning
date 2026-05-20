@@ -2,12 +2,12 @@
 # lightning channel — channel management.
 #
 # Implements: BOLT-2 (peer protocol) + BOLT-5 (on-chain close) per
-# FEAT-172.
+# FEAT-172, plus Static Channel Backup (SCB) per FEAT-185.
 #   share/doc/lightning/standards/bolts/02-peer-protocol.md
 #   share/doc/lightning/standards/bolts/05-onchain.md
 #
 # Subcommands:
-#   list                                — TSV of channels (= lightning channels)
+#   list                                — TSV of channels
 #   open  <node-uri> <sats> [--push <sats>]
 #                                        — fund a new channel
 #   close <channel-id>                   — cooperative close
@@ -15,12 +15,19 @@
 #   balance [<channel-id>]               — local / remote msat
 #   info <channel-id>
 #   pending                              — opening / closing
+#   scb emit [--out <file>]              — static channel backup
+#   scb restore <file>                   — restore from SCB
 
 set -e
 
 usage() {
 	cat >&2 <<EOF
 usage: lightning channel <subcommand> [args]
+
+   Manage Lightning channels — the peer-to-peer payment funnels
+   that move sats between nodes. Implements BOLT-2 (peer protocol)
+   and BOLT-5 (on-chain close), plus Static Channel Backup for
+   disaster recovery. Each sub-command also accepts --help.
 
 subcommands:
    list                                 TSV of all channels
@@ -31,21 +38,45 @@ subcommands:
    balance [<channel-id>]               local / remote msat
    info <channel-id>
    pending                              opening / closing channels
+   scb emit [--out <file>]              static channel backup
+   scb restore <file>                   restore from SCB
 EOF
 }
 
 [ $# -lt 1 ] && { usage; exit 1; }
 
-command -v lightning-cli >/dev/null || {
-	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
-
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
+}
 
 cmd_list() {
-	# Reuse the top-level `channels` verb script via libexec.
-	exec "$SELF_LIBEXEC/lightning/channels" "$@"
+	# Prefer the newer listpeerchannels (CLN 23.05+); fall back to listpeers.
+	if json=$(cli listpeerchannels 2>/dev/null); then
+		printf "id\tpeer\tcapacity\tlocal\tremote\tstate\n"
+		jq -r '.channels[] | [
+			(.short_channel_id // .channel_id // "-"),
+			.peer_id,
+			((.total_msat // 0) / 1000 | floor),
+			((.to_us_msat  // 0) / 1000 | floor),
+			(((.total_msat // 0) - (.to_us_msat // 0)) / 1000 | floor),
+			.state
+		] | @tsv' <<<"$json"
+	else
+		json=$(cli listpeers)
+		printf "id\tpeer\tcapacity\tlocal\tremote\tstate\n"
+		jq -r '.peers[] | . as $p | .channels[]? | [
+			(.short_channel_id // .channel_id // "-"),
+			$p.id,
+			((.msatoshi_total // 0) / 1000 | floor),
+			((.msatoshi_to_us // 0) / 1000 | floor),
+			(((.msatoshi_total // 0) - (.msatoshi_to_us // 0)) / 1000 | floor),
+			.state
+		] | @tsv' <<<"$json"
+	fi
 }
 
 cmd_open() {
@@ -55,7 +86,7 @@ cmd_open() {
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--push) push_msat="$(( $2 * 1000 ))msat"; shift 2 ;;
-			*) echo "lightning channel open: unknown flag '$1'" >&2; exit 1 ;;
+			*) error "channel open: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
 
@@ -144,13 +175,180 @@ cmd_pending() {
 		) | @tsv'
 }
 
-case "$1" in
-	list)        shift; cmd_list "$@" ;;
-	open)        shift; cmd_open "$@" ;;
-	close)       shift; cmd_close "$@" ;;
-	force-close) shift; cmd_force_close "$@" ;;
-	balance)     shift; cmd_balance "$@" ;;
-	info)        shift; cmd_info "$@" ;;
-	pending)     shift; cmd_pending "$@" ;;
+# FEAT-185: Static Channel Backup.
+
+wallet_scb_dir() {
+	local active; active=$(cat "${LIGHTNING_DIR}/wallet/.active" 2>/dev/null || echo "default")
+	echo "${LIGHTNING_DIR}/wallet/$active/scb"
+}
+
+scb_emit() {
+	local outfile=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--out) outfile="$2"; shift 2 ;;
+			*) error "channel scb emit: unknown flag '$1'"; exit 1 ;;
+		esac
+	done
+
+	scb_json=$(cli staticbackup 2>/dev/null || cli listpeerchannels 2>/dev/null | jq '{scb: .}' 2>/dev/null) || {
+		error "failed to read SCB from daemon"; exit 4; }
+
+	if [ -n "$outfile" ]; then
+		echo "$scb_json" > "$outfile"
+		echo "ok"
+		echo "path: $outfile"
+	else
+		local scb_dir; scb_dir=$(wallet_scb_dir)
+		mkdir -p "$scb_dir"
+		local ts; ts=$(date -u +%Y%m%dT%H%M%SZ)
+		local path="$scb_dir/scb-$ts.json"
+		echo "$scb_json" > "$path"
+		echo "ok"
+		echo "path: $path"
+
+		local wdir; wdir=$(dirname "$scb_dir")
+		if [ -d "$wdir/.git" ]; then
+			git -C "$wdir" add "$path" 2>/dev/null || true
+			git -C "$wdir" commit -m "scb: snapshot $ts" --quiet 2>/dev/null || true
+		fi
+	fi
+}
+
+scb_restore() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel scb restore <file>" >&2; exit 1; }
+	local file="$1"
+	[ -f "$file" ] || { error "SCB file not found: $file"; exit 4; }
+
+	result=$(cli staticbackup restore "$file" 2>/dev/null || cli emergency recover "$file" 2>/dev/null) || {
+		error "SCB restore failed — daemon may need to be unlocked first"
+		exit 4
+	}
+
+	echo "ok"
+	warn "SCB restore initiated; force-closes expected within the next block"
+	echo "$result" | jq . 2>/dev/null || echo "$result"
+}
+
+cmd_scb() {
+	[ $# -lt 1 ] && {
+		cat >&2 <<EOF
+usage: lightning channel scb <subcommand> [args]
+
+subcommands:
+   emit [--out <file>]
+   restore <file>
+EOF
+		exit 1
+	}
+	case "$1" in
+		emit)    shift; scb_emit "$@" ;;
+		restore) shift; scb_restore "$@" ;;
+		*) error "channel scb: unknown subcommand '$1'"; exit 1 ;;
+	esac
+}
+
+subhelp() {
+	case "$1" in
+		list)
+			cat <<'EOF'
+usage: lightning channel list
+
+TSV of all channels. Columns:
+   id<TAB>peer<TAB>capacity<TAB>local<TAB>remote<TAB>state
+Amounts in sats. Falls back to listpeers for old CLN versions.
+EOF
+			;;
+		open)
+			cat <<'EOF'
+usage: lightning channel open <node-uri> <sats> [--push <sats>]
+
+Connect to <node-uri> (pubkey@host:port) and fund a new channel
+with <sats> on-chain. --push gifts the peer that many sats at
+open time (rarely a good idea). Implements BOLT-2 funding.
+EOF
+			;;
+		close)
+			cat <<'EOF'
+usage: lightning channel close <channel-id>
+
+Cooperative close: signs a mutual close transaction with the peer.
+Funds return to the on-chain wallet within ~1 block. Prefer this
+over force-close whenever the peer is reachable.
+EOF
+			;;
+		force-close)
+			cat <<'EOF'
+usage: lightning channel force-close <channel-id> --confirm
+
+Unilateral close. REFUSES without --confirm because it costs the
+to_self_delay (typically 144 blocks ≈ 1 day) before funds are
+spendable and reveals channel state on-chain. Use only when the
+peer is unreachable.
+EOF
+			;;
+		balance)
+			cat <<'EOF'
+usage: lightning channel balance [<channel-id>]
+
+Without args: TSV header + one row per channel
+   (channel_id, local_msat, remote_msat, state).
+With <channel-id>: three lines local_msat / remote_msat / state.
+EOF
+			;;
+		info)
+			cat <<'EOF'
+usage: lightning channel info <channel-id>
+
+Full JSON for one channel (the matching entry from listpeerchannels).
+Accepts either short_channel_id or channel_id.
+EOF
+			;;
+		pending)
+			cat <<'EOF'
+usage: lightning channel pending
+
+TSV of channels in non-NORMAL states: OPENINGD, AWAITING_LOCKIN,
+CLOSINGD_*, AWAITING_UNILATERAL, FUNDING_SPEND_SEEN, ONCHAIN.
+Use this to watch opens and closes confirm.
+EOF
+			;;
+		scb)
+			cat <<'EOF'
+usage: lightning channel scb <emit|restore> [args]
+
+Static Channel Backup (FEAT-185, BOLT-5 recovery aid):
+   emit [--out <file>]   snapshot to wallet/scb/ or <file>
+   restore <file>        request force-close of every channel in
+                         the snapshot, surrendering remote balance
+                         for recovery on a fresh daemon.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in
+	--help|-h) subhelp "$SUB"; exit ;;
+esac
+case "$SUB" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+require_cli
+
+case "$SUB" in
+	list)        cmd_list "$@" ;;
+	open)        cmd_open "$@" ;;
+	close)       cmd_close "$@" ;;
+	force-close) cmd_force_close "$@" ;;
+	balance)     cmd_balance "$@" ;;
+	info)        cmd_info "$@" ;;
+	pending)     cmd_pending "$@" ;;
+	scb)         cmd_scb "$@" ;;
 	*) usage; exit 1 ;;
 esac

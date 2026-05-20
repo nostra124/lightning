@@ -12,7 +12,7 @@ set -e
 [ $# -lt 1 ] && { echo "usage: lightning decode <string>" >&2; exit 1; }
 
 command -v lightning-cli >/dev/null || {
-	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
+	error "lightning-cli not found — install Core Lightning"; exit 127; }
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"

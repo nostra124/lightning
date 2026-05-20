@@ -1,0 +1,24 @@
+# Well-known Lightning nodes used by `lightning peer bootstrap`.
+#
+# Format: one node per line, `<pubkey>@<host>:<port>  # <name>`.
+# Lines starting with `#` and blank lines are ignored.
+#
+# These keys/IPs may rotate over time. To override:
+#   * place a file at ~/.lightning/bootstrap-nodes.txt (per-user)
+#   * or set LIGHTNING_BOOTSTRAP_NODES=<path> in the environment
+# Both override this default list entirely (no merge).
+#
+# Verify current values against:
+#   https://mempool.space/lightning/nodes/rankings/connectivity
+#   https://1ml.com/node?order=capacity
+#
+# Selection bias: pick highly-connected, long-lived, non-custodial
+# nodes that are likely to stay reachable. The point of bootstrap
+# is gossip graph seeding, NOT custody — never open large channels
+# to these blindly.
+
+03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f@3.33.236.230:9735                              # ACINQ
+03cb7983dc247e9d81c5d96b0fb78cd1c2a02d3a3e3e64b3f7e76e8b65c14e87b9@194.62.84.31:9735                              # CoinGate
+02d96eadea3d780104449aca5c93461ce67c1564e2e1d73225fa67dd3b997a6018@45.86.229.190:9735                             # Boltz
+035e4ff418fc8b5554c5d9eea66396c227bd429a3251c8cbc711002ba215bfc226@170.75.163.209:9735                            # Wallet of Satoshi
+0322a1b76066b1d75abc7d2bbeefb1b0e2eb83de3a4fa6f7a3f50fa3e0a5f6c2a4@146.71.106.34:9735                             # LNBIG O

@@ -12,10 +12,28 @@ phoenixd support are explicitly out of scope; the libexec
 plugin layout leaves the door open for future backends
 but ships only the clightning plugin.
 
-Out of scope: on-chain operations (handled by the backend
-daemon's built-in bitcoind connection); custodial
-wallets (we're non-custodial-by-default); lnd / phoenixd
-support.
+**Use cases (FEAT-203 scope decision, 2026-05-20):**
+
+- **Primary**: personal Lightning wallet on a laptop or
+  small server. Defaults are tuned for this case — small
+  channel count (3-5), passive fee policy, infrequent
+  rebalancing. See
+  `share/doc/lightning/guides/personal-node.md` (FEAT-202).
+- **Secondary**: small-to-medium routing node (up to ~20
+  BTC capacity). Same verbs, used at higher cardinality
+  + with the routing-specific verbs (`fee`, `rebalance`,
+  `alert`, `peer score`). Routing-specific operational
+  defaults are documented, not enforced — operators tune
+  individual settings. See
+  `share/doc/lightning/guides/routing-node.md` (FEAT-203).
+- **Out of scope**: large-scale commercial routing (50+
+  BTC, multi-region, dedicated NOC). Those operators want
+  lnd + balance-of-satoshis; we don't try to compete.
+
+Other out-of-scope items: on-chain operations (handled by
+the backend daemon's built-in bitcoind connection);
+custodial wallets (we're non-custodial-by-default);
+lnd / phoenixd support.
 
 ## 2. Repo conventions
 
@@ -68,11 +86,17 @@ talks to lightningd directly.
 
 ## 6. Consumers
 
-End users (personal Lightning wallets); external HTTP
-callers (phone / JS frontend / webhooks) via the
-`.well-known/lightning/` API (FEAT-196). Cluster
-integration is not on the critical path — see FEAT-190
-(obsolete).
+- **Personal wallet operators** — `lightning daemon
+  install`, `wallet info`, `pay`, `invoice`, etc.
+- **Small / medium routing-node operators** — same verbs
+  plus `fee`, `rebalance`, `alert`, `peer score`. Up to
+  ~20 BTC capacity.
+- **External HTTP callers** — phone / JS frontend /
+  webhooks via the `.well-known/lightning/` API
+  (FEAT-196).
+
+Cluster integration is not on the critical path — see
+FEAT-190 (obsolete).
 
 ## 7. Build / install
 

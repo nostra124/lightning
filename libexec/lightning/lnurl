@@ -15,21 +15,31 @@ set -e
 
 usage() {
 	cat >&2 <<EOF
-usage: lightning lnurl decode <lnurl>
-       lightning lnurl pay    <lnurl-or-address> <sat> [--comment <text>]
+usage: lightning lnurl <subcommand> [args]
+
+   LNURL flows (LUD-01, LUD-06, LUD-12): bech32-encoded URLs that
+   abstract a payment protocol behind a single string. Currently
+   supports decode and pay; LNURL-withdraw and LNURL-auth are
+   deferred. Accepts both bech32 LNURLs (LNURL1…) and Lightning
+   Addresses (user@domain). Each sub-command also accepts --help.
+
+subcommands:
+   decode <lnurl>
+   pay    <lnurl-or-address> <sat> [--comment <text>]
 EOF
 }
 
 [ $# -lt 1 ] && { usage; exit 1; }
 
-command -v lightning-cli >/dev/null || {
-	echo "lightning: lightning-cli not found — install Core Lightning" >&2; exit 127; }
-command -v curl >/dev/null || {
-	echo "lightning: curl not found — required for LNURL HTTP fetch" >&2; exit 127; }
-
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+require_deps() {
+	command -v lightning-cli >/dev/null || {
+		error "lightning-cli not found — install Core Lightning"; exit 127; }
+	command -v curl >/dev/null || {
+		error "curl not found — required for LNURL HTTP fetch"; exit 127; }
+}
 
 # Bech32-decode an LNURL string to its underlying https URL.
 # clightning's `decode` does this for us when given an LNURL.
@@ -44,7 +54,47 @@ lnurl_to_url() {
 	fi
 }
 
+subhelp() {
+	case "$1" in
+		decode)
+			cat <<'EOF'
+usage: lightning lnurl decode <lnurl-or-address>
+
+Bech32-decode an LNURL string (or resolve a user@domain address)
+to its https URL, then GET it and print the LUD-06 metadata JSON
+(callback, min/maxSendable, commentAllowed, etc.).
+EOF
+			;;
+		pay)
+			cat <<'EOF'
+usage: lightning lnurl pay <lnurl-or-address> <sat> [--comment <text>]
+
+Run the LUD-06 pay flow:
+   1. resolve the LNURL / address to a metadata URL
+   2. validate <sat> against minSendable/maxSendable
+   3. GET callback?amount=…[&comment=…] for an invoice
+   4. pay the returned BOLT-11
+--comment is sent to the recipient (must fit in commentAllowed,
+LUD-12). Accepts either a bech32 LNURL or user@domain.
+EOF
+			;;
+		*)
+			usage
+			return 1
+			;;
+	esac
+}
+
 sub="$1"; shift
+
+case "${1:-}" in
+	--help|-h) subhelp "$sub"; exit ;;
+esac
+case "$sub" in
+	help) subhelp "${1:-}" || usage; exit ;;
+esac
+
+require_deps
 
 case "$sub" in
 	decode)
@@ -60,12 +110,12 @@ case "$sub" in
 		while [ $# -gt 0 ]; do
 			case "$1" in
 				--comment) comment="$2"; shift 2 ;;
-				*) echo "lightning lnurl pay: unknown flag '$1'" >&2; exit 1 ;;
+				*) error "lnurl pay: unknown flag '$1'"; exit 1 ;;
 			esac
 		done
 
 		url=$(lnurl_to_url "$target")
-		[ -z "$url" ] && { echo "lightning lnurl pay: could not resolve $target" >&2; exit 1; }
+		[ -z "$url" ] && { error "lnurl pay: could not resolve $target"; exit 1; }
 
 		# Step 1: fetch LUD-06 metadata.
 		meta=$(curl -fsSL "$url")
@@ -75,10 +125,10 @@ case "$sub" in
 		commentAllowed=$(jq -r '.commentAllowed // 0' <<<"$meta")
 
 		msat=$(( sat * 1000 ))
-		[ "$msat" -lt "$minSendable" ] && { echo "lightning lnurl pay: $sat sat below min $((minSendable/1000)) sat" >&2; exit 1; }
-		[ "$msat" -gt "$maxSendable" ] && { echo "lightning lnurl pay: $sat sat above max $((maxSendable/1000)) sat" >&2; exit 1; }
+		[ "$msat" -lt "$minSendable" ] && { error "lnurl pay: $sat sat below min $((minSendable/1000)) sat"; exit 1; }
+		[ "$msat" -gt "$maxSendable" ] && { error "lnurl pay: $sat sat above max $((maxSendable/1000)) sat"; exit 1; }
 		if [ -n "$comment" ] && [ "${#comment}" -gt "$commentAllowed" ]; then
-			echo "lightning lnurl pay: comment longer than commentAllowed=$commentAllowed" >&2; exit 1
+			error "lnurl pay: comment longer than commentAllowed=$commentAllowed"; exit 1
 		fi
 
 		# Step 2: hit the callback with amount (+ optional comment).
@@ -91,7 +141,7 @@ case "$sub" in
 		pr=$(jq -r .pr <<<"$cb_resp")
 		[ -z "$pr" ] || [ "$pr" = "null" ] && {
 			err=$(jq -r '.reason // .status // "unknown"' <<<"$cb_resp")
-			echo "lightning lnurl pay: callback failed: $err" >&2; exit 1
+			error "lnurl pay: callback failed: $err"; exit 1
 		}
 
 		# Step 3: pay the BOLT-11 the server returned.
