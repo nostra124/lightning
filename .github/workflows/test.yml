@@ -21,8 +21,6 @@ jobs:
       - name: pytest (FEAT-196 CGI scripts)
         run: pytest tests/python/
       - name: shellcheck (merge gate)
-        # 1.2.0 onward: shellcheck warnings are a hard fail. Run on
-        # the full verb tree; CI fails if any new warnings appear.
         run: |
           shellcheck -S warning \
             bin/lightning \
@@ -30,3 +28,65 @@ jobs:
             share/lightning/hooks/* \
             tests/sit/helpers.bash \
             share/doc/lightning/standards/refresh.sh
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: install test deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bats sqlite3 jq python3 qrencode openssl xxd stow
+      - name: install kcov build deps
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            cmake build-essential pkg-config python3-pyelftools \
+            libcurl4-openssl-dev libelf-dev libstdc++-12-dev \
+            zlib1g-dev libdw-dev libiberty-dev binutils-dev libssl-dev
+      - name: cache kcov binary
+        id: kcov-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/bin/kcov
+            /usr/local/share/doc/kcov
+            /usr/local/share/man/man1/kcov.1
+          key: kcov-v43-${{ runner.os }}-${{ runner.arch }}
+      - name: build kcov from source
+        if: steps.kcov-cache.outputs.cache-hit != 'true'
+        run: |
+          cd /tmp
+          curl -fsSL -o kcov.tgz https://github.com/SimonKagstrom/kcov/archive/refs/tags/v43.tar.gz
+          tar xzf kcov.tgz
+          cd kcov-43
+          mkdir build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+          make -j"$(nproc)"
+          sudo make install
+      - name: configure
+        run: ./configure --prefix="$HOME/.local"
+      - name: run coverage
+        run: make coverage
+      - name: summarize coverage
+        if: always()
+        run: |
+          {
+            echo "## Coverage"
+            if [ -f build/coverage/bats/coverage.json ]; then
+              pct=$(jq -r .percent_covered build/coverage/bats/coverage.json)
+              printf -- "- line coverage: **%s%%**\n" "$pct"
+              echo "- target: 90%, climbing toward 100%"
+            else
+              echo "- coverage.json not produced; check the run-coverage step output"
+            fi
+            echo "- HTML report uploaded as artifact \`coverage-html\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: upload coverage HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: build/coverage/
+          retention-days: 14

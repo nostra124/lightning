@@ -82,6 +82,33 @@ check-unit:
 		bats tests/unit/*.bats; \
 	else echo "bats not installed; skipping"; fi
 
+# kcov coverage report. Wraps the bats suite in kcov to produce
+# line coverage for bin/lightning + libexec/lightning/*. HTML
+# lands at $(BUILD_DIR)/coverage/.
+COVERAGE_DIR = $(BUILD_DIR)/coverage
+coverage:
+	@if ! command -v kcov >/dev/null 2>&1; then \
+		echo "kcov not installed; build from source via:"; \
+		echo "    git clone https://github.com/SimonKagstrom/kcov"; \
+		echo "    cd kcov && mkdir build && cd build && cmake .. && make && sudo make install"; \
+		exit 127; \
+	fi
+	@if ! command -v bats >/dev/null 2>&1; then \
+		echo "bats not installed; sudo apt install bats"; exit 127; \
+	fi
+	@rm -rf $(COVERAGE_DIR)
+	@mkdir -p $(COVERAGE_DIR)
+	@kcov \
+		--include-path=$(PWD)/bin/lightning,$(PWD)/libexec/lightning \
+		--exclude-path=$(PWD)/tests \
+		$(COVERAGE_DIR) \
+		bats tests/unit/lightning.bats >/dev/null
+	@echo "==> coverage report at $(COVERAGE_DIR)/index.html"
+	@if command -v jq >/dev/null; then \
+		jq -r '.percent_covered' $(COVERAGE_DIR)/bats/coverage.json \
+			| awk '{ printf "==> line coverage: %.1f%%\n", $$1 }'; \
+	fi
+
 check-vectors:
 	@if [ -d tests/vectors ] && command -v prove >/dev/null 2>&1; then \
 		prove tests/vectors/*.t; \
