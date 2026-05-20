@@ -1,0 +1,142 @@
+#!/bin/bash
+# lightning tor — Tor / network privacy for clightning.
+#
+# Implements FEAT-189. Edits lightningd's config in-place to
+# turn the v3 hidden-service flow on / off, restarts the
+# daemon (FEAT-183), and verifies the resulting node address.
+#
+# Subcommands:
+#   on       enable Tor (proxy + statictor) in lightningd.conf
+#   off      disable
+#   status   tor running locally? onion advertised? leak?
+
+set -e
+
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+
+# clightning's config can live at $LIGHTNING_DIR/config or at
+# $LIGHTNING_DIR/$LIGHTNING_NETWORK/config; we prefer the latter.
+config_path() {
+	local p="$LIGHTNING_DIR/$LIGHTNING_NETWORK/config"
+	[ -f "$p" ] || p="$LIGHTNING_DIR/config"
+	echo "$p"
+}
+
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning tor <subcommand>
+
+   on       enable Tor (proxy + v3 hidden service) and restart lightningd
+   off      disable Tor
+   status   tor running locally?  onion advertised?  clearnet leak?
+EOF
+}
+
+cmd_on() {
+	command -v lightning-cli >/dev/null || {
+		echo "lightning: lightning-cli not found" >&2; exit 127; }
+
+	local cfg; cfg=$(config_path)
+	[ -d "$(dirname "$cfg")" ] || mkdir -p "$(dirname "$cfg")"
+	[ -f "$cfg" ] || touch "$cfg"
+
+	# Strip any existing proxy / addr=statictor / always-use-proxy lines
+	# so we start from a clean state.
+	local tmp; tmp=$(mktemp)
+	grep -vE '^(proxy=|addr=statictor:|always-use-proxy=|bind-addr=)' "$cfg" > "$tmp" || true
+
+	cat >> "$tmp" <<EOF
+
+# FEAT-189: Tor on. Managed by \`lightning tor\`.
+proxy=127.0.0.1:9050
+addr=statictor:127.0.0.1:9051
+always-use-proxy=true
+EOF
+	mv "$tmp" "$cfg"
+	echo "lightning: tor enabled in $cfg"
+
+	# Restart through FEAT-183 if available.
+	if [ -x "$SELF_LIBEXEC/lightning/daemon" ]; then
+		"$SELF_LIBEXEC/lightning/daemon" restart || true
+	else
+		echo "lightning: restart lightningd manually for the change to take effect" >&2
+	fi
+
+	# Wait up to 30s for a v3 onion address.
+	for _ in 1 2 3 4 5 6 7 8 9 10; do
+		local addrs
+		addrs=$(cli getinfo 2>/dev/null | jq -r '.address[]?.address // empty' || true)
+		if echo "$addrs" | grep -qE '\.onion$'; then
+			echo "lightning: v3 onion advertised"
+			echo "$addrs" | grep '\.onion$'
+			return 0
+		fi
+		sleep 3
+	done
+	echo "lightning: tor on completed but no onion advertised within 30s" >&2
+	echo "lightning: check \`lightning tor status\` and tor control-port logs" >&2
+	return 2
+}
+
+cmd_off() {
+	local cfg; cfg=$(config_path)
+	[ -f "$cfg" ] || { echo "lightning: no config at $cfg" >&2; exit 2; }
+
+	local tmp; tmp=$(mktemp)
+	grep -vE '^(proxy=|addr=statictor:|always-use-proxy=)|^# FEAT-189' "$cfg" > "$tmp" || true
+	mv "$tmp" "$cfg"
+	echo "lightning: tor disabled in $cfg"
+
+	[ -x "$SELF_LIBEXEC/lightning/daemon" ] && "$SELF_LIBEXEC/lightning/daemon" restart || true
+}
+
+cmd_status() {
+	local rc=0
+	# 1. Is tor running locally?
+	if command -v tor >/dev/null && pgrep -x tor >/dev/null 2>&1; then
+		echo "tor: running"
+	elif systemctl is-active --quiet tor 2>/dev/null; then
+		echo "tor: running (systemd)"
+	else
+		echo "tor: NOT running"
+		rc=1
+	fi
+
+	# 2. Onion advertised?
+	if command -v lightning-cli >/dev/null; then
+		local addrs
+		addrs=$(cli getinfo 2>/dev/null | jq -r '.address[]? | .type + ":" + .address' || true)
+		if echo "$addrs" | grep -qE '^torv[23]:'; then
+			echo "onion: $(echo "$addrs" | grep -E '^torv[23]:' | head -1)"
+		else
+			echo "onion: not advertised"
+			rc=1
+		fi
+
+		# 3. Clearnet leak — any ipv4/ipv6 address advertised?
+		if echo "$addrs" | grep -qE '^(ipv4|ipv6):'; then
+			echo "leak: $(echo "$addrs" | grep -E '^(ipv[46]):' | head -1)"
+			rc=1
+		else
+			echo "leak: none"
+		fi
+	else
+		echo "lightning-cli not available; cannot check node addresses" >&2
+		rc=1
+	fi
+
+	exit $rc
+}
+
+SELF_LIBEXEC="${SELF_LIBEXEC:-$(cd "$(dirname "$0")/.." && pwd)}"
+
+case "${1:-}" in
+	on)     shift; cmd_on "$@" ;;
+	off)    shift; cmd_off "$@" ;;
+	status) shift; cmd_status "$@" ;;
+	"")     usage; exit 1 ;;
+	*)      echo "lightning tor: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

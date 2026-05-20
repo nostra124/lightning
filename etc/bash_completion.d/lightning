@@ -1,14 +1,65 @@
-# completion file for bash
-_lightning_complete_entries () {
-	COMPREPLY=()
-	local cur="${COMP_WORDS[COMP_CWORD]}"
-	local commands="help version"
-	if [[ $COMP_CWORD -gt 1 ]]; then
-		case "${COMP_WORDS[1]}" in
-			help) COMPREPLY=($(compgen -W "${commands}" -- ${cur})) ;;
-		esac
+# bash completion for `lightning` (FEAT-177).
+#
+# Three levels:
+#   lightning <TAB>                  → top-level verbs
+#   lightning <verb> <TAB>           → sub-verbs (when applicable)
+#   lightning <verb> <sub> <TAB>     → next-arg hint (file / account / …)
+
+_lightning_top_verbs() {
+	echo "help version info node-id peers channels balance \
+	      channel invoice pay send decode offer offer-pay lnurl qr \
+	      wallet account ledger history seed scb backup restore \
+	      liquidity address daemon unlock tor"
+}
+
+_lightning_subverbs() {
+	case "$1" in
+		channel)   echo "list open close force-close balance info pending" ;;
+		wallet)    echo "new use list active path push pull sync" ;;
+		account)   echo "list create delete show apikey" ;;
+		ledger)    echo "list sum balance annotate add export statement" ;;
+		seed)      echo "export import verify" ;;
+		scb)       echo "emit restore" ;;
+		liquidity) echo "status in out loop boltz lsp provider" ;;
+		address)   echo "resolve pay create list remove apache-snippet" ;;
+		daemon)    echo "start stop restart status logs install" ;;
+		unlock)    echo "--stored rotate forget" ;;
+		tor)       echo "on off status" ;;
+		lnurl)     echo "decode pay" ;;
+	esac
+}
+
+_lightning() {
+	local cur prev words cword
+	if declare -F _init_completion >/dev/null 2>&1; then
+		_init_completion || return
+	else
+		cur="${COMP_WORDS[COMP_CWORD]}"
+		prev="${COMP_WORDS[COMP_CWORD-1]:-}"
+		words=("${COMP_WORDS[@]}")
+		cword=$COMP_CWORD
+	fi
+
+	if [ "$cword" -eq 1 ]; then
+		COMPREPLY=( $(compgen -W "$(_lightning_top_verbs)" -- "$cur") )
 		return
 	fi
-	COMPREPLY+=($(compgen -W "${commands}" -- ${cur}))
+
+	local verb="${words[1]}"
+	if [ "$cword" -eq 2 ]; then
+		local subs; subs=$(_lightning_subverbs "$verb")
+		if [ -n "$subs" ]; then
+			COMPREPLY=( $(compgen -W "$subs" -- "$cur") )
+			return
+		fi
+	fi
+
+	# Filename completion for verbs that take a path.
+	case "$verb $prev" in
+		"scb restore"|"qr --png"|"qr --svg")
+			COMPREPLY=( $(compgen -f -- "$cur") ) ;;
+	esac
 }
-complete -F _lightning_complete_entries lightning
+
+complete -F _lightning lightning
+complete -F _lightning lightning.sh

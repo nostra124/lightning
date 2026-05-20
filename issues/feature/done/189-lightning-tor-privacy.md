@@ -2,7 +2,7 @@
 id: FEAT-189
 type: feature
 priority: medium
-status: open
+status: done
 ---
 
 # Lightning Tor / network privacy
