@@ -19,14 +19,21 @@ Light milestone by design: most of the heavy work happened in
 0.7.0, and we want a quick stabilisation cycle before the
 1.0.0 walkthrough lands.
 
-Two tickets:
+Three tickets:
 
-1. **FEAT-206 — `lightning peer score <node-id>`** —
+1. **FEAT-198 — real LSPS1 inbound liquidity** — deferred
+   from 0.7.0. Replace the `liquidity in` / `liquidity lsp
+   buy` stubs with the full LSPS0 -> LSPS1 protocol flow
+   (discover, quote, order, pay, await-channel). Either
+   hand-rolled over `sendcustommsg` or wrapped around a
+   third-party LSPS1 client plugin. Research-heavy: pick a
+   target LSP first.
+2. **FEAT-206 — `lightning peer score <node-id>`** —
    pull node metrics from mempool.space / 1ML / Amboss,
    return a single recfile record (capacity rank, channel
    count, centrality, age, features summary).
    Pre-flight for the `channel open` decision.
-2. **Cycle-end polish** — anything operational learned
+3. **Cycle-end polish** — anything operational learned
    running the 0.7.0 verbs in practice (fee curves, alert
    conditions, rebalance heuristics).
 
@@ -39,13 +46,16 @@ shouldn't ship until at least one operator has run the
 
 ## Exit Criteria
 
+- `lightning liquidity in <amount>` and
+  `liquidity lsp <name> buy <amount>` open a real inbound
+  channel via LSPS1 against at least one tested LSP.
 - `lightning peer score <node-id>` returns recfile from at
   least mempool.space + 1ML sources, with Amboss as an
   opt-in third when `AMBOSS_API_KEY` is set.
 - Polish items captured as FEAT- tickets and resolved (or
   consciously deferred to 1.0+).
 - `.rpk/version` bumped 0.7.0 → 0.8.0; ledger updated.
-- FEAT-206 moves to `issues/feature/done/`.
+- FEAT-198, FEAT-206 move to `issues/feature/done/`.
 
 ## Dependencies
 

@@ -3,9 +3,22 @@
 ```
 milestone: 0.7.0
 title: operational hardening
-status: open
+status: shipped (2026-05-20, .rpk/version 0.7.0)
 depends_on: 0.6.0
 ```
+
+> **Shipped state**: 6 of 7 tickets landed (FEAT-199, 200, 201,
+> 202, 203, 204). FEAT-198 (real LSPS1 inbound) deferred to
+> MILESTONE-0.8.0 — needs research on current LSPS1 client
+> tooling + a target LSP to integrate against. The `liquidity in`
+> / `liquidity lsp buy` stubs remain in place; the personal-node
+> guide flags this as a known gap until the implementation lands.
+>
+> Strictly, the milestone graph said 0.7.0 `depends_on: 0.6.0`,
+> but 0.6.0 (packaging / standards / man-page) didn't ship first
+> — the operational verbs were higher-leverage given the
+> discussion that prompted this milestone. 0.6.0 remains a
+> tracked target.
 
 ## Summary
 
@@ -105,6 +118,10 @@ Soft: 0.5.0 surface assumed stable.
 
 ## Out of scope (deferred to 0.8.0 or later)
 
+- **FEAT-198 — real LSPS1 inbound liquidity** — DEFERRED
+  to 0.8.0. Research-heavy: needs decisions on which LSP to
+  target first and whether to wrap an existing LSPS1 client
+  plugin or hand-roll over `sendcustommsg`.
 - **FEAT-205 — channel autopilot** — daemonised
   fee+rebalance+suggest loop. Explicitly post-1.0: needs
   3-6 months of operator experience with the manual stack
