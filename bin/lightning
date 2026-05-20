@@ -157,6 +157,7 @@ objects:
 
 one-shots:
    send <node-id> <sat>    keysend (BOLT-4 TLV)
+   rebalance <sat>         circular self-payment between channels
    decode <string>         detect + decode any LN string
    qr <text>               ANSI / PNG / SVG QR code
 

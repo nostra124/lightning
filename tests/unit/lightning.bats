@@ -1788,3 +1788,143 @@ EOF
 	run "$LIGHTNING_BIN" help
 	[[ "$output" == *"fee"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-201 — rebalance verb (LN circular + swap fallback)
+# ---------------------------------------------------------------------------
+
+# Plant a fake rebalance plugin so the dispatcher's
+# rebalance_plugin_installed check returns true.
+_install_fake_rebalance_plugin() {
+	mkdir -p "$HOME/.lightning/plugins"
+	touch "$HOME/.lightning/plugins/rebalance.py"
+}
+
+# Stub lightning-cli: returns 2 normal channels for auto-pair,
+# and emits a fake successful rebalance result.
+_stub_cli_for_rebalance() {
+	rm -f "$BIN_SHIM/lightning-cli"
+	cat > "$BIN_SHIM/lightning-cli" <<EOF
+#!/bin/sh
+while [ \$# -gt 0 ]; do case "\$1" in --*=*) shift ;; *) break ;; esac; done
+case "\$1" in
+	listpeerchannels)
+		cat <<JSON
+{"channels":[
+  {"short_channel_id":"100x1x0","peer_id":"02alice","state":"CHANNELD_NORMAL",
+   "to_us_msat":900000000,"total_msat":1000000000},
+  {"short_channel_id":"100x2x0","peer_id":"02bob","state":"CHANNELD_NORMAL",
+   "to_us_msat":100000000,"total_msat":1000000000}
+]}
+JSON
+		;;
+	rebalance)
+		# Args: amount_msat outgoing_scid incoming_scid ...
+		echo "rebalance \$2 \$3 \$4" >> "$BATS_TMPDIR/rebalance.log"
+		sent=\$(( \$2 + 234 ))
+		cat <<JSON
+{"sent": \$sent, "received": \$2, "outgoing_route_hops": 4, "status": "complete"}
+JSON
+		;;
+	*) exec "$FIXTURES/lightning-cli-mock" "\$@" ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/lightning-cli"
+	: > "$BATS_TMPDIR/rebalance.log"
+}
+
+@test "FEAT-201: lightning rebalance (no args) prints usage" {
+	run "$LIGHTNING_BIN" rebalance
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"usage"* ]]
+}
+
+@test "FEAT-201: rebalance errors clearly when plugin not installed" {
+	run "$LIGHTNING_BIN" rebalance 100000
+	[ "$status" -eq 127 ]
+	[[ "$output" == *"plugin install rebalance"* ]]
+}
+
+@test "FEAT-201: rebalance rejects non-numeric amount" {
+	_install_fake_rebalance_plugin
+	run "$LIGHTNING_BIN" rebalance abc
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"positive integer"* ]]
+}
+
+@test "FEAT-201: rebalance auto-picks the most asymmetric pair" {
+	_install_fake_rebalance_plugin
+	_stub_cli_for_rebalance
+	run "$LIGHTNING_BIN" -v rebalance 100000
+	[ "$status" -eq 0 ]
+	# auto-pair: from=highest outbound (100x1x0), to=lowest (100x2x0)
+	[[ "$output" == *"auto-pair: from=100x1x0 to=100x2x0"* ]]
+	grep -q "rebalance 100000000 100x1x0 100x2x0" "$BATS_TMPDIR/rebalance.log"
+}
+
+@test "FEAT-201: rebalance --from / --to override auto-pair" {
+	_install_fake_rebalance_plugin
+	_stub_cli_for_rebalance
+	run "$LIGHTNING_BIN" rebalance 50000 --from foo --to bar
+	[ "$status" -eq 0 ]
+	grep -q "rebalance 50000000 foo bar" "$BATS_TMPDIR/rebalance.log"
+}
+
+@test "FEAT-201: rebalance --dry-run doesn't call the plugin" {
+	_install_fake_rebalance_plugin
+	_stub_cli_for_rebalance
+	run "$LIGHTNING_BIN" -v rebalance 100000 --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"status:        dry_run"* ]]
+	[ ! -s "$BATS_TMPDIR/rebalance.log" ]
+}
+
+@test "FEAT-201: rebalance success emits the recfile summary" {
+	_install_fake_rebalance_plugin
+	_stub_cli_for_rebalance
+	run "$LIGHTNING_BIN" rebalance 100000 --from 100x1x0 --to 100x2x0
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"status:        complete"* ]]
+	[[ "$output" == *"from:          100x1x0"* ]]
+	[[ "$output" == *"to:            100x2x0"* ]]
+	[[ "$output" == *"amount_sat:    100000"* ]]
+	[[ "$output" == *"fee_msat:"* ]]
+	[[ "$output" == *"fee_ppm:"* ]]
+	[[ "$output" == *"route_hops:    4"* ]]
+}
+
+@test "FEAT-201: rebalance --fallback swap shells out when LN fails" {
+	_install_fake_rebalance_plugin
+	# Stub lightning-cli to make `rebalance` fail.
+	rm -f "$BIN_SHIM/lightning-cli"
+	cat > "$BIN_SHIM/lightning-cli" <<EOF
+#!/bin/sh
+while [ \$# -gt 0 ]; do case "\$1" in --*=*) shift ;; *) break ;; esac; done
+case "\$1" in
+	listpeerchannels)
+		cat <<JSON
+{"channels":[
+  {"short_channel_id":"100x1x0","peer_id":"02alice","state":"CHANNELD_NORMAL",
+   "to_us_msat":900000000,"total_msat":1000000000},
+  {"short_channel_id":"100x2x0","peer_id":"02bob","state":"CHANNELD_NORMAL",
+   "to_us_msat":100000000,"total_msat":1000000000}
+]}
+JSON
+		;;
+	rebalance) echo "no route" >&2; exit 1 ;;
+	listpeers) echo '{"peers":[]}' ;;
+	getinfo)   echo '{"id":"02x","alias":"x","color":"x","network":"regtest","version":"v","blockheight":1,"num_active_channels":0,"num_pending_channels":0,"num_inactive_channels":0,"num_peers":0}' ;;
+	*) exec "$FIXTURES/lightning-cli-mock" "\$@" ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/lightning-cli"
+	run "$LIGHTNING_BIN" -v rebalance 100000 --fallback swap
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"swap fallback"* ]]
+	[[ "$output" == *"status:        swap_complete"* ]]
+}
+
+@test "FEAT-201: top-level help lists rebalance" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"rebalance"* ]]
+}
