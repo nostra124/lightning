@@ -83,10 +83,10 @@ EOF
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 0.6.0" {
+@test "lightning version returns 1.0.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "0.6.0" ]
+	[ "$output" = "1.0.0" ]
 }
 
 @test "lightning help prints usage" {
@@ -131,7 +131,7 @@ EOF
 	[[ "$output" == *"LNURL"* || "$output" == *"Lightning Address"* ]]
 }
 
-@test "help lists the 0.6.0 verb surface" {
+@test "help lists the 1.0.0 verb surface" {
 	run "$LIGHTNING_BIN" help
 	[[ "$output" == *"wallet"* ]]
 	[[ "$output" == *"account"* ]]
@@ -1407,4 +1407,110 @@ EOF
 	f="$BATS_TEST_DIRNAME/../../skills/lightning-wallet/SKILL.md"
 	head -10 "$f" | grep -q "^name: lightning-wallet"
 	head -20 "$f" | grep -q "^description:"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-181: walkthrough
+# ---------------------------------------------------------------------------
+
+@test "FEAT-181: walkthrough doc covers all ten sections" {
+	f="$BATS_TEST_DIRNAME/../../share/doc/lightning/walkthrough/README.md"
+	[ -f "$f" ]
+	# Section headers from §1 through §10.
+	for hdr in "## 1. Setup" "## 2. Create" "## 3. Open" "## 4. Pay" \
+	           "## 5. BOLT-12" "## 6. LNURL" "## 7. Lightning Address" \
+	           "## 8. JSON API" "## 9. Inbound liquidity" "## 10. Wallet sync"; do
+		grep -qF "$hdr" "$f"
+	done
+}
+
+@test "FEAT-181: walkthrough cites each step's standard" {
+	f="$BATS_TEST_DIRNAME/../../share/doc/lightning/walkthrough/README.md"
+	for cite in "BOLT-1" "BOLT-2" "BOLT-11" "BOLT-12" "LUD-06" "LUD-16" \
+	            "BIP-353" "BLIP-51" "FEAT-196"; do
+		grep -qF "$cite" "$f"
+	done
+}
+
+@test "FEAT-181: README links to the walkthrough" {
+	f="$BATS_TEST_DIRNAME/../../Readme.md"
+	grep -q "walkthrough/README.md" "$f"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-182: SIT scaffolding
+# ---------------------------------------------------------------------------
+
+@test "FEAT-182: SIT directory has dockerfiles + helpers + suites" {
+	root="$BATS_TEST_DIRNAME/../../tests/sit"
+	[ -d "$root/podman" ]
+	[ -f "$root/podman/Dockerfile.regtest" ]
+	[ -f "$root/podman/Dockerfile.clightning" ]
+	[ -f "$root/helpers.bash" ]
+	[ -d "$root/suites" ]
+	[ -f "$root/README.md" ]
+}
+
+@test "FEAT-182: SIT covers all twelve advertised suites" {
+	root="$BATS_TEST_DIRNAME/../../tests/sit/suites"
+	for f in 01_daemon_lifecycle 02_channel_open_close 03_invoice_pay_bolt11 \
+	         04_offer_pay_bolt12 05_lnurl_flow 06_address_create_pay \
+	         07_wallet_account_ledger 08_wallet_push_pull \
+	         09_inbound_liquidity_lsps1 10_wellknown_api \
+	         11_walkthrough 12_softdep_probe; do
+		[ -f "$root/$f.bats" ]
+	done
+}
+
+@test "FEAT-182: every suite parses as valid bats" {
+	root="$BATS_TEST_DIRNAME/../../tests/sit/suites"
+	for f in "$root"/*.bats; do
+		# A bats file is bash with `@test ...` syntax. `bash -n` doesn't
+		# understand @test directly; use bats's own --count instead which
+		# parses without executing.
+		run bats --count "$f"
+		[ "$status" -eq 0 ]
+	done
+}
+
+@test "FEAT-182: helpers.bash defines sit_setup_alice_bob + sit_teardown" {
+	f="$BATS_TEST_DIRNAME/../../tests/sit/helpers.bash"
+	grep -q "^sit_setup_alice_bob()" "$f"
+	grep -q "^sit_teardown()" "$f"
+	grep -q "^sit_mine()" "$f"
+	grep -q "^sit_open_channel()" "$f"
+}
+
+@test "FEAT-182: Dockerfile.clightning installs apache2 + python3 + sqlite3" {
+	f="$BATS_TEST_DIRNAME/../../tests/sit/podman/Dockerfile.clightning"
+	grep -q "apache2" "$f"
+	grep -q "python3" "$f"
+	grep -q "sqlite3" "$f"
+	grep -q "lightningd" "$f"
+}
+
+@test "FEAT-182: Makefile check-sit target invokes podman build + run" {
+	f="$BATS_TEST_DIRNAME/../../Makefile.in"
+	grep -q "podman build" "$f"
+	grep -q "podman run" "$f"
+}
+
+# ---------------------------------------------------------------------------
+# 1.0.0 graduation smokes
+# ---------------------------------------------------------------------------
+
+@test "1.0.0: every milestone-plan file is gone (all milestones consumed)" {
+	root="$BATS_TEST_DIRNAME/../../issues"
+	# After closure, no MILESTONE-*.md should remain at the top of issues/.
+	! ls "$root"/MILESTONE-*.md 2>/dev/null
+}
+
+@test "1.0.0: every initial FEAT (170..195) is in issues/feature/done/" {
+	root="$BATS_TEST_DIRNAME/../../issues/feature/done"
+	for n in 170 171 172 173 174 175 176 177 178 179 180 181 182 \
+	         183 184 185 187 189 191 192 193 195 196; do
+		# Single matching file per number.
+		count=$(ls "$root"/${n}-*.md 2>/dev/null | wc -l)
+		[ "$count" -eq 1 ] || { echo "FEAT-$n missing in done/"; return 1; }
+	done
 }

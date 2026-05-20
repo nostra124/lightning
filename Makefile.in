@@ -88,9 +88,19 @@ check-vectors:
 	else echo "prove or tests/vectors/ not present; skipping"; fi
 
 check-sit:
-	@if command -v podman >/dev/null 2>&1; then \
-		echo "==> SIT: see tests/sit/README.md"; \
-	else echo "podman not installed; soft-skipping SIT"; fi
+	@if ! command -v podman >/dev/null 2>&1; then \
+		echo "podman not installed; soft-skipping SIT"; \
+		exit 0; \
+	fi
+	@echo "==> building lightning-regtest"
+	@podman build -t lightning-regtest -f tests/sit/podman/Dockerfile.regtest tests/sit
+	@echo "==> building lightning-clightning (with the local working tree)"
+	@podman build -t lightning-clightning -f tests/sit/podman/Dockerfile.clightning .
+	@echo "==> running bats /suites/*.bats inside the container"
+	@podman run --rm \
+		-v $(PWD)/tests/sit/suites:/suites:ro \
+		lightning-clightning \
+		/bin/bash -lc 'bats /suites/*.bats'
 
 check-all: check check-sit
 
