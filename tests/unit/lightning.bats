@@ -1928,3 +1928,165 @@ EOF
 	run "$LIGHTNING_BIN" help
 	[[ "$output" == *"rebalance"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-204 — alert verb (threshold-driven webhooks)
+# ---------------------------------------------------------------------------
+
+# Stub curl to record webhook calls to a log.
+_stub_webhook_curl() {
+	cat > "$BIN_SHIM/curl" <<EOF
+#!/bin/sh
+# Record the URL (last arg) and payload (after --data).
+url=""
+payload=""
+while [ \$# -gt 0 ]; do
+	case "\$1" in
+		--data) payload="\$2"; shift 2 ;;
+		--data-urlencode) payload="\$2"; shift 2 ;;
+		-X|-H|-G|-f|-s|-S|-L|--fail|--silent|--show-error|--location) shift ;;
+		https://*|http://*) url="\$1"; shift ;;
+		*) shift ;;
+	esac
+done
+echo "webhook \$url payload=\$payload" >> "$BATS_TMPDIR/webhook.log"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/curl"
+	: > "$BATS_TMPDIR/webhook.log"
+}
+
+@test "FEAT-204: lightning alert (no args) prints usage" {
+	run "$LIGHTNING_BIN" alert
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"subcommands"* ]]
+}
+
+@test "FEAT-204: alert create stores a recfile rule" {
+	run "$LIGHTNING_BIN" alert create my-rule \
+		--on balance_below \
+		--threshold 100000 \
+		--webhook https://hooks.slack.com/services/foo
+	[ "$status" -eq 0 ]
+	[ -f "$HOME/.lightning/alerts/my-rule.conf" ]
+	grep -q "on:.*balance_below" "$HOME/.lightning/alerts/my-rule.conf"
+	grep -q "threshold:.*100000" "$HOME/.lightning/alerts/my-rule.conf"
+	grep -q "webhook:.*hooks.slack.com" "$HOME/.lightning/alerts/my-rule.conf"
+}
+
+@test "FEAT-204: alert create rejects missing --on" {
+	run "$LIGHTNING_BIN" alert create r --webhook https://example.com
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"--on"* ]]
+}
+
+@test "FEAT-204: alert create rejects missing --webhook" {
+	run "$LIGHTNING_BIN" alert create r --on daemon_down
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"--webhook"* ]]
+}
+
+@test "FEAT-204: alert list returns multi-record recfile" {
+	"$LIGHTNING_BIN" alert create a --on daemon_down --webhook https://x/a
+	"$LIGHTNING_BIN" alert create b --on peer_offline --webhook https://x/b
+	run "$LIGHTNING_BIN" alert list
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"name:        a"* ]]
+	[[ "$output" == *"name:        b"* ]]
+}
+
+@test "FEAT-204: alert list on empty dir is exit 0" {
+	run "$LIGHTNING_BIN" alert list
+	[ "$status" -eq 0 ]
+}
+
+@test "FEAT-204: alert remove deletes the rule" {
+	"$LIGHTNING_BIN" alert create r --on daemon_down --webhook https://x
+	run "$LIGHTNING_BIN" alert remove r
+	[ "$status" -eq 0 ]
+	[ ! -f "$HOME/.lightning/alerts/r.conf" ]
+}
+
+@test "FEAT-204: alert remove unknown rule exits 4" {
+	run "$LIGHTNING_BIN" alert remove nope
+	[ "$status" -eq 4 ]
+}
+
+@test "FEAT-204: alert test fires the [TEST] webhook" {
+	_stub_webhook_curl
+	# daemon_down condition: stub cli to fail getinfo.
+	echo "down" > "$MOCK_STATE"
+	"$LIGHTNING_BIN" alert create r --on daemon_down --webhook https://example.com/hook
+	run "$LIGHTNING_BIN" alert test r
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"would_fire"* ]]
+	grep -q "webhook https://example.com/hook" "$BATS_TMPDIR/webhook.log"
+	grep -q "TEST" "$BATS_TMPDIR/webhook.log"
+}
+
+@test "FEAT-204: alert test on non-firing condition reports not_firing" {
+	# daemon_down: cli getinfo succeeds (default mock state = up).
+	"$LIGHTNING_BIN" alert create r --on daemon_down --webhook https://x
+	run "$LIGHTNING_BIN" alert test r
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"not_firing"* ]]
+}
+
+@test "FEAT-204: alert run fires + records last_fired; cooldown holds next run" {
+	_stub_webhook_curl
+	echo "down" > "$MOCK_STATE"
+	"$LIGHTNING_BIN" alert create r --on daemon_down --webhook https://x/hook --cooldown 1h
+	# First run fires.
+	"$LIGHTNING_BIN" -v alert run >/dev/null 2>&1
+	grep -q "webhook https://x/hook" "$BATS_TMPDIR/webhook.log"
+	[ "$(grep -c webhook $BATS_TMPDIR/webhook.log)" -eq 1 ]
+	# Rule file now has last_fired set.
+	grep -q "^last_fired:[[:space:]]*[0-9]" "$HOME/.lightning/alerts/r.conf"
+	# Second run within cooldown: no new webhook.
+	"$LIGHTNING_BIN" -v alert run >/dev/null 2>&1
+	[ "$(grep -c webhook $BATS_TMPDIR/webhook.log)" -eq 1 ]
+}
+
+@test "FEAT-204: daemon install writes the alert sidecar (macOS)" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only — Linux uses systemd .timer"
+	fi
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	local plist="$HOME/Library/LaunchAgents/network.lightning.alert.plist"
+	[ -f "$plist" ]
+	grep -q "<string>alert</string>" "$plist"
+	grep -q "<string>run</string>" "$plist"
+	grep -q "<integer>60</integer>" "$plist"
+}
+
+@test "FEAT-204: daemon install --no-alert skips the sidecar" {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		skip "macOS-only"
+	fi
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install --no-alert
+	[ "$status" -eq 0 ]
+	[ ! -f "$HOME/Library/LaunchAgents/network.lightning.alert.plist" ]
+}
+
+@test "FEAT-204: daemon install writes alert sidecar on Linux" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "Linux-only"
+	fi
+	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	[ -f "$HOME/.config/systemd/user/lightning-alert.timer" ]
+	[ -f "$HOME/.config/systemd/user/lightning-alert.service" ]
+	grep -q "OnUnitActiveSec=1min" "$HOME/.config/systemd/user/lightning-alert.timer"
+}
+
+@test "FEAT-204: top-level help lists alert" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"alert"* ]]
+}
