@@ -6,11 +6,22 @@ on:
   pull_request:
 
 jobs:
-  bats:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
-      - name: run bats unit tests
+      - name: install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bats sqlite3 jq python3 qrencode groff \
+            shellcheck openssl xxd
+      - name: bats unit tests
         run: bats tests/unit/
+      - name: shellcheck (non-fatal)
+        continue-on-error: true
+        run: |
+          shellcheck -S warning \
+            bin/lightning \
+            libexec/lightning/* \
+            share/doc/lightning/standards/refresh.sh
