@@ -2394,11 +2394,10 @@ EOF
 	[[ "$output" == *"unknown flag"* ]]
 }
 
-@test "FEAT-207: install-core --source (no --dry-run) warns it's a scaffold" {
-	# --source is still scaffolded — once it's implemented this assertion
-	# should move to whatever backend remains unimplemented (or be
-	# deleted when none do).
-	run "$LIGHTNING_BIN" daemon install-core --source
+@test "FEAT-207: install-core --podman (no --dry-run) warns it's a scaffold" {
+	# --podman is the last remaining scaffolded backend.  Delete this
+	# test once stage 4 lands.
+	run "$LIGHTNING_BIN" daemon install-core --podman
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"scaffold"* ]]
 	[[ "$output" == *"FEAT-207"* ]]
@@ -2724,6 +2723,202 @@ EOF
 	[ "$status" -eq 0 ]
 	# Output line is "platform:   alpine"
 	[[ "$output" == *"platform:"*"alpine"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-207 stage 3 — real `--source` invocation (Ubuntu apt + git + make)
+# ---------------------------------------------------------------------------
+
+_stub_apt_get() {
+	local exit_code="${1:-0}"
+	cat > "$BIN_SHIM/apt-get" <<EOF
+#!/bin/sh
+echo "apt-get \$*" >> "$BIN_SHIM/apt-get.calls"
+exit $exit_code
+EOF
+	chmod +x "$BIN_SHIM/apt-get"
+}
+
+# git stub: records args; for `clone <repo> <dest>` it creates <dest>
+# with a stub configure script and Makefile so the subsequent build
+# step doesn't have to find them on PATH.
+_stub_git_for_source() {
+	local exit_code="${1:-0}"
+	cat > "$BIN_SHIM/git" <<EOF
+#!/bin/sh
+echo "git \$*" >> "$BIN_SHIM/git.calls"
+if [ "\$1" = "clone" ]; then
+	# Destination is the last arg (\$# is the count).
+	eval dest=\\\${\$#}
+	mkdir -p "\$dest/.git" "\$dest"
+	printf '#!/bin/sh\nexit 0\n' > "\$dest/configure"
+	chmod +x "\$dest/configure"
+	# A no-op Makefile — \`make\` itself is a separate shim that fakes
+	# install by dropping a lightningd binary onto PATH.
+	printf 'all:\n\t@true\ninstall:\n\t@true\n' > "\$dest/Makefile"
+fi
+exit $exit_code
+EOF
+	chmod +x "$BIN_SHIM/git"
+}
+
+# make stub: records args; on `make install` drops a fake lightningd
+# into BIN_SHIM so ic_verify_lightningd passes.  Mirrors the apk-stub
+# pattern.
+_stub_make() {
+	local exit_code="${1:-0}" install_lightningd="${2:-1}"
+	cat > "$BIN_SHIM/make" <<EOF
+#!/bin/sh
+echo "make \$*" >> "$BIN_SHIM/make.calls"
+if [ "\$1" = "install" ] && [ "$install_lightningd" = "1" ] && [ "$exit_code" = "0" ]; then
+	printf '#!/bin/sh\necho "Core Lightning v26.04.1"\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+fi
+exit $exit_code
+EOF
+	chmod +x "$BIN_SHIM/make"
+}
+
+# Drop a fake /etc/os-release identifying as Ubuntu (the CI container
+# IS Ubuntu — this is belt-and-braces in case the test order changes).
+_fake_ubuntu_os_release() {
+	local f="$BATS_TMPDIR/os-release.$$.ubuntu"
+	cat > "$f" <<'EOF'
+ID=ubuntu
+VERSION_ID=24.04
+PRETTY_NAME="Ubuntu 24.04"
+EOF
+	export LIGHTNING_OS_RELEASE="$f"
+}
+
+# Common setup for source-backend tests.
+_source_common_setup() {
+	_fake_ubuntu_os_release
+	export LIGHTNING_BUILD_DIR="$BATS_TMPDIR/lightning-build.$$"
+	rm -rf "$LIGHTNING_BUILD_DIR"
+	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+}
+
+@test "FEAT-207: install-core --source --yes runs the full sequence" {
+	_source_common_setup
+	_stub_apt_get 0
+	_stub_git_for_source 0
+	_stub_make 0 1
+	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	[ "$status" -eq 0 ]
+	# apt-get install was called with the build deps.
+	[ -f "$BIN_SHIM/apt-get.calls" ]
+	grep -q "apt-get install" "$BIN_SHIM/apt-get.calls"
+	grep -q "build-essential"  "$BIN_SHIM/apt-get.calls"
+	grep -q "libsqlite3-dev"   "$BIN_SHIM/apt-get.calls"
+	grep -q "libsodium-dev"    "$BIN_SHIM/apt-get.calls"
+	# git clone went to the configured build dir.
+	[ -f "$BIN_SHIM/git.calls" ]
+	grep -q "git clone .*ElementsProject/lightning" "$BIN_SHIM/git.calls"
+	grep -q "$LIGHTNING_BUILD_DIR/lightning" "$BIN_SHIM/git.calls"
+	# make + make install ran.
+	[ -f "$BIN_SHIM/make.calls" ]
+	grep -q "^make" "$BIN_SHIM/make.calls"
+	grep -q "make install" "$BIN_SHIM/make.calls"
+	# Post-install verification fired.
+	[[ "$output" == *"lightningd installed"* ]]
+}
+
+@test "FEAT-207: install-core --source --yes --version checks out the tag" {
+	_source_common_setup
+	_stub_apt_get 0
+	_stub_git_for_source 0
+	_stub_make 0 1
+	run "$LIGHTNING_BIN" daemon install-core --source --yes --version v26.04.1
+	[ "$status" -eq 0 ]
+	grep -q "git checkout v26.04.1" "$BIN_SHIM/git.calls"
+}
+
+@test "FEAT-207: install-core --source refuses without --yes when stdin isn't a TTY" {
+	_source_common_setup
+	_stub_apt_get 0
+	_stub_git_for_source 0
+	_stub_make 0 1
+	# bats `run` doesn't allocate a TTY, so this is the path under test.
+	run "$LIGHTNING_BIN" daemon install-core --source
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"not a TTY"* ]]
+	[[ "$output" == *"--yes"* ]]
+	[ ! -f "$BIN_SHIM/apt-get.calls" ]
+}
+
+@test "FEAT-207: install-core --source off-Ubuntu exits with a clear hint" {
+	# Fake Alpine — same os-release machinery the apk tests use.
+	_fake_alpine_os_release
+	export LIGHTNING_BUILD_DIR="$BATS_TMPDIR/lightning-build.$$"
+	_stub_apt_get 0
+	_stub_git_for_source 0
+	_stub_make 0 1
+	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"Ubuntu"* ]] || [[ "$output" == *"ubuntu"* ]]
+	[[ "$output" == *"--apk"* ]] || [[ "$output" == *"apk"* ]]
+	[ ! -f "$BIN_SHIM/apt-get.calls" ]
+}
+
+@test "FEAT-207: install-core --source --dry-run skips platform + tool checks" {
+	# No stubs at all — dry-run must still print the plan + build-dir.
+	run "$LIGHTNING_BIN" daemon install-core --source --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"apt-get install build-deps"* ]]
+	[[ "$output" == *"build-dir:"* ]]
+}
+
+@test "FEAT-207: install-core --source propagates apt-get failure" {
+	_source_common_setup
+	_stub_apt_get 100
+	_stub_git_for_source 0
+	_stub_make 0 1
+	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	[ "$status" -eq 100 ]
+	[[ "$output" == *"apt-get install failed"* ]]
+	# git/make should not have run.
+	[ ! -f "$BIN_SHIM/git.calls" ]
+}
+
+@test "FEAT-207: install-core --source propagates git failure" {
+	_source_common_setup
+	_stub_apt_get 0
+	_stub_git_for_source 128
+	_stub_make 0 1
+	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"git clone failed"* ]]
+	# make should not have been invoked.
+	[ ! -f "$BIN_SHIM/make.calls" ]
+}
+
+@test "FEAT-207: install-core --source propagates build failure" {
+	_source_common_setup
+	_stub_apt_get 0
+	_stub_git_for_source 0
+	# make all exits non-zero; install never runs.
+	_stub_make 2 0
+	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"build failed"* ]]
+	[[ "$output" == *"left at"* ]]   # operator-friendly hint
+}
+
+@test "FEAT-207: install-core --source fetches when repo already cloned" {
+	_source_common_setup
+	# Pre-create the clone dir so the verb takes the fetch branch.
+	mkdir -p "$LIGHTNING_BUILD_DIR/lightning/.git"
+	printf '#!/bin/sh\nexit 0\n' > "$LIGHTNING_BUILD_DIR/lightning/configure"
+	chmod +x "$LIGHTNING_BUILD_DIR/lightning/configure"
+	printf 'all:\n\t@true\ninstall:\n\t@true\n' > "$LIGHTNING_BUILD_DIR/lightning/Makefile"
+	_stub_apt_get 0
+	_stub_git_for_source 0
+	_stub_make 0 1
+	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	[ "$status" -eq 0 ]
+	grep -q "git fetch" "$BIN_SHIM/git.calls"
+	! grep -q "git clone" "$BIN_SHIM/git.calls"
 }
 
 @test "FEAT-207: spec file exists with the expected id" {
