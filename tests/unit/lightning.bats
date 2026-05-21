@@ -2589,6 +2589,20 @@ EOF
 	chmod +x "$BIN_SHIM/id"
 }
 
+# Mirror image: GH-hosted runners run as a non-root user, which makes
+# `ic_root_prefix` pick sudo.  This stub fakes `id -u` returning 0 so
+# we can exercise the no-prefix branch under any test runner.
+_stub_id_root() {
+	cat > "$BIN_SHIM/id" <<'EOF'
+#!/bin/sh
+case "$1" in
+	-u) echo 0 ;;
+	*)  exec /usr/bin/id "$@" ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/id"
+}
+
 # Fake /etc/os-release pointing platform_id() at Alpine.
 _fake_alpine_os_release() {
 	local f="$BATS_TMPDIR/os-release.$$"
@@ -2629,9 +2643,12 @@ EOF
 }
 
 @test "FEAT-207: install-core --apk skips prefix when already root" {
-	# When ic_root_prefix returns empty (we're root), the apk call is bare.
+	# When ic_root_prefix returns empty (id -u == 0), the apk call is bare.
+	# Force id -u to 0 — GH-hosted runners are non-root, locally we may
+	# already be root, so either way we get a deterministic answer.
 	_fake_alpine_os_release
-	_stub_apk 0 1   # no id stub — real id -u returns 0 in CI
+	_stub_id_root
+	_stub_apk 0 1
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
 	run "$LIGHTNING_BIN" daemon install-core --apk
 	[ "$status" -eq 0 ]
@@ -2788,6 +2805,11 @@ _source_common_setup() {
 	export LIGHTNING_BUILD_DIR="$BATS_TMPDIR/lightning-build.$$"
 	rm -rf "$LIGHTNING_BUILD_DIR"
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+	# GH-hosted runners are non-root → ic_root_prefix returns sudo and
+	# the verb runs `sudo apt-get install` + `sudo make install`.  Stub
+	# sudo so those calls route through our apt-get / make shims rather
+	# than asking real sudo for a password (which fails on no-TTY).
+	_stub_sudo
 }
 
 @test "FEAT-207: install-core --source --yes runs the full sequence" {
@@ -3000,7 +3022,17 @@ _podman_common_setup() {
 @test "FEAT-207: install-core --podman errors when podman not on PATH" {
 	_podman_common_setup
 	# Don't install the podman stub.
-	run "$LIGHTNING_BIN" daemon install-core --podman
+	# GH-hosted runners ship podman in /usr/bin, which would satisfy
+	# `command -v podman` and route into the real install path.  Strip
+	# any PATH entry that contains a podman binary so the verb's
+	# precondition fails as designed.
+	local clean=""
+	local IFS=":"
+	for d in $PATH; do
+		[ -x "$d/podman" ] && continue
+		clean="${clean:+$clean:}$d"
+	done
+	PATH="$clean" run "$LIGHTNING_BIN" daemon install-core --podman
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"podman not on PATH"* ]]
 	[ ! -e "$LIGHTNING_SHIM_DIR/lightning-cli" ]

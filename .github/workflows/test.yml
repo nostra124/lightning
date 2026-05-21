@@ -8,6 +8,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - name: install deps
@@ -17,17 +20,50 @@ jobs:
             bats sqlite3 jq python3 python3-pytest qrencode groff \
             shellcheck openssl xxd
       - name: bats unit tests
-        run: bats tests/unit/
+        run: |
+          set -o pipefail
+          bats tests/unit/ 2>&1 | tee /tmp/ci-bats.log
       - name: pytest (FEAT-196 CGI scripts)
-        run: pytest tests/python/
+        run: |
+          set -o pipefail
+          pytest tests/python/ 2>&1 | tee /tmp/ci-pytest.log
       - name: shellcheck (merge gate)
         run: |
+          set -o pipefail
           shellcheck -S warning \
             bin/lightning \
             libexec/lightning/* \
             share/lightning/hooks/* \
             tests/sit/helpers.bash \
-            share/doc/lightning/standards/refresh.sh
+            share/doc/lightning/standards/refresh.sh 2>&1 | tee /tmp/ci-shellcheck.log
+      # Diagnostic comment on failure — surfaces step output on the PR
+      # so the actual failing test / assertion is visible without
+      # opening the Actions UI.  Only fires on pull_request events
+      # (push-to-master failures have no PR to comment on).
+      - name: Post failure log to PR
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            printf '## CI failure on `%s` (commit `%s`)\n\n' "$GITHUB_JOB" "${SHA:0:12}"
+            printf 'Full run: %s\n\n' "$RUN_URL"
+            for f in /tmp/ci-bats.log /tmp/ci-pytest.log /tmp/ci-shellcheck.log; do
+              [ -f "$f" ] || continue
+              name=$(basename "$f" .log | sed 's/^ci-//')
+              # Show the tail — full bats output can be huge.  Reviewers
+              # who want everything click the Full run link above.
+              printf '<details><summary><code>%s</code> (last 200 lines)</summary>\n\n' "$name"
+              printf '```\n'
+              tail -n 200 "$f"
+              printf '\n```\n\n</details>\n\n'
+            done
+          } > /tmp/ci-failure-comment.md
+          gh pr comment "$PR" --repo "$REPO" --body-file /tmp/ci-failure-comment.md
 
   coverage:
     runs-on: ubuntu-latest
