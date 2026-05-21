@@ -3372,9 +3372,12 @@ _openrc_common_setup() {
 }
 
 @test "FEAT-207: spec file exists with the expected id" {
-	f="$BATS_TEST_DIRNAME/../../issues/feature/207-clightning-install.md"
+	# Moved to done/ when the ticket shipped — same convention every
+	# graduated 0.x FEAT followed (issues/feature/done/).
+	f="$BATS_TEST_DIRNAME/../../issues/feature/done/207-clightning-install.md"
 	[ -f "$f" ]
 	grep -q "^id: FEAT-207" "$f"
+	grep -q "^status: shipped" "$f"
 	grep -q "install-core" "$f"
 	grep -q "podman" "$f"
 	grep -q "OpenRC" "$f"
