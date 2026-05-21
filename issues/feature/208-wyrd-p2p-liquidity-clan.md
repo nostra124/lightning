@@ -33,8 +33,22 @@ trade-offs:
 
 A peer-to-peer market for Lightning liquidity gives a decentralised
 alternative, and one that matches the spirit of Lightning itself.
-Wyrd is the candidate platform for that — exact protocol surface to
-be confirmed once we read their docs.
+
+## What Wyrd is (sister project)
+
+Wyrd is a sister project — a **peer-to-peer Platform-as-a-Service**
+under independent development by the same author.  It provides:
+
+- container / VM procurement payable in Lightning sats, on Wyrd's
+  hosting network OR on the operator's own hardware
+- a P2P trust / clan layer for peering between operators
+- the substrate **bawee.site** (the operator-facing rental platform
+  — see FEAT-209) builds upon
+
+For Lightning liquidity specifically, Wyrd's clan + settlement
+primitives are a natural fit: the same operators renting capacity
+to each other can also broker inbound channels to each other inside
+the same trust graph.
 
 The "clan" angle is interesting on its own: a group of operators
 who trust each other (mutual peers, a routing collective, a
@@ -108,14 +122,19 @@ This is a strawman.  Pick from / modify after reading Wyrd's docs.
 
 ## Milestone
 
-Post-1.4.0 / TBD.  Depends on FEAT-198 (LSPS1 via Boltz) landing
-first, since the verb surface and `liq_dir` config conventions
-established there will be reused.
+None — research / future-discussion ticket.  Not assigned to a
+milestone; implementation work is gated on the Wyrd protocol shape
+being finalised + the design conversations called out under "Open
+questions" above.
 
 ## See also
 
 - FEAT-198 — Boltz LSPS1 integration (the centralised LSP path).
 - FEAT-198a — Amboss Magma marketplace (the centralised
   marketplace path, not yet filed).
+- FEAT-209 — Self-hosted CLN wallet companion (BaweePay).
+  Same sister-project ecosystem; both rely on Wyrd's hosting layer.
+- FEAT-210 — Nostr discovery layer for liquidity.  May fold into
+  this ticket if Wyrd's transport turns out to be Nostr-based.
 - `libexec/lightning/liquidity` — the verb whose surface this
   extends.
