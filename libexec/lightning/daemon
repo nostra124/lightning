@@ -105,8 +105,7 @@ subcommands:
                 [--force] [--dry-run]
                           install Core Lightning itself (FEAT-207).
                           With no backend flag, auto-detects per
-                          platform.  --rpk, --brew, --apk, --source
-                          are implemented; --podman is a scaffold.
+                          platform.  All five backends are implemented.
 EOF
 }
 
@@ -1223,7 +1222,7 @@ cmd_install_core() {
 		brew)   ic_run_brew   "$version" "$dry_run" "$yes" "$force" ;;
 		apk)    ic_run_apk    "$version" "$dry_run" "$yes" "$force" ;;
 		source) ic_run_source "$version" "$dry_run" "$yes" "$force" ;;
-		podman) ic_run_stub   podman "podman pull elementsproject/lightningd${version:+:$version} + run + cli shim" "$dry_run" ;;
+		podman) ic_run_podman "$version" "$dry_run" "$yes" "$force" "$system" ;;
 	esac
 }
 
@@ -1441,26 +1440,143 @@ ic_run_source() {
 	ic_verify_lightningd
 }
 
-# Scaffold body — backends not yet implemented.  Prints the planned
-# command and (outside --dry-run) the scaffold notice.
-ic_run_stub() {
-	local backend="$1" plan="$2" dry_run="$3"
-	echo "plan:       $plan"
+# Podman path — rootless containerized lightningd, used cross-platform
+# when no native package is appropriate (or when the operator just
+# prefers containers).  install-core:
+#
+#   1. pulls elementsproject/lightningd[:version]
+#   2. creates a persistent container with $LIGHTNING_DIR mounted in
+#   3. writes host shims for `lightning-cli` and `lightningd` that
+#      exec into the container (cli) or run the image one-shot (the
+#      `lightningd --version` host check)
+#
+# Container lifecycle (start/stop) is handled by `lightning daemon
+# start / stop` — a separate concern from install-core.  See FEAT-207
+# acceptance criterion #3.
+ic_run_podman() {
+	local version="$1" dry_run="$2" yes="$3" force="$4" system="$5"
+	local image="elementsproject/lightningd${version:+:$version}"
+	local container_name="${LIGHTNING_PODMAN_NAME:-clightning}"
+	local lightning_dir="${LIGHTNING_DIR:-$HOME/.lightning}"
+	local shim_dir="${LIGHTNING_SHIM_DIR:-$HOME/.local/bin}"
+
+	echo "plan:       podman pull $image"
+	echo "            podman create --name $container_name -v $lightning_dir:/root/.lightning $image"
+	echo "shim-dir:   $shim_dir (lightning-cli, lightningd)"
 	if [ "$dry_run" = "1" ]; then return 0; fi
-	echo "note: --$backend is a scaffold today — see FEAT-207 for implementation status" >&2
-	echo "      (re-run with --dry-run to suppress this notice)"                          >&2
+
+	if [ "$system" = "1" ]; then
+		error "install-core --podman: --system is not supported with --podman in this release"
+		echo "  podman ships rootless by design; system-wide containerized installs are out of scope" >&2
+		echo "  (see FEAT-207 acceptance criterion #3)" >&2
+		exit 1
+	fi
+	if ! command -v podman >/dev/null 2>&1; then
+		error "install-core --podman: podman not on PATH"
+		echo "  install podman:  https://podman.io/docs/installation" >&2
+		echo "  (install-core does not auto-install podman — FEAT-207 §non-goals)" >&2
+		exit 1
+	fi
+
+	podman pull "$image" || {
+		local rc=$?
+		error "install-core --podman: podman pull failed (exit $rc)"
+		exit "$rc"
+	}
+
+	# Container creation — idempotent under --force.
+	if podman container exists "$container_name" 2>/dev/null; then
+		if [ "$force" = "1" ]; then
+			podman rm -f "$container_name" >/dev/null || {
+				error "install-core --podman: failed to remove existing container '$container_name'"
+				exit 1
+			}
+		else
+			error "install-core --podman: container '$container_name' already exists"
+			echo "  pass --force to recreate, or:"                                        >&2
+			echo "    lightning daemon start    # bring the existing container up"        >&2
+			echo "    podman rm -f $container_name   # discard it and re-run install-core" >&2
+			exit 1
+		fi
+	fi
+
+	mkdir -p "$lightning_dir" || {
+		error "install-core --podman: cannot create state dir $lightning_dir"
+		exit 1
+	}
+	podman create \
+		--name "$container_name" \
+		--volume "$lightning_dir:/root/.lightning" \
+		"$image" >/dev/null || {
+		local rc=$?
+		error "install-core --podman: podman create failed (exit $rc)"
+		exit "$rc"
+	}
+
+	# Host shims.  Both files are bare sh wrappers; the image tag and
+	# container name are inlined at install time so the shims are
+	# self-contained.
+	mkdir -p "$shim_dir" || {
+		error "install-core --podman: cannot create shim dir $shim_dir"
+		exit 1
+	}
+	cat > "$shim_dir/lightning-cli" <<EOF
+#!/bin/sh
+# install-core --podman shim (FEAT-207) — routes lightning-cli into
+# the persistent '$container_name' container.  Container must be
+# running; bring it up via 'lightning daemon start'.
+exec podman exec "$container_name" lightning-cli "\$@"
+EOF
+	chmod +x "$shim_dir/lightning-cli"
+	cat > "$shim_dir/lightningd" <<EOF
+#!/bin/sh
+# install-core --podman shim (FEAT-207).  --version is special-cased
+# so it works without a running container (one-shot 'podman run');
+# everything else routes into the persistent '$container_name' container.
+case "\$1" in
+	--version)
+		exec podman run --rm "$image" lightningd --version
+		;;
+	*)
+		exec podman exec "$container_name" lightningd "\$@"
+		;;
+esac
+EOF
+	chmod +x "$shim_dir/lightningd"
+
+	# PATH-ordering warning.  The shim only "wins" if shim_dir comes
+	# before whatever host-side lightning-cli the operator may have.
+	case ":$PATH:" in
+		*":$shim_dir:"*) ;;
+		*)
+			echo "warning: $shim_dir is not on \$PATH — add it (eg. to ~/.profile)" >&2
+			echo "         so the lightning-cli and lightningd shims are picked up." >&2
+			;;
+	esac
+
+	ic_verify_lightningd "$shim_dir/lightningd"
 }
 
 # Post-install sanity check.  The spec says `lightningd --version` must
-# succeed after install-core exits 0 — we verify it directly.
+# succeed after install-core exits 0 — we verify it directly.  Pass a
+# path argument for backends that install to a non-PATH location (the
+# podman shim, for example).
 ic_verify_lightningd() {
-	if ! command -v lightningd >/dev/null 2>&1; then
-		error "install-core: install reported success but lightningd is not on PATH"
-		echo "  check the package manager's output above; the install may be partial" >&2
-		exit 1
+	local bin="${1:-lightningd}"
+	if [ "$bin" = "lightningd" ]; then
+		if ! command -v lightningd >/dev/null 2>&1; then
+			error "install-core: install reported success but lightningd is not on PATH"
+			echo "  check the package manager's output above; the install may be partial" >&2
+			exit 1
+		fi
+	else
+		if [ ! -x "$bin" ]; then
+			error "install-core: install reported success but $bin is missing or not executable"
+			exit 1
+		fi
 	fi
 	local ver
-	ver=$(lightningd --version 2>/dev/null | head -1)
+	ver=$("$bin" --version 2>/dev/null | head -1)
 	echo "✓ lightningd installed${ver:+: $ver}"
 	echo "  next: lightning daemon install     # write the service unit"
 }
@@ -1615,14 +1731,19 @@ Refuses to overwrite an existing \`lightningd\` on PATH unless
 \`docker\` is not supported — pass \`--podman\` instead.
 \`lnd\` and other backends are out of scope (single backend by design).
 
-Status (FEAT-207):
-  --rpk    implemented (assumes sister lightningd rpk package)
-  --brew   implemented (macOS)
-  --apk    implemented (Alpine — uses doas/sudo if not root)
-  --source implemented (Ubuntu — apt-get build-deps + make install)
+Backends (FEAT-207):
+  --rpk    assumes a sister lightningd rpk package
+  --brew   macOS Homebrew
+  --apk    Alpine apk (uses doas/sudo if not root)
+  --source Ubuntu — apt-get build-deps + make install
            build dir defaults to ~/.cache/lightning/build, override
            with \$LIGHTNING_BUILD_DIR; requires --yes without a TTY
-  --podman scaffold — prints plan
+  --podman rootless containerized lightningd, cross-platform fallback.
+           Writes host shims for lightning-cli and lightningd into
+           \$LIGHTNING_SHIM_DIR (default ~/.local/bin).  Container
+           name defaults to 'clightning' (\$LIGHTNING_PODMAN_NAME
+           overrides).  State is mounted from \$LIGHTNING_DIR.
+           --system is not supported (rootless by design).
 
 After install-core exits 0, \`lightningd --version\` succeeds.
 The follow-up call is \`lightning daemon install\` to write the

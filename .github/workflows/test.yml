@@ -36,6 +36,10 @@ jobs:
             share/lightning/hooks/* \
             tests/sit/helpers.bash \
             share/doc/lightning/standards/refresh.sh 2>&1 | tee /tmp/ci-shellcheck.log
+      # Diagnostic comment on failure — surfaces step output on the PR
+      # so the actual failing test / assertion is visible without
+      # opening the Actions UI.  Only fires on pull_request events
+      # (push-to-master failures have no PR to comment on).
       - name: Post failure log to PR
         if: failure() && github.event_name == 'pull_request'
         env:
@@ -51,6 +55,8 @@ jobs:
             for f in /tmp/ci-bats.log /tmp/ci-pytest.log /tmp/ci-shellcheck.log; do
               [ -f "$f" ] || continue
               name=$(basename "$f" .log | sed 's/^ci-//')
+              # Show the tail — full bats output can be huge.  Reviewers
+              # who want everything click the Full run link above.
               printf '<details><summary><code>%s</code> (last 200 lines)</summary>\n\n' "$name"
               printf '```\n'
               tail -n 200 "$f"
