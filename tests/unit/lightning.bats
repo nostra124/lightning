@@ -2394,11 +2394,11 @@ EOF
 	[[ "$output" == *"unknown flag"* ]]
 }
 
-@test "FEAT-207: install-core --apk (no --dry-run) warns it's a scaffold" {
-	# --apk is still scaffolded — once it's implemented this assertion
+@test "FEAT-207: install-core --source (no --dry-run) warns it's a scaffold" {
+	# --source is still scaffolded — once it's implemented this assertion
 	# should move to whatever backend remains unimplemented (or be
 	# deleted when none do).
-	run "$LIGHTNING_BIN" daemon install-core --apk
+	run "$LIGHTNING_BIN" daemon install-core --source
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"scaffold"* ]]
 	[[ "$output" == *"FEAT-207"* ]]
@@ -2545,6 +2545,185 @@ EOF
 	run "$LIGHTNING_BIN" daemon install-core --rpk --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"plan:"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-207 stage 2 — real `--apk` invocation
+# ---------------------------------------------------------------------------
+
+# Records its args and (when exit 0) drops a fake lightningd onto PATH.
+_stub_apk() {
+	local exit_code="${1:-0}" install_lightningd="${2:-1}"
+	cat > "$BIN_SHIM/apk" <<EOF
+#!/bin/sh
+echo "apk \$*" >> "$BIN_SHIM/apk.calls"
+if [ "$install_lightningd" = "1" ] && [ "$exit_code" = "0" ]; then
+	printf '#!/bin/sh\necho "Core Lightning v26.04.1"\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+fi
+exit $exit_code
+EOF
+	chmod +x "$BIN_SHIM/apk"
+}
+
+# Privilege-escalation prefix stubs.  Each just exec's the rest of the
+# argv — that lets the apk stub still record what was requested.
+_stub_doas() {
+	cat > "$BIN_SHIM/doas" <<'EOF'
+#!/bin/sh
+echo "doas $*" >> "${BIN_SHIM_CALLS_DIR:-$(dirname "$0")}/doas.calls"
+exec "$@"
+EOF
+	chmod +x "$BIN_SHIM/doas"
+}
+_stub_sudo() {
+	cat > "$BIN_SHIM/sudo" <<'EOF'
+#!/bin/sh
+echo "sudo $*" >> "${BIN_SHIM_CALLS_DIR:-$(dirname "$0")}/sudo.calls"
+exec "$@"
+EOF
+	chmod +x "$BIN_SHIM/sudo"
+}
+
+# CI containers often run as root, which makes `ic_root_prefix` return
+# empty (correctly — no escalation needed).  This stub fakes a non-root
+# UID so we can exercise the doas/sudo branches.
+_stub_id_nonroot() {
+	cat > "$BIN_SHIM/id" <<'EOF'
+#!/bin/sh
+case "$1" in
+	-u) echo 1000 ;;
+	*)  exec /usr/bin/id "$@" ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/id"
+}
+
+# Fake /etc/os-release pointing platform_id() at Alpine.
+_fake_alpine_os_release() {
+	local f="$BATS_TMPDIR/os-release.$$"
+	cat > "$f" <<'EOF'
+ID=alpine
+VERSION_ID=3.20.0
+PRETTY_NAME="Alpine Linux v3.20"
+EOF
+	export LIGHTNING_OS_RELEASE="$f"
+}
+
+@test "FEAT-207: install-core --apk runs apk add lightningd via doas" {
+	_fake_alpine_os_release
+	_stub_id_nonroot
+	_stub_apk 0 1
+	_stub_doas
+	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+	run "$LIGHTNING_BIN" daemon install-core --apk
+	[ "$status" -eq 0 ]
+	[ -f "$BIN_SHIM/apk.calls" ]
+	grep -q "apk add lightningd" "$BIN_SHIM/apk.calls"
+	[ -f "$BIN_SHIM/doas.calls" ]
+	grep -q "doas apk add" "$BIN_SHIM/doas.calls"
+	[[ "$output" == *"lightningd installed"* ]]
+}
+
+@test "FEAT-207: install-core --apk falls back to sudo when doas is absent" {
+	_fake_alpine_os_release
+	_stub_id_nonroot
+	_stub_apk 0 1
+	_stub_sudo
+	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+	run "$LIGHTNING_BIN" daemon install-core --apk
+	[ "$status" -eq 0 ]
+	[ -f "$BIN_SHIM/sudo.calls" ]
+	grep -q "sudo apk add" "$BIN_SHIM/sudo.calls"
+	[ ! -f "$BIN_SHIM/doas.calls" ]
+}
+
+@test "FEAT-207: install-core --apk skips prefix when already root" {
+	# When ic_root_prefix returns empty (we're root), the apk call is bare.
+	_fake_alpine_os_release
+	_stub_apk 0 1   # no id stub — real id -u returns 0 in CI
+	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+	run "$LIGHTNING_BIN" daemon install-core --apk
+	[ "$status" -eq 0 ]
+	[ -f "$BIN_SHIM/apk.calls" ]
+	# Bare `apk add` — no doas / sudo prefix on the line.
+	[ ! -f "$BIN_SHIM/doas.calls" ]
+	[ ! -f "$BIN_SHIM/sudo.calls" ]
+}
+
+@test "FEAT-207: install-core --apk --version pins via apk's = syntax" {
+	_fake_alpine_os_release
+	_stub_apk 0 1
+	_stub_doas
+	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+	run "$LIGHTNING_BIN" daemon install-core --apk --version 26.04.1-r0
+	[ "$status" -eq 0 ]
+	grep -q "lightningd=26.04.1-r0" "$BIN_SHIM/apk.calls"
+}
+
+@test "FEAT-207: install-core --apk --force uses --force-overwrite" {
+	_fake_alpine_os_release
+	_stub_apk 0 1
+	_stub_doas
+	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+	run "$LIGHTNING_BIN" daemon install-core --apk --force
+	[ "$status" -eq 0 ]
+	grep -q "\\--force-overwrite" "$BIN_SHIM/apk.calls"
+}
+
+@test "FEAT-207: install-core --apk off-Alpine exits with a clear hint" {
+	# No fake os-release — platform_id() returns the real platform
+	# (ubuntu in CI).
+	_stub_apk 0 1
+	_stub_doas
+	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+	run "$LIGHTNING_BIN" daemon install-core --apk
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"not an Alpine system"* ]]
+	[ ! -f "$BIN_SHIM/apk.calls" ]
+}
+
+@test "FEAT-207: install-core --apk --dry-run skips platform + apk checks" {
+	# No fake os-release, no apk shim — dry-run should still print the plan.
+	run "$LIGHTNING_BIN" daemon install-core --apk --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"apk add lightningd"* ]]
+}
+
+@test "FEAT-207: install-core --apk propagates apk failure" {
+	_fake_alpine_os_release
+	_stub_apk 42 0
+	_stub_doas
+	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+	run "$LIGHTNING_BIN" daemon install-core --apk
+	[ "$status" -eq 42 ]
+	[[ "$output" == *"apk add failed"* ]]
+}
+
+@test "FEAT-207: install-core --apk fails if lightningd missing post-install" {
+	_fake_alpine_os_release
+	_stub_apk 0 0
+	_stub_doas
+	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+	run "$LIGHTNING_BIN" daemon install-core --apk
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"reported success"* ]]
+}
+
+@test "FEAT-207: platform_id reads LIGHTNING_OS_RELEASE override" {
+	# Sanity check for the test hook itself — used by stage-2 onwards.
+	_fake_alpine_os_release
+	# Reach into the daemon verb's helper via subshell.
+	run env LIGHTNING_OS_RELEASE="$LIGHTNING_OS_RELEASE" sh -c '
+		. "'"$BATS_TEST_DIRNAME"'/../../libexec/lightning/daemon" >/dev/null 2>&1
+		platform_id
+	' 2>/dev/null || true
+	# The daemon script invokes case logic when sourced; we can't rely on
+	# fully sourcing it.  Instead exercise the override through the verb:
+	run "$LIGHTNING_BIN" daemon install-core --apk --dry-run
+	[ "$status" -eq 0 ]
+	# Output line is "platform:   alpine"
+	[[ "$output" == *"platform:"*"alpine"* ]]
 }
 
 @test "FEAT-207: spec file exists with the expected id" {

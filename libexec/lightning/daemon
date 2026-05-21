@@ -104,8 +104,8 @@ subcommands:
                 [--force] [--dry-run]
                           install Core Lightning itself (FEAT-207).
                           With no backend flag, auto-detects per
-                          platform.  --rpk and --brew are implemented;
-                          --apk/--source/--podman are still scaffolds.
+                          platform.  --rpk, --brew, --apk are
+                          implemented; --source/--podman are scaffolds.
 EOF
 }
 
@@ -1026,9 +1026,10 @@ EOF
 # Returns: darwin / ubuntu / alpine / unknown
 platform_id() {
 	if is_macos; then echo darwin; return; fi
-	if [ -r /etc/os-release ]; then
-		# shellcheck disable=SC1091
-		. /etc/os-release
+	local os_release="${LIGHTNING_OS_RELEASE:-/etc/os-release}"
+	if [ -r "$os_release" ]; then
+		# shellcheck disable=SC1090,SC1091
+		. "$os_release"
 		case "${ID:-}" in
 			ubuntu|debian) echo ubuntu; return ;;
 			alpine)        echo alpine; return ;;
@@ -1121,10 +1122,22 @@ cmd_install_core() {
 	case "$backend" in
 		rpk)    ic_run_rpk    "$version" "$dry_run" "$yes" "$force" ;;
 		brew)   ic_run_brew   "$version" "$dry_run" "$yes" "$force" ;;
-		apk)    ic_run_stub   apk    "apk add lightningd${version:+=$version}" "$dry_run" ;;
+		apk)    ic_run_apk    "$version" "$dry_run" "$yes" "$force" ;;
 		source) ic_run_stub   source "git clone ElementsProject/lightning && ./configure && make && sudo make install" "$dry_run" ;;
 		podman) ic_run_stub   podman "podman pull elementsproject/lightningd${version:+:$version} + run + cli shim" "$dry_run" ;;
 	esac
+}
+
+# Picks the privilege-escalation prefix for backends that need root
+# (apk, apt-get).  doas is preferred on Alpine; sudo elsewhere.  When
+# already root or neither is available, returns the empty string —
+# the package manager then either succeeds (root) or fails loudly with
+# its own permissions error (no escalation tool installed).
+ic_root_prefix() {
+	[ "$(id -u 2>/dev/null)" = "0" ] && { echo ""; return; }
+	command -v doas >/dev/null 2>&1 && { echo "doas"; return; }
+	command -v sudo >/dev/null 2>&1 && { echo "sudo"; return; }
+	echo ""
 }
 
 # rpk path — assumes a sister `lightningd` rpk package.  Surfaces rpk's
@@ -1178,6 +1191,44 @@ ic_run_brew() {
 	"${cmd[@]}" || {
 		local rc=$?
 		error "install-core --brew: brew install failed (exit $rc)"
+		exit "$rc"
+	}
+	ic_verify_lightningd
+}
+
+# Alpine path — `apk add lightningd[=version]`.  Picks doas/sudo as
+# the privilege prefix; on a non-Alpine system, refuses with a hint
+# pointing at the other backends.  Version pinning uses apk's `=`
+# syntax (matches the spec table in FEAT-207).
+ic_run_apk() {
+	local version="$1" dry_run="$2" yes="$3" force="$4"
+	local pkg="lightningd"
+	[ -n "$version" ] && pkg="lightningd=$version"
+	local cmd=()
+	local prefix
+	prefix=$(ic_root_prefix)
+	[ -n "$prefix" ] && cmd+=("$prefix")
+	cmd+=(apk add)
+	# `--force-overwrite` is apk's closest analogue to brew reinstall —
+	# overwrites files claimed by other packages.  Operators who want a
+	# clean reinstall can `apk del lightningd && lightning daemon install-core --apk`.
+	[ "$force" = "1" ] && cmd+=(--force-overwrite)
+	cmd+=("$pkg")
+	echo "plan:       ${cmd[*]}"
+	if [ "$dry_run" = "1" ]; then return 0; fi
+	if [ "$(platform_id)" != "alpine" ]; then
+		error "install-core --apk: this is not an Alpine system (platform: $(platform_id))"
+		echo "  on this platform use: --brew (macOS) --source (Ubuntu) --podman (any)" >&2
+		exit 1
+	fi
+	if ! command -v apk >/dev/null 2>&1; then
+		error "install-core --apk: apk not on PATH"
+		echo "  apk is Alpine's package manager — it should be installed by default" >&2
+		exit 1
+	fi
+	"${cmd[@]}" || {
+		local rc=$?
+		error "install-core --apk: apk add failed (exit $rc)"
 		exit "$rc"
 	}
 	ic_verify_lightningd
@@ -1357,7 +1408,7 @@ Refuses to overwrite an existing \`lightningd\` on PATH unless
 Status (FEAT-207):
   --rpk    implemented (assumes sister lightningd rpk package)
   --brew   implemented (macOS)
-  --apk    scaffold — prints plan
+  --apk    implemented (Alpine — uses doas/sudo if not root)
   --source scaffold — prints plan
   --podman scaffold — prints plan
 
