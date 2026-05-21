@@ -2,7 +2,7 @@
 id: FEAT-206
 type: feature
 priority: low
-status: open
+status: shipped
 ---
 
 # `lightning peer score <node-id>` — pre-channel-open intelligence
