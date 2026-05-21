@@ -32,6 +32,12 @@ LEGACY_ESPLORA_BEGIN="# >>> lightning esplora — managed by 'daemon install --e
 LEGACY_ESPLORA_END="# <<< lightning esplora"
 TRUSTEDCOIN_REPO="nbd-wtf/trustedcoin"
 TRUSTEDCOIN_VERSION="v0.8.6"
+# FEAT-198 — cln-lsps client plugin (LSPS0 transport + LSPS1 RPCs).
+# The repo + version pin here is what `daemon install --lsps`
+# downloads.  Operators on bleeding-edge LSPs can override with the
+# LSPS_PLUGIN_REPO / LSPS_PLUGIN_VERSION env vars.
+LSPS_PLUGIN_REPO="${LSPS_PLUGIN_REPO:-daywalker90/cln-lsps}"
+LSPS_PLUGIN_VERSION="${LSPS_PLUGIN_VERSION:-v0.3.0}"
 
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 
@@ -324,6 +330,81 @@ install_trustedcoin_via_go() {
 	info "installed $bin"
 }
 
+# FEAT-198 — install the cln-lsps client plugin so LSPS1 verbs
+# work.  Mirrors install_trustedcoin_plugin: downloads the prebuilt
+# binary into $LIGHTNING_DIR/plugins/cln-lsps, then adds a `plugin=`
+# line to $LIGHTNING_CONF.  Operator restarts the daemon to pick it up.
+install_lsps_plugin() {
+	local plugins_dir="$LIGHTNING_DIR/plugins"
+	local bin="$plugins_dir/cln-lsps"
+
+	if [ -x "$bin" ]; then
+		info "cln-lsps plugin already present at $bin"
+	else
+		mkdir -p "$plugins_dir"
+		local os arch
+		case "$(uname -s)" in
+			Linux)  os=linux  ;;
+			Darwin) os=darwin ;;
+			*) error "cln-lsps: unsupported OS '$(uname -s)' — build from source"; return 1 ;;
+		esac
+		case "$(uname -m)" in
+			x86_64|amd64)  arch=amd64 ;;
+			arm64|aarch64) arch=arm64 ;;
+			*) error "cln-lsps: unsupported arch '$(uname -m)' — build from source"; return 1 ;;
+		esac
+
+		if ! command -v curl >/dev/null 2>&1; then
+			error "curl not found — install it, or fetch cln-lsps manually from"
+			error "    https://github.com/$LSPS_PLUGIN_REPO/releases"
+			return 1
+		fi
+
+		local tarball="cln-lsps-$LSPS_PLUGIN_VERSION-$os-$arch.tar.gz"
+		local url="https://github.com/$LSPS_PLUGIN_REPO/releases/download/$LSPS_PLUGIN_VERSION/$tarball"
+		local tmp; tmp=$(mktemp -d)
+
+		info "fetching cln-lsps $LSPS_PLUGIN_VERSION for $os-$arch"
+		info "  $url"
+		if ! curl -fsSL -o "$tmp/$tarball" "$url"; then
+			rm -rf "$tmp"
+			error "failed to download $tarball — check the URL or your network"
+			error "manual install:"
+			error "    curl -fsSL -o /tmp/$tarball $url"
+			error "    tar -xzf /tmp/$tarball -C $plugins_dir"
+			error "    chmod +x $bin"
+			return 1
+		fi
+		if ! tar -xzf "$tmp/$tarball" -C "$tmp" 2>/dev/null; then
+			rm -rf "$tmp"
+			error "failed to extract $tarball"
+			return 1
+		fi
+		local extracted; extracted=$(find "$tmp" -name 'cln-lsps' -type f | head -1)
+		if [ -z "$extracted" ]; then
+			rm -rf "$tmp"
+			error "no 'cln-lsps' binary found inside $tarball"
+			return 1
+		fi
+		mv "$extracted" "$bin"
+		chmod +x "$bin"
+		rm -rf "$tmp"
+		info "installed $bin"
+	fi
+
+	# Register with lightningd so it loads the plugin on next start.
+	mkdir -p "$LIGHTNING_DIR"
+	if [ -f "$LIGHTNING_CONF" ] && grep -qF "plugin=$bin" "$LIGHTNING_CONF"; then
+		info "cln-lsps already enabled in $LIGHTNING_CONF"
+	else
+		printf '\n# >>> cln-lsps plugin — managed by '\''daemon install --lsps'\''\nplugin=%s\n# <<< cln-lsps plugin\n' "$bin" >> "$LIGHTNING_CONF"
+		info "added plugin=$bin to $LIGHTNING_CONF"
+	fi
+
+	info "restart lightningd for the plugin to load:"
+	info "    lightning daemon restart"
+}
+
 # Surface the most recent BROKEN/FATAL line and the daemon log path
 # so the user has a starting point when status is "down".
 report_last_error() {
@@ -578,7 +659,7 @@ cmd_install() {
 	#   -1  leave backend config alone
 	#    1  enable trustedcoin (multi-explorer fallback)
 	#    0  disable any managed backend block (back to bitcoind/bcli)
-	local system=0 migrate=0 backend=-1 keepalive=1 alert=1
+	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--system)      system=1; shift ;;
@@ -588,6 +669,7 @@ cmd_install() {
 			               backend=0; shift ;;
 			--no-keepalive) keepalive=0; shift ;;
 			--no-alert)     alert=0; shift ;;
+			--lsps)        lsps=1; shift ;;
 			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
@@ -598,6 +680,12 @@ cmd_install() {
 		1) backend_enable_trustedcoin ;;
 		0) backend_disable && info "managed backend block removed — using bitcoind (default bcli)" ;;
 	esac
+
+	# FEAT-198 — cln-lsps plugin install runs alongside the unit
+	# install.  Same composition pattern as --trustedcoin.
+	if [ "$lsps" -eq 1 ]; then
+		install_lsps_plugin
+	fi
 
 	if is_macos; then
 		if [ $system -eq 1 ]; then

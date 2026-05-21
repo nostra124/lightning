@@ -41,13 +41,15 @@ usage() {
 	cat >&2 <<EOF
 usage: lightning liquidity <subcommand>
 
-   status                  TSV of per-channel inbound / outbound (sat)
-   in <sat> [--provider <name>]   acquire inbound capacity
-   out <sat> [--provider <name>]  acquire outbound capacity
-   loop in|out <sat>
-   boltz in|out <sat>
-   lsp <name> buy <sat>
-   provider default <name>
+   status                              TSV of per-channel inbound / outbound (sat)
+   in <sat> [--provider <name>] [--yes]   acquire inbound capacity
+   out <sat> [--provider <name>]          acquire outbound capacity
+   loop in|out <sat>                   Lightning Loop wrapper
+   boltz in|out <sat>                  Boltz submarine-swap wrapper
+   lsp <name> buy <sat> [--yes]        LSPS1 channel purchase (FEAT-198)
+                                       requires the cln-lsps plugin;
+                                       install via 'daemon install --lsps'
+   provider default <name>             set the default for liquidity in
 EOF
 }
 
@@ -100,31 +102,124 @@ call_boltz() {
 }
 
 call_lsp() {
-	# direction is always 'in' for LSPS1 (channel purchase); 'out' is N/A.
-	local direction="$1" name="$2" sat="$3"
+	# FEAT-198 — LSPS1 channel purchase via the cln-lsps plugin.
+	#
+	# Flow: connect → lsps1-get-info → confirm → lsps1-create-order →
+	#       pay invoice → poll lsps1-get-order until channel opens.
+	local direction="$1" name="$2" sat="$3" yes="${LIGHTNING_LSP_YES:-0}"
 	[ "$direction" = "in" ] || {
 		echo "lightning liquidity: LSPS1 only buys inbound capacity" >&2
 		return 1
 	}
-	local cfg endpoint
-	cfg="$(liq_dir)/lsp/$name/endpoint"
-	[ -f "$cfg" ] || {
-		echo "lightning liquidity: LSP '$name' not configured" >&2
-		echo "lightning liquidity: write the LSPS1 endpoint URL into $cfg" >&2
-		return 2
-	}
-	endpoint=$(cat "$cfg")
-	# Step 1: GET info to discover the LSP's options.
-	curl -fsSL "$endpoint/info" >/dev/null
-	# Step 2: POST create-order. clightning's `lsps1-create-order` plugin
-	# (if loaded) does this for us; fall back to raw curl otherwise.
-	if cli help lsps1-create-order 2>/dev/null | grep -q lsps1; then
-		cli lsps1-create-order "$endpoint" "$sat"
-	else
-		echo "lightning liquidity: lsps1-create-order plugin not loaded on this lightningd" >&2
-		echo "lightning liquidity: load core-lightning's lsps-client plugin and retry" >&2
+
+	# Plugin gate.  Without cln-lsps we don't attempt the wire protocol
+	# — pointing operators at the install path is more useful than
+	# failing mid-flow.
+	if ! cli help lsps1-get-info 2>/dev/null | grep -q lsps1-get-info; then
+		echo "lightning liquidity: cln-lsps plugin not loaded on this lightningd" >&2
+		echo "  install:  lightning daemon install --lsps" >&2
+		echo "  restart:  lightning daemon restart" >&2
 		return 3
 	fi
+
+	# LSP config: $wallet/liquidity/lsp/<name>/peer holds pubkey@host:port.
+	local peer_file peer pubkey
+	peer_file="$(liq_dir)/lsp/$name/peer"
+	[ -f "$peer_file" ] || {
+		echo "lightning liquidity: LSP '$name' not configured" >&2
+		echo "  write the LSP's Lightning peer (pubkey@host:port) to:" >&2
+		echo "    $peer_file" >&2
+		return 2
+	}
+	peer=$(tr -d '[:space:]' < "$peer_file")
+	pubkey="${peer%%@*}"
+	[ -n "$pubkey" ] && [ "$pubkey" != "$peer" ] || {
+		echo "lightning liquidity: '$peer_file' must contain pubkey@host:port" >&2
+		return 2
+	}
+
+	# Connect (idempotent — clightning treats existing peers as success).
+	cli connect "$peer" >/dev/null 2>&1 || {
+		echo "lightning liquidity: cannot connect to LSP $name ($peer)" >&2
+		return 4
+	}
+
+	# Quote.
+	local info_json min_sat max_sat
+	info_json=$(cli lsps1-get-info "$pubkey") || {
+		echo "lightning liquidity: lsps1-get-info failed against $name" >&2
+		return 5
+	}
+	min_sat=$(jq -r '.options.min_channel_balance_sat // "?"' <<<"$info_json")
+	max_sat=$(jq -r '.options.max_channel_balance_sat // "?"' <<<"$info_json")
+
+	# Confirmation prompt.  --yes (or $LIGHTNING_LSP_YES=1) skips it
+	# for unattended scripts.  No TTY + no --yes → refuse.
+	echo "  LSP:      $name ($pubkey)"
+	echo "  capacity: $sat sat   (range: $min_sat .. $max_sat)"
+	if [ "$yes" != "1" ]; then
+		if [ ! -t 0 ]; then
+			echo "lightning liquidity: stdin is not a TTY; pass --yes to skip the prompt" >&2
+			return 1
+		fi
+		printf "Proceed and pay the LSP's quote? [y/N] "
+		local ans; read -r ans
+		case "$ans" in y|Y|yes|YES) ;;
+		*) echo "lightning liquidity: declined by operator" >&2; return 1 ;;
+		esac
+	fi
+
+	# Create order.
+	local order_json invoice order_id
+	order_json=$(cli lsps1-create-order "$pubkey" "$sat") || {
+		echo "lightning liquidity: lsps1-create-order failed" >&2
+		return 5
+	}
+	invoice=$(jq -r '.payment.bolt11 // empty' <<<"$order_json")
+	order_id=$(jq -r '.order_id // empty' <<<"$order_json")
+	[ -n "$invoice" ] && [ -n "$order_id" ] || {
+		echo "lightning liquidity: malformed lsps1-create-order response (no bolt11 / order_id)" >&2
+		echo "$order_json" >&2
+		return 5
+	}
+
+	# Pay.
+	echo "lightning liquidity: paying order $order_id..."
+	cli pay "$invoice" >/dev/null || {
+		echo "lightning liquidity: payment failed" >&2
+		return 6
+	}
+
+	# Poll until the channel materialises.  Default timeout matches the
+	# typical LSPS1 "channel open within 10 minutes" SLA; operators on a
+	# slower LSP can bump LIGHTNING_LSP_TIMEOUT_S.
+	local timeout="${LIGHTNING_LSP_TIMEOUT_S:-600}" elapsed=0
+	local last_state="" state channel_id status_json
+	while [ "$elapsed" -lt "$timeout" ]; do
+		status_json=$(cli lsps1-get-order "$order_id") || {
+			echo "lightning liquidity: lsps1-get-order failed mid-poll" >&2
+			return 7
+		}
+		state=$(jq -r '.payment.state // empty' <<<"$status_json")
+		channel_id=$(jq -r '.channel.channel_id // empty' <<<"$status_json")
+		if [ -n "$state" ] && [ "$state" != "$last_state" ]; then
+			echo "lightning liquidity: state=$state"
+			last_state=$state
+		fi
+		case "$state" in
+			REFUNDED|FAILED|CANCELLED)
+				echo "lightning liquidity: order ended in state '$state'" >&2
+				return 8 ;;
+		esac
+		if [ -n "$channel_id" ]; then
+			echo "✓ channel open: $channel_id"
+			return 0
+		fi
+		sleep "${LIGHTNING_LSP_POLL_INTERVAL_S:-10}"
+		elapsed=$((elapsed + ${LIGHTNING_LSP_POLL_INTERVAL_S:-10}))
+	done
+	echo "lightning liquidity: timed out after ${timeout}s waiting for channel" >&2
+	return 7
 }
 
 cmd_in() {
@@ -133,6 +228,7 @@ cmd_in() {
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--provider) provider="$2"; shift 2 ;;
+			--yes)      export LIGHTNING_LSP_YES=1; shift ;;
 			*) echo "lightning liquidity in: unknown flag '$1'" >&2; exit 1 ;;
 		esac
 	done
@@ -181,7 +277,10 @@ case "${1:-}" in
 	out)      shift; cmd_out "$@" ;;
 	loop)     shift; call_loop  "$1" "$2" ;;
 	boltz)    shift; call_boltz "$1" "$2" ;;
-	lsp)      shift; [ "$2" = "buy" ] || { echo "usage: lightning liquidity lsp <name> buy <sat>" >&2; exit 1; }
+	lsp)      shift
+	          [ "$2" = "buy" ] || { echo "usage: lightning liquidity lsp <name> buy <sat> [--yes]" >&2; exit 1; }
+	          # Consume an optional --yes anywhere after the sat arg.
+	          for arg in "$@"; do [ "$arg" = "--yes" ] && export LIGHTNING_LSP_YES=1; done
 	          call_lsp in "$1" "$3" ;;
 	provider) shift; cmd_provider "$@" ;;
 	"")       usage; exit 1 ;;

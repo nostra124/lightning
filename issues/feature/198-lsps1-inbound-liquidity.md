@@ -2,137 +2,164 @@
 id: FEAT-198
 type: feature
 priority: medium
-status: open
+status: in-progress
 ---
 
-# Real LSPS1 inbound liquidity — replace the `liquidity in / lsp` stubs
+# Real LSPS1 inbound liquidity — wrap the cln-lsps plugin
 
 ## Description
 
 **As a** user who needs to receive Lightning payments
-**I want** `lightning liquidity in <amount>` and
-`lightning liquidity lsp <name> buy <amount>` to actually
-open an inbound channel from an LSP using the LSPS1 protocol
+**I want** `lightning liquidity lsp <name> buy <amount>` to actually
+open an inbound channel from any LSPS1-compliant LSP
 **So that** I don't have to use a CEX or run a payment
 processor's hosted node to receive sats reliably.
 
-Filed retroactively from MILESTONE-0.7.0 / MILESTONE-0.8.0
-references. Deferred from 0.7.0 because the spec discussion
-revealed it's research-heavy: needs decisions on which LSP
-to target first and whether to wrap an existing LSPS1 client
-plugin or hand-roll over `sendcustommsg`.
+Implementation: wrap the **cln-lsps** Core Lightning plugin
+(community-maintained Rust plugin that speaks LSPS0 transport over
+BOLT-1 custom messages and exposes LSPS1 RPCs).  Our verbs are thin
+wrappers — the plugin handles the wire protocol, message framing,
+and order-state machine.  First test target: **Boltz's LSPS1
+endpoint**, but the plugin is LSP-agnostic so Voltage / Olympus /
+Megalith / Blocktank work too with just a config-file change.
 
 ## Background
 
-The current `libexec/lightning/liquidity` script has the
-right CLI surface (`liquidity in`, `liquidity lsp <name>
-buy`, etc.) but the implementations print "ok" and exit
-without opening any channels. They were placeholders
-shipped in 0.5.0.
+The current `libexec/lightning/liquidity` script has the right CLI
+surface (`liquidity in`, `liquidity lsp <name> buy`, etc.) but the
+LSPS1 implementations print "ok" and exit without opening any
+channels.  They were placeholders shipped in 0.5.0.
 
-LSPS1 (BLIP-51) is the standardised way for clients to ask
-LSPs for inbound liquidity. The protocol uses Lightning's
-custom-message wire (BOLT-1 type-65535 + LSP-specific
-sub-types) for:
+LSPS1 (BLIP-51) is the standardised way for clients to ask LSPs
+for inbound liquidity.  The protocol exchanges three messages over
+BOLT-1 custom messages (LSPS0 transport):
 
-   LSPS0: lsps0.list_protocols     # discovery
-   LSPS1: lsps1.get_info           # quote (sizes, fees, expiry)
-   LSPS1: lsps1.create_order       # commit to buy, get payment req
-   (pay the invoice or on-chain order via existing verbs)
-   LSPS1: lsps1.get_order          # poll status until channel opens
+   lsps1.get_info         # quote: sizes, fees, expiry
+   lsps1.create_order     # commit to buy, get payment request
+   lsps1.get_order        # poll status until channel opens
 
-The challenge: clightning doesn't ship an LSPS1 client. We
-either build one or wrap a third-party plugin.
+The challenge was that clightning didn't ship an LSPS1 client.
+That's resolved by **cln-lsps** — a Rust plugin that implements
+LSPS0 transport + LSPS1 RPCs as `lightning-cli` commands.
 
-## Implementation paths
+## Approach: wrap cln-lsps
 
-### Option A — Wrap an existing LSPS1 client plugin
+```
+liquidity lsp <name> buy <sat>
+  │
+  ├─ cli connect $LSP_PEER                       # pubkey@host:port from config
+  ├─ cli lsps1-get-info <pubkey>                 # quote
+  ├─ display price, prompt confirm (or --yes)
+  ├─ cli lsps1-create-order <pubkey> <sat> ...   # pay-to invoice
+  ├─ cli pay <bolt11>                            # send sats
+  └─ poll cli lsps1-get-order <id> until done    # channel-state machine
+```
 
-Pros: protocol details handled by someone else; fewer lines
-of code in our tree.
-Cons: as of 2026, the canonical CLN-side LSPS1 client doesn't
-exist in `lightningd/plugins`. Candidates would be project-
-specific (Voltage's, Megalith's, Olympus by Zeus's).
-Vendor lock-in risk.
+The plugin handles the wire framing, retries, and order-state
+machine; we orchestrate the operator-facing flow (display, confirm,
+pay, poll, report).
 
-### Option B — Hand-roll over `sendcustommsg`
+### Why this beats Option B (hand-roll over `sendcustommsg`)
 
-Pros: stays in this repo; no external runtime dependencies;
-educational value matches our design principles.
-Cons: ~500-1000 lines of bash + json. We'd need:
+- ~200 lines of bash + jq instead of ~1000+ lines re-implementing
+  BOLT-1 custom-message framing and an async-notification poller.
+- Tracks the LSPS1 spec via someone else's maintenance.
+- Same plugin will unlock LSPS2 in a follow-up (FEAT-198b) without
+  rewiring our verb surface.
 
-- LSPS message framing (BOLT-1 type 37913 / 37925 for LSPS0/1)
-- async response handling (custom-message notifications arrive
-  via `notification` plugin hook, but we're a shell wrapper —
-  may need a small plugin or a polling loop)
-- handling LSPS1's order-state machine
-- pay-the-invoice integration with our existing `invoice pay`
+### Why this beats Option C (bespoke REST per LSP)
 
-### Option C — Tactical: bespoke per-LSP REST integration
+- Works against any LSPS1-compliant LSP from day 1 — no per-LSP
+  REST integration to maintain.
+- One source of truth for the protocol; LSP changes ride upstream.
+- Boltz's LSPS1 wire endpoint is what we'll test against first, but
+  Voltage / Olympus / Megalith / Blocktank work too.
 
-Pros: shortest path to a working flow against one specific
-LSP. Most LSPs expose a REST API for orders alongside the
-LSPS1 wire protocol.
-Cons: not portable; each LSP needs its own implementation;
-not the standardised LSPS1 path.
+## Plugin installation
 
-### Recommended sequence
+Modelled on the existing `daemon install --trustedcoin` pattern.
+New flag:
 
-1. Survey current LSPs and their LSPS1 support (Voltage,
-   Olympus by Zeus, Megalith, Boltz, etc.).
-2. Pick one to target as a first integration.
-3. If they have a clean REST API, do Option C as MVP (gets
-   users a working flow fast).
-4. Refactor to Option B once the second LSP is on the
-   roadmap (the bespoke REST integration becomes
-   maintenance burden the moment we add a second).
-5. If a canonical LSPS1 client plugin emerges upstream
-   before we're done, switch to Option A.
+   lightning daemon install --lsps
 
-## Surface (already in place)
+Downloads the cln-lsps prebuilt binary into `$LIGHTNING_DIR/plugins/`
+and adds `plugin=...` to `$LIGHTNING_CONF` so lightningd loads it on
+next start.  Plugin source + pin live in two constants near
+`TRUSTEDCOIN_REPO` / `TRUSTEDCOIN_VERSION`.
+
+There's a small architectural debt to call out: we now have two
+one-off plugin installers (trustedcoin + cln-lsps).  A future
+generic `lightning plugin install <name>` verb will unify them, but
+that's deferred — duplicating the pattern once is cheaper than
+designing the generic shape before we know what third plugin will
+arrive.
+
+## Configuration
+
+Each LSP is configured under the active wallet's repo:
+
+   $wallet/liquidity/lsp/<name>/peer    # pubkey@host:port
+
+Example for Boltz mainnet (operator runs once):
+
+   mkdir -p $wallet/liquidity/lsp/boltz
+   echo '02d96eadea3d780104449aca5c93461ce67c1564e2e1d73225fa67dd3b997a6018@45.86.229.190:9735' \
+     > $wallet/liquidity/lsp/boltz/peer
+
+The old `endpoint` file (HTTP URL for the REST path that was never
+finished) is left as-is; new installs use `peer` instead.
+
+## Surface (no changes from 0.5.0)
 
 ```
 lightning liquidity in <amount> [--provider lsp|loop|boltz]
-lightning liquidity lsp <name> buy <amount>
+lightning liquidity lsp <name> buy <amount> [--yes]
 lightning liquidity provider default <name>
 ```
 
-Implementation work fills in the bodies. No CLI surface
-changes expected.
+Adds `--yes` to skip the cost-confirmation prompt for unattended
+scripts.  No other surface changes.
 
 ## Acceptance Criteria
 
-1. `lightning liquidity lsp <name> buy <sat>` against at
-   least one configured LSP actually opens an inbound
-   channel of <sat> sat to our node (verifiable via
-   `lightning channel list` after order completes).
-2. The flow handles the order-state machine: pending →
-   waiting-for-tx → channel-open. Operator sees status
-   updates (recfile) without polling manually.
-3. Cost transparency: before paying, print the quoted price
-   in sats + a clear "type Y to confirm" or `--yes` flag.
-4. Failure modes are clearly reported (LSP unreachable,
-   quote expired, payment failed, channel never opened).
-5. Bats coverage with a stubbed LSP that returns canned
-   LSPS1 responses.
-6. The personal-node and routing-node guides update their
-   tier-4 sections from "stub today" to "ships real".
+1. With cln-lsps loaded and a configured LSP, `lightning liquidity
+   lsp boltz buy <sat>` runs the full sequence:
+   connect → get-info → confirm → create-order → pay → poll → done.
+2. The flow handles the order-state machine: pending → waiting-for-
+   payment → channel-opening → channel-open (or refunded on error).
+3. Cost transparency: before paying, print the quoted price in
+   sats + a clear "type Y to confirm" or `--yes` flag.
+4. Failure modes are clearly reported (plugin not loaded, LSP
+   unreachable, quote expired, payment failed, order refunded,
+   channel never opened).
+5. Bats coverage with a stubbed lightning-cli that returns canned
+   lsps1-get-info / lsps1-create-order / lsps1-get-order responses.
+6. The personal-node and routing-node guides update their tier-4
+   sections from "stub today" to "ships real".
 
 ## Out of scope
 
-- LSPS2 (channel sales the other direction — operator
-  selling inbound to other peers).
-- Magma marketplace integration (different protocol /
-  layer; can land separately as FEAT-198a).
+- **LSPS2 (JIT channels)** — same plugin supports it, separate
+  ticket (**FEAT-198b**) to expose `liquidity jit on/off` and the
+  invoice-wrapping logic.
+- **Magma marketplace** — different protocol model; separate
+  ticket (**FEAT-198a**).
+- **Wyrd P2P clan / marketplace** — FEAT-208.
+- **Generic `lightning plugin install` verb** — future refactor;
+  trustedcoin + cln-lsps duplicate the install pattern for now.
 
 ## Milestone
 
-0.8.0.
+1.4.0.
 
 ## See also
 
 - BLIP-51 / LSPS1 spec: https://github.com/BitcoinAndLightningLayerSpecs/lsp/blob/main/LSPS1/README.md
 - LSPS0 (transport): https://github.com/BitcoinAndLightningLayerSpecs/lsp/blob/main/LSPS0/common-schemas.md
-- `libexec/lightning/liquidity` (the verbs to implement)
+- cln-lsps plugin: see the `LSPS_PLUGIN_REPO` constant in
+  `libexec/lightning/daemon` for the current pinned source.
+- `libexec/lightning/liquidity` (the verb to wire up)
 - FEAT-202 (personal-node guide — tier 4 references this)
 - FEAT-203 (routing-node guide — same)
+- FEAT-208 (Wyrd P2P alternative)
+
