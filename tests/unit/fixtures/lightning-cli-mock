@@ -198,6 +198,60 @@ EOF
 	listforwards)
 		echo '{"forwards": []}'
 		;;
+	# FEAT-198 — cln-lsps plugin RPCs.  Tests set MOCK_LSPS1_STATE /
+	# MOCK_LSPS1_CHANNEL_ID to drive the order-state machine; defaults
+	# are the happy path (state=READY, channel materialised on first poll).
+	lsps1-get-info)
+		cat <<EOF
+{
+  "options": {
+    "min_channel_balance_sat": "100000",
+    "max_channel_balance_sat": "10000000",
+    "min_initial_client_balance_sat": "0",
+    "max_initial_client_balance_sat": "0",
+    "min_initial_lsp_balance_sat": "100000",
+    "max_initial_lsp_balance_sat": "10000000",
+    "min_channel_expiry_blocks": 4320,
+    "max_channel_expiry_blocks": 52560
+  }
+}
+EOF
+		;;
+	lsps1-create-order)
+		# args: pubkey sat
+		cat <<EOF
+{
+  "order_id": "mock-order-${MOCK_LSPS1_ORDER_ID:-deadbeef}",
+  "payment": {
+    "bolt11": "lnbcrt${2}n1pmocktestlsps1",
+    "fee_total_sat": "5000",
+    "order_total_sat": "$2",
+    "state": "EXPECT_PAYMENT"
+  }
+}
+EOF
+		;;
+	lsps1-get-order)
+		# args: order_id
+		state="${MOCK_LSPS1_STATE:-READY}"
+		channel_id="${MOCK_LSPS1_CHANNEL_ID-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}"
+		if [ -n "$channel_id" ]; then
+			cat <<EOF
+{
+  "order_id": "$2",
+  "payment": {"state": "$state"},
+  "channel": {"channel_id": "$channel_id"}
+}
+EOF
+		else
+			cat <<EOF
+{
+  "order_id": "$2",
+  "payment": {"state": "$state"}
+}
+EOF
+		fi
+		;;
 	*)
 		echo "mock lightning-cli: unhandled command '$1'" >&2
 		exit 1

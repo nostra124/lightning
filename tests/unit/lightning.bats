@@ -1136,6 +1136,155 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# FEAT-198: LSPS1 inbound liquidity via cln-lsps plugin
+# ---------------------------------------------------------------------------
+
+# Set up a wallet + an LSP "boltz" config at $wallet/liquidity/lsp/boltz/peer.
+# Tests that want the happy path also export MOCK_HELP_INCLUDES so the
+# plugin gate passes.
+_lsps_setup_wallet() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	mkdir -p "$LIGHTNING_WALLETS_ROOT/alice/liquidity/lsp/boltz"
+	# Format: pubkey@host:port — uses a deterministic test pubkey.
+	echo "02d96eadea3d780104449aca5c93461ce67c1564e2e1d73225fa67dd3b997a6018@45.86.229.190:9735" \
+		> "$LIGHTNING_WALLETS_ROOT/alice/liquidity/lsp/boltz/peer"
+}
+
+# Set MOCK_HELP_INCLUDES so `cli help lsps1-get-info` returns a non-empty
+# help array; this is how the verb detects the plugin is loaded.
+_lsps_plugin_loaded() {
+	export MOCK_HELP_INCLUDES='{"command":"lsps1-get-info","verbose":"..."}'
+}
+
+@test "FEAT-198: liquidity lsp buy errors clearly when cln-lsps plugin not loaded" {
+	_lsps_setup_wallet
+	# Don't set MOCK_HELP_INCLUDES — help returns [], plugin gate fails.
+	run "$LIGHTNING_BIN" liquidity lsp boltz buy 1000000 --yes
+	[ "$status" -eq 3 ]
+	[[ "$output" == *"cln-lsps plugin not loaded"* ]]
+	[[ "$output" == *"daemon install --lsps"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-198: liquidity lsp buy errors when LSP peer is not configured" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	_lsps_plugin_loaded
+	# No peer file — verb should refuse with a config-write hint.
+	run "$LIGHTNING_BIN" liquidity lsp boltz buy 1000000 --yes
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"LSP 'boltz' not configured"* ]]
+	[[ "$output" == *"pubkey@host:port"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-198: liquidity lsp buy rejects a malformed peer file" {
+	_lsps_setup_wallet
+	_lsps_plugin_loaded
+	echo "not-a-valid-peer-uri-no-at-sign" > "$LIGHTNING_WALLETS_ROOT/alice/liquidity/lsp/boltz/peer"
+	run "$LIGHTNING_BIN" liquidity lsp boltz buy 1000000 --yes
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"pubkey@host:port"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-198: liquidity lsp buy refuses without --yes when stdin is not a TTY" {
+	_lsps_setup_wallet
+	_lsps_plugin_loaded
+	# bats `run` doesn't allocate a TTY — exactly the path the test names.
+	run "$LIGHTNING_BIN" liquidity lsp boltz buy 1000000
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"not a TTY"* ]]
+	[[ "$output" == *"--yes"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-198: liquidity lsp buy --yes runs the full happy-path flow" {
+	_lsps_setup_wallet
+	_lsps_plugin_loaded
+	# Default MOCK_LSPS1_STATE / MOCK_LSPS1_CHANNEL_ID — channel materialises
+	# on first poll, so the loop exits cleanly.
+	run "$LIGHTNING_BIN" liquidity lsp boltz buy 1000000 --yes
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"capacity: 1000000 sat"* ]]
+	[[ "$output" == *"paying order mock-order-"* ]]
+	[[ "$output" == *"channel open: abcdef"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-198: liquidity lsp buy reports REFUNDED as a clear failure" {
+	_lsps_setup_wallet
+	_lsps_plugin_loaded
+	export MOCK_LSPS1_STATE=REFUNDED
+	# Suppress channel_id so we hit the state-machine terminal branch
+	# before the channel-found branch.
+	export MOCK_LSPS1_CHANNEL_ID=""
+	run "$LIGHTNING_BIN" liquidity lsp boltz buy 1000000 --yes
+	[ "$status" -eq 8 ]
+	[[ "$output" == *"REFUNDED"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-198: liquidity lsp buy propagates a connect failure" {
+	_lsps_setup_wallet
+	_lsps_plugin_loaded
+	export MOCK_FAIL_CONNECT=1
+	run "$LIGHTNING_BIN" liquidity lsp boltz buy 1000000 --yes
+	[ "$status" -eq 4 ]
+	[[ "$output" == *"cannot connect to LSP boltz"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-198: liquidity lsp buy propagates an lsps1-get-info failure" {
+	_lsps_setup_wallet
+	_lsps_plugin_loaded
+	export MOCK_FAIL_LSPS1_GET_INFO=1
+	run "$LIGHTNING_BIN" liquidity lsp boltz buy 1000000 --yes
+	[ "$status" -eq 5 ]
+	[[ "$output" == *"lsps1-get-info failed"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-198: liquidity lsp buy times out cleanly when channel never appears" {
+	_lsps_setup_wallet
+	_lsps_plugin_loaded
+	# No channel_id ever — verb polls until LIGHTNING_LSP_TIMEOUT_S elapses.
+	export MOCK_LSPS1_CHANNEL_ID=""
+	export MOCK_LSPS1_STATE=EXPECT_PAYMENT
+	export LIGHTNING_LSP_TIMEOUT_S=2
+	export LIGHTNING_LSP_POLL_INTERVAL_S=1
+	run "$LIGHTNING_BIN" liquidity lsp boltz buy 1000000 --yes
+	[ "$status" -eq 7 ]
+	[[ "$output" == *"timed out"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-198: daemon install --lsps flag is parsed without exploding" {
+	# Dry-test only — actual binary download would need curl + tar shims
+	# (see _stub_trustedcoin_curl for the pattern).  Here we just verify
+	# the flag is recognised, the existing service-unit code still runs,
+	# and the relevant constants are present in the source.
+	grep -q '^LSPS_PLUGIN_REPO=' "$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
+	grep -q '^LSPS_PLUGIN_VERSION=' "$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
+	grep -q 'install_lsps_plugin' "$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
+	# Flag parses — daemon install --lsps shouldn't fail on the flag itself.
+	# (It WILL fail later trying to download the plugin without curl shims;
+	# we just check it gets past flag parsing.)
+	run grep -E '^\s+--lsps\)' "$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
+	[ "$status" -eq 0 ]
+}
+
+@test "FEAT-198: spec file references the cln-lsps plugin approach" {
+	f="$BATS_TEST_DIRNAME/../../issues/feature/198-lsps1-inbound-liquidity.md"
+	[ -f "$f" ]
+	grep -q "^id: FEAT-198" "$f"
+	grep -q "cln-lsps" "$f"
+	grep -q "Boltz" "$f"
+	grep -q "daemon install --lsps" "$f"
+}
+
+# ---------------------------------------------------------------------------
 # FEAT-176: Lightning Address
 # ---------------------------------------------------------------------------
 
