@@ -2,7 +2,7 @@
 id: FEAT-205
 type: feature
 priority: low
-status: open
+status: shipped
 ---
 
 # `lightning channel autopilot` — combined fee + rebalance + suggest daemon
