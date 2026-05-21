@@ -2313,3 +2313,100 @@ EOF
 	# `needs: test` ensures the gate-job runs first.
 	grep -qE "^[[:space:]]*needs:[[:space:]]*test" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-207 — `lightning daemon install-core` scaffold
+# (issues/feature/207-clightning-install.md)
+# ---------------------------------------------------------------------------
+
+@test "FEAT-207: daemon install-core --help mentions the five backends" {
+	run "$LIGHTNING_BIN" daemon install-core --help
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"--rpk"*    ]]
+	[[ "$output" == *"--brew"*   ]]
+	[[ "$output" == *"--apk"*    ]]
+	[[ "$output" == *"--source"* ]]
+	[[ "$output" == *"--podman"* ]]
+}
+
+@test "FEAT-207: daemon install-core --help calls out docker as non-goal" {
+	run "$LIGHTNING_BIN" daemon install-core --help
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"docker is not supported"* ]] || \
+	[[ "$output" == *"docker"* && "$output" == *"podman"* ]]
+}
+
+@test "FEAT-207: install-core --dry-run --rpk prints the rpk plan" {
+	run "$LIGHTNING_BIN" daemon install-core --rpk --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"backend:"*"rpk"* ]]
+	[[ "$output" == *"rpk install lightningd"* ]]
+}
+
+@test "FEAT-207: install-core --dry-run --brew prints the brew plan" {
+	run "$LIGHTNING_BIN" daemon install-core --brew --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"brew install core-lightning"* ]]
+}
+
+@test "FEAT-207: install-core --dry-run --apk prints the apk plan" {
+	run "$LIGHTNING_BIN" daemon install-core --apk --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"apk add lightningd"* ]]
+}
+
+@test "FEAT-207: install-core --dry-run --source prints the source plan" {
+	run "$LIGHTNING_BIN" daemon install-core --source --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"git clone"* ]]
+	[[ "$output" == *"configure"* ]]
+}
+
+@test "FEAT-207: install-core --dry-run --podman prints the podman plan" {
+	run "$LIGHTNING_BIN" daemon install-core --podman --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"podman pull"* ]]
+	[[ "$output" == *"elementsproject/lightningd"* ]]
+}
+
+@test "FEAT-207: install-core --docker refuses and hints at --podman" {
+	run "$LIGHTNING_BIN" daemon install-core --docker
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"docker is not supported"* ]]
+	[[ "$output" == *"--podman"* ]]
+}
+
+@test "FEAT-207: install-core rejects two backend flags" {
+	run "$LIGHTNING_BIN" daemon install-core --rpk --brew --dry-run
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"pick one backend"* ]]
+}
+
+@test "FEAT-207: install-core --version pin shows up in the plan" {
+	run "$LIGHTNING_BIN" daemon install-core --brew --version v26.04.1 --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"version:"*"v26.04.1"* ]]
+}
+
+@test "FEAT-207: install-core unknown flag fails" {
+	run "$LIGHTNING_BIN" daemon install-core --not-a-real-flag
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown flag"* ]]
+}
+
+@test "FEAT-207: install-core (no --dry-run) warns it's a scaffold" {
+	# With a backend flag so detection can't fail in the test env.
+	run "$LIGHTNING_BIN" daemon install-core --rpk
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"scaffold"* ]]
+	[[ "$output" == *"FEAT-207"* ]]
+}
+
+@test "FEAT-207: spec file exists with the expected id" {
+	f="$BATS_TEST_DIRNAME/../../issues/feature/207-clightning-install.md"
+	[ -f "$f" ]
+	grep -q "^id: FEAT-207" "$f"
+	grep -q "install-core" "$f"
+	grep -q "podman" "$f"
+	grep -q "OpenRC" "$f"
+}

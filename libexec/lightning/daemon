@@ -99,6 +99,12 @@ subcommands:
                           generate a service unit (systemd on Linux,
                           launchd on macOS). --system writes a
                           system-wide unit (Linux three-user layout).
+   install-core [--rpk|--brew|--apk|--source|--podman]
+                [--version <tag>] [--system] [--yes] [--dry-run]
+                          install Core Lightning itself (FEAT-207).
+                          With no backend flag, auto-detects per
+                          platform.  Stubbed today; implementation
+                          tracked in issues/feature/207-clightning-install.md.
 EOF
 }
 
@@ -1008,6 +1014,113 @@ EOF
 	info "log out and back in for your group membership to take effect"
 }
 
+# ---------------------------------------------------------------------------
+# FEAT-207 — install-core (Core Lightning binary installer)
+#
+# Currently a scaffold: parses flags, computes the planned action, prints
+# what it would do, and exits.  The contract and implementation plan live
+# in issues/feature/207-clightning-install.md.
+# ---------------------------------------------------------------------------
+
+# Returns: darwin / ubuntu / alpine / unknown
+platform_id() {
+	if is_macos; then echo darwin; return; fi
+	if [ -r /etc/os-release ]; then
+		# shellcheck disable=SC1091
+		. /etc/os-release
+		case "${ID:-}" in
+			ubuntu|debian) echo ubuntu; return ;;
+			alpine)        echo alpine; return ;;
+		esac
+		case "${ID_LIKE:-}" in
+			*debian*) echo ubuntu; return ;;
+		esac
+	fi
+	echo unknown
+}
+
+# Returns: systemd / launchd / openrc / none
+init_system() {
+	if is_macos; then echo launchd; return; fi
+	if command -v openrc >/dev/null 2>&1 || [ -d /etc/init.d ] && [ "$(platform_id)" = "alpine" ]; then
+		echo openrc; return
+	fi
+	if command -v systemctl >/dev/null 2>&1; then
+		echo systemd; return
+	fi
+	echo none
+}
+
+# Returns: rpk / brew / apk / source / podman / none
+preferred_backend() {
+	command -v rpk    >/dev/null 2>&1 && { echo rpk;    return; }
+	if is_macos && command -v brew >/dev/null 2>&1; then
+		echo brew; return
+	fi
+	if [ "$(platform_id)" = "alpine" ] && command -v apk >/dev/null 2>&1; then
+		echo apk; return
+	fi
+	command -v podman >/dev/null 2>&1 && { echo podman; return; }
+	if [ "$(platform_id)" = "ubuntu" ]; then
+		echo source; return
+	fi
+	echo none
+}
+
+cmd_install_core() {
+	local backend="" version="" system=0 yes=0 dry_run=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--rpk|--brew|--apk|--source|--podman)
+				[ -n "$backend" ] && { error "install-core: pick one backend flag, got '$backend' and '$1'"; exit 1; }
+				backend="${1#--}"; shift ;;
+			--version) version="$2"; shift 2 ;;
+			--system)  system=1; shift ;;
+			--yes)     yes=1; shift ;;
+			--dry-run) dry_run=1; shift ;;
+			--help|-h) subhelp install-core; exit 0 ;;
+			--docker)
+				error "install-core: docker is not supported — use --podman (FEAT-207 §non-goals)"
+				info  "  install podman:  https://podman.io/docs/installation"
+				exit 1 ;;
+			*) error "install-core: unknown flag '$1'"; exit 1 ;;
+		esac
+	done
+
+	[ -n "$backend" ] || backend=$(preferred_backend)
+
+	if [ "$backend" = "none" ]; then
+		error "install-core: cannot auto-detect a backend for platform '$(platform_id)'"
+		info  "  pass one of: --rpk --brew --apk --source --podman"
+		info  "  see: issues/feature/207-clightning-install.md"
+		exit 2
+	fi
+
+	# Scaffold body: print the plan, no side effects.  Real implementation
+	# tracked in FEAT-207.  --dry-run is currently the only mode.
+	echo "backend:    $backend"
+	echo "platform:   $(platform_id)"
+	echo "init:       $(init_system)"
+	echo "version:    ${version:-latest}"
+	echo "scope:      $([ $system -eq 1 ] && echo system || echo user)"
+	echo "confirm:    $([ $yes -eq 1 ] && echo skip || echo prompt)"
+	echo "mode:       $([ $dry_run -eq 1 ] && echo dry-run || echo planned)"
+
+	case "$backend" in
+		rpk)    echo "plan:       rpk install lightningd${version:+ --version $version}" ;;
+		brew)   echo "plan:       brew install core-lightning${version:+@$version}" ;;
+		apk)    echo "plan:       apk add lightningd${version:+=$version}" ;;
+		source) echo "plan:       git clone ElementsProject/lightning && ./configure && make && sudo make install" ;;
+		podman) echo "plan:       podman pull elementsproject/lightningd${version:+:$version} + run + cli shim" ;;
+	esac
+
+	if [ $dry_run -eq 0 ]; then
+		# Always-on notice (not via warn()) — operators must not miss this.
+		echo "note: install-core is a scaffold today — see FEAT-207 for implementation status" >&2
+		echo "      (re-run with --dry-run to suppress this notice)"                            >&2
+	fi
+}
+
 SELF_LIBEXEC="${SELF_LIBEXEC:-$(cd "$(dirname "$0")/.." && pwd)}"
 
 subhelp() {
@@ -1133,6 +1246,29 @@ Sidecars (user-mode only, default ON):
                  webhooks when conditions trip.
 EOF
 			;;
+		install-core)
+			cat <<EOF
+usage: lightning daemon install-core
+           [--rpk|--brew|--apk|--source|--podman]
+           [--version <tag>] [--system] [--yes] [--dry-run]
+
+Install Core Lightning itself — the lightningd binary.  With no
+backend flag, the verb auto-detects per platform:
+
+   1. \`rpk\`     when an \`lightningd\` rpk package is on PATH
+   2. \`brew\`    on macOS with Homebrew
+   3. \`apk\`     on Alpine
+   4. \`podman\`  cross-platform fallback (rootless container)
+   5. \`source\`  Ubuntu / Debian (no upstream apt package)
+
+\`docker\` is not supported — pass \`--podman\` instead.
+\`lnd\` and other backends are out of scope (single backend by design).
+
+Currently a scaffold (FEAT-207): parses flags, prints the plan,
+makes no filesystem changes.  Track implementation under
+issues/feature/207-clightning-install.md.
+EOF
+			;;
 		*)
 			usage
 			return 1
@@ -1147,14 +1283,15 @@ case "${1:-}" in
 esac
 
 case "$SUB" in
-	start)   cmd_start "$@" ;;
-	run)     cmd_run "$@" ;;
-	stop)    cmd_stop "$@" ;;
-	restart) cmd_restart "$@" ;;
-	status)  cmd_status "$@" ;;
-	logs)    cmd_logs "$@" ;;
-	install) cmd_install "$@" ;;
-	help)    subhelp "${1:-}" || usage; exit ;;
-	"")      usage; exit 1 ;;
-	*)       error "daemon: unknown subcommand '$SUB'"; usage; exit 1 ;;
+	start)        cmd_start "$@" ;;
+	run)          cmd_run "$@" ;;
+	stop)         cmd_stop "$@" ;;
+	restart)      cmd_restart "$@" ;;
+	status)       cmd_status "$@" ;;
+	logs)         cmd_logs "$@" ;;
+	install)      cmd_install "$@" ;;
+	install-core) cmd_install_core "$@" ;;
+	help)         subhelp "${1:-}" || usage; exit ;;
+	"")           usage; exit 1 ;;
+	*)            error "daemon: unknown subcommand '$SUB'"; usage; exit 1 ;;
 esac
