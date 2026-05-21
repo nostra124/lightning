@@ -1990,7 +1990,7 @@ EOF
 # --- offer ------------------------------------------------------------------
 
 @test "1.2.0 ext: offer accepts 'any' amount" {
-	run "$LIGHTNING_BIN" offer any tip-jar
+	run "$LIGHTNING_BIN" offer create any tip-jar
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == lno* ]]
 }

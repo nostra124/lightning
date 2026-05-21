@@ -54,8 +54,10 @@ ensure_reckless_config() {
 	[ -f "$cfg" ] || : >"$cfg"
 }
 
-reckless_verbosity() {
-	[ -n "$SELF_VERBOSE" ] && echo "-v" || echo ""
+reckless_args() {
+	# Outputs "-v" when verbose; nothing otherwise. Callers expand
+	# via `$(reckless_args)` — empty output means no extra args.
+	[ -n "$SELF_VERBOSE" ] && echo "-v"
 }
 
 # -----------------------------------------------------------------------------
@@ -115,11 +117,13 @@ cmd_install() {
 		info "registering source: $url"
 		# `reckless source add` is idempotent — if the repo is already
 		# registered it returns non-zero with a clear message we swallow.
-		reckless $(reckless_verbosity) source add "$url" >/dev/null 2>&1 || true
+		# shellcheck disable=SC2046  # word-split is intentional: produces 0 or 1 args.
+		reckless $(reckless_args) source add "$url" >/dev/null 2>&1 || true
 	fi
 
 	info "reckless install $name"
-	if ! reckless $(reckless_verbosity) install "$name"; then
+	# shellcheck disable=SC2046  # word-split is intentional: produces 0 or 1 args.
+	if ! reckless $(reckless_args) install "$name"; then
 		error "reckless install failed for '$name'"
 		error "  list sources:    lightning plugin list-sources   (or 'reckless source list')"
 		error "  add a source:    lightning plugin install $name <owner/repo>"
@@ -140,7 +144,8 @@ cmd_remove() {
 	if has_reckless; then
 		ensure_reckless_config
 		info "reckless uninstall $name"
-		if reckless $(reckless_verbosity) uninstall "$name"; then
+		# shellcheck disable=SC2046  # word-split is intentional: produces 0 or 1 args.
+		if reckless $(reckless_args) uninstall "$name"; then
 			echo "ok"
 			echo "removed: $name"
 			return 0

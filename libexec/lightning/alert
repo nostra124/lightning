@@ -348,10 +348,9 @@ cmd_test() {
 }
 
 cmd_run() {
-	local once=0
 	while [ $# -gt 0 ]; do
 		case "$1" in
-			--once) once=1; shift ;;
+			--once) shift ;;  # currently a no-op; sidecar timer drives recurrence
 			*) error "run: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
