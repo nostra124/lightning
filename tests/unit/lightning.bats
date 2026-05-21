@@ -3104,6 +3104,145 @@ _podman_common_setup() {
 }
 
 # ---------------------------------------------------------------------------
+# FEAT-207 — daemon lifecycle commands wired through podman
+# ---------------------------------------------------------------------------
+
+# Lifecycle variant of _stub_podman.  Defaults to "container exists,
+# not running"; the start/stop verbs flip a state file the inspect
+# branch reads.  daemon_running's `cli getinfo` (against the mocked
+# lightning-cli) keys off MOCK_STATE, which podman start/stop also
+# flip so the post-start probe + cli-tied checks see consistent state.
+_stub_podman_lifecycle() {
+	cat > "$BIN_SHIM/podman" <<EOF
+#!/bin/sh
+echo "podman \$*" >> "$BIN_SHIM/podman.calls"
+state="$BIN_SHIM/podman-running"
+case "\$1" in
+	container)
+		if [ "\$2" = "exists" ]; then
+			[ "\${PODMAN_CONTAINER_EXISTS:-1}" = "1" ] && exit 0 || exit 1
+		fi
+		exit 0 ;;
+	start)
+		touch "\$state"
+		rm -f "$MOCK_STATE"
+		exit 0 ;;
+	stop)
+		rm -f "\$state"
+		echo "down" > "$MOCK_STATE"
+		exit 0 ;;
+	inspect)
+		if [ -f "\$state" ]; then echo "true"; else echo "false"; fi
+		exit 0 ;;
+	logs)
+		echo "<podman log line>"
+		exit 0 ;;
+	exec)
+		# CLI shim runtime path — not exercised here.
+		exit 0 ;;
+esac
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/podman"
+}
+
+_podman_lifecycle_setup() {
+	export LIGHTNING_PODMAN_NAME="clightning"
+	# Bootstrap is a separate code path that calls cli listpeers + jq.
+	# Skip it for the lifecycle tests — peer-graph wiring isn't part of
+	# what we're testing here.
+	export LIGHTNING_NO_BOOTSTRAP=1
+	_stub_podman_lifecycle
+}
+
+@test "FEAT-207: daemon start routes through podman when container exists" {
+	_podman_lifecycle_setup
+	echo "down" > "$MOCK_STATE"
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[ -f "$BIN_SHIM/podman.calls" ]
+	grep -q "^podman start clightning$" "$BIN_SHIM/podman.calls"
+	[[ "$output" == *"podman start clightning"* ]]
+}
+
+@test "FEAT-207: daemon stop routes through podman when container exists" {
+	_podman_lifecycle_setup
+	# daemon_running starts true (no MOCK_STATE) so cmd_stop proceeds.
+	# The podman stub's start subcmd would have touched the state file;
+	# here we want the stop branch, so make the daemon look running first.
+	touch "$BIN_SHIM/podman-running"
+	run "$LIGHTNING_BIN" -v daemon stop
+	[ "$status" -eq 0 ]
+	grep -q "^podman stop clightning$" "$BIN_SHIM/podman.calls"
+	[[ "$output" == *"podman stop clightning"* ]]
+}
+
+@test "FEAT-207: daemon status reports podman-mode when container is running" {
+	_podman_lifecycle_setup
+	touch "$BIN_SHIM/podman-running"   # podman inspect → "true"
+	run "$LIGHTNING_BIN" daemon status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"podman-mode"* ]]
+}
+
+@test "FEAT-207: daemon logs exec's into podman logs when container exists" {
+	_podman_lifecycle_setup
+	touch "$BIN_SHIM/podman-running"
+	run "$LIGHTNING_BIN" daemon logs
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"<podman log line>"* ]]
+	grep -q "^podman logs" "$BIN_SHIM/podman.calls"
+}
+
+@test "FEAT-207: daemon start no-ops when podman container already running" {
+	_podman_lifecycle_setup
+	# MOCK_STATE empty → daemon_running returns true → cmd_start early return.
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"already running"* ]]
+	[ ! -f "$BIN_SHIM/podman.calls" ] || ! grep -q "^podman start" "$BIN_SHIM/podman.calls"
+}
+
+@test "FEAT-207: daemon start prefers systemd-user over podman" {
+	_podman_lifecycle_setup
+	echo "down" > "$MOCK_STATE"
+	# Both supervisors installed — systemd should win (explicit unit
+	# beats inferred-via-container fallback).
+	mkdir -p "$HOME/.config/systemd/user"
+	touch "$HOME/.config/systemd/user/lightning.service"
+	cat > "$BIN_SHIM/systemctl" <<EOF
+#!/bin/sh
+[ "\$1" = "--quiet" ] && exit 1
+rm -f "$MOCK_STATE"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/systemctl"
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"systemctl --user start lightning"* ]]
+	! grep -q "^podman start" "$BIN_SHIM/podman.calls" 2>/dev/null
+}
+
+@test "FEAT-207: daemon start falls through to direct mode when no podman container" {
+	export PODMAN_CONTAINER_EXISTS=0
+	export LIGHTNING_NO_BOOTSTRAP=1
+	echo "down" > "$MOCK_STATE"
+	_stub_podman_lifecycle
+	# Provide a lightningd shim so the direct-mode `command -v lightningd` succeeds.
+	cat > "$BIN_SHIM/lightningd" <<EOF
+#!/bin/sh
+# Direct mode — flip MOCK_STATE so the post-start probe passes.
+rm -f "$MOCK_STATE"
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" -v daemon start
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"starting lightningd directly"* ]]
+	! grep -q "^podman start" "$BIN_SHIM/podman.calls" 2>/dev/null
+}
+
+# ---------------------------------------------------------------------------
 # FEAT-207 — Alpine / OpenRC daemon install
 # ---------------------------------------------------------------------------
 

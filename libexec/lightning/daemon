@@ -76,6 +76,21 @@ system_mode() {
 		systemctl --quiet is-enabled clightningd.service 2>/dev/null
 }
 
+# FEAT-207 — podman supervisor.  Returns 0 if install-core --podman
+# left a persistent container behind (regardless of running state).
+podman_installed() {
+	command -v podman >/dev/null 2>&1 || return 1
+	local name="${LIGHTNING_PODMAN_NAME:-clightning}"
+	podman container exists "$name" 2>/dev/null
+}
+
+# Container is running right now (vs. just existing).
+podman_container_running() {
+	command -v podman >/dev/null 2>&1 || return 1
+	local name="${LIGHTNING_PODMAN_NAME:-clightning}"
+	[ "$(podman inspect -f '{{.State.Running}}' "$name" 2>/dev/null)" = "true" ]
+}
+
 usage() {
 	cat >&2 <<EOF
 usage: lightning daemon <subcommand> [args]
@@ -352,6 +367,12 @@ cmd_start() {
 	elif systemd_user_installed; then
 		info "systemctl --user start lightning"
 		systemctl --user start lightning
+	elif podman_installed; then
+		# FEAT-207 — operator installed via install-core --podman.
+		# The container holds lightningd; supervise via podman.
+		local name="${LIGHTNING_PODMAN_NAME:-clightning}"
+		info "podman start $name"
+		podman start "$name" >/dev/null
 	else
 		command -v lightningd >/dev/null || {
 			error "lightningd not found — install Core Lightning"
@@ -465,6 +486,10 @@ cmd_stop() {
 	elif systemd_user_installed; then
 		info "systemctl --user stop lightning"
 		systemctl --user stop lightning
+	elif podman_installed; then
+		local name="${LIGHTNING_PODMAN_NAME:-clightning}"
+		info "podman stop $name"
+		podman stop "$name" >/dev/null
 	else
 		cli stop >/dev/null
 	fi
@@ -495,6 +520,7 @@ cmd_status() {
 		if launchd_loaded;             then mode="launchd"
 		elif system_mode;              then mode="systemd-system"
 		elif systemd_user_installed;   then mode="systemd-user"
+		elif podman_container_running; then mode="podman"
 		fi
 		if [ -n "$warning" ]; then
 			echo "syncing ($mode-mode, block $block, backend: $backend): $warning"
@@ -517,6 +543,11 @@ cmd_logs() {
 	fi
 	if systemd_user_installed; then
 		exec journalctl --user -u lightning.service "$@"
+	fi
+	if podman_installed; then
+		# `podman logs` accepts the same -f flag pattern `tail -f` does;
+		# anything else (e.g. --since) is podman-specific and passes through.
+		exec podman logs "$@" "${LIGHTNING_PODMAN_NAME:-clightning}"
 	fi
 	# launchd's StandardOutPath and our direct `cmd_start` both write
 	# to $LIGHTNING_DIR/log; lightningd's own default is
@@ -1591,15 +1622,18 @@ usage: lightning daemon start
 
 Bring up lightningd in the background. Routes through the installed
 supervisor (detected by file presence):
-   1. launchd       — ~/Library/LaunchAgents/<label>.plist or
-                      /Library/LaunchDaemons/<label>.plist
-                      => `launchctl load -w` (or `kickstart` if loaded)
-   2. systemd-system — clightningd.service enabled
-                      => `sudo systemctl start clightningd.service`
-   3. systemd-user   — ~/.config/systemd/user/lightning.service
-                      => `systemctl --user start lightning`
-   4. direct         — no service unit installed
-                      => `lightningd --daemon`, output -> log file
+   1. launchd        — ~/Library/LaunchAgents/<label>.plist or
+                       /Library/LaunchDaemons/<label>.plist
+                       => `launchctl load -w` (or `kickstart` if loaded)
+   2. systemd-system  — clightningd.service enabled
+                       => `sudo systemctl start clightningd.service`
+   3. systemd-user    — ~/.config/systemd/user/lightning.service
+                       => `systemctl --user start lightning`
+   4. podman         — `clightning` container exists (FEAT-207
+                       install-core --podman)
+                       => `podman start clightning`
+   5. direct          — no service unit installed
+                       => `lightningd --daemon`, output -> log file
 Triggers auto-unlock (FEAT-184) when the `secret` package is installed.
 EOF
 			;;
