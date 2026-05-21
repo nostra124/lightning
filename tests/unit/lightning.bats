@@ -2394,12 +2394,157 @@ EOF
 	[[ "$output" == *"unknown flag"* ]]
 }
 
-@test "FEAT-207: install-core (no --dry-run) warns it's a scaffold" {
-	# With a backend flag so detection can't fail in the test env.
-	run "$LIGHTNING_BIN" daemon install-core --rpk
+@test "FEAT-207: install-core --apk (no --dry-run) warns it's a scaffold" {
+	# --apk is still scaffolded — once it's implemented this assertion
+	# should move to whatever backend remains unimplemented (or be
+	# deleted when none do).
+	run "$LIGHTNING_BIN" daemon install-core --apk
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"scaffold"* ]]
 	[[ "$output" == *"FEAT-207"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-207 stage 1 — real `--rpk` and `--brew` invocations
+# ---------------------------------------------------------------------------
+
+# Drop a fake rpk on PATH that records its args and (optionally)
+# installs a fake lightningd into BIN_SHIM.
+_stub_rpk() {
+	local exit_code="${1:-0}" install_lightningd="${2:-1}"
+	cat > "$BIN_SHIM/rpk" <<EOF
+#!/bin/sh
+echo "rpk \$*" >> "$BIN_SHIM/rpk.calls"
+if [ "$install_lightningd" = "1" ] && [ "$exit_code" = "0" ]; then
+	printf '#!/bin/sh\necho "Core Lightning v26.04.1"\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+fi
+exit $exit_code
+EOF
+	chmod +x "$BIN_SHIM/rpk"
+}
+
+_stub_brew() {
+	local exit_code="${1:-0}" install_lightningd="${2:-1}"
+	cat > "$BIN_SHIM/brew" <<EOF
+#!/bin/sh
+echo "brew \$*" >> "$BIN_SHIM/brew.calls"
+if [ "$install_lightningd" = "1" ] && [ "$exit_code" = "0" ]; then
+	printf '#!/bin/sh\necho "Core Lightning v26.04.1"\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+fi
+exit $exit_code
+EOF
+	chmod +x "$BIN_SHIM/brew"
+}
+
+@test "FEAT-207: install-core --rpk runs rpk install lightningd" {
+	_stub_rpk 0 1
+	run "$LIGHTNING_BIN" daemon install-core --rpk --yes
+	[ "$status" -eq 0 ]
+	[ -f "$BIN_SHIM/rpk.calls" ]
+	grep -q "rpk install lightningd" "$BIN_SHIM/rpk.calls"
+	grep -q "\\--yes" "$BIN_SHIM/rpk.calls"
+	[[ "$output" == *"lightningd installed"* ]]
+}
+
+@test "FEAT-207: install-core --rpk --version pins the version" {
+	_stub_rpk 0 1
+	run "$LIGHTNING_BIN" daemon install-core --rpk --version v26.04.1
+	[ "$status" -eq 0 ]
+	grep -q "\\--version v26.04.1" "$BIN_SHIM/rpk.calls"
+}
+
+@test "FEAT-207: install-core --rpk propagates rpk failure" {
+	_stub_rpk 17 0
+	run "$LIGHTNING_BIN" daemon install-core --rpk
+	[ "$status" -eq 17 ]
+	[[ "$output" == *"rpk install failed"* ]]
+	[[ "$output" == *"rpk package isn't published"* ]]
+}
+
+@test "FEAT-207: install-core --rpk errors when rpk not on PATH" {
+	# No rpk shim — the BIN_SHIM is clean by default.
+	run "$LIGHTNING_BIN" daemon install-core --rpk
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"rpk not on PATH"* ]]
+}
+
+@test "FEAT-207: install-core --rpk --dry-run skips the rpk-on-PATH check" {
+	# Operators may be planning on a different machine — dry-run shouldn't
+	# require the package manager to be installed locally.
+	run "$LIGHTNING_BIN" daemon install-core --rpk --dry-run
+	[ "$status" -eq 0 ]
+	[ ! -f "$BIN_SHIM/rpk.calls" ]
+	[[ "$output" == *"rpk install lightningd"* ]]
+}
+
+@test "FEAT-207: install-core --rpk fails if lightningd missing post-install" {
+	# rpk reports success but doesn't actually install the binary.
+	_stub_rpk 0 0
+	run "$LIGHTNING_BIN" daemon install-core --rpk
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"reported success"* ]]
+	[[ "$output" == *"not on PATH"* ]]
+}
+
+@test "FEAT-207: install-core --brew off-macOS exits with a clear hint" {
+	# bats CI runs Linux — is_macos returns false here, so --brew errors.
+	_stub_brew 0 1
+	run "$LIGHTNING_BIN" daemon install-core --brew
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"macOS-only"* ]] || [[ "$output" == *"macOS"* ]]
+}
+
+@test "FEAT-207: install-core --brew --dry-run prints the brew install plan" {
+	# Dry-run skips the macOS gate and the brew-on-PATH check, so the
+	# Linux CI can still validate the plan text.
+	run "$LIGHTNING_BIN" daemon install-core --brew --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"brew install core-lightning"* ]]
+}
+
+@test "FEAT-207: install-core --brew --version uses the @version formula" {
+	run "$LIGHTNING_BIN" daemon install-core --brew --version v26.04.1 --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"core-lightning@v26.04.1"* ]]
+}
+
+@test "FEAT-207: install-core --brew --force uses brew reinstall" {
+	run "$LIGHTNING_BIN" daemon install-core --brew --force --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"brew reinstall"* ]]
+}
+
+@test "FEAT-207: install-core refuses when lightningd is already on PATH" {
+	# Drop a fake lightningd ahead of the call.
+	printf '#!/bin/sh\necho "Core Lightning v25.05.0"\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	_stub_rpk 0 1
+	run "$LIGHTNING_BIN" daemon install-core --rpk
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"already on PATH"* ]]
+	[[ "$output" == *"--force"* ]]
+	[ ! -f "$BIN_SHIM/rpk.calls" ]
+}
+
+@test "FEAT-207: install-core --force overrides the idempotency check" {
+	printf '#!/bin/sh\necho "Core Lightning v25.05.0"\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	_stub_rpk 0 1
+	run "$LIGHTNING_BIN" daemon install-core --rpk --force
+	[ "$status" -eq 0 ]
+	[ -f "$BIN_SHIM/rpk.calls" ]
+	grep -q "\\--force" "$BIN_SHIM/rpk.calls"
+}
+
+@test "FEAT-207: install-core --dry-run skips the idempotency check" {
+	# Dry-run is "what would you do" — it shouldn't refuse on existing installs.
+	printf '#!/bin/sh\necho "Core Lightning v25.05.0"\n' > "$BIN_SHIM/lightningd"
+	chmod +x "$BIN_SHIM/lightningd"
+	run "$LIGHTNING_BIN" daemon install-core --rpk --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"plan:"* ]]
 }
 
 @test "FEAT-207: spec file exists with the expected id" {

@@ -100,11 +100,12 @@ subcommands:
                           launchd on macOS). --system writes a
                           system-wide unit (Linux three-user layout).
    install-core [--rpk|--brew|--apk|--source|--podman]
-                [--version <tag>] [--system] [--yes] [--dry-run]
+                [--version <tag>] [--system] [--yes]
+                [--force] [--dry-run]
                           install Core Lightning itself (FEAT-207).
                           With no backend flag, auto-detects per
-                          platform.  Stubbed today; implementation
-                          tracked in issues/feature/207-clightning-install.md.
+                          platform.  --rpk and --brew are implemented;
+                          --apk/--source/--podman are still scaffolds.
 EOF
 }
 
@@ -1068,7 +1069,7 @@ preferred_backend() {
 }
 
 cmd_install_core() {
-	local backend="" version="" system=0 yes=0 dry_run=0
+	local backend="" version="" system=0 yes=0 dry_run=0 force=0
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--rpk|--brew|--apk|--source|--podman)
@@ -1078,6 +1079,7 @@ cmd_install_core() {
 			--system)  system=1; shift ;;
 			--yes)     yes=1; shift ;;
 			--dry-run) dry_run=1; shift ;;
+			--force)   force=1; shift ;;
 			--help|-h) subhelp install-core; exit 0 ;;
 			--docker)
 				error "install-core: docker is not supported — use --podman (FEAT-207 §non-goals)"
@@ -1096,8 +1098,18 @@ cmd_install_core() {
 		exit 2
 	fi
 
-	# Scaffold body: print the plan, no side effects.  Real implementation
-	# tracked in FEAT-207.  --dry-run is currently the only mode.
+	# Idempotency — refuse to overwrite an existing install without --force.
+	if [ $force -eq 0 ] && [ $dry_run -eq 0 ] && command -v lightningd >/dev/null 2>&1; then
+		local existing
+		existing=$(lightningd --version 2>/dev/null | head -1)
+		error "install-core: lightningd is already on PATH${existing:+ ($existing)}"
+		echo "  pass --force to reinstall, or:"                            >&2
+		echo "    lightning daemon install         # write the service unit" >&2
+		echo "    lightning daemon status          # check the running daemon" >&2
+		exit 1
+	fi
+
+	# Plan summary (printed in all modes so operators can confirm what's about to happen).
 	echo "backend:    $backend"
 	echo "platform:   $(platform_id)"
 	echo "init:       $(init_system)"
@@ -1107,18 +1119,92 @@ cmd_install_core() {
 	echo "mode:       $([ $dry_run -eq 1 ] && echo dry-run || echo planned)"
 
 	case "$backend" in
-		rpk)    echo "plan:       rpk install lightningd${version:+ --version $version}" ;;
-		brew)   echo "plan:       brew install core-lightning${version:+@$version}" ;;
-		apk)    echo "plan:       apk add lightningd${version:+=$version}" ;;
-		source) echo "plan:       git clone ElementsProject/lightning && ./configure && make && sudo make install" ;;
-		podman) echo "plan:       podman pull elementsproject/lightningd${version:+:$version} + run + cli shim" ;;
+		rpk)    ic_run_rpk    "$version" "$dry_run" "$yes" "$force" ;;
+		brew)   ic_run_brew   "$version" "$dry_run" "$yes" "$force" ;;
+		apk)    ic_run_stub   apk    "apk add lightningd${version:+=$version}" "$dry_run" ;;
+		source) ic_run_stub   source "git clone ElementsProject/lightning && ./configure && make && sudo make install" "$dry_run" ;;
+		podman) ic_run_stub   podman "podman pull elementsproject/lightningd${version:+:$version} + run + cli shim" "$dry_run" ;;
 	esac
+}
 
-	if [ $dry_run -eq 0 ]; then
-		# Always-on notice (not via warn()) — operators must not miss this.
-		echo "note: install-core is a scaffold today — see FEAT-207 for implementation status" >&2
-		echo "      (re-run with --dry-run to suppress this notice)"                            >&2
+# rpk path — assumes a sister `lightningd` rpk package.  Surfaces rpk's
+# own exit code on failure; callers see "package not found" or whatever
+# rpk reports.  Acceptance criterion #9 (FEAT-207).
+ic_run_rpk() {
+	local version="$1" dry_run="$2" yes="$3" force="$4"
+	local cmd=(rpk install lightningd)
+	[ -n "$version" ] && cmd+=(--version "$version")
+	[ "$yes"   = "1" ] && cmd+=(--yes)
+	[ "$force" = "1" ] && cmd+=(--force)
+	echo "plan:       ${cmd[*]}"
+	if [ "$dry_run" = "1" ]; then return 0; fi
+	if ! command -v rpk >/dev/null 2>&1; then
+		error "install-core --rpk: rpk not on PATH"
+		echo "  install rpk first, or use a different backend:"                   >&2
+		echo "    --brew (macOS) --apk (Alpine) --source (Ubuntu) --podman (any)" >&2
+		exit 1
 	fi
+	"${cmd[@]}" || {
+		local rc=$?
+		error "install-core --rpk: rpk install failed (exit $rc)"
+		echo "  if the lightningd rpk package isn't published yet, try:"          >&2
+		echo "    --brew (macOS) --apk (Alpine) --source (Ubuntu) --podman (any)" >&2
+		exit "$rc"
+	}
+	ic_verify_lightningd
+}
+
+# Homebrew path — macOS only.  brew handles version pinning via the
+# `core-lightning@<version>` formula naming convention.
+ic_run_brew() {
+	local version="$1" dry_run="$2" yes="$3" force="$4"
+	local pkg="core-lightning"
+	[ -n "$version" ] && pkg="core-lightning@$version"
+	local cmd=(brew install "$pkg")
+	[ "$force" = "1" ] && cmd=(brew reinstall "$pkg")
+	echo "plan:       ${cmd[*]}"
+	if [ "$dry_run" = "1" ]; then return 0; fi
+	if ! is_macos; then
+		error "install-core --brew: Homebrew is macOS-only"
+		echo "  on this platform use: --apk (Alpine) --source (Ubuntu) --podman (any)" >&2
+		exit 1
+	fi
+	if ! command -v brew >/dev/null 2>&1; then
+		error "install-core --brew: brew not on PATH"
+		echo "  install Homebrew first: https://brew.sh"                              >&2
+		echo "  (install-core does not auto-install brew — see FEAT-207 §non-goals)"  >&2
+		exit 1
+	fi
+	"${cmd[@]}" || {
+		local rc=$?
+		error "install-core --brew: brew install failed (exit $rc)"
+		exit "$rc"
+	}
+	ic_verify_lightningd
+}
+
+# Scaffold body — backends not yet implemented.  Prints the planned
+# command and (outside --dry-run) the scaffold notice.
+ic_run_stub() {
+	local backend="$1" plan="$2" dry_run="$3"
+	echo "plan:       $plan"
+	if [ "$dry_run" = "1" ]; then return 0; fi
+	echo "note: --$backend is a scaffold today — see FEAT-207 for implementation status" >&2
+	echo "      (re-run with --dry-run to suppress this notice)"                          >&2
+}
+
+# Post-install sanity check.  The spec says `lightningd --version` must
+# succeed after install-core exits 0 — we verify it directly.
+ic_verify_lightningd() {
+	if ! command -v lightningd >/dev/null 2>&1; then
+		error "install-core: install reported success but lightningd is not on PATH"
+		echo "  check the package manager's output above; the install may be partial" >&2
+		exit 1
+	fi
+	local ver
+	ver=$(lightningd --version 2>/dev/null | head -1)
+	echo "✓ lightningd installed${ver:+: $ver}"
+	echo "  next: lightning daemon install     # write the service unit"
 }
 
 SELF_LIBEXEC="${SELF_LIBEXEC:-$(cd "$(dirname "$0")/.." && pwd)}"
@@ -1250,7 +1336,8 @@ EOF
 			cat <<EOF
 usage: lightning daemon install-core
            [--rpk|--brew|--apk|--source|--podman]
-           [--version <tag>] [--system] [--yes] [--dry-run]
+           [--version <tag>] [--system] [--yes]
+           [--force] [--dry-run]
 
 Install Core Lightning itself — the lightningd binary.  With no
 backend flag, the verb auto-detects per platform:
@@ -1261,12 +1348,23 @@ backend flag, the verb auto-detects per platform:
    4. \`podman\`  cross-platform fallback (rootless container)
    5. \`source\`  Ubuntu / Debian (no upstream apt package)
 
+Refuses to overwrite an existing \`lightningd\` on PATH unless
+\`--force\` is passed.
+
 \`docker\` is not supported — pass \`--podman\` instead.
 \`lnd\` and other backends are out of scope (single backend by design).
 
-Currently a scaffold (FEAT-207): parses flags, prints the plan,
-makes no filesystem changes.  Track implementation under
-issues/feature/207-clightning-install.md.
+Status (FEAT-207):
+  --rpk    implemented (assumes sister lightningd rpk package)
+  --brew   implemented (macOS)
+  --apk    scaffold — prints plan
+  --source scaffold — prints plan
+  --podman scaffold — prints plan
+
+After install-core exits 0, \`lightningd --version\` succeeds.
+The follow-up call is \`lightning daemon install\` to write the
+service unit (systemd / launchd).  The two verbs compose; neither
+calls the other.
 EOF
 			;;
 		*)
