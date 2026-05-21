@@ -169,6 +169,7 @@ ln_rebalance() {
 		echo "to:            $to"
 		echo "amount_sat:    $AMOUNT"
 		echo "max_fee_ppm:   $MAX_FEE_PPM"
+		[ -n "$MAX_FEE_SAT" ] && echo "max_fee_sat:   $MAX_FEE_SAT"
 		return 0
 	fi
 

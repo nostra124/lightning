@@ -206,6 +206,8 @@ cmd_sync() {
 	cmd_push "$@"
 }
 
+_sibling() { echo "$(dirname "$0")/$1"; }
+
 case "${1:-}" in
 	new)    shift; cmd_new "$@" ;;
 	use)    shift; cmd_use "$@" ;;
@@ -215,6 +217,16 @@ case "${1:-}" in
 	push)   shift; cmd_push "$@" ;;
 	pull)   shift; cmd_pull "$@" ;;
 	sync)   shift; cmd_sync "$@" ;;
+	# Node-side subcommands delegate to the standalone implementation verbs.
+	info)    shift; exec "$(_sibling info)" "$@" ;;
+	id)      shift; exec "$(_sibling node-id)" "$@" ;;
+	balance) shift; exec "$(_sibling balance)" "$@" ;;
+	unlock)  shift; exec "$(_sibling unlock)" "$@" ;;
+	seed)    shift; exec "$(_sibling seed)" "$@" ;;
+	backup)  shift; exec "$(_sibling backup)" "$@" ;;
+	restore) shift; exec "$(_sibling restore)" "$@" ;;
+	scb)     shift; exec "$(_sibling scb)" "$@" ;;
+	peers)   echo "lightning wallet peers is deprecated — use 'peer list'" >&2; exit 2 ;;
 	"")     usage; exit 1 ;;
 	*)      echo "lightning wallet: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac

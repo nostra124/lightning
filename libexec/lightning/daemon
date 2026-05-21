@@ -818,7 +818,7 @@ install_macos_system() {
 	local plist=/Library/LaunchDaemons/${LAUNCHD_LABEL}.plist
 
 	if [ $migrate -eq 0 ] && [ -d "$HOME/.lightning" ] && [ ! -L "$HOME/.lightning" ]; then
-		error "~/.lightning exists (user-mode install detected); refusing"
+		error "\$HOME/.lightning exists (user-mode install detected); refusing"
 		warn "pass --migrate to move it to $state_dir"
 		exit 3
 	fi
@@ -946,7 +946,7 @@ install_system() {
 	local migrate=$1
 
 	if [ $migrate -eq 0 ] && [ -d "$HOME/.lightning" ] && [ ! -L "$HOME/.lightning" ]; then
-		warn "~/.lightning exists (user-mode install detected); refusing"
+		warn "\$HOME/.lightning exists (user-mode install detected); refusing"
 		error "pass --migrate to move it to /var/lib/clightning"
 		exit 3
 	fi

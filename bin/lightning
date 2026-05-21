@@ -16,6 +16,7 @@ __s="${__s%.sh}"
 VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.3.0')
 unset __d
 SELF=$__s
+export SELF
 unset __s
 
 # Resolve $SELF_LIBEXEC (FEAT-001 libexec convention).
@@ -82,18 +83,6 @@ fatal() {
 	exit "${2:-1}"
 }
 
-debug() {
-	[ -n "$SELF_DEBUG" ] && echo "$SELF: debug - $*" >&2
-}
-
-info() {
-	if [ -z "$SELF_QUIET" ]; then echo -e "$SELF: info - \033[33;m$*\033[0m" >&2; fi
-}
-
-warn() {
-	echo -e "$SELF: warn - \033[31;1;m$*\033[0m" >&2
-}
-
 # Checks if a certain function exists.
 has() {
 	local KIND=$1
@@ -111,6 +100,7 @@ export -f fatal error debug info warn die has
 # Commands
 ############################################################################
 
+# shellcheck disable=SC2120  # callers may pass a verb name; the no-arg form prints global help.
 command:help() {
 	# `lightning help <verb>` routes to help:<verb> (rpk convention).
 	if [[ $# -gt 0 ]]; then
@@ -178,7 +168,7 @@ clightning node (0.2.0):
    node-id                  this node's pubkey
    peers                    connected peers (TSV)
    channels                 channels (TSV)
-   balance                  on-chain + LN balance (TSV)
+   balance                  on-chain + LN balance (recfile)
 
 channels (0.3.0 — BOLT-2 / BOLT-5):
    channel list             TSV of all channels
@@ -306,13 +296,16 @@ ENDHELP
 # define functions but do not execute the dispatcher.
 [[ "${BASH_SOURCE[0]}" != "$0" ]] && return 0
 
-while getopts "dq" _flag; do
+while getopts "dqvf" _flag; do
 	case "$_flag" in
-		d) SELF_DEBUG=1 ;;
+		d) SELF_DEBUG=1; SELF_VERBOSE=1 ;;
 		q) SELF_QUIET=1 ;;
+		v) SELF_VERBOSE=1 ;;
+		f) SELF_FORCE=1 ;;
 		*) command:help; exit 1 ;;
 	esac
 done
+export SELF_DEBUG SELF_VERBOSE SELF_QUIET SELF_FORCE
 shift $((OPTIND - 1))
 unset _flag
 
