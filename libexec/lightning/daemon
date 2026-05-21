@@ -104,8 +104,8 @@ subcommands:
                 [--force] [--dry-run]
                           install Core Lightning itself (FEAT-207).
                           With no backend flag, auto-detects per
-                          platform.  --rpk, --brew, --apk are
-                          implemented; --source/--podman are scaffolds.
+                          platform.  --rpk, --brew, --apk, --source
+                          are implemented; --podman is a scaffold.
 EOF
 }
 
@@ -1123,7 +1123,7 @@ cmd_install_core() {
 		rpk)    ic_run_rpk    "$version" "$dry_run" "$yes" "$force" ;;
 		brew)   ic_run_brew   "$version" "$dry_run" "$yes" "$force" ;;
 		apk)    ic_run_apk    "$version" "$dry_run" "$yes" "$force" ;;
-		source) ic_run_stub   source "git clone ElementsProject/lightning && ./configure && make && sudo make install" "$dry_run" ;;
+		source) ic_run_source "$version" "$dry_run" "$yes" "$force" ;;
 		podman) ic_run_stub   podman "podman pull elementsproject/lightningd${version:+:$version} + run + cli shim" "$dry_run" ;;
 	esac
 }
@@ -1231,6 +1231,114 @@ ic_run_apk() {
 		error "install-core --apk: apk add failed (exit $rc)"
 		exit "$rc"
 	}
+	ic_verify_lightningd
+}
+
+# Source-build path — for Ubuntu / Debian, which has no upstream
+# Core Lightning apt package.  Multi-step: apt-get build-deps,
+# git clone, ./configure && make, sudo make install.  Each step
+# propagates the underlying tool's exit code on failure.
+#
+# Build deps list mirrors Core Lightning's official install docs
+# (https://docs.corelightning.org/docs/installation, Ubuntu section).
+# Keep in sync if upstream updates them.
+ic_source_build_deps() {
+	echo "autoconf automake build-essential git libtool libsqlite3-dev"
+	echo "libpq-dev python3 python3-pip net-tools zlib1g-dev libsodium-dev"
+	echo "gettext valgrind libpython3-dev"
+}
+
+ic_run_source() {
+	local version="$1" dry_run="$2" yes="$3" force="$4"
+	local repo="https://github.com/ElementsProject/lightning.git"
+	local builddir="${LIGHTNING_BUILD_DIR:-$HOME/.cache/lightning/build}"
+
+	local prefix
+	prefix=$(ic_root_prefix)
+
+	echo "plan:       apt-get install build-deps + git clone + ./configure && make + sudo make install"
+	echo "build-dir:  $builddir"
+	if [ "$dry_run" = "1" ]; then return 0; fi
+
+	if [ "$(platform_id)" != "ubuntu" ]; then
+		error "install-core --source: this isn't an Ubuntu/Debian system (platform: $(platform_id))"
+		echo "  --source is wired for apt-get build-deps; on this platform try:"   >&2
+		echo "    --brew (macOS) --apk (Alpine) --podman (any) --rpk (anywhere)"    >&2
+		exit 1
+	fi
+	for tool in apt-get git make; do
+		if ! command -v "$tool" >/dev/null 2>&1; then
+			error "install-core --source: $tool not on PATH"
+			echo "  --source needs apt-get, git, and make to be installed" >&2
+			exit 1
+		fi
+	done
+
+	# Acceptance criterion #5 — print the deps list and prompt.  --yes
+	# skips the prompt for unattended use.  Refuse when there's no TTY
+	# unless --yes is set, so we never block a CI pipeline mid-stream.
+	echo ""
+	echo "About to install Ubuntu build-deps via apt-get:"
+	ic_source_build_deps | sed 's/^/  /'
+	if [ "$yes" != "1" ]; then
+		if [ ! -t 0 ]; then
+			error "install-core --source: stdin is not a TTY; pass --yes to install build-deps non-interactively"
+			exit 1
+		fi
+		printf "Continue? [y/N] "
+		local ans
+		read -r ans
+		case "$ans" in
+			y|Y|yes|YES) ;;
+			*) error "install-core --source: declined by operator"; exit 1 ;;
+		esac
+	fi
+
+	# Build-dep install.  apt-get needs root.
+	# shellcheck disable=SC2046
+	${prefix:+$prefix} apt-get install -y $(ic_source_build_deps | tr '\n' ' ') || {
+		local rc=$?
+		error "install-core --source: apt-get install failed (exit $rc)"
+		exit "$rc"
+	}
+
+	# Clone (or fetch if already cloned — supports --force re-runs).
+	mkdir -p "$builddir" || exit 1
+	if [ -d "$builddir/lightning/.git" ]; then
+		echo "lightning repo already cloned, fetching..."
+		( cd "$builddir/lightning" && git fetch --tags ) || {
+			error "install-core --source: git fetch failed"
+			exit 1
+		}
+	else
+		git clone "$repo" "$builddir/lightning" || {
+			error "install-core --source: git clone failed"
+			exit 1
+		}
+	fi
+	if [ -n "$version" ]; then
+		( cd "$builddir/lightning" && git checkout "$version" ) || {
+			error "install-core --source: git checkout '$version' failed"
+			exit 1
+		}
+	fi
+
+	# Build.
+	( cd "$builddir/lightning" && ./configure && make ) || {
+		local rc=$?
+		error "install-core --source: build failed (exit $rc)"
+		echo "  build dir left at $builddir/lightning for inspection" >&2
+		exit "$rc"
+	}
+
+	# Install — needs root.
+	# shellcheck disable=SC2086
+	( cd "$builddir/lightning" && ${prefix:+$prefix} make install ) || {
+		local rc=$?
+		error "install-core --source: make install failed (exit $rc)"
+		exit "$rc"
+	}
+
 	ic_verify_lightningd
 }
 
@@ -1409,7 +1517,9 @@ Status (FEAT-207):
   --rpk    implemented (assumes sister lightningd rpk package)
   --brew   implemented (macOS)
   --apk    implemented (Alpine — uses doas/sudo if not root)
-  --source scaffold — prints plan
+  --source implemented (Ubuntu — apt-get build-deps + make install)
+           build dir defaults to ~/.cache/lightning/build, override
+           with \$LIGHTNING_BUILD_DIR; requires --yes without a TTY
   --podman scaffold — prints plan
 
 After install-core exits 0, \`lightningd --version\` succeeds.
