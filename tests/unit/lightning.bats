@@ -2394,15 +2394,6 @@ EOF
 	[[ "$output" == *"unknown flag"* ]]
 }
 
-@test "FEAT-207: install-core --podman (no --dry-run) warns it's a scaffold" {
-	# --podman is the last remaining scaffolded backend.  Delete this
-	# test once stage 4 lands.
-	run "$LIGHTNING_BIN" daemon install-core --podman
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"scaffold"* ]]
-	[[ "$output" == *"FEAT-207"* ]]
-}
-
 # ---------------------------------------------------------------------------
 # FEAT-207 stage 1 — real `--rpk` and `--brew` invocations
 # ---------------------------------------------------------------------------
@@ -2919,6 +2910,164 @@ _source_common_setup() {
 	[ "$status" -eq 0 ]
 	grep -q "git fetch" "$BIN_SHIM/git.calls"
 	! grep -q "git clone" "$BIN_SHIM/git.calls"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-207 stage 4 — real `--podman` invocation
+# ---------------------------------------------------------------------------
+
+# Records every podman invocation; handles the few sub-commands the
+# verb cares about.  `container exists` returns 1 by default (no
+# container); set PODMAN_CONTAINER_EXISTS=1 in the test env to flip it.
+_stub_podman() {
+	local pull_exit="${1:-0}" create_exit="${2:-0}"
+	cat > "$BIN_SHIM/podman" <<EOF
+#!/bin/sh
+echo "podman \$*" >> "$BIN_SHIM/podman.calls"
+case "\$1" in
+	pull)
+		exit $pull_exit ;;
+	container)
+		if [ "\$2" = "exists" ]; then
+			[ "\${PODMAN_CONTAINER_EXISTS:-0}" = "1" ] && exit 0 || exit 1
+		fi
+		exit 0 ;;
+	create)
+		exit $create_exit ;;
+	rm)
+		exit 0 ;;
+	run)
+		# Used by the lightningd shim for --version checks.
+		echo "Core Lightning v26.04.1"
+		exit 0 ;;
+	exec)
+		# Used by the lightning-cli shim at runtime.  Not exercised here.
+		exit 0 ;;
+esac
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/podman"
+}
+
+_podman_common_setup() {
+	# Isolate state and shim dirs into BATS_TMPDIR so tests don't litter $HOME.
+	export LIGHTNING_DIR="$BATS_TMPDIR/lightning-state.$$"
+	export LIGHTNING_SHIM_DIR="$BATS_TMPDIR/lightning-shim.$$"
+	export LIGHTNING_PODMAN_NAME="clightning"
+	rm -rf "$LIGHTNING_DIR" "$LIGHTNING_SHIM_DIR"
+	# Make the shim dir part of PATH so the post-install warning doesn't fire.
+	export PATH="$LIGHTNING_SHIM_DIR:$PATH"
+}
+
+@test "FEAT-207: install-core --podman pulls + creates + writes shims" {
+	_podman_common_setup
+	_stub_podman 0 0
+	run "$LIGHTNING_BIN" daemon install-core --podman
+	[ "$status" -eq 0 ]
+	[ -f "$BIN_SHIM/podman.calls" ]
+	grep -q "podman pull elementsproject/lightningd" "$BIN_SHIM/podman.calls"
+	grep -q "podman create" "$BIN_SHIM/podman.calls"
+	grep -q "\\--name clightning" "$BIN_SHIM/podman.calls"
+	grep -q "\\--volume $LIGHTNING_DIR:/root/.lightning" "$BIN_SHIM/podman.calls"
+	[ -x "$LIGHTNING_SHIM_DIR/lightning-cli" ]
+	[ -x "$LIGHTNING_SHIM_DIR/lightningd" ]
+	grep -q "podman exec" "$LIGHTNING_SHIM_DIR/lightning-cli"
+	grep -q "clightning"  "$LIGHTNING_SHIM_DIR/lightning-cli"
+	grep -q "podman run"  "$LIGHTNING_SHIM_DIR/lightningd"
+	[[ "$output" == *"lightningd installed"* ]]
+}
+
+@test "FEAT-207: install-core --podman --version tags the image" {
+	_podman_common_setup
+	_stub_podman 0 0
+	run "$LIGHTNING_BIN" daemon install-core --podman --version v26.04.1
+	[ "$status" -eq 0 ]
+	grep -q "podman pull elementsproject/lightningd:v26.04.1" "$BIN_SHIM/podman.calls"
+	# The lightningd shim's `--version` branch must reference the same tag.
+	grep -q "elementsproject/lightningd:v26.04.1" "$LIGHTNING_SHIM_DIR/lightningd"
+}
+
+@test "FEAT-207: install-core --podman --dry-run skips podman + writes nothing" {
+	_podman_common_setup
+	# No podman stub at all — dry-run must still print the plan.
+	run "$LIGHTNING_BIN" daemon install-core --podman --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"podman pull"* ]]
+	[[ "$output" == *"shim-dir:"* ]]
+	[ ! -e "$LIGHTNING_SHIM_DIR/lightning-cli" ]
+}
+
+@test "FEAT-207: install-core --podman errors when podman not on PATH" {
+	_podman_common_setup
+	# Don't install the podman stub.
+	run "$LIGHTNING_BIN" daemon install-core --podman
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"podman not on PATH"* ]]
+	[ ! -e "$LIGHTNING_SHIM_DIR/lightning-cli" ]
+}
+
+@test "FEAT-207: install-core --podman --system is refused" {
+	_podman_common_setup
+	_stub_podman 0 0
+	run "$LIGHTNING_BIN" daemon install-core --podman --system
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"--system is not supported"* ]]
+	[ ! -e "$LIGHTNING_SHIM_DIR/lightning-cli" ]
+}
+
+@test "FEAT-207: install-core --podman propagates pull failure" {
+	_podman_common_setup
+	_stub_podman 125 0
+	run "$LIGHTNING_BIN" daemon install-core --podman
+	[ "$status" -eq 125 ]
+	[[ "$output" == *"podman pull failed"* ]]
+	# create should not have happened.
+	! grep -q "podman create" "$BIN_SHIM/podman.calls"
+}
+
+@test "FEAT-207: install-core --podman propagates create failure" {
+	_podman_common_setup
+	_stub_podman 0 125
+	run "$LIGHTNING_BIN" daemon install-core --podman
+	[ "$status" -eq 125 ]
+	[[ "$output" == *"podman create failed"* ]]
+	[ ! -e "$LIGHTNING_SHIM_DIR/lightning-cli" ]
+}
+
+@test "FEAT-207: install-core --podman refuses when container already exists" {
+	_podman_common_setup
+	_stub_podman 0 0
+	export PODMAN_CONTAINER_EXISTS=1
+	run "$LIGHTNING_BIN" daemon install-core --podman
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"already exists"* ]]
+	[[ "$output" == *"--force"* ]]
+	# create should not have happened — we bailed before it.
+	! grep -q "podman create" "$BIN_SHIM/podman.calls"
+}
+
+@test "FEAT-207: install-core --podman --force recreates the container" {
+	_podman_common_setup
+	_stub_podman 0 0
+	export PODMAN_CONTAINER_EXISTS=1
+	run "$LIGHTNING_BIN" daemon install-core --podman --force
+	[ "$status" -eq 0 ]
+	grep -q "podman rm -f clightning" "$BIN_SHIM/podman.calls"
+	grep -q "podman create" "$BIN_SHIM/podman.calls"
+}
+
+@test "FEAT-207: install-core --podman warns when shim dir is not on PATH" {
+	# Set up the shim dir but DO NOT add it to PATH.
+	export LIGHTNING_DIR="$BATS_TMPDIR/lightning-state.$$"
+	export LIGHTNING_SHIM_DIR="$BATS_TMPDIR/lightning-shim.$$"
+	export LIGHTNING_PODMAN_NAME="clightning"
+	rm -rf "$LIGHTNING_DIR" "$LIGHTNING_SHIM_DIR"
+	# To still pass ic_verify_lightningd we need the shim to be executable —
+	# verify is by absolute path, not PATH.
+	_stub_podman 0 0
+	run "$LIGHTNING_BIN" daemon install-core --podman
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"not on \$PATH"* ]] || [[ "$output" == *"not on $"* ]] || [[ "$output" == *"PATH"*"add it"* ]]
 }
 
 @test "FEAT-207: spec file exists with the expected id" {
