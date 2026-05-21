@@ -2,7 +2,7 @@
 id: FEAT-207
 type: feature
 priority: medium
-status: open
+status: shipped
 ---
 
 # Install Core Lightning itself — `lightning daemon install-core`
