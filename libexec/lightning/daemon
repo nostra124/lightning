@@ -11,6 +11,7 @@
 #   install  — generate a service unit
 #              Linux: systemd (~/.config/systemd/user/lightning.service)
 #                     or system-mode (/etc/systemd/system/clightningd.service)
+#              Alpine: OpenRC (/etc/init.d/clightningd) — system-only
 #              macOS: launchd (~/Library/LaunchAgents/<label>.plist)
 
 set -e
@@ -573,6 +574,13 @@ cmd_install() {
 		else
 			install_macos_user
 		fi
+	elif [ "$(init_system)" = "openrc" ]; then
+		# OpenRC has no per-user mode — Alpine operators install system-wide.
+		# Treat --system as implied; warn but proceed if it wasn't passed.
+		if [ $system -eq 0 ]; then
+			info "OpenRC has no per-user mode — installing system-wide"
+		fi
+		install_openrc_system "$migrate"
 	elif [ $system -eq 1 ]; then
 		install_system "$migrate"
 	else
@@ -582,14 +590,14 @@ cmd_install() {
 	# FEAT-199 Layer 2 sidecar — keepalive scheduler. Default on
 	# (the operator opts out with --no-keepalive). Only wired in
 	# user-mode for now; system-mode operators run their own
-	# monitoring usually.
-	if [ "$keepalive" -eq 1 ] && [ "$system" -eq 0 ]; then
+	# monitoring usually.  Skipped on OpenRC (system-only path).
+	if [ "$keepalive" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
 		install_keepalive_sidecar
 	fi
 
 	# FEAT-204 sidecar — alert scheduler. Same gate as keepalive
 	# (user-mode default-on; --no-alert opts out).
-	if [ "$alert" -eq 1 ] && [ "$system" -eq 0 ]; then
+	if [ "$alert" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
 		install_alert_sidecar
 	fi
 }
@@ -1012,6 +1020,97 @@ EOF
 	info "    lightning daemon start         # routes through systemctl"
 	info "    lightning daemon status"
 	info "log out and back in for your group membership to take effect"
+}
+
+# FEAT-207 — Alpine / OpenRC system install.  Writes an
+# `/etc/init.d/clightningd` service unit driven by supervise-daemon,
+# creates the `clightning` system user + group, and seeds a config
+# with rpc-file-mode so the operator's primary group can reach the
+# RPC socket (same three-user pattern as install_system above).
+#
+# Two paths are parameterized via env vars for testability:
+#   LIGHTNING_INIT_D         /etc/init.d           — service-unit dir
+#   LIGHTNING_OPENRC_STATE   /var/lib/clightning   — daemon state dir
+#
+# In production the defaults are correct; tests override both so the
+# verb's filesystem writes land under $BATS_TMPDIR instead of /etc.
+install_openrc_system() {
+	local migrate=$1
+	local prefix; prefix=$(ic_root_prefix)
+	local init_d="${LIGHTNING_INIT_D:-/etc/init.d}"
+	local state_dir="${LIGHTNING_OPENRC_STATE:-/var/lib/clightning}"
+
+	if [ "$migrate" -eq 0 ] && [ -d "$HOME/.lightning" ] && [ ! -L "$HOME/.lightning" ]; then
+		warn "\$HOME/.lightning exists (user-mode install detected); refusing"
+		error "pass --migrate to move it to $state_dir"
+		exit 3
+	fi
+
+	# Alpine ships busybox `adduser` / `addgroup`, not the shadow-utils
+	# variants used in install_system.  Both -S flags create system
+	# accounts (no password, no aging).
+	if ! getent group clightning >/dev/null 2>&1; then
+		$prefix addgroup -S clightning || { error "failed to create clightning group"; exit 1; }
+	fi
+	if ! getent passwd clightning >/dev/null 2>&1; then
+		$prefix adduser -S -H -h "$state_dir" -s /sbin/nologin -G clightning clightning || {
+			error "failed to create clightning user"
+			exit 1
+		}
+	fi
+
+	$prefix install -d -o clightning -g clightning -m 0750 "$state_dir"
+
+	# Operator joins the clightning group so they can talk to the RPC socket.
+	$prefix adduser "$USER" clightning >/dev/null 2>&1 || true
+
+	local cfg="$state_dir/config"
+	$prefix tee "$cfg" >/dev/null <<EOF
+network=$LIGHTNING_NETWORK
+log-file=$state_dir/log
+rpc-file-mode=0660
+EOF
+	$prefix chown clightning:clightning "$cfg"
+
+	$prefix mkdir -p "$init_d"
+	local unit="$init_d/clightningd"
+	$prefix tee "$unit" >/dev/null <<EOF
+#!/sbin/openrc-run
+# Core Lightning OpenRC service unit (FEAT-207).
+# Written by 'lightning daemon install' on Alpine.
+
+description="Lightning Network daemon (Core Lightning)"
+
+command="/usr/bin/lightningd"
+command_args="--lightning-dir=$state_dir --network=$LIGHTNING_NETWORK"
+command_user="clightning:clightning"
+pidfile="$state_dir/lightningd-$LIGHTNING_NETWORK.pid"
+
+# supervise-daemon restarts the process on exit; respawn_* caps the
+# tight-loop case (3 restarts in 5 minutes, then stop).  Mirrors the
+# StartLimitBurst / StartLimitIntervalSec semantics of the systemd unit.
+supervisor=supervise-daemon
+respawn_delay=30
+respawn_period=300
+respawn_max=3
+
+output_log="$state_dir/log"
+error_log="$state_dir/log"
+
+depend() {
+	need net
+}
+EOF
+	$prefix chmod +x "$unit"
+
+	info "wrote $unit"
+	info "next:"
+	info "    sudo rc-update add clightningd default   # enable at boot"
+	info "    sudo rc-service clightningd start         # start now"
+	info "    lightning daemon status"
+	info "    lightning daemon logs -f"
+	info "stop:  sudo rc-service clightningd stop"
+	info "log out and back in for clightning group membership to take effect"
 }
 
 # ---------------------------------------------------------------------------
@@ -1579,6 +1678,9 @@ daemon never runs as root.
    Linux  /etc/systemd/system/clightningd.service
           User=clightning, state at /var/lib/clightning
           (FEAT-183 three-user layout).
+   Alpine /etc/init.d/clightningd (OpenRC), driven by
+          supervise-daemon.  No user-mode — Alpine installs are
+          always system-wide, --system flag is optional and implied.
 
 --migrate moves an existing ~/.lightning into the system state dir.
 

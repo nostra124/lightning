@@ -3103,6 +3103,135 @@ _podman_common_setup() {
 	[[ "$output" == *"not on \$PATH"* ]] || [[ "$output" == *"not on $"* ]] || [[ "$output" == *"PATH"*"add it"* ]]
 }
 
+# ---------------------------------------------------------------------------
+# FEAT-207 — Alpine / OpenRC daemon install
+# ---------------------------------------------------------------------------
+
+# Stubs for the system-account tools the OpenRC install path shells
+# out to.  Each records its args; a few also produce side effects so
+# the next step of the install pipeline finds what it expects (the
+# state dir from `install -d`, in particular).
+_stub_busybox_user_tools() {
+	# addgroup / adduser / chown — record + exit 0.
+	for cmd in addgroup adduser chown; do
+		cat > "$BIN_SHIM/$cmd" <<EOF
+#!/bin/sh
+echo "$cmd \$*" >> "$BIN_SHIM/$cmd.calls"
+exit 0
+EOF
+		chmod +x "$BIN_SHIM/$cmd"
+	done
+	# getent — always "not found" so the create-user / create-group
+	# paths fire (without it the verb assumes the accounts already exist
+	# and skips the addgroup / adduser calls we want to assert).
+	cat > "$BIN_SHIM/getent" <<EOF
+#!/bin/sh
+echo "getent \$*" >> "$BIN_SHIM/getent.calls"
+exit 2
+EOF
+	chmod +x "$BIN_SHIM/getent"
+	# install -d <dir> needs to create the dir so the following
+	# tee / chown calls have a parent to write into.  Ownership flags
+	# (-o/-g) are dropped — we don't have the system users on the test
+	# host anyway.
+	cat > "$BIN_SHIM/install" <<EOF
+#!/bin/sh
+echo "install \$*" >> "$BIN_SHIM/install.calls"
+for last in "\$@"; do :; done
+case "\$*" in *-d*) mkdir -p "\$last" ;; esac
+exit 0
+EOF
+	chmod +x "$BIN_SHIM/install"
+}
+
+_openrc_common_setup() {
+	_fake_alpine_os_release
+	export LIGHTNING_INIT_D="$BATS_TMPDIR/init.d.$$"
+	export LIGHTNING_OPENRC_STATE="$BATS_TMPDIR/clightning-state.$$"
+	rm -rf "$LIGHTNING_INIT_D" "$LIGHTNING_OPENRC_STATE"
+	# CI runs as non-root → ic_root_prefix returns sudo.  Stub it so
+	# the privileged calls (addgroup, install, tee, …) route through
+	# our shims rather than asking real sudo for a password.
+	_stub_sudo
+	_stub_busybox_user_tools
+	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
+}
+
+@test "FEAT-207: daemon install on Alpine writes an OpenRC init script" {
+	_openrc_common_setup
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	[ -f "$LIGHTNING_INIT_D/clightningd" ]
+	# Init script shape — shebang + supervisor + depend block.
+	grep -q '^#!/sbin/openrc-run'                "$LIGHTNING_INIT_D/clightningd"
+	grep -q '^command="/usr/bin/lightningd"'     "$LIGHTNING_INIT_D/clightningd"
+	grep -q 'command_user="clightning:clightning"' "$LIGHTNING_INIT_D/clightningd"
+	grep -q '^supervisor=supervise-daemon'       "$LIGHTNING_INIT_D/clightningd"
+	grep -q 'need net'                           "$LIGHTNING_INIT_D/clightningd"
+}
+
+@test "FEAT-207: OpenRC install creates the clightning user + group" {
+	_openrc_common_setup
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	[ -f "$BIN_SHIM/addgroup.calls" ]
+	grep -q "addgroup -S clightning" "$BIN_SHIM/addgroup.calls"
+	[ -f "$BIN_SHIM/adduser.calls" ]
+	grep -q "adduser -S -H" "$BIN_SHIM/adduser.calls"
+	grep -q "\\-G clightning clightning" "$BIN_SHIM/adduser.calls"
+}
+
+@test "FEAT-207: OpenRC install seeds the config with rpc-file-mode 0660" {
+	_openrc_common_setup
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	[ -f "$LIGHTNING_OPENRC_STATE/config" ]
+	grep -q "^rpc-file-mode=0660" "$LIGHTNING_OPENRC_STATE/config"
+	grep -q "^network=" "$LIGHTNING_OPENRC_STATE/config"
+}
+
+@test "FEAT-207: OpenRC init script references the configured state dir" {
+	_openrc_common_setup
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	grep -qF "lightning-dir=$LIGHTNING_OPENRC_STATE" "$LIGHTNING_INIT_D/clightningd"
+	grep -qF "pidfile=\"$LIGHTNING_OPENRC_STATE/lightningd-bitcoin.pid\"" "$LIGHTNING_INIT_D/clightningd"
+}
+
+@test "FEAT-207: OpenRC install --system is silent (no warning), --bare is the warning" {
+	_openrc_common_setup
+	run "$LIGHTNING_BIN" daemon install --system
+	[ "$status" -eq 0 ]
+	# Without --system on OpenRC the verb informs the operator that
+	# user-mode isn't an option.  With --system it just proceeds.
+	! [[ "$output" == *"no per-user mode"* ]]
+}
+
+@test "FEAT-207: OpenRC install without --system warns about no user-mode" {
+	_openrc_common_setup
+	run "$LIGHTNING_BIN" -v daemon install
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"no per-user mode"* ]]
+}
+
+@test "FEAT-207: OpenRC install refuses without --migrate when ~/.lightning exists" {
+	_openrc_common_setup
+	mkdir -p "$HOME/.lightning"
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 3 ]
+	[[ "$output" == *"--migrate"* ]]
+}
+
+@test "FEAT-207: OpenRC install skips sidecar installation (no keepalive/alert)" {
+	_openrc_common_setup
+	run "$LIGHTNING_BIN" daemon install
+	[ "$status" -eq 0 ]
+	# Sidecars are user-mode systemd/launchd specific.  On OpenRC the
+	# operator runs their own monitoring; we don't ship them.
+	[ ! -e "$HOME/.config/systemd/user/lightning-keepalive.service" ]
+	[ ! -e "$HOME/.config/systemd/user/lightning-alert.service" ]
+}
+
 @test "FEAT-207: spec file exists with the expected id" {
 	f="$BATS_TEST_DIRNAME/../../issues/feature/207-clightning-install.md"
 	[ -f "$f" ]
