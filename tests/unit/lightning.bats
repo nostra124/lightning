@@ -1276,9 +1276,12 @@ _lsps_plugin_loaded() {
 }
 
 @test "FEAT-198: spec file references the cln-lsps plugin approach" {
-	f="$BATS_TEST_DIRNAME/../../issues/feature/198-lsps1-inbound-liquidity.md"
+	# Moved to done/ when the ticket shipped — same convention every
+	# other graduated 0.x FEAT followed.
+	f="$BATS_TEST_DIRNAME/../../issues/feature/done/198-lsps1-inbound-liquidity.md"
 	[ -f "$f" ]
 	grep -q "^id: FEAT-198" "$f"
+	grep -q "^status: shipped" "$f"
 	grep -q "cln-lsps" "$f"
 	grep -q "Boltz" "$f"
 	grep -q "daemon install --lsps" "$f"
@@ -3664,4 +3667,197 @@ EOF2
 	grep -q "^status: shipped" "$f"
 	grep -q "autopilot" "$f"
 	grep -q "rebalance" "$f"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-211: account-centric user-facing verb facade
+# ---------------------------------------------------------------------------
+
+# Common: create a wallet + an account.  Returns once both exist.
+_acct_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent "monthly rent" --limit 100000 --overdraft warn >/dev/null
+}
+
+@test "FEAT-211: account verb's help lists the new account-centric subs" {
+	run "$LIGHTNING_BIN" account
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"topup"* ]]
+	[[ "$output" == *"withdraw"* ]]
+	[[ "$output" == *"pay"* ]]
+	[[ "$output" == *"receive"* ]]
+}
+
+@test "FEAT-211: account topup unknown account exits with hint" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account topup nosuchaccount 10000
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"not found"* ]]
+	[[ "$output" == *"account create"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account topup prints address + BIP-21 URI + QR" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account topup rent 100000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Top up account 'rent'"* ]]
+	[[ "$output" == *"bcrt1qtestaddress"* ]]
+	[[ "$output" == *"BIP-21: bitcoin:"* ]]
+	[[ "$output" == *"amount=100000"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account topup --via lightning produces a BOLT-11 invoice" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account topup rent 5000 --via lightning
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"lnbcrt"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account topup rejects unknown --via value" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account topup rent 1000 --via tor
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"--via must be"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account withdraw rejects a non-bitcoin address" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account withdraw rent 5000 not-an-address
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"doesn't look like a bitcoin address"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account withdraw errors clearly when boltzcli isn't installed" {
+	_acct_setup
+	# boltzcli isn't on the test PATH — the verb should report it.
+	run "$LIGHTNING_BIN" account withdraw rent 5000 bc1qtestaddressxxxxxxxxxxxxxxxxxxxxxxxxxx
+	[ "$status" -eq 127 ]
+	[[ "$output" == *"boltzcli not installed"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account withdraw runs boltzcli reverse swap when installed" {
+	_acct_setup
+	# Stub boltzcli to succeed.
+	cat > "$BIN_SHIM/boltzcli" <<'EOF2'
+#!/bin/sh
+echo "boltzcli $*" >> "$BIN_SHIM/boltzcli.calls"
+echo '{"id":"swap-123","status":"created"}'
+exit 0
+EOF2
+	chmod +x "$BIN_SHIM/boltzcli"
+	export BIN_SHIM
+	run "$LIGHTNING_BIN" account withdraw rent 5000 bc1qrecipientxxxxxxxxxxxxxxxxxxxxxxxxxx
+	[ "$status" -eq 0 ]
+	grep -q "createreverseswap" "$BIN_SHIM/boltzcli.calls"
+	grep -q "\\--address bc1qrecipient" "$BIN_SHIM/boltzcli.calls"
+	[[ "$output" == *"ok"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account pay dispatches lnbc* to invoice pay" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account pay rent lnbcrt10n1pmocktest
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"ok"* ]] || [[ "$output" == *"payment_hash"* ]] || [[ "$output" == *"complete"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account pay dispatches lno* to offer pay" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account pay rent lno1pgmocktest
+	[ "$status" -eq 0 ]
+	# offer pay fetches an invoice then pays — output includes payment status.
+	[[ "$output" == *"complete"* ]] || [[ "$output" == *"payment_hash"* ]] || [[ "$output" == *"ok"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account pay rejects 02xx node-pubkey without --sat" {
+	_acct_setup
+	# 66-char hex pubkey starting with 02.
+	run "$LIGHTNING_BIN" account pay rent 020000000000000000000000000000000000000000000000000000000000000002
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"keysend needs --sat"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account pay accepts 02xx node-pubkey + --sat (keysend)" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account pay rent \
+		020000000000000000000000000000000000000000000000000000000000000002 --sat 1000
+	[ "$status" -eq 0 ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account pay rejects unknown payment-string shape" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account pay rent garbage-string-no-prefix
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"couldn't identify payment-string type"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account pay rejects 02xx that isn't 66 chars" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account pay rent 02deadbeef --sat 100
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"isn't 66 chars"* ]] || [[ "$output" == *"couldn't identify"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account receive defaults to BOLT-11 + QR" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account receive rent 7500 --desc "tip"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"lnbcrt"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account receive --reusable produces a BOLT-12 offer + QR" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account receive rent 5000 --reusable --desc "monthly subscription"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"lno1"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: account receive --reusable binds the offer to the account" {
+	_acct_setup
+	run "$LIGHTNING_BIN" account receive rent 5000 --reusable
+	[ "$status" -eq 0 ]
+	# offer create --account writes a binding recfile under wallet/offers/.
+	[ -d "$LIGHTNING_WALLETS_ROOT/alice/offers" ]
+	grep -q "^account: rent" "$LIGHTNING_WALLETS_ROOT/alice/offers/"*.recfile
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: offer create --account writes the binding (unit test for the gap-filler)" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create club "" >/dev/null
+	run "$LIGHTNING_BIN" offer create 1000 "test offer" --account club
+	[ "$status" -eq 0 ]
+	[ -d "$LIGHTNING_WALLETS_ROOT/alice/offers" ]
+	grep -q "^account: club"  "$LIGHTNING_WALLETS_ROOT/alice/offers/"*.recfile
+	grep -q "^offer_id:"      "$LIGHTNING_WALLETS_ROOT/alice/offers/"*.recfile
+	grep -q "^bolt12: lno1"   "$LIGHTNING_WALLETS_ROOT/alice/offers/"*.recfile
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-211: spec file exists with the expected id" {
+	# Shipped together with the implementation in this PR — same
+	# cadence as FEAT-198 / FEAT-205 / FEAT-207.
+	f="$BATS_TEST_DIRNAME/../../issues/feature/done/211-account-centric-verbs.md"
+	[ -f "$f" ]
+	grep -q "^id: FEAT-211" "$f"
+	grep -q "^status: shipped" "$f"
+	grep -q "topup" "$f"
+	grep -q "withdraw" "$f"
+	grep -q "receive" "$f"
 }

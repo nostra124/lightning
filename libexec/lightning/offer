@@ -38,14 +38,15 @@ require_cli() {
 }
 
 cmd_create() {
-	[ $# -lt 2 ] && { echo "usage: lightning offer create <sat>|any <description> [--qr]" >&2; exit 1; }
+	[ $# -lt 2 ] && { echo "usage: lightning offer create <sat>|any <description> [--qr] [--account <name>]" >&2; exit 1; }
 
 	local amount="$1" desc="$2"; shift 2
-	local want_qr=0
+	local want_qr=0 account=""
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--qr) want_qr=1; shift ;;
+			--account) account="$2"; shift 2 ;;
 			*) error "offer create: unknown flag '$1'"; exit 1 ;;
 		esac
 	done
@@ -61,6 +62,21 @@ cmd_create() {
 	local bolt12; bolt12=$(jq -r .bolt12 <<<"$result")
 	local offer_id; offer_id=$(jq -r .offer_id <<<"$result")
 
+	# FEAT-211 — when --account is set, persist the offer→account
+	# binding so payments fetched against this offer credit the right
+	# ledger.  Mirrors how `invoice create --account` already works.
+	if [ -n "$account" ]; then
+		local wallet_dir
+		wallet_dir="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+		local active="default"
+		[ -f "${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active" ] && \
+			active=$(cat "${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active")
+		local bindings_dir="$wallet_dir/$active/offers"
+		mkdir -p "$bindings_dir"
+		printf 'account: %s\noffer_id: %s\nbolt12: %s\n' "$account" "$offer_id" "$bolt12" \
+			> "$bindings_dir/$offer_id.recfile"
+	fi
+
 	echo "$bolt12"
 	echo "# offer_id: $offer_id" >&2
 
@@ -71,15 +87,17 @@ cmd_create() {
 }
 
 cmd_pay() {
-	[ $# -lt 1 ] && { echo "usage: lightning offer pay <bolt12-offer> [<sat>] [--message <text>]" >&2; exit 1; }
+	[ $# -lt 1 ] && { echo "usage: lightning offer pay <bolt12-offer> [<sat>] [--message <text>] [--account <name>]" >&2; exit 1; }
 
 	local offer="$1"; shift
 	local amount_arg="null"
 	local message=""
+	local account=""
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--message) message="$2"; shift 2 ;;
+			--account) account="$2"; shift 2 ;;
 			[0-9]*)    amount_arg="$(( $1 * 1000 ))msat"; shift ;;
 			*) error "offer pay: unknown arg '$1'"; exit 1 ;;
 		esac
@@ -98,6 +116,13 @@ cmd_pay() {
 	local hash;   hash=$(jq -r .payment_hash <<<"$result")
 
 	if [ "$status" = "complete" ]; then
+		# FEAT-211 — if the operator passed --account, debit it.
+		if [ -n "$account" ] && [ -x "$SELF_LIBEXEC/lightning/ledger" ]; then
+			local amount_msat; amount_msat=$(jq -r '.amount_msat // 0' <<<"$result")
+			"$SELF_LIBEXEC/lightning/ledger" add out "$amount_msat" \
+				--account "$account" \
+				--payment-hash "$hash" 2>/dev/null || true
+		fi
 		echo "ok"
 		echo "payment_hash: $hash"
 		exit 0
