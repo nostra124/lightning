@@ -118,9 +118,9 @@ sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, mes
 sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$network_fee_msat, $(sql_quote "$payment_hash"), 'network fee');"
 if [ "$operator_fee_msat" -gt 0 ]; then
 	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message)"
-	sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, $(sql_quote "$payment_hash"), 'operator fee');"
+	sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, $(sql_quote "$payment_hash"), 'fee:pay');"
 	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message)"
-	sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, $(sql_quote "$payment_hash"), $(sql_quote "fee from $name"));"
+	sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, $(sql_quote "$payment_hash"), $(sql_quote "fee:pay from $name"));"
 fi
 sql+=" COMMIT;"
 sqlite3 "$db" "$sql" 2>/dev/null || true
