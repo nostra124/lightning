@@ -64,6 +64,12 @@ EOF
 		# Default empty.  FEAT-212 PR-4 (deposit watcher) needs this.
 		printf '{"outputs": %s, "channels": []}\n' "${MOCK_LISTFUNDS_OUTPUTS:-[]}"
 		;;
+	listforwards)
+		# FEAT-215 — auto-tuner reads routing income from this.
+		# Tests drive via MOCK_LISTFORWARDS — a JSON array literal
+		# spliced into the forwards field.  Default empty.
+		printf '{"forwards": %s}\n' "${MOCK_LISTFORWARDS:-[]}"
+		;;
 	newaddr)
 		# FEAT-212 — every account mints a unique address.  Return a
 		# fresh deterministic-but-varying bcrt1q… per call so tests
@@ -207,9 +213,6 @@ EOF
 	setchannel)
 		printf '{"channels":[{"channel_id":"%s","fee_base_msat":%s,"fee_proportional_millionths":%s}]}\n' \
 			"$2" "$3" "$4"
-		;;
-	listforwards)
-		echo '{"forwards": []}'
 		;;
 	# FEAT-198 — cln-lsps plugin RPCs.  Tests set MOCK_LSPS1_STATE /
 	# MOCK_LSPS1_CHANNEL_ID to drive the order-state machine; defaults

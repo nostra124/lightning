@@ -48,6 +48,8 @@ usage: lightning fee-policy <subcommand>
 
    status [--since YYYY-MM-DD]   revenue + breakdown + top accounts
    show-rates                    current fees.recfile (formatted)
+   autotune {run|dry-run|status} nudge rate_ppm based on observed
+                                 revenue vs. operator target
 EOF
 }
 
@@ -179,9 +181,182 @@ cmd_show_rates() {
 	' "$fees_file"
 }
 
+# FEAT-215 — daily auto-tuner.  Nudges fees.recfile's rate_ppm
+# values based on observed economics: routing income from
+# `lightning-cli listforwards` + operator skim revenue from the
+# house account.  Driven by `daemon install --fee-autotune`.
+#
+# Settings (env vars; no default for the target so a misconfigured
+# install errors loudly instead of silently nudging rates):
+#
+#   LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY  required.  Operator's
+#                                               net-revenue target per
+#                                               day.  Monthly / 30 is
+#                                               the simple conversion.
+#   LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM         default 500 (0.05%).
+#                                               Cap on per-day rate
+#                                               adjustments — prevents
+#                                               oscillation.
+#   LIGHTNING_FEE_AUTOTUNE_FLOOR_PPM            default 0.  Per-op
+#                                               minimum.  Negative
+#                                               values are only
+#                                               honoured when FEAT-216
+#                                               (interest mode) lands.
+#   LIGHTNING_FEE_AUTOTUNE_CEILING_PPM          default 100000 (10%).
+#                                               Per-op maximum.
+#   LIGHTNING_FEE_AUTOTUNE_HYSTERESIS_PCT       default 20.  Don't
+#                                               nudge unless observed
+#                                               revenue is at least
+#                                               this % off target.
+cmd_autotune() {
+	local op="${1:-run}"
+	local dry=0
+	case "$op" in
+		run)               dry=0 ;;
+		dry-run|--dry-run) dry=1 ;;
+		status)            _autotune_status; return ;;
+		*) echo "usage: lightning fee-policy autotune {run|dry-run|status}" >&2; exit 1 ;;
+	esac
+
+	local target="${LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY:-}"
+	if [ -z "$target" ]; then
+		echo "lightning fee-policy autotune: LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY not set" >&2
+		echo "  (no default — operator must declare a target before the tuner can run)" >&2
+		exit 1
+	fi
+	case "$target" in ''|*[!0-9]*)
+		echo "lightning fee-policy autotune: target must be a positive integer (msat/day)" >&2
+		exit 1 ;;
+	esac
+
+	local max_step="${LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM:-500}"
+	local floor="${LIGHTNING_FEE_AUTOTUNE_FLOOR_PPM:-0}"
+	local ceiling="${LIGHTNING_FEE_AUTOTUNE_CEILING_PPM:-100000}"
+	local hyst_pct="${LIGHTNING_FEE_AUTOTUNE_HYSTERESIS_PCT:-20}"
+
+	local wname; wname=$(active_wallet_name)
+	local fees_file="$WALLETS_ROOT/$wname/fees.recfile"
+	[ -f "$fees_file" ] || {
+		echo "lightning fee-policy autotune: no fees.recfile in $wname" >&2
+		exit 2
+	}
+	local db; db=$(active_db)
+	local lightning_dir="${LIGHTNING_DIR:-$HOME/.lightning}"
+	local state_file="$lightning_dir/fee-autotune.state.recfile"
+	mkdir -p "$lightning_dir"
+
+	# --- read 30-day skim revenue ---
+	local skim_msat
+	skim_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger \
+		WHERE account = 'house' AND direction = 'in' AND date(ts) >= date('now', '-30 days');")
+
+	# --- read 30-day routing income ---
+	local routing_msat=0
+	if command -v lightning-cli >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+		local cutoff_ts; cutoff_ts=$(( $(date -u +%s) - 30 * 86400 ))
+		# `listforwards` returns settled forwards with fee_msat and
+		# received_time (float unix seconds).  Sum settled fees in
+		# the last 30 days.  Older clightning versions can return
+		# fee_msat as either an integer or "Nmsat" string.
+		routing_msat=$(lightning-cli \
+			--lightning-dir="$lightning_dir" \
+			--network="${LIGHTNING_NETWORK:-bitcoin}" \
+			listforwards 2>/dev/null | jq --argjson cutoff "$cutoff_ts" '
+				[ .forwards[]?
+				  | select(.status == "settled")
+				  | select((.received_time // 0) >= $cutoff)
+				  | ( .fee_msat // 0
+				      | if type == "string"
+				        then sub("msat$"; "") | tonumber
+				        else . end ) ] | add // 0' 2>/dev/null || echo 0)
+		case "$routing_msat" in ''|*[!0-9]*) routing_msat=0 ;; esac
+	fi
+
+	local total_30d_msat=$(( skim_msat + routing_msat ))
+	local observed_msat_per_day=$(( total_30d_msat / 30 ))
+
+	# --- decide direction ---
+	local low_threshold=$(( target * (100 - hyst_pct) / 100 ))
+	local high_threshold=$(( target * (100 + hyst_pct) / 100 ))
+	local direction="hold"
+	local delta_ppm=0
+	if [ "$observed_msat_per_day" -lt "$low_threshold" ]; then
+		direction="up"
+		delta_ppm="$max_step"
+	elif [ "$observed_msat_per_day" -gt "$high_threshold" ]; then
+		direction="down"
+		delta_ppm="-$max_step"
+	fi
+
+	# --- apply per-op ---
+	local ops=("pay" "withdraw" "topup-onchain" "topup-ln" "recv")
+	local changes=""
+	for o in "${ops[@]}"; do
+		local cur
+		cur=$(awk -v op="$o" '
+			BEGIN { RS=""; FS="\n" }
+			{
+				in_op=0; r=""
+				for (i=1; i<=NF; i++) {
+					if ($i == "operation: " op) in_op=1
+					if ($i ~ /^rate_ppm: */) { r=$i; sub(/^rate_ppm: */, "", r) }
+				}
+				if (in_op && r != "") { print r; exit }
+			}
+		' "$fees_file")
+		[ -n "$cur" ] || continue
+		local new=$(( cur + delta_ppm ))
+		[ "$new" -lt "$floor" ]   && new="$floor"
+		[ "$new" -gt "$ceiling" ] && new="$ceiling"
+		if [ "$new" != "$cur" ]; then
+			changes+="$o $cur->$new "
+			if [ $dry -eq 0 ]; then
+				# Replace rate_ppm inside the [operation:...; next blank]
+				# range.  Two spaces of alignment match the seeded file
+				# format from share/lightning/defaults/fees.recfile.
+				sed -i "/^operation: $o\$/,/^\$/ s|^rate_ppm:.*|rate_ppm:  $new|" "$fees_file"
+			fi
+		fi
+	done
+
+	# --- write state recfile ---
+	local now; now=$(date -u +%s)
+	if [ $dry -eq 0 ]; then
+		cat > "$state_file" <<EOF
+last_run:                 $now
+last_direction:           $direction
+last_delta_ppm:           $delta_ppm
+observed_msat_per_day:    $observed_msat_per_day
+skim_msat_30d:            $skim_msat
+routing_msat_30d:         $routing_msat
+target_msat_per_day:      $target
+hysteresis_pct:           $hyst_pct
+max_step_ppm:             $max_step
+changes:                  ${changes:-(none)}
+EOF
+	fi
+
+	# --- one-line summary to stderr (journal-friendly) ---
+	if [ $dry -eq 1 ]; then
+		echo "fee-policy autotune dry-run: direction=$direction observed=${observed_msat_per_day}msat/day target=${target}msat/day changes=${changes:-(none)}" >&2
+	else
+		echo "fee-policy autotune: direction=$direction observed=${observed_msat_per_day}msat/day target=${target}msat/day changes=${changes:-(none)}" >&2
+	fi
+}
+
+_autotune_status() {
+	local state_file="${LIGHTNING_DIR:-$HOME/.lightning}/fee-autotune.state.recfile"
+	if [ ! -f "$state_file" ]; then
+		echo "fee-policy autotune: never run (no state file)"
+		return 0
+	fi
+	cat "$state_file"
+}
+
 case "${1:-}" in
 	status)     shift; cmd_status "$@" ;;
 	show-rates) shift; cmd_show_rates "$@" ;;
+	autotune)   shift; cmd_autotune "$@" ;;
 	"")         usage; exit 1 ;;
 	*)          echo "lightning fee-policy: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac
