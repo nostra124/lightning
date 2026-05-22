@@ -59,7 +59,10 @@ EOF
 		echo '{"channels": []}'
 		;;
 	listfunds)
-		echo '{"outputs": [], "channels": []}'
+		# Tests drive the UTXO set via MOCK_LISTFUNDS_OUTPUTS — a
+		# JSON array literal that we splice into the outputs field.
+		# Default empty.  FEAT-212 PR-4 (deposit watcher) needs this.
+		printf '{"outputs": %s, "channels": []}\n' "${MOCK_LISTFUNDS_OUTPUTS:-[]}"
 		;;
 	newaddr)
 		# FEAT-212 — every account mints a unique address.  Return a

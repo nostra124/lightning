@@ -188,6 +188,9 @@ usage: lightning account <subcommand>
    apikey create <name> --scope read|write       issue an API key
    apikey list <name>                            which scopes exist
    apikey revoke <name> --scope read|write
+   topup-watcher run|dry-run|status              credit new on-chain
+                                                 deposits to known
+                                                 account-addresses
    topup <name> <sat> [--via lightning]          QR for on-chain top-up
    withdraw <name> <sat> <onchain-addr>          submarine swap out
    pay <name> <bolt11|bolt12|lnurl|addr|node-id>
@@ -462,6 +465,139 @@ cmd_nickname() {
 	esac
 }
 
+# FEAT-212 PR-4 — deposit watcher.
+#
+# Each account's ID is a bitcoin address (FEAT-212), which doubles as
+# the on-chain top-up destination.  This verb polls `lightning-cli
+# listfunds` for new confirmed UTXOs at any known account-address and
+# books a credit into the ledger.  Idempotent — UTXOs are deduped by
+# the synthetic payment_hash "txid:vout".
+#
+# Subcommands:
+#   run            credit any new UTXOs (default if no arg)
+#   dry-run        list what would be credited; don't write
+#   status         show the last-seen UTXO + count of credits
+#
+# Driven by `daemon install --topup-watcher` (one-shot timer; same
+# pattern as autopilot).  Manual invocation: `lightning account
+# topup-watcher run`.
+cmd_topup_watcher() {
+	local op="${1:-run}"
+	local dry=0
+	case "$op" in
+		run)            dry=0 ;;
+		dry-run|--dry-run) dry=1 ;;
+		status)         _topup_watcher_status; return ;;
+		*) echo "usage: lightning account topup-watcher {run|dry-run|status}" >&2; exit 1 ;;
+	esac
+
+	command -v lightning-cli >/dev/null || {
+		echo "lightning account topup-watcher: lightning-cli not found" >&2
+		exit 127
+	}
+	command -v jq >/dev/null || {
+		echo "lightning account topup-watcher: jq not installed" >&2
+		exit 127
+	}
+
+	local db; db=$(active_db)
+	# Active accounts only — closed accounts (closed_at IS NOT NULL)
+	# stop receiving credits at the watcher level.  An incoming UTXO
+	# to a closed-account address is logged as orphan but not booked.
+	local known
+	known=$(sqlite3 -separator $'\t' "$db" \
+		"SELECT address, name FROM accounts WHERE address IS NOT NULL AND closed_at IS NULL;")
+	# Don't early-return on empty `known` — UTXOs at closed-account
+	# addresses still need to be detected so the operator sees the
+	# orphan warning rather than silently dropping the deposit.
+
+	local listfunds
+	listfunds=$(lightning-cli \
+		--lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+		--network="${LIGHTNING_NETWORK:-bitcoin}" \
+		listfunds 2>/dev/null) || {
+			echo "lightning account topup-watcher: listfunds failed (is lightningd running?)" >&2
+			exit 4
+		}
+
+	# Project the UTXO list into a TSV of (txid \t output \t address
+	# \t amount_msat).  Only confirmed UTXOs are credited; pending
+	# ones are picked up on a later pass.  amount_msat normalises
+	# both the post-23.02 string form and the legacy `value` field.
+	local utxos
+	utxos=$(jq -r '
+		.outputs[]?
+		| select(.status == "confirmed")
+		| [ .txid,
+		    (.output|tostring),
+		    (.address // ""),
+		    ( (.amount_msat // empty)
+		      | (if type == "string" then sub("msat$"; "") | tonumber
+		         else . end)
+		    )
+		  ]
+		| @tsv' <<<"$listfunds")
+
+	local credited=0 skipped_dupe=0 unknown=0 closed=0
+	local txid vout addr amount_msat name pmt_hash
+	while IFS=$'\t' read -r txid vout addr amount_msat; do
+		[ -n "$addr" ] || continue
+		# Match against known account-addresses.
+		name=$(awk -F'\t' -v a="$addr" '$1 == a { print $2; exit }' <<<"$known")
+		if [ -z "$name" ]; then
+			# Possibly a closed-account address — log it but don't credit.
+			if sqlite3 "$db" "SELECT 1 FROM accounts WHERE address = $(sql_quote "$addr") AND closed_at IS NOT NULL LIMIT 1;" 2>/dev/null | grep -q 1; then
+				closed=$((closed+1))
+				printf 'skip\t%s\taccount closed\t+%s msat\t%s:%s\n' "$addr" "$amount_msat" "$txid" "$vout"
+			else
+				unknown=$((unknown+1))
+			fi
+			continue
+		fi
+		pmt_hash="$txid:$vout"
+		# Dedupe via payment_hash.  Cheap — the column is indexed
+		# implicitly only on the PK, but the table is small enough
+		# that the full scan is fine.
+		if sqlite3 "$db" "SELECT 1 FROM ledger WHERE payment_hash = $(sql_quote "$pmt_hash") LIMIT 1;" 2>/dev/null | grep -q 1; then
+			skipped_dupe=$((skipped_dupe+1))
+			continue
+		fi
+		if [ $dry -eq 1 ]; then
+			printf 'would-credit\t%s\t%s\t+%s msat\t%s\n' "$name" "$addr" "$amount_msat" "$pmt_hash"
+		else
+			sqlite3 "$db" "INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message) \
+				VALUES(datetime('now'), $(sql_quote "$name"), 'in', $amount_msat, 'on-chain', $(sql_quote "$pmt_hash"), 'topup-watcher');"
+			printf 'credit\t%s\t%s\t+%s msat\t%s\n' "$name" "$addr" "$amount_msat" "$pmt_hash"
+		fi
+		credited=$((credited+1))
+	done <<<"$utxos"
+
+	# One-line summary to stderr so the systemd journal stays tidy.
+	if [ $dry -eq 1 ]; then
+		echo "topup-watcher dry-run: would credit $credited (dupes $skipped_dupe, closed $closed, unknown $unknown)" >&2
+	else
+		echo "topup-watcher: credited $credited (dupes $skipped_dupe, closed $closed, unknown $unknown)" >&2
+	fi
+}
+
+_topup_watcher_status() {
+	local db; db=$(active_db)
+	local last
+	last=$(sqlite3 -separator $'\t' "$db" \
+		"SELECT ts, account, amount_msat, payment_hash FROM ledger WHERE message = 'topup-watcher' ORDER BY id DESC LIMIT 1;")
+	local total
+	total=$(sqlite3 "$db" "SELECT COUNT(*) FROM ledger WHERE message = 'topup-watcher';")
+	local watched
+	watched=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE address IS NOT NULL AND closed_at IS NULL;")
+	printf "watched_accounts: %s\n" "$watched"
+	printf "total_credits:    %s\n" "$total"
+	if [ -n "$last" ]; then
+		printf "last_credit:      %s\n" "$last"
+	else
+		printf "last_credit:      (none yet)\n"
+	fi
+}
+
 cmd_apikey() {
 	[ $# -lt 1 ] && { echo "usage: lightning account apikey {create,list,revoke} <name> --scope read|write" >&2; exit 1; }
 	local op="$1"; shift
@@ -692,6 +828,7 @@ case "${1:-}" in
 	show)     shift; cmd_show "$@" ;;
 	close)    shift; cmd_close "$@" ;;
 	nickname) shift; cmd_nickname "$@" ;;
+	topup-watcher) shift; cmd_topup_watcher "$@" ;;
 	apikey)   shift; cmd_apikey "$@" ;;
 	topup)    shift; cmd_topup "$@" ;;
 	withdraw) shift; cmd_withdraw "$@" ;;

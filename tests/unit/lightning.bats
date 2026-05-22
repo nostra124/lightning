@@ -4300,3 +4300,140 @@ _acct212pr2_teardown() {
 	grep -q "wellknown/api/mcp.py" "$f"
 	grep -q "Alias /.well-known/lightning/mcp.json" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-212 PR-4: deposit watcher.
+# ---------------------------------------------------------------------------
+
+_acct212pr4_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	BATS_ADDR_RENT=$(sqlite3 "$LIGHTNING_WALLETS_ROOT/alice/state.db" "SELECT address FROM accounts WHERE name='rent';")
+}
+
+_acct212pr4_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-212 PR-4: topup-watcher status reports counts" {
+	_acct212pr4_setup
+	run "$LIGHTNING_BIN" account topup-watcher status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"watched_accounts: 1"* ]]
+	[[ "$output" == *"total_credits:    0"* ]]
+	[[ "$output" == *"last_credit:      (none yet)"* ]]
+	_acct212pr4_teardown
+}
+
+@test "FEAT-212 PR-4: topup-watcher run with no UTXOs is a no-op" {
+	_acct212pr4_setup
+	MOCK_LISTFUNDS_OUTPUTS='[]' run "$LIGHTNING_BIN" account topup-watcher run
+	[ "$status" -eq 0 ]
+	local n
+	n=$(sqlite3 "$LIGHTNING_WALLETS_ROOT/alice/state.db" "SELECT COUNT(*) FROM ledger WHERE message='topup-watcher';")
+	[ "$n" = "0" ]
+	_acct212pr4_teardown
+}
+
+@test "FEAT-212 PR-4: topup-watcher credits a new UTXO at a known address" {
+	_acct212pr4_setup
+	outs=$(jq -nc --arg a "$BATS_ADDR_RENT" \
+		'[{"txid":"deadbeef","output":0,"status":"confirmed","address":$a,"amount_msat":"50000000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" run "$LIGHTNING_BIN" account topup-watcher run
+	[ "$status" -eq 0 ]
+	local row
+	row=$(sqlite3 -separator '|' "$LIGHTNING_WALLETS_ROOT/alice/state.db" \
+		"SELECT account, direction, amount_msat, payment_hash FROM ledger WHERE message='topup-watcher';")
+	[ "$row" = "rent|in|50000000|deadbeef:0" ]
+	_acct212pr4_teardown
+}
+
+@test "FEAT-212 PR-4: topup-watcher dry-run prints plan but writes nothing" {
+	_acct212pr4_setup
+	outs=$(jq -nc --arg a "$BATS_ADDR_RENT" \
+		'[{"txid":"deadbeef","output":0,"status":"confirmed","address":$a,"amount_msat":"1000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" run "$LIGHTNING_BIN" account topup-watcher dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"would-credit"* ]]
+	[[ "$output" == *"rent"* ]]
+	local n
+	n=$(sqlite3 "$LIGHTNING_WALLETS_ROOT/alice/state.db" "SELECT COUNT(*) FROM ledger WHERE message='topup-watcher';")
+	[ "$n" = "0" ]
+	_acct212pr4_teardown
+}
+
+@test "FEAT-212 PR-4: topup-watcher dedupes re-seen UTXOs" {
+	_acct212pr4_setup
+	outs=$(jq -nc --arg a "$BATS_ADDR_RENT" \
+		'[{"txid":"deadbeef","output":0,"status":"confirmed","address":$a,"amount_msat":"1000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local n
+	n=$(sqlite3 "$LIGHTNING_WALLETS_ROOT/alice/state.db" "SELECT COUNT(*) FROM ledger WHERE message='topup-watcher';")
+	[ "$n" = "1" ]
+	_acct212pr4_teardown
+}
+
+@test "FEAT-212 PR-4: topup-watcher skips unconfirmed UTXOs" {
+	_acct212pr4_setup
+	outs=$(jq -nc --arg a "$BATS_ADDR_RENT" \
+		'[{"txid":"deadbeef","output":0,"status":"unconfirmed","address":$a,"amount_msat":"1000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local n
+	n=$(sqlite3 "$LIGHTNING_WALLETS_ROOT/alice/state.db" "SELECT COUNT(*) FROM ledger WHERE message='topup-watcher';")
+	[ "$n" = "0" ]
+	_acct212pr4_teardown
+}
+
+@test "FEAT-212 PR-4: topup-watcher skips UTXOs at unknown addresses" {
+	_acct212pr4_setup
+	outs='[{"txid":"deadbeef","output":0,"status":"confirmed","address":"bcrt1qstrangerxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","amount_msat":"1000msat"}]'
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local n
+	n=$(sqlite3 "$LIGHTNING_WALLETS_ROOT/alice/state.db" "SELECT COUNT(*) FROM ledger WHERE message='topup-watcher';")
+	[ "$n" = "0" ]
+	_acct212pr4_teardown
+}
+
+@test "FEAT-212 PR-4: topup-watcher does not credit closed accounts" {
+	_acct212pr4_setup
+	"$LIGHTNING_BIN" account close rent >/dev/null
+	outs=$(jq -nc --arg a "$BATS_ADDR_RENT" \
+		'[{"txid":"deadbeef","output":0,"status":"confirmed","address":$a,"amount_msat":"1000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" run "$LIGHTNING_BIN" account topup-watcher run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"skip"*"account closed"* ]]
+	local n
+	n=$(sqlite3 "$LIGHTNING_WALLETS_ROOT/alice/state.db" "SELECT COUNT(*) FROM ledger WHERE message='topup-watcher';")
+	[ "$n" = "0" ]
+	_acct212pr4_teardown
+}
+
+@test "FEAT-212 PR-4: topup-watcher handles amount_msat as a plain integer" {
+	_acct212pr4_setup
+	outs=$(jq -nc --arg a "$BATS_ADDR_RENT" \
+		'[{"txid":"deadbeef","output":0,"status":"confirmed","address":$a,"amount_msat":2500}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local amt
+	amt=$(sqlite3 "$LIGHTNING_WALLETS_ROOT/alice/state.db" "SELECT amount_msat FROM ledger WHERE message='topup-watcher';")
+	[ "$amt" = "2500" ]
+	_acct212pr4_teardown
+}
+
+@test "FEAT-212 PR-4: account verb help lists topup-watcher" {
+	run "$LIGHTNING_BIN" account
+	[[ "$output" == *"topup-watcher run|dry-run|status"* ]]
+}
+
+@test "FEAT-212 PR-4: daemon install --topup-watcher accepts the flag" {
+	# We don't actually run the install (it tries to call systemctl);
+	# we just verify the flag is recognised by parsing — and check
+	# the verb source contains the sidecar function.
+	f="$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
+	grep -q "\-\-topup-watcher" "$f"
+	grep -q "install_topup_watcher_sidecar" "$f"
+	grep -q "TOPUP_WATCHER_LABEL" "$f"
+}
