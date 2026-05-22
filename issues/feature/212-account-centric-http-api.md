@@ -184,6 +184,108 @@ primary spam vector.  Three layers:
    `limit_sat=100000` and `overdraft=deny`.  Operator can promote
    an account via CLI to raise.
 
+## MCP endpoint (for LLM agents)
+
+LLM agents (Claude Code, IDE assistants, autonomous workflows)
+don't know how to read a human-prose REST API.  They consume
+**MCP (Model Context Protocol)** — Anthropic's open protocol where
+a server exposes typed tools + resources + prompts, and the agent
+discovers and invokes them natively.
+
+We expose the same account-centric surface as MCP alongside the
+REST endpoints, so an LLM agent can do "use my Lightning account
+to pay this invoice" without bespoke per-app integration.
+
+### Mapping REST endpoints → MCP tools
+
+Each REST endpoint becomes one MCP tool with a JSON Schema input
+descriptor.  Same auth model — bearer token in the connection's
+init message.
+
+| MCP tool name          | Backed by REST endpoint               | Inputs |
+|------------------------|---------------------------------------|--------|
+| `account_create`       | `POST /api/accounts`                  | none (anonymous) |
+| `account_balance`      | `GET /api/accounts/<id>/balance`      | account_id |
+| `account_topup`        | `GET /api/accounts/<id>/topup`        | account_id, sat? |
+| `account_withdraw`     | `POST /api/accounts/<id>/withdraw`    | account_id, sat, address |
+| `account_pay`          | `POST /api/accounts/<id>/pay`         | account_id, target, sat? |
+| `account_recv`         | `POST /api/accounts/<id>/recv`        | account_id, sat, description? |
+| `account_recv_reusable`| `POST /api/accounts/<id>/recv-reusable` | account_id, sat\|"any", description? |
+| `account_close`        | `POST /api/accounts/<id>/close`       | account_id |
+
+Plus MCP resources for read-only data the agent might want to
+poll or stream:
+
+| Resource URI            | What it returns |
+|-------------------------|-----------------|
+| `account://<id>`        | full account record (balance + recent ledger) |
+| `account://<id>/ledger` | ledger entries (paged) |
+| `account://<id>/topup`  | live BIP-21 URI + QR text |
+
+### Transport
+
+MCP over **HTTP + Server-Sent Events (SSE)** — the standard
+remote-MCP transport.  Persistent connection per agent; tool calls
+flow as JSON-RPC messages over SSE.  Endpoint path:
+`/.well-known/lightning/mcp/sse` (auth via bearer in the initial
+HTTP upgrade headers).
+
+Apache CGI doesn't suit long-lived SSE connections, so the MCP
+server is **a small Python ASGI process** (FastAPI / Starlette +
+the official `mcp` Python SDK) reverse-proxied by Apache via
+`mod_proxy`.  Same systemd-managed pattern as the autopilot
+sidecar — but a long-running service rather than a 15-minute cron.
+
+### Discovery
+
+Two ways an agent learns the server exists:
+
+1. **Standard MCP transport**: agent connects to
+   `/.well-known/lightning/mcp/sse` and lists tools via the
+   protocol's `tools/list` method.  Self-describing.
+2. **Static manifest** at `/.well-known/lightning/mcp.json` — a
+   one-shot JSON file describing the server (URL, transport,
+   tool list, auth hint).  Lets non-MCP-aware tools at least know
+   the server is there.
+
+### Authentication
+
+Same bearer token as the REST API.  Two-phase:
+
+- **Anonymous MCP connection** can only call `account_create` (and
+  read public resources like server info).  Same anonymous bucket
+  as `POST /api/accounts` over REST.
+- **Authenticated connection** (Bearer header sent during the SSE
+  HTTP upgrade) unlocks tools scoped to that account_id.  The
+  server validates the token against the address derived from the
+  init headers' `X-Account-Id` (or equivalent).
+
+### Why a separate process (not CGI)
+
+MCP-over-SSE wants persistent connections.  CGI spawns a new
+process per request and tears it down; that's incompatible.
+ASGI + a long-running event loop is the standard pattern.
+
+Trade-off: one more moving part (a systemd service).  Mitigated by
+the same sidecar-install pattern we use for autopilot — opt in
+with `daemon install --mcp` and the service file lands in
+`~/.config/systemd/user/` (user-mode operator) or
+`/etc/systemd/system/` (system-mode).  Same OpenRC + launchd
+parity the other sidecars have.
+
+### Out of scope (for the MCP layer)
+
+- **Tool-call streaming** beyond what SSE naturally provides.
+  Long-running tool calls (e.g., waiting for an invoice to settle)
+  return synchronously with the final result; no progress events.
+  Can be added in a follow-up.
+- **MCP prompts** — the spec calls out prompts as a separate
+  primitive; we don't expose any until a user-facing template
+  makes sense.
+- **Multi-account auth** — one connection ↔ one account.  An agent
+  managing multiple accounts opens multiple connections (cheap on
+  SSE) or rotates `account_create` calls.
+
 ## Auth flow
 
 API key format: `lt_` + 32 bytes of `/dev/urandom` base64url-
@@ -254,15 +356,21 @@ Single ticket, multiple PRs:
    `api-account-close`, `api-account-topup`, `api-account-withdraw`,
    `api-account-pay`, `api-account-recv-reusable` shell verbs.
    Rate limiting at the apache + verb layer.
-3. **PR-3 (Deposit watcher)** — `account topup-watcher` cron that
+3. **PR-3 (MCP endpoint)** — Python ASGI process + the official
+   `mcp` SDK; reverse-proxied by Apache.  Exposes the 8 REST
+   endpoints as MCP tools + the three resources.  Sidecar service
+   (long-running, not cron) via `daemon install --mcp`.  Static
+   manifest at `/.well-known/lightning/mcp.json`.
+4. **PR-4 (Deposit watcher)** — `account topup-watcher` cron that
    matches new UTXOs to known account addresses and credits the
    ledger.  Sidecar timer via `daemon install --topup-watcher`.
-4. **PR-4 (GC sidecar)** — `account gc` verb + `daemon install
+5. **PR-5 (GC sidecar)** — `account gc` verb + `daemon install
    --account-gc` sidecar.
 
 PR-1 + PR-2 land first since they're the minimum for an external
-caller to do anything useful.  PR-3 and PR-4 follow without
-blocking each other.
+caller (or human via curl) to do anything useful.  PR-3 (MCP)
+follows once REST is stable so the MCP tools have something to
+wrap.  PR-4 and PR-5 don't block each other.
 
 ## Out of scope (separate tickets / future)
 
@@ -272,11 +380,16 @@ blocking each other.
   thought.
 - **OAuth / OIDC** — bearer token only.  Identity-federated auth
   is a separate concern (FEAT-209's BaweePay direction).
-- **WebSocket / server-sent events** — polling-based for now.
-  Push notifications can land later if there's demand.
+- **REST-level WebSocket push** — REST endpoints stay
+  request/response.  MCP-over-SSE (PR-3) covers the streaming /
+  agent-driven use case; a separate REST-side push channel can
+  land later if there's demand.
 - **Refresh tokens** — the API key is the only credential.  Lost
   key = closed account (operator can re-issue manually via the
   CLI if needed).
+- **MCP prompts** — the protocol allows servers to expose
+  parameterised prompts; we don't ship any until a user-facing
+  template earns its place.
 
 ## Milestone
 
