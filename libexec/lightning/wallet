@@ -44,6 +44,18 @@ hooks_dir() {
 	return 1
 }
 
+# FEAT-213 — default fees.recfile seeded into every new wallet.
+defaults_dir() {
+	for p in \
+		"$(dirname "$0")/../../share/lightning/defaults" \
+		"$HOME/.local/share/lightning/defaults" \
+		"/usr/local/share/lightning/defaults" \
+		"/usr/share/lightning/defaults"; do
+		[ -d "$p" ] && { echo "$p"; return; }
+	done
+	return 1
+}
+
 WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
 ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
 
@@ -114,7 +126,15 @@ EOF
 	sqlite3 state.db < "$schema"
 	sqlite3 state.db .dump > state.sql
 
+	# FEAT-213 — seed the operator-fee policy.  Plain text, git-
+	# tracked, operator-editable.  Default rates are conservative.
+	local defaults
+	if defaults=$(defaults_dir 2>/dev/null) && [ -f "$defaults/fees.recfile" ]; then
+		cp "$defaults/fees.recfile" fees.recfile
+	fi
+
 	git add lightning-dir .gitignore state.sql
+	[ -f fees.recfile ] && git add fees.recfile
 	git -c user.email=lightning@localhost -c user.name=lightning \
 		commit --quiet -m "init wallet $name"
 

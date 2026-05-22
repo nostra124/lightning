@@ -1,0 +1,45 @@
+# Operator fee policy (FEAT-213).
+#
+# This file is the source of truth for what the operator's node
+# charges for each value-moving operation in the FEAT-212 account
+# API.  It's plain text + git-tracked alongside the wallet state.
+#
+# Format: blank-line-separated records, one per operation.  Three
+# fields per record:
+#   operation:  pay | withdraw | topup-onchain | topup-ln | recv
+#   base_sat:   flat fee added on top of the rate, in satoshis
+#   rate_ppm:   parts-per-million of the transaction amount
+#               (1000 ppm = 0.1%; 10000 ppm = 1%)
+#
+# A 1000-sat transaction at base_sat=1, rate_ppm=5000 = 1 + 5 sat.
+#
+# Setting rate_ppm: 0 and base_sat: 0 disables the skim for that
+# operation (good back-compat path for operators who don't want
+# to charge yet).
+#
+# Negative rates are only allowed when FEAT-216 (interest mode)
+# is enabled — see that ticket for the legal context first.
+#
+# Defaults below are conservative starting points.  Tune via
+# `lightning fee-policy autotune` (FEAT-215) once that ships, or
+# edit by hand.
+
+operation: pay
+base_sat:  1
+rate_ppm:  5000
+
+operation: withdraw
+base_sat:  100
+rate_ppm:  3000
+
+operation: topup-onchain
+base_sat:  0
+rate_ppm:  2000
+
+operation: topup-ln
+base_sat:  0
+rate_ppm:  1000
+
+operation: recv
+base_sat:  0
+rate_ppm:  0

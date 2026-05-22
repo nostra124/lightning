@@ -231,12 +231,12 @@ cmd_list() {
 			       a.overdraft
 			FROM accounts a
 			LEFT JOIN ledger l ON l.account = a.name
-			WHERE a.name != '-'
+			WHERE a.name NOT IN ('-', 'house')
 			GROUP BY a.name
 			ORDER BY a.name;"
 	else
 		sqlite3 -header -separator $'\t' "$(active_db)" \
-			"SELECT name, description, COALESCE(limit_sat, -1) AS limit_sat, overdraft FROM accounts WHERE name != '-' ORDER BY name;"
+			"SELECT name, description, COALESCE(limit_sat, -1) AS limit_sat, overdraft FROM accounts WHERE name NOT IN ('-', 'house') ORDER BY name;"
 	fi
 }
 
@@ -564,11 +564,48 @@ cmd_topup_watcher() {
 			skipped_dupe=$((skipped_dupe+1))
 			continue
 		fi
+		# FEAT-213 — operator-fee skim at credit time.  Read fees.recfile
+		# lazily (once per UTXO is fine — file is small) so an operator
+		# edit to the recfile takes effect on the next watcher pass.
+		operator_fee_msat=0
+		if [ -f "$WALLETS_ROOT/$(active_wallet_name)/fees.recfile" ]; then
+			read -r fee_base_sat fee_rate_ppm < <(awk -v op="topup-onchain" '
+				BEGIN { RS=""; FS="\n"; b=0; r=0 }
+				{
+					in_op=0; bb=0; rr=0
+					for (i=1; i<=NF; i++) {
+						if ($i == "operation: " op) in_op=1
+						if ($i ~ /^base_sat: *[0-9-]/) { bb=$i; sub(/^base_sat: */, "", bb) }
+						if ($i ~ /^rate_ppm: *[0-9-]/) { rr=$i; sub(/^rate_ppm: */, "", rr) }
+					}
+					if (in_op) { b=bb; r=rr }
+				}
+				END { printf "%d %d\n", b+0, r+0 }
+			' "$WALLETS_ROOT/$(active_wallet_name)/fees.recfile")
+			operator_fee_msat=$(( fee_base_sat * 1000 + amount_msat * fee_rate_ppm / 1000000 ))
+		fi
 		if [ $dry -eq 1 ]; then
-			printf 'would-credit\t%s\t%s\t+%s msat\t%s\n' "$name" "$addr" "$amount_msat" "$pmt_hash"
+			if [ "$operator_fee_msat" -gt 0 ]; then
+				printf 'would-credit\t%s\t%s\t+%s msat (skim %s msat)\t%s\n' "$name" "$addr" "$amount_msat" "$operator_fee_msat" "$pmt_hash"
+			else
+				printf 'would-credit\t%s\t%s\t+%s msat\t%s\n' "$name" "$addr" "$amount_msat" "$pmt_hash"
+			fi
 		else
-			sqlite3 "$db" "INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message) \
-				VALUES(datetime('now'), $(sql_quote "$name"), 'in', $amount_msat, 'on-chain', $(sql_quote "$pmt_hash"), 'topup-watcher');"
+			if [ "$operator_fee_msat" -gt 0 ]; then
+				sqlite3 "$db" "INSERT OR IGNORE INTO accounts(name, description, overdraft) \
+					VALUES('house', 'operator fee revenue', 'allow');" 2>/dev/null || true
+			fi
+			sql="BEGIN;"
+			sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+			sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'in', $amount_msat, 'on-chain', $(sql_quote "$pmt_hash"), 'topup-watcher');"
+			if [ "$operator_fee_msat" -gt 0 ]; then
+				sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+				sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, 'on-chain', $(sql_quote "$pmt_hash"), 'operator fee');"
+				sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+				sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, 'on-chain', $(sql_quote "$pmt_hash"), $(sql_quote "fee from $name"));"
+			fi
+			sql+=" COMMIT;"
+			sqlite3 "$db" "$sql"
 			printf 'credit\t%s\t%s\t+%s msat\t%s\n' "$name" "$addr" "$amount_msat" "$pmt_hash"
 		fi
 		credited=$((credited+1))
@@ -653,7 +690,7 @@ cmd_gc() {
 		FROM accounts a
 		WHERE a.address IS NOT NULL
 		  AND a.closed_at IS NULL
-		  AND a.name != '-'
+		  AND a.name NOT IN ('-', 'house')
 		  AND COALESCE(a.last_api_call_at, a.created_at, 0) < $idle_cutoff
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0
 		  AND NOT EXISTS (SELECT 1 FROM invoices WHERE account = a.name AND state = 'pending');")
@@ -665,7 +702,7 @@ cmd_gc() {
 		FROM accounts a
 		WHERE a.closed_at IS NOT NULL
 		  AND a.closed_at < $closed_cutoff
-		  AND a.name != '-'
+		  AND a.name NOT IN ('-', 'house')
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0;")
 
 	local closed=0 deleted=0 name addr
@@ -731,12 +768,12 @@ _gc_status() {
 	local closed_cutoff=$(( now - closed_days * 86400 ))
 
 	local n_idle n_closed n_total
-	n_total=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name != '-';")
+	n_total=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-', 'house');")
 	n_idle=$(sqlite3 "$db" "
 		SELECT COUNT(*) FROM accounts a
 		WHERE a.address IS NOT NULL
 		  AND a.closed_at IS NULL
-		  AND a.name != '-'
+		  AND a.name NOT IN ('-', 'house')
 		  AND COALESCE(a.last_api_call_at, a.created_at, 0) < $idle_cutoff
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0
 		  AND NOT EXISTS (SELECT 1 FROM invoices WHERE account = a.name AND state = 'pending');")
@@ -744,7 +781,7 @@ _gc_status() {
 		SELECT COUNT(*) FROM accounts a
 		WHERE a.closed_at IS NOT NULL
 		  AND a.closed_at < $closed_cutoff
-		  AND a.name != '-'
+		  AND a.name NOT IN ('-', 'house')
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0;")
 	printf "total_accounts:    %s\n" "$n_total"
 	printf "idle_days:         %s\n" "$idle_days"
