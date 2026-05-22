@@ -2,15 +2,20 @@
 # lightning account — virtual-account management.
 #
 # Implements FEAT-174 (account concept) + FEAT-195 (bank-mode
-# overdraft + limits; the API key issuance verbs land with
-# FEAT-196 in 0.5.0).
+# overdraft + limits) + FEAT-211 (account-centric verb facade) +
+# FEAT-212 PR-1 (bitcoin-address ID + API key + nickname store).
 #
 # Subcommands:
 #   list                                       all accounts
-#   create <name> [<description>]
-#          [--limit <sat>] [--overdraft deny|warn|allow]
+#   create <name> [<description>]              now also mints a
+#          [--limit <sat>] [--overdraft deny|warn|allow]   bc1q… ID + API key
 #   delete <name>
-#   show <name>                                balance + recent activity
+#   show <handle>                              looks up by address,
+#                                              nickname, or name
+#   close <handle>                             FEAT-212 — revoke key,
+#                                              mark closed
+#   nickname add|list|remove                   FEAT-212 — operator-local
+#                                              aliases for addresses
 
 set -e
 
@@ -18,13 +23,145 @@ command -v sqlite3 >/dev/null || { echo "lightning: sqlite3 not installed" >&2; 
 
 WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
 ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 
-active_db() {
+active_wallet_name() {
 	local name="default"
 	[ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
+	echo "$name"
+}
+
+active_db() {
+	local name; name=$(active_wallet_name)
 	local db="$WALLETS_ROOT/$name/state.db"
 	[ -f "$db" ] || { echo "lightning account: no active wallet (try \`lightning wallet new\`)" >&2; exit 2; }
+	migrate_accounts_schema "$db"
 	echo "$db"
+}
+
+# FEAT-212 — additive, idempotent migration of the accounts table.
+# Pre-FEAT-212 wallets are missing address / created_at / closed_at /
+# last_api_call_at; add whichever are absent.
+migrate_accounts_schema() {
+	local db="$1"
+	local cols
+	cols=$(sqlite3 "$db" "PRAGMA table_info(accounts);" 2>/dev/null | awk -F'|' '{print $2}')
+	local col
+	for col in address created_at closed_at last_api_call_at; do
+		echo "$cols" | grep -qx "$col" || {
+			local type=TEXT
+			case "$col" in created_at|closed_at|last_api_call_at) type=INTEGER ;; esac
+			sqlite3 "$db" "ALTER TABLE accounts ADD COLUMN $col $type;" 2>/dev/null || true
+		}
+	done
+}
+
+# FEAT-212 — mint a fresh on-chain address from lightningd; that
+# address IS the account's canonical ID for the HTTP API and the
+# on-chain top-up destination.
+mint_address() {
+	command -v lightning-cli >/dev/null 2>&1 || {
+		echo "lightning account: lightning-cli not found — needed to mint account address" >&2
+		return 127
+	}
+	local addr_json
+	addr_json=$(lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" newaddr 2>/dev/null) || return 1
+	jq -r '.bech32 // .p2tr // .p2wkh // empty' <<<"$addr_json"
+}
+
+# FEAT-212 — 32-byte random API key, base64url-encoded (43 chars
+# after stripping padding), prefixed `lt_` for type tagging.
+mint_api_key() {
+	local raw
+	raw=$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')
+	echo "lt_$raw"
+}
+
+# FEAT-212 — operator-local nickname store.  Records are blank-line
+# separated and look like:
+#
+#     nickname: rent
+#     address: bc1q...
+#
+# Never sent over the wire; purely for human-readable CLI lookups.
+nicknames_file() {
+	local wallet; wallet=$(active_wallet_name)
+	echo "$WALLETS_ROOT/$wallet/accounts/nicknames.recfile"
+}
+
+nickname_to_address() {
+	local nick="$1" f
+	f=$(nicknames_file)
+	[ -f "$f" ] || return 1
+	awk -v nick="$nick" '
+		BEGIN { RS=""; FS="\n" }
+		{
+			has_nick=0; addr=""
+			for (i=1; i<=NF; i++) {
+				if ($i == "nickname: "nick) has_nick=1
+				if ($i ~ /^address: /) { addr=$i; sub(/^address: /, "", addr) }
+			}
+			if (has_nick && addr != "") { print addr; exit }
+		}
+	' "$f"
+}
+
+address_to_nickname() {
+	local addr="$1" f
+	f=$(nicknames_file)
+	[ -f "$f" ] || return 0
+	awk -v addr="$addr" '
+		BEGIN { RS=""; FS="\n" }
+		{
+			has_addr=0; nick=""
+			for (i=1; i<=NF; i++) {
+				if ($i == "address: "addr) has_addr=1
+				if ($i ~ /^nickname: /) { nick=$i; sub(/^nickname: /, "", nick) }
+			}
+			if (has_addr && nick != "") { print nick; exit }
+		}
+	' "$f"
+}
+
+# Resolve a user-supplied handle (address, nickname, or legacy name)
+# to (address, name) pair from the accounts table.  Sets two globals
+# RESOLVED_ADDRESS and RESOLVED_NAME so callers can use both.
+RESOLVED_ADDRESS=""
+RESOLVED_NAME=""
+resolve_account() {
+	local handle="$1"
+	RESOLVED_ADDRESS=""
+	RESOLVED_NAME=""
+	[ -n "$handle" ] || return 1
+
+	# Bitcoin-address shape → direct address lookup.
+	case "$handle" in
+		bc1*|tb1*|bcrt1*)
+			RESOLVED_ADDRESS="$handle"
+			RESOLVED_NAME=$(sqlite3 "$(active_db)" \
+				"SELECT name FROM accounts WHERE address = $(sql_quote "$handle") LIMIT 1;" 2>/dev/null)
+			[ -n "$RESOLVED_NAME" ] || return 1
+			return 0 ;;
+	esac
+
+	# Operator-local nickname → resolve to address, then look up.
+	local mapped; mapped=$(nickname_to_address "$handle" 2>/dev/null)
+	if [ -n "$mapped" ]; then
+		RESOLVED_ADDRESS="$mapped"
+		RESOLVED_NAME=$(sqlite3 "$(active_db)" \
+			"SELECT name FROM accounts WHERE address = $(sql_quote "$mapped") LIMIT 1;" 2>/dev/null)
+		[ -n "$RESOLVED_NAME" ] || return 1
+		return 0
+	fi
+
+	# Legacy: handle IS the name column.
+	local row
+	row=$(sqlite3 -separator $'\t' "$(active_db)" \
+		"SELECT name, COALESCE(address,'') FROM accounts WHERE name = $(sql_quote "$handle") LIMIT 1;" 2>/dev/null)
+	[ -n "$row" ] || return 1
+	IFS=$'\t' read -r RESOLVED_NAME RESOLVED_ADDRESS <<<"$row"
+	return 0
 }
 
 sq() { sqlite3 -separator $'\t' "$(active_db)" "$@"; }
@@ -38,8 +175,16 @@ usage: lightning account <subcommand>
    create <name> [<desc>] [--limit <sat>]
                           [--overdraft deny|warn|allow]
                           [--host <domain>]      auto-create user@<domain>
+                                                 also mints a bc1q... ID
+                                                 + lt_... API key (FEAT-212)
    delete <name>
-   show <name>                                   balance + recent ledger
+   show <handle>                                 balance + recent ledger
+                                                 (handle: address, nickname,
+                                                 or legacy name)
+   close <handle>                                revoke API key + mark closed
+   nickname add <bc1q...> <name>                 operator-local alias
+   nickname list                                 TSV of aliases
+   nickname remove <name>
    apikey create <name> --scope read|write       issue an API key
    apikey list <name>                            which scopes exist
    apikey revoke <name> --scope read|write
@@ -122,8 +267,54 @@ cmd_create() {
 	[[ "$name" =~ ^[a-z][a-z0-9_-]*$ ]] || {
 		echo "lightning account: name must match [a-z][a-z0-9_-]*" >&2; exit 1; }
 
-	sqlite3 "$(active_db)" "INSERT INTO accounts(name, description, limit_sat, overdraft) VALUES($(sql_quote "$name"), $(sql_quote "$desc"), $limit, $(sql_quote "$overdraft"));"
+	# FEAT-212 — mint the canonical address ID + API key.  Account
+	# creation against a daemon-down installation still works (legacy
+	# operator path); the address/key fields stay NULL and the operator
+	# can promote later.  Set LIGHTNING_ACCOUNT_NO_MINT=1 to skip the
+	# mint explicitly (used by some tests and by `wallet new` bootstrap).
+	local address="" api_key="" now
+	now=$(date -u +%s)
+	if [ -z "$LIGHTNING_ACCOUNT_NO_MINT" ]; then
+		address=$(mint_address 2>/dev/null || true)
+		if [ -n "$address" ]; then
+			api_key=$(mint_api_key)
+			# Best-effort secret store; operators without the `secret`
+			# package can still create accounts, they just won't have a
+			# server-side key cache.  PR-2's HTTP layer will refuse such
+			# accounts at request time with a clear error.
+			if command -v secret >/dev/null 2>&1; then
+				echo "$api_key" | secret put "lightning.account.$address.apikey" >/dev/null 2>&1 || true
+			fi
+		fi
+	fi
+
+	# INSERT covers the new columns when address was minted; falls back
+	# to the legacy three-column write when it wasn't.
+	if [ -n "$address" ]; then
+		sqlite3 "$(active_db)" \
+			"INSERT INTO accounts(name, description, limit_sat, overdraft, address, created_at) VALUES($(sql_quote "$name"), $(sql_quote "$desc"), $limit, $(sql_quote "$overdraft"), $(sql_quote "$address"), $now);"
+	else
+		sqlite3 "$(active_db)" \
+			"INSERT INTO accounts(name, description, limit_sat, overdraft) VALUES($(sql_quote "$name"), $(sql_quote "$desc"), $limit, $(sql_quote "$overdraft"));"
+	fi
+
+	# Operator-local nickname binding (the `name` doubles as the
+	# first nickname so `account show <name>` still works without an
+	# explicit `nickname add`).
+	if [ -n "$address" ]; then
+		local nf; nf=$(nicknames_file)
+		mkdir -p "$(dirname "$nf")"
+		printf 'nickname: %s\naddress: %s\n\n' "$name" "$address" >> "$nf"
+	fi
+
 	echo "lightning account: created $name"
+	if [ -n "$address" ]; then
+		echo "  address:  $address"
+	fi
+	if [ -n "$api_key" ]; then
+		echo "  api_key:  $api_key"
+		echo "  (save it now — this is the only time it'll be printed)" >&2
+	fi
 
 	# Auto-address (FEAT-195): chain into `lightning address create`.
 	if [ -n "$host" ]; then
@@ -142,21 +333,30 @@ cmd_delete() {
 }
 
 cmd_show() {
-	[ $# -lt 1 ] && { echo "usage: lightning account show <name>" >&2; exit 1; }
-	local name="$1"
+	[ $# -lt 1 ] && { echo "usage: lightning account show <handle>" >&2; exit 1; }
+	local handle="$1"
 	local db; db=$(active_db)
 
-	local row
-	row=$(sqlite3 -separator $'\t' "$db" "SELECT description, COALESCE(limit_sat,-1), overdraft FROM accounts WHERE name = $(sql_quote "$name");")
-	[ -z "$row" ] && { echo "lightning account: no such account '$name'" >&2; exit 2; }
+	resolve_account "$handle" || {
+		echo "lightning account: no such account '$handle'" >&2; exit 2
+	}
+	local name="$RESOLVED_NAME" address="$RESOLVED_ADDRESS"
 
-	local desc limit overdraft
-	IFS=$'\t' read -r desc limit overdraft <<<"$row"
+	local row
+	row=$(sqlite3 -separator $'\t' "$db" \
+		"SELECT description, COALESCE(limit_sat,-1), overdraft, COALESCE(closed_at, 0) \
+		 FROM accounts WHERE name = $(sql_quote "$name");")
+
+	local desc limit overdraft closed_at
+	IFS=$'\t' read -r desc limit overdraft closed_at <<<"$row"
 	local balance_msat
 	balance_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account = $(sql_quote "$name");")
 	local balance_sat=$(( balance_msat / 1000 ))
 
 	printf "name:        %s\n"  "$name"
+	if [ -n "$address" ]; then
+		printf "address:     %s\n"  "$address"
+	fi
 	printf "description: %s\n"  "$desc"
 	printf "balance_sat: %s\n"  "$balance_sat"
 	if [ "$limit" != "-1" ]; then
@@ -165,8 +365,101 @@ cmd_show() {
 		printf "limit_sat:   (none)\n"
 	fi
 	printf "overdraft:   %s\n"  "$overdraft"
+	if [ "$closed_at" != "0" ] && [ "$closed_at" != "" ]; then
+		printf "closed_at:   %s (UTC epoch)\n"  "$closed_at"
+	fi
 	printf "\nrecent ledger:\n"
 	sqlite3 -header -separator $'\t' "$db" "SELECT ts, direction, amount_msat, peer, message FROM ledger WHERE account = $(sql_quote "$name") ORDER BY id DESC LIMIT 10;"
+}
+
+# FEAT-212 — close an account.  Revoke its API key (if any) and stamp
+# closed_at.  The row stays in the table so the ledger still
+# resolves; a cleanup cron (PR-5) deletes long-empty closed accounts
+# after a grace window.
+cmd_close() {
+	[ $# -lt 1 ] && { echo "usage: lightning account close <handle>" >&2; exit 1; }
+	local handle="$1"
+	resolve_account "$handle" || {
+		echo "lightning account: no such account '$handle'" >&2; exit 2
+	}
+	local name="$RESOLVED_NAME" address="$RESOLVED_ADDRESS"
+	[ "$name" = "-" ] && { echo "lightning account: cannot close the unassigned account" >&2; exit 2; }
+
+	local now; now=$(date -u +%s)
+	sqlite3 "$(active_db)" \
+		"UPDATE accounts SET closed_at = $now WHERE name = $(sql_quote "$name");"
+	if [ -n "$address" ] && command -v secret >/dev/null 2>&1; then
+		secret rm "lightning.account.$address.apikey" 2>/dev/null || true
+	fi
+	echo "lightning account: closed $name${address:+ ($address)}"
+}
+
+# FEAT-212 — operator-local nickname store (recfile under
+# $wallet/accounts/nicknames.recfile).  Never sent over the wire.
+cmd_nickname() {
+	local op="${1:-}"; shift 2>/dev/null || true
+	local nf; nf=$(nicknames_file)
+	case "$op" in
+		add)
+			[ $# -lt 2 ] && { echo "usage: lightning account nickname add <address> <name>" >&2; exit 1; }
+			local addr="$1" nick="$2"
+			case "$addr" in
+				bc1*|tb1*|bcrt1*) ;;
+				*) echo "lightning account nickname add: '$addr' must be a bitcoin address" >&2; exit 1 ;;
+			esac
+			mkdir -p "$(dirname "$nf")"
+			# Drop any existing record for this nickname or this address
+			# so add is idempotent + acts as rename.
+			if [ -f "$nf" ]; then
+				awk -v nick="$nick" -v addr="$addr" '
+					BEGIN { RS=""; FS="\n" }
+					{
+						drop=0
+						for (i=1; i<=NF; i++) {
+							if ($i == "nickname: "nick || $i == "address: "addr) { drop=1; break }
+						}
+						if (!drop) { print; print "" }
+					}
+				' "$nf" > "$nf.tmp" && mv "$nf.tmp" "$nf"
+			fi
+			printf 'nickname: %s\naddress: %s\n\n' "$nick" "$addr" >> "$nf"
+			echo "lightning account nickname: $nick -> $addr"
+			;;
+		list|"")
+			[ -f "$nf" ] || { return 0; }
+			printf "nickname\taddress\n"
+			awk '
+				BEGIN { RS=""; FS="\n"; OFS="\t" }
+				{
+					nick=""; addr=""
+					for (i=1; i<=NF; i++) {
+						if ($i ~ /^nickname: /) { nick=$i; sub(/^nickname: /, "", nick) }
+						if ($i ~ /^address: /)  { addr=$i; sub(/^address: /, "", addr) }
+					}
+					if (nick != "" && addr != "") print nick, addr
+				}
+			' "$nf"
+			;;
+		remove)
+			[ $# -lt 1 ] && { echo "usage: lightning account nickname remove <name>" >&2; exit 1; }
+			local nick="$1"
+			[ -f "$nf" ] || { return 0; }
+			awk -v nick="$nick" '
+				BEGIN { RS=""; FS="\n" }
+				{
+					drop=0
+					for (i=1; i<=NF; i++) {
+						if ($i == "nickname: "nick) { drop=1; break }
+					}
+					if (!drop) { print; print "" }
+				}
+			' "$nf" > "$nf.tmp" && mv "$nf.tmp" "$nf"
+			echo "lightning account nickname: removed $nick"
+			;;
+		*)
+			echo "usage: lightning account nickname {add <address> <name>|list|remove <name>}" >&2
+			exit 1 ;;
+	esac
 }
 
 cmd_apikey() {
@@ -397,6 +690,8 @@ case "${1:-}" in
 	create)   shift; cmd_create "$@" ;;
 	delete)   shift; cmd_delete "$@" ;;
 	show)     shift; cmd_show "$@" ;;
+	close)    shift; cmd_close "$@" ;;
+	nickname) shift; cmd_nickname "$@" ;;
 	apikey)   shift; cmd_apikey "$@" ;;
 	topup)    shift; cmd_topup "$@" ;;
 	withdraw) shift; cmd_withdraw "$@" ;;

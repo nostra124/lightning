@@ -62,7 +62,17 @@ EOF
 		echo '{"outputs": [], "channels": []}'
 		;;
 	newaddr)
-		echo '{"bech32": "bcrt1qtestaddressxxxxxxxxxxxxxxxxxxxxxxxxxx"}'
+		# FEAT-212 — every account mints a unique address.  Return a
+		# fresh deterministic-but-varying bcrt1q… per call so tests
+		# that create multiple accounts don't collide on the address
+		# primary key in $wallet/accounts/nicknames.recfile.
+		counter_file="${MOCK_STATE:-/tmp/lightning-mock-state}.newaddr"
+		n=$(($(cat "$counter_file" 2>/dev/null || echo 0) + 1))
+		echo "$n" > "$counter_file"
+		# Pad with the counter so repeated calls produce distinct
+		# but predictable addresses.  bech32 charset is fine here —
+		# we don't validate the checksum in tests.
+		printf '{"bech32": "bcrt1qtestaddress%030dxxxx"}\n' "$n"
 		;;
 	stop)
 		echo "down" > "$state_file"
