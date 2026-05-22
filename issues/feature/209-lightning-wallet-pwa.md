@@ -7,323 +7,175 @@ status: in-progress
 
 # Lightning wallet PWA + `lightning ui` installer
 
-## Description
+## The whole pitch in one paragraph
 
-**As a** `lightning` operator running the FEAT-212 HTTP API
-**I want** to drop a small static PWA into my Apache docroot so
-end-users can open it on phone or laptop, create / receive /
-send against an account on my node
-**So that** the API has a usable face without me having to ship
-a native mobile app, and self-hosters can install the same
-PWA on their own bawee.example clone (or behind Tailscale at
-home) and point it at whichever node they trust.
+You open the URL.  The PWA loads.  First visit, it asks you to
+create a passkey and creates your first account.  After that you
+can create more accounts, see their top-up addresses, pay BOLT-11
+invoices, mint receive invoices.  Everything else — crediting
+on-chain deposits, garbage-collecting stale accounts, rebalancing
+channels, watchtower — is handled by the server-side cron jobs
+already shipped in FEAT-205 and FEAT-212.  The PWA is a thin
+client; the operator's node does the work.
 
-This supersedes the original FEAT-209 sketch (BaweePay-as-LSP).
-After FEAT-212 landed, the simpler model is "PWA on top of the
-account API" — no per-user fly.io / Akash orchestration, no
-LSP plumbing, no new server runtime.
+## Two install patterns
+
+* **Provider-hosted** — operator runs `lightning daemon install
+  --system --topup-watcher --account-gc` + `lightning ui install`
+  on a public host.  User opens `https://bawee.site`, taps "Get
+  started", lands on a passkey prompt, then they're using
+  Lightning.  Custodial-by-default.  Mitigations: transparent
+  ledger, withdraw-anytime, BOLT-12 receive directly to the
+  node's pubkey.
+* **Self-hosted** — power user runs the same two install
+  commands on a Tailscale-reachable machine at home.  Same PWA,
+  same flow, but now they hold their own keys + run their own
+  routing.
+
+Both modes are same-origin (PWA + API under one vhost).  There's
+no runtime backend switcher and no `--backend` flag — if the user
+trusts the operator enough to load the PWA, they trust the API
+behind it too.  One install = one identity = one backend.
+
+## User journey
+
+```
+1. Open https://bawee.site (or your-tailnet-node.example)
+2. PWA loads.  "Welcome — create your first account?"
+3. Tap "Create".  PWA calls POST /api/accounts (anonymous).
+   Server returns {account_id, api_key}.
+4. PWA shows "Set up sign-in for this device" + Face ID / Touch
+   ID prompt.  Passkey registers against this account_id.
+5. PWA stores: { account_id, label } in localStorage.  api_key
+   is shown once on a "save this for backup" screen (copy /
+   download), then discarded from the PWA.
+6. Land on /account/<id> — balance 0, top-up address visible.
+7. User scans the BIP-21 QR with another wallet, sends sats on-
+   chain.  FEAT-212 PR-4's deposit watcher cron credits the
+   ledger within ~1 min.  PWA's balance polling picks it up.
+8. User pays a BOLT-11 invoice (paste + confirm + Face ID
+   re-prompt + receipt).  User mints a receive invoice (amount +
+   description + QR).  Done.
+9. On next launch the picker shows their account.  Tap →
+   passkey assertion → session → /account/<id>.
+```
+
+That's the wallet.  Anything beyond this — recovery flows,
+LLM-agent delegation, BOLT-12 receive, QR scanning, lightning-
+address autocomplete — is a follow-up PR, not blocking the
+initial ship.
 
 ## Scope
 
-In:
+In scope for the initial ship (PR-2):
 
 * Static **PWA** under `share/lightning/ui/` — HTML + ES
-  modules + plain CSS, no build step.  Works offline via a
-  service worker, installable to home screen on iOS / Android,
-  installable as desktop app on macOS / Linux / Windows.
-* New top-level verb **`lightning ui`** with `install`,
-  `uninstall`, `upgrade` subcommands.  Drops the static files
-  into a configurable docroot + writes an Apache vhost
-  fragment.
-* **Two credential types**, each suited to its caller:
-    * **API key** (`lt_...`) — the existing FEAT-212 PR-1
-      long-lived bearer.  Stays the credential for **LLM
-      agents** (MCP clients), CLI scripts, native mobile
-      apps, server-to-server callers.
-    * **Passkey** (WebAuthn) — the primary credential for the
-      PWA.  Backed by iCloud Keychain / Google Password
-      Manager / 1Password / Bitwarden, syncs natively across
-      a user's devices, no plaintext bearer sitting in
-      `localStorage`.
-* **Server-side recovery blob** (opt-in 12-word phrase) for
-  the case where all passkeys are lost and the user isn't
-  using a manager that backs them up.
+  modules + plain CSS, no build step.  ~50KB target.  Hard-wired
+  to same-origin `/api`.
+* **`lightning ui install/uninstall/upgrade`** verb — drops
+  files into a docroot + writes an Apache vhost fragment.
+  Defence-in-depth `Options -ExecCGI -Indexes`.
+* **Passkey backend** — `account_passkeys` table, one-shot
+  `auth_challenges` table, Python `_webauthn-verify` helper
+  (single new dep: the `webauthn` PyPI package), 7 new
+  endpoints: passkeys list/register-begin/finish, login-begin/
+  finish, revoke, session refresh.
+* **Session tokens** — `sess_…` prefix, 30-min HMAC-signed,
+  verified by the existing `api-account-verify` (learns the
+  new prefix).  No DB round-trip per request.
+* **Screens**: account picker, login (passkey assertion),
+  create, account view (balance + recent ledger + top-up
+  address), send (BOLT-11 paste), recv (BOLT-11 mint),
+  settings (passkeys list, "show API key" for LLM-export,
+  revoke this device).
 
-Out (deferred):
+Out of scope for PR-2; listed here so the file shape stays
+predictable:
 
-* **Form-fill / iCloud Keychain trick** as a wallet credential
-  store — superseded by passkeys, which sync natively without
-  the autocomplete hack.
-* **PIN-encrypted localStorage** of the bearer — superseded
-  by passkeys, which don't put a long-lived bearer on the
-  device at all.
-* **Native iOS / Android apps** — the PWA covers both
-  platforms via "Add to Home Screen."  No App Store friction,
-  no per-platform codebase.  If demand justifies it later,
-  Capacitor or Tauri can wrap the same code.
-* **Multi-tenant SaaS billing** — the hosted instance at
-  bawee.site (or whatever the operator names their public
-  install) charges in sats via FEAT-212's regular receive
-  endpoint.  No subscription primitive needed inside the PWA.
+* Service worker / offline shell — Lightning needs the network
+  to do anything useful; the offline-cached shell is chrome.
+  Add when the PWA is otherwise feature-complete.
+* **Server-side recovery blob** (BIP-39 phrase + encrypted
+  API-key blob keyed by `sha256(phrase)`).  Useful but optional.
+* BOLT-12 receive in the PWA.  The verb already supports it
+  (FEAT-212 PR-2 ships `api-account-recv-reusable`).  Add a
+  button.
+* QR scanner using `BarcodeDetector` (Chrome) with a JS
+  fallback for Safari.
+* Lightning-address autocomplete in the send screen.
+* LLM-agent delegation UI (multiple keys per account).  The
+  FEAT-212 PR-1 schema is one key per account; multi-key is a
+  separate small ticket.
+* Native iOS / Android apps — the PWA covers both via "Add to
+  Home Screen."
+* Branding overrides via `config.json`.  Operators editing
+  `share/lightning/ui/index.html` directly is the v1 escape
+  hatch.
 
-## The PWA itself
+## Credentials
 
-Pure static — HTML + ES modules + plain CSS.  No npm, no
-build step, no node_modules.  Aligns with the rest of the
-codebase (bash + jq + small Python).  Total payload ~50KB
-gzipped target.
+The account has two credential types — both authenticate against
+the same FEAT-212 account, just via different paths:
 
-### Screens
+### Passkey (the PWA's credential)
 
-```
-/                   account picker (existing accounts on this device)
-/login              passkey assertion (or paste API key fallback)
-/create             create a new anon account (calls POST /api/accounts)
-/account/<id>       balance + last 10 ledger entries
-/account/<id>/send  paste invoice or scan QR; confirm; pay
-/account/<id>/recv  amount + description → BOLT-11 QR (auto-poll for paid)
-/account/<id>/offer BOLT-12 reusable invoice + QR
-/account/<id>/topup BIP-21 URI + QR (the address IS the account ID)
-/settings           passkey management, export API key, recovery setup
-```
+At account creation the PWA enrolls a passkey via WebAuthn.
+The passkey lives in iCloud Keychain / Google Password Manager /
+1Password / Bitwarden — synced + backed up natively, no
+plaintext bearer on the device.  Subsequent logins:
 
-Wallet logic is straightforward — HTTP calls + DOM + QR
-rendering.  Doesn't need a framework.  Lit is the fallback if
-some component (e.g. the ledger list) gets unwieldy.
+* PWA calls `POST /api/accounts/<id>/passkeys/login/begin` → gets
+  a challenge.
+* `navigator.credentials.get({publicKey: ...})` → user does
+  Face ID / Touch ID → assertion.
+* PWA posts to `/passkeys/login/finish` → server verifies +
+  issues `sess_<…>`.
+* PWA holds the session in memory (NOT localStorage) for ~30
+  min; refresh while valid via `POST /api/accounts/<id>/session
+  /refresh`.
 
-### Same-origin only — no runtime backend switcher
+### API key (for everyone else)
 
-The PWA reads `window.location.origin + "/api"` and that's
-the only backend it ever talks to.  No runtime "Change
-backend" UI, no first-run prompt, no settings field for the
-API URL.
+The original `lt_…` bearer minted by FEAT-212 PR-1.  Used by:
 
-The two real topologies both end up same-origin:
+* LLM agents (MCP calls), CLI scripts, native apps, server-to-
+  server callers.  Long-lived, presented on every request.
+* PWA fallback for self-hosters who already have an API key
+  in hand.  Paste-bearer login is a hidden settings entry, not
+  the main path.
 
-* **Provider-hosted** — operator runs PWA + node behind one
-  vhost (`https://bawee.site/wallet/` calls
-  `https://bawee.site/api/...`).  User trusts the provider;
-  same-origin is implicit.
-* **Self-hosted** — power user runs `lightning daemon
-  install --system` plus `lightning ui install` on their
-  Tailscale machine.  PWA is served from
-  `https://node.tailnet/wallet/`, API from
-  `https://node.tailnet/api/`.  Still same-origin.
+The api_key is shown **once** in the PWA at account creation —
+on the "save this for backup" screen, with copy / download
+buttons.  If the user loses both their passkeys and their
+api-key backup, they're locked out unless the future recovery-
+blob (PR-4) is enabled.
 
-A "PWA at one origin, node at another" topology basically
-doesn't exist in practice — if you trust an operator enough
-to install their PWA, you trust them with the node behind
-it.  Removing the switcher kills a class of phishing-style
-gotchas (PWA from origin A pointed at malicious API B) and a
-class of state-management bugs (which account am I on which
-backend right now?).
-
-If a user wants to use a different provider, they install
-that provider's PWA from that provider's URL.  One install =
-one identity = one backend.
-
-If same-origin `/api` doesn't respond, the PWA shows a hard
-error ("This server doesn't expose a Lightning API") — no
-fallback prompt.  Misconfigured installs are an operator
-problem, not a user-recovery flow.
-
-Branding overrides (operator wants their own name / colour)
-live in a static `config.json` next to `index.html` that the
-operator can edit by hand after install:
-
-```json
-{
-  "branding": {
-    "name": "Bawee",
-    "primary_color": "#7b3fe4"
-  }
-}
-```
-
-Empty / missing `config.json` = default branding.
-
-### Service worker + offline
-
-Standard PWA pattern.  `sw.js` caches the static shell on
-first load; new versions roll out via a cache-bust hash in
-the asset URLs.  The wallet's *data* (balance, ledger) is
-fetched live each time — only the shell is cached.
-
-## The verb
-
-```
-lightning ui install [<docroot>] [--apache-vhost <name>] [--no-vhost]
-    Copy the PWA files from $PREFIX/share/lightning/ui/ to
-    <docroot> (default /var/www/html/lightning).  Write a
-    vhost fragment to $PREFIX/share/lightning/apache/ui.conf
-    that the operator includes from their main vhost.
-
-lightning ui uninstall [<docroot>]
-    Remove the docroot tree + the vhost fragment.
-
-lightning ui upgrade [<docroot>]
-    Equivalent to uninstall + install — picks up new files
-    from $PREFIX/share/lightning/ui/.  Preserves config.json.
-```
-
-The verb is intentionally thin — most of the work is `cp -r`.
-The PWA is hard-wired to same-origin `/api`; the verb's only
-job is dropping files in the right place and writing the
-vhost fragment.
-
-Defence in depth: the vhost fragment locks the docroot to
-`Options -ExecCGI -Indexes` (the PWA is purely static; no
-server-side scripts).
-
-## Credentials — two parallel paths
-
-The account has **two** credential types, each suited to its
-caller.  Both authenticate against the same FEAT-212 account.
-
-### 1. API key (long-lived bearer) — for non-browser callers
-
-The existing `lt_...` bearer minted by FEAT-212 PR-1 stays.
-It's the credential used by:
-
-* **LLM agents** (MCP clients calling the FEAT-212 PR-3
-  tools).  Agents hold the bearer in their own keychain
-  (Claude memory, 1Password CLI, etc.) and present it on
-  every JSON-RPC call.
-* **CLI scripts** — operator automation, monitoring probes,
-  pen-test harnesses.
-* **Native mobile apps** (when someone writes one outside
-  the PWA path) — long-lived bearer paired with the OS
-  keychain.
-* **Server-to-server integrations** — webhooks, payment
-  processors, CI bots.
-
-The PWA can also accept the API key as a fallback login
-path (paste-bearer in Settings) — useful for self-hosters
-who already have an API key in hand from `account create`
-on their own node, and for debugging.
-
-### 2. Passkey (WebAuthn) — for the PWA
-
-The PWA's primary credential.  At account creation (or first
-login), the PWA enrolls a passkey:
-
-* The server returns a WebAuthn `PublicKeyCredentialCreation
-  Options` blob.
-* The PWA calls `navigator.credentials.create({publicKey: ...})`.
-  On iOS Safari this triggers Face ID / Touch ID + saves the
-  passkey to iCloud Keychain.  On Chrome / Edge, into Google
-  Password Manager or the OS keychain.  1Password / Bitwarden
-  / Dashlane hook in too.
-* The PWA posts the attestation to
-  `/api/accounts/<id>/passkeys/register/finish`.  Server
-  parses the COSE public key + stores it in a new table.
-* For every subsequent session, the PWA calls
-  `navigator.credentials.get({publicKey: ...})` with a server-
-  issued challenge.  Server verifies the assertion, issues a
-  short-lived **session token** (`sess_<random>`, 30-min TTL,
-  HMAC-signed).
-* The session token is what the PWA actually sends on each
-  HTTP call — `Authorization: Bearer sess_…`.  No long-lived
-  bearer ever sits on the device.
-
-Trade-offs vs. the API-key path:
-
-* ✅ No plaintext bearer in `localStorage`.  No PIN dance, no
-  XSS exposure of long-lived creds.
-* ✅ iCloud Keychain / Google Password Manager / 1Password
-  sync the passkey natively — multi-device + backup for free.
-* ✅ Biometric gate on every passkey assertion (face / touch).
-* ⚠️ Each new browser session needs a fresh passkey assertion
-  (one prompt to log in, then a session token covers the
-  next 30 min).
-* ⚠️ Lost all passkeys = lost account, unless the user
-  enrolled the opt-in recovery blob below or kept a copy of
-  the API key.
-
-### Session tokens
-
-A session token is server-issued after a successful passkey
-assertion or an API-key paste-login.  Format:
-
-```
-sess_<base64url(account_id || expiry || hmac(secret, account_id||expiry))>
-```
-
-* TTL: 30 min.  Refresh via `POST /api/accounts/<id>/session/
-  refresh` while still valid; expired sessions force a re-
-  auth.
-* HMAC-signed with a per-wallet secret in the secret store
-  (`secret put lightning.session.hmac-key`).
-* Verified by `api-account-verify` — same verb as for `lt_…`
-  bearers, just learns the new prefix.  No DB round-trip per
-  request (the token is self-contained).
-
-### Server-side recovery blob (opt-in)
-
-For users who will lose all their passkeys *and* their copy
-of the API key.  At account creation, optionally generate a
-12-word recovery phrase (BIP-39 wordlist).  Local side:
-
-* Derive `key = PBKDF2(phrase, salt=account_id, iters=100k)`
-* `blob = AES-GCM(key, api_key)`
-* Send `POST /api/accounts/<id>/recovery` with `blob` +
-  `sha256(phrase)`.
-
-Server stores `(account_id, sha256(phrase), blob)` keyed by
-the phrase hash.  Restore flow: user types the phrase on a
-new device → JS hashes it → `POST /api/accounts/recovery/
-restore` with just the hash → server returns the encrypted
-blob → local PBKDF2 + AES-GCM decrypt → user pastes-login
-with the recovered API key, then enrolls a fresh passkey
-from the new device.
-
-The server learns nothing about the API key.  Rate-limited
-aggressively at the Apache layer (it's the only anonymous
-endpoint that returns potentially-recoverable secrets, even
-encrypted).
-
-### Manual QR export
-
-Settings → "Show API key QR" — payload `{backend,
-account_id, api_key}`.  Paste into a password manager,
-delegate to an LLM agent, ship as a paper wallet.  Always
-works, no infra.
-
-## Server-side endpoints
-
-### Passkey (PR-3)
+## Server-side endpoints (new in PR-2)
 
 ```
 GET  /api/accounts/<id>/passkeys
     Authorization: Bearer <key|sess>
-    Return: { "passkeys": [ { "credential_id": "...",
-                              "label": "iPhone 15",
-                              "created_at": <epoch>,
-                              "last_used_at": <epoch|null> }, ... ] }
+    Return: { "passkeys": [ { credential_id, label,
+                              created_at, last_used_at }, ... ] }
 
 POST /api/accounts/<id>/passkeys/register/begin
     Authorization: Bearer <key|sess>
     Body:   { "label": "iPhone 15" }
-    Return: { "challenge": "<base64url>",
-              "options": <PublicKeyCredentialCreationOptions> }
+    Return: { "challenge", "options": <PublicKeyCredentialCreationOptions> }
 
 POST /api/accounts/<id>/passkeys/register/finish
     Authorization: Bearer <key|sess>
-    Body:   { "challenge": "...",
-              "attestation": <PublicKeyCredentialJSON> }
-    Return: { "credential_id": "..." }
+    Body:   { "challenge", "attestation": <PublicKeyCredentialJSON> }
+    Return: { "credential_id" }
 
 POST /api/accounts/<id>/passkeys/login/begin
-    No auth (browser kicks off the assertion before holding a session).
-    Body:   { }
-    Return: { "challenge": "<base64url>",
-              "options": <PublicKeyCredentialRequestOptions> }
+    No auth.
+    Return: { "challenge", "options": <PublicKeyCredentialRequestOptions> }
 
 POST /api/accounts/<id>/passkeys/login/finish
     No auth.
-    Body:   { "challenge": "...",
-              "assertion": <PublicKeyCredentialJSON> }
-    Return: { "session": "sess_...", "expires_at": <epoch> }
+    Body:   { "challenge", "assertion": <PublicKeyCredentialJSON> }
+    Return: { "session", "expires_at" }
 
 DELETE /api/accounts/<id>/passkeys/<credential_id>
     Authorization: Bearer <key|sess>
@@ -331,10 +183,17 @@ DELETE /api/accounts/<id>/passkeys/<credential_id>
 
 POST /api/accounts/<id>/session/refresh
     Authorization: Bearer sess_<still-valid>
-    Return: { "session": "sess_...", "expires_at": <epoch> }
+    Return: { "session", "expires_at" }
 ```
 
-Schema:
+The existing `/api/accounts`, `/api/accounts/<id>/balance`,
+`/topup`, `/withdraw`, `/pay`, `/recv`, `/recv-reusable`,
+`/close` endpoints (FEAT-212 PR-2) already accept the bearer.
+The session token follows the same path; `api-account-verify`
+learns the `sess_` prefix and short-circuits the secret-store
+lookup with an HMAC check.
+
+## Schema (additive)
 
 ```sql
 CREATE TABLE IF NOT EXISTS account_passkeys (
@@ -348,176 +207,74 @@ CREATE TABLE IF NOT EXISTS account_passkeys (
     last_used_at  INTEGER
 );
 
--- Challenges are one-shot — stored just long enough to round-trip
--- the begin/finish call.  Expired rows are cleaned by the GC sidecar.
+-- Challenges are one-shot, ~60-second TTL.  PR-2 garbage-collects
+-- them inline in `login/finish` and `register/finish`; the
+-- FEAT-212 PR-5 GC sidecar sweeps any leaks on its daily run.
 CREATE TABLE IF NOT EXISTS auth_challenges (
     challenge   TEXT    PRIMARY KEY,
-    account     TEXT,   -- nullable: login/begin doesn't bind to one yet
-    purpose     TEXT    NOT NULL,  -- 'register' | 'login'
+    account     TEXT,   -- nullable; login/begin doesn't bind yet
+    purpose     TEXT    NOT NULL,
     created_at  INTEGER NOT NULL,
     expires_at  INTEGER NOT NULL
 );
 ```
 
-### WebAuthn verification — Python helper
+Migration: idempotent `CREATE TABLE IF NOT EXISTS` from the same
+helper that does FEAT-212's account-schema migration.
 
-COSE parsing + ES256 / EdDSA / RS256 signature verification
-in bash + jq is unworkable.  We add a small Python script
-under `libexec/lightning/_webauthn-verify` that the verbs
-call to validate attestations and assertions.  Single
-PyPI dep — the `webauthn` package — added to the
-`install-core --source` Python requirements.
+## WebAuthn verification — Python helper
 
-The verb-Python split keeps the rest of the codebase shell-
-first: only the cryptography lives in Python.
+COSE key parsing + ES256 / EdDSA / RS256 signature verification
+in bash + jq is unworkable.  We add a small Python helper at
+`libexec/lightning/_webauthn-verify` that the shell verbs call
+to validate attestations + assertions.  Single new PyPI dep —
+`webauthn` — added to the `install-core --source` Python
+requirements.  Same Python-for-the-cryptography pattern the
+existing CGI scripts already use.
 
-### Recovery blob (PR-4)
+## The verb
 
 ```
-POST /api/accounts/<id>/recovery
-    Authorization: Bearer <key|sess>
-    Body: { "phrase_sha256": "hex", "blob": "base64" }
-    Return: { "status": "stored" }
+lightning ui install [<docroot>] [--apache-vhost <name>] [--no-vhost]
+    Copy share/lightning/ui/ → docroot.  Default docroot:
+    /var/www/html/lightning.  Write share/lightning/apache/ui.conf
+    that the operator includes from their main vhost.
 
-POST /api/accounts/recovery/restore
-    No auth.
-    Body: { "phrase_sha256": "hex" }
-    Return: { "account_id": "bc1q...",
-              "blob": "base64",
-              "backend": "<this server's URL>" }
-    404 if no record.
+lightning ui uninstall [<docroot>]
+    Remove docroot tree + vhost fragment.
+
+lightning ui upgrade [<docroot>]
+    Reinstall.  Preserves any operator-edited config.json.
 ```
 
-Schema:
+That's it.  The verb is thin on purpose.
 
-```sql
-CREATE TABLE IF NOT EXISTS account_recovery (
-    phrase_sha256 TEXT PRIMARY KEY,
-    account       TEXT NOT NULL REFERENCES accounts(name) ON DELETE CASCADE,
-    blob          BLOB NOT NULL,
-    created_at    INTEGER NOT NULL
-);
-```
+## Phasing
 
-Rate-limit `restore` aggressively at the Apache layer + a
-rolling-log limiter in the verb (same shape as PR-2's
-`accounts-create`).  Threshold: `LIGHTNING_ACCOUNT_RECOVERY
-_RATE`, default 3/min.
+* **PR-1 (this — spec)**
+* **PR-2 (the whole thing)** — PWA + verb + passkey backend +
+  all 7 endpoints + schema migration.  Ships a working wallet
+  on first commit.  Tests: bats for the verb + the new shell
+  verbs (passkey-register/login/etc.); pytest for the dispatcher
+  routing + WebAuthn helper exercised against canned vectors.
+* **PR-3 onward (optional polish, one ticket each)** —
+  recovery blob, BOLT-12 receive in the PWA, QR scanner,
+  lightning-address autocomplete, service worker / offline
+  shell, LLM-agent delegation (multi-key per account), passkey
+  re-enrollment flow.
 
-## Apache wiring
-
-`share/lightning/apache/ui.conf` — vhost fragment the verb
-drops:
-
-```apache
-Alias /wallet /var/www/html/lightning
-<Directory /var/www/html/lightning>
-    Options -ExecCGI -Indexes
-    Require all granted
-    # Cache the shell aggressively; index.html short-cache
-    # so service-worker updates are timely.
-    <FilesMatch "\.(js|css|svg|png|ico|webmanifest)$">
-        Header set Cache-Control "public, max-age=31536000, immutable"
-    </FilesMatch>
-    <FilesMatch "\.(html|json)$">
-        Header set Cache-Control "no-cache"
-    </FilesMatch>
-</Directory>
-```
-
-If the operator already has the FEAT-212 `/api/accounts` and
-`/api/mcp` blocks in their vhost, the PWA at `/wallet/` reads
-same-origin and everything Just Works.
-
-## Hosted vs self-hosted
-
-**Hosted (default)** — the operator (we, or whoever stands
-up a public instance) runs the PWA + the API under the same
-vhost.  End user opens `https://bawee.site` (or the operator's
-chosen domain), taps "create account", and gets going in 5
-seconds.  Custodial-by-default — the operator's node holds
-custody of every account's sats.  Mitigations: transparent
-ledger, BOLT-11/12 receive directly to the node's pubkey,
-withdraw-anytime via the existing PR-2 `withdraw` endpoint.
-
-**Self-hosted** — user runs `lightning daemon install --system`
-+ `lightning ui install` on the same Tailscale-reachable
-machine.  PWA at `https://node.tailnet/wallet/`, API at
-`https://node.tailnet/api/`.  Same-origin; works out of the
-box.  No backend-URL field for the user to misconfigure, no
-"point my hosted PWA at my home node" topology to debug.
-
-Both modes share one PWA codebase.
-
-## Phasing (PR plan)
-
-1. **PR-1 (this — spec only)** — file the design.  No code.
-2. **PR-2 (PWA + `ui install` verb)** — static PWA under
-   `share/lightning/ui/` + `lightning ui install/uninstall/
-   upgrade` verb + Apache vhost fragment.  Default backend =
-   same-origin.  Login = paste API key (the FEAT-212 PR-1
-   bearer).  Covers account create, send (BOLT-11), recv
-   (BOLT-11), topup display, balance, settings, manual QR
-   export.  No service worker, no passkey, no recovery yet.
-3. **PR-3 (passkey + session tokens)** — `account_passkeys`
-   table + `auth_challenges` table + Python `_webauthn-
-   verify` helper + 7 new endpoints (passkeys list, register
-   begin/finish, login begin/finish, revoke, session refresh)
-   + PWA flow that enrolls a passkey on first login and uses
-   session tokens thereafter.  The PWA's "paste API key"
-   path stays as a fallback for self-hosters / debugging /
-   LLM delegation.
-4. **PR-4 (service worker + offline shell)** — PWA installable
-   via "Add to Home Screen", offline shell cached, asset
-   hashing for cache bust.
-5. **PR-5 (server-side recovery blob)** — opt-in 12-word
-   phrase + new endpoints + PWA UI for "generate recovery
-   phrase" and "restore from phrase."  Rate-limited `restore`.
-6. **PR-6 (BOLT-12 + nicer UX)** — reusable offers in the
-   PWA (the verb already supports them via FEAT-212), QR
-   scanner using `BarcodeDetector` API (Chrome) with a JS
-   fallback for Safari, lightning-address autocomplete.
-
-PR-2 ships a working wallet (paste-bearer login).  PR-3 is
-the consumer UX (passkey-first).  PR-4 makes it a real PWA.
-PR-5 closes the recovery story.  PR-6 is UX polish.
-
-## Test plan
-
-* **bats** — install verb writes files under docroot, vhost
-  fragment is well-formed, uninstall removes them, upgrade
-  preserves a hand-edited config.json.
-* **pytest** — passkey endpoints (PR-3): challenge/begin
-  shape, finish validates attestation via the Python helper,
-  duplicate-credential rejection, session-token issuance +
-  expiry + refresh, revoke-by-cred-id; recovery endpoints
-  (PR-5) for store + restore + rate-limit + unknown-hash 404.
-* **manual** — install on a regtest node, open the PWA on a
-  phone, create an account, enroll a passkey via Face ID,
-  receive on-chain regtest sats, the FEAT-212 deposit watcher
-  credits the ledger, the PWA sees the new balance.  Cross-
-  device: log in to the same account on a laptop via the
-  iCloud-Keychain-synced passkey.
-
-## Naming
-
-The name "BaweePay" goes away.  The feature is "Lightning
-wallet PWA" — descriptive, no marketing.  Operators picking
-their own hostname can brand the install via
-`config.branding.name` / `config.branding.primary_color`.
-The hosted public instance is still free to call itself
-"Bawee" (or anything else) but that's a deployment choice,
-not the feature.
+PR-2 is a chunky single PR (~3 weeks of work).  It can be split
+along schema → backend → frontend lines if reviewer load is a
+concern, but the dependencies are tight enough that the
+combined diff is easier to review than three separate ones.
 
 ## See also
 
-* FEAT-176 — Lightning Address Apache vhost (the file-drop
-  pattern this builds on).
-* FEAT-196 — original .well-known/lightning/ JSON API.
-* FEAT-207 — `daemon install-core` (the package-install
-  pattern this borrows from).
-* FEAT-212 — account-centric HTTP API + MCP server (the
-  backend this PWA is a client for).
+* FEAT-176 — Lightning Address Apache vhost.
+* FEAT-196 — original `.well-known/lightning/` JSON API.
+* FEAT-207 — `daemon install-core`.
+* FEAT-212 — account-centric HTTP API + MCP server + cron-
+  job sidecars (this PWA is a client for that backend).
 
 ## Milestone
 
