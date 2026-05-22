@@ -4897,3 +4897,193 @@ _acct214_teardown() {
 	grep -q "^id: FEAT-214" "$f"
 	grep -q "fee-policy status" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-215: fee-policy autotune cron.
+# ---------------------------------------------------------------------------
+
+_acct215_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='rent';")
+	BATS_FEES="$LIGHTNING_WALLETS_ROOT/alice/fees.recfile"
+}
+
+_acct215_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-215: autotune without target env var errors loudly" {
+	_acct215_setup
+	run "$LIGHTNING_BIN" fee-policy autotune run
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY"* ]]
+	_acct215_teardown
+}
+
+@test "FEAT-215: autotune target must be a non-negative integer" {
+	_acct215_setup
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY="abc" run "$LIGHTNING_BIN" fee-policy autotune run
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"positive integer"* ]]
+	_acct215_teardown
+}
+
+@test "FEAT-215: autotune dry-run with high target nudges rates up" {
+	_acct215_setup
+	# 1M msat/day = 30M msat/30days target; observed = 0; well below
+	# the low_threshold, so direction=up.
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
+		run "$LIGHTNING_BIN" fee-policy autotune dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"direction=up"* ]]
+	# fees.recfile should NOT have changed (dry-run).
+	local pay_rate
+	pay_rate=$(awk '/^operation: pay$/,/^$/' "$BATS_FEES" | awk '/^rate_ppm:/ {print $2}')
+	[ "$pay_rate" = "5000" ]
+	_acct215_teardown
+}
+
+@test "FEAT-215: autotune run nudges rates up + writes state file" {
+	_acct215_setup
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
+		LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM=500 \
+		"$LIGHTNING_BIN" fee-policy autotune run >/dev/null 2>&1
+	# pay rate should be 5500 (5000 + 500 step)
+	local pay_rate
+	pay_rate=$(awk '/^operation: pay$/,/^$/' "$BATS_FEES" | awk '/^rate_ppm:/ {print $2}')
+	[ "$pay_rate" = "5500" ]
+	# State file written
+	[ -f "$LIGHTNING_DIR/fee-autotune.state.recfile" ]
+	grep -q "last_direction: *up" "$LIGHTNING_DIR/fee-autotune.state.recfile"
+	_acct215_teardown
+}
+
+@test "FEAT-215: autotune holds within hysteresis band" {
+	_acct215_setup
+	# Seed 30 sat of revenue
+	sqlite3 "$BATS_DB" "INSERT OR IGNORE INTO accounts(name, description, overdraft) VALUES('house', 'operator fee revenue', 'allow');"
+	for i in $(seq 1 30); do
+		sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+			VALUES(datetime('now','-$((30 - i)) days'), 'house', 'in', 1000, 'h$i', 'fee:pay from rent');"
+	done
+	# 30 days × 1000 msat = 30000 msat total / 30 = 1000 msat/day observed
+	# Target = 1000 → exact match → direction=hold (within 20% hysteresis)
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 \
+		run "$LIGHTNING_BIN" fee-policy autotune dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"direction=hold"* ]]
+	_acct215_teardown
+}
+
+@test "FEAT-215: autotune nudges down when revenue exceeds high threshold" {
+	_acct215_setup
+	# Seed 200 sat skim (200_000 msat) → observed ~6666 msat/day
+	sqlite3 "$BATS_DB" "INSERT OR IGNORE INTO accounts(name, description, overdraft) VALUES('house', 'operator fee revenue', 'allow');"
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now'), 'house', 'in', 200000, 'deadbeef', 'fee:pay from rent');"
+	# Target = 1000 msat/day; 1.2×target = 1200; observed 6666 >> 1200 → down
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 \
+		run "$LIGHTNING_BIN" fee-policy autotune dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"direction=down"* ]]
+	_acct215_teardown
+}
+
+@test "FEAT-215: autotune respects rate ceiling" {
+	_acct215_setup
+	# Set ceiling at 5500; pay rate currently 5000.  Single 500-step
+	# nudge UP would hit 5500 exactly.  A second run shouldn't move it.
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
+		LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM=500 \
+		LIGHTNING_FEE_AUTOTUNE_CEILING_PPM=5500 \
+		"$LIGHTNING_BIN" fee-policy autotune run >/dev/null 2>&1
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
+		LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM=500 \
+		LIGHTNING_FEE_AUTOTUNE_CEILING_PPM=5500 \
+		"$LIGHTNING_BIN" fee-policy autotune run >/dev/null 2>&1
+	local pay_rate
+	pay_rate=$(awk '/^operation: pay$/,/^$/' "$BATS_FEES" | awk '/^rate_ppm:/ {print $2}')
+	[ "$pay_rate" = "5500" ]
+	_acct215_teardown
+}
+
+@test "FEAT-215: autotune respects rate floor" {
+	_acct215_setup
+	# Drive direction=down, floor at 4500.  Pay starts at 5000 → 4500 →
+	# stays at 4500 across further calls.
+	sqlite3 "$BATS_DB" "INSERT OR IGNORE INTO accounts(name, description, overdraft) VALUES('house', 'operator fee revenue', 'allow');"
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now'), 'house', 'in', 1000000000, 'd1', 'fee:pay from rent');"
+	for n in 1 2 3; do
+		LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 \
+			LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM=500 \
+			LIGHTNING_FEE_AUTOTUNE_FLOOR_PPM=4500 \
+			"$LIGHTNING_BIN" fee-policy autotune run >/dev/null 2>&1
+	done
+	local pay_rate
+	pay_rate=$(awk '/^operation: pay$/,/^$/' "$BATS_FEES" | awk '/^rate_ppm:/ {print $2}')
+	[ "$pay_rate" = "4500" ]
+	_acct215_teardown
+}
+
+@test "FEAT-215: autotune status before any run reports 'never run'" {
+	_acct215_setup
+	run "$LIGHTNING_BIN" fee-policy autotune status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"never run"* ]]
+	_acct215_teardown
+}
+
+@test "FEAT-215: autotune status shows last decision" {
+	_acct215_setup
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
+		"$LIGHTNING_BIN" fee-policy autotune run >/dev/null 2>&1
+	run "$LIGHTNING_BIN" fee-policy autotune status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"last_direction:"* ]]
+	[[ "$output" == *"changes:"* ]]
+	_acct215_teardown
+}
+
+@test "FEAT-215: autotune reads routing income from listforwards" {
+	_acct215_setup
+	# Seed listforwards with 500_000 msat of recent settled fee revenue.
+	cutoff_now=$(date -u +%s)
+	export MOCK_LISTFORWARDS=$(jq -nc --argjson now "$cutoff_now" \
+		'[{"status":"settled","fee_msat":500000,"received_time":$now}]')
+	# Target = 1M msat/day = 30M/30d.  Observed = 500_000/30 = ~16666
+	# msat/day from routing; skim is 0.  500_000/30=16666 → well below
+	# low_threshold → direction=up + routing_msat_30d reported.
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
+		"$LIGHTNING_BIN" fee-policy autotune run 2>/dev/null
+	grep -q "routing_msat_30d: *500000" "$LIGHTNING_DIR/fee-autotune.state.recfile"
+	_acct215_teardown
+}
+
+@test "FEAT-215: daemon install --fee-autotune accepts the flag" {
+	f="$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
+	grep -q "\-\-fee-autotune" "$f"
+	grep -q "install_fee_autotune_sidecar" "$f"
+	grep -q "FEE_AUTOTUNE_LABEL" "$f"
+}
+
+@test "FEAT-215: fee-policy help lists autotune" {
+	run "$LIGHTNING_BIN" fee-policy
+	[[ "$output" == *"autotune"* ]]
+}
+
+@test "FEAT-215: spec file exists with the expected id" {
+	for cand in \
+		"$BATS_TEST_DIRNAME/../../issues/feature/215-fee-autotuning-cron.md" \
+		"$BATS_TEST_DIRNAME/../../issues/feature/done/215-fee-autotuning-cron.md"; do
+		[ -f "$cand" ] && f="$cand" && break
+	done
+	[ -n "$f" ]
+	grep -q "^id: FEAT-215" "$f"
+	grep -q "autotune" "$f"
+}

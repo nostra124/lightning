@@ -26,6 +26,7 @@ ALERT_LABEL="network.lightning.alert"
 AUTOPILOT_LABEL="network.lightning.autopilot"
 TOPUP_WATCHER_LABEL="network.lightning.topup-watcher"
 ACCOUNT_GC_LABEL="network.lightning.account-gc"
+FEE_AUTOTUNE_LABEL="network.lightning.fee-autotune"
 LIGHTNING_CONF="$LIGHTNING_DIR/config"
 BACKEND_BLOCK_BEGIN="# >>> lightning backend — managed by 'daemon install'"
 BACKEND_BLOCK_END="# <<< lightning backend"
@@ -662,7 +663,7 @@ cmd_install() {
 	#   -1  leave backend config alone
 	#    1  enable trustedcoin (multi-explorer fallback)
 	#    0  disable any managed backend block (back to bitcoind/bcli)
-	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0 autopilot=0 topup_watcher=0 account_gc=0
+	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0 autopilot=0 topup_watcher=0 account_gc=0 fee_autotune=0
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--system)      system=1; shift ;;
@@ -676,6 +677,7 @@ cmd_install() {
 			--autopilot)   autopilot=1; shift ;;
 			--topup-watcher) topup_watcher=1; shift ;;
 			--account-gc)  account_gc=1; shift ;;
+			--fee-autotune) fee_autotune=1; shift ;;
 			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
@@ -744,6 +746,11 @@ cmd_install() {
 	# deletes long-closed ones.  Daily cadence.  Same gate.
 	if [ "$account_gc" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
 		install_account_gc_sidecar
+	fi
+
+	# FEAT-215 sidecar — fee auto-tuner.  Daily cadence.  Same gate.
+	if [ "$fee_autotune" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
+		install_fee_autotune_sidecar
 	fi
 }
 
@@ -1223,6 +1230,94 @@ EOF
 	systemctl --user daemon-reload 2>/dev/null || true
 	info "wrote $dir/lightning-account-gc.{service,timer}"
 	info "  enable + start with: systemctl --user enable --now lightning-account-gc.timer"
+}
+
+# FEAT-215 — fee-policy autotune sidecar.  Daily cadence — rates
+# don't need to swing on intra-day routing volatility, and a
+# bounded per-day step (LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM)
+# prevents oscillation.
+install_fee_autotune_sidecar() {
+	local self_bin="$SELF_LIBEXEC/../bin/lightning"
+	self_bin=$(cd "$(dirname "$self_bin")" && pwd)/$(basename "$self_bin")
+
+	if is_macos; then
+		local plist="$HOME/Library/LaunchAgents/${FEE_AUTOTUNE_LABEL}.plist"
+		mkdir -p "$(dirname "$plist")"
+		cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${FEE_AUTOTUNE_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${self_bin}</string>
+        <string>fee-policy</string>
+        <string>autotune</string>
+        <string>run</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LIGHTNING_DIR</key>
+        <string>${LIGHTNING_DIR}</string>
+        <key>LIGHTNING_NETWORK</key>
+        <string>${LIGHTNING_NETWORK}</string>
+        <key>PATH</key>
+        <string>${PATH}</string>
+        <key>SELF_QUIET</key>
+        <string>1</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>86400</integer>
+    <key>StandardOutPath</key>
+    <string>${LIGHTNING_DIR}/fee-autotune.log</string>
+    <key>StandardErrorPath</key>
+    <string>${LIGHTNING_DIR}/fee-autotune.log</string>
+</dict>
+</plist>
+EOF
+		info "wrote $plist (fee-autotune sidecar)"
+		info "  triggers: daily"
+		info "  log:      $LIGHTNING_DIR/fee-autotune.log"
+		info "  required env: LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY"
+		return 0
+	fi
+
+	local dir="$HOME/.config/systemd/user"
+	mkdir -p "$dir"
+	cat > "$dir/lightning-fee-autotune.service" <<EOF
+[Unit]
+Description=Lightning fee-policy autotuner (FEAT-215)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=SELF_QUIET=1
+Environment=LIGHTNING_DIR=$LIGHTNING_DIR
+Environment=LIGHTNING_NETWORK=$LIGHTNING_NETWORK
+# Operator must set this — the tuner has no default target.
+#   Environment=LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=100000
+ExecStart=$self_bin fee-policy autotune run
+EOF
+	cat > "$dir/lightning-fee-autotune.timer" <<EOF
+[Unit]
+Description=Lightning fee-policy autotune timer (daily)
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=24h
+Unit=lightning-fee-autotune.service
+
+[Install]
+WantedBy=timers.target
+EOF
+	systemctl --user daemon-reload 2>/dev/null || true
+	info "wrote $dir/lightning-fee-autotune.{service,timer}"
+	info "  set LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY in the service file"
+	info "  enable + start with: systemctl --user enable --now lightning-fee-autotune.timer"
 }
 
 install_macos_system() {
