@@ -35,20 +35,28 @@ In:
   `uninstall`, `upgrade` subcommands.  Drops the static files
   into a configurable docroot + writes an Apache vhost
   fragment.
-* **Key storage + backup design** — three orthogonal layers
-  (browser/OS password manager via form-fill, manual QR
-  export, opt-in server-side recovery blob).  At-rest
-  encryption via a user-set PIN.
-* Two server-side endpoints for the opt-in recovery layer:
-  `POST /api/accounts/<id>/recovery` (store an encrypted
-  blob) and `POST /api/accounts/recovery/restore` (look up by
-  phrase hash).
+* **Two credential types**, each suited to its caller:
+    * **API key** (`lt_...`) — the existing FEAT-212 PR-1
+      long-lived bearer.  Stays the credential for **LLM
+      agents** (MCP clients), CLI scripts, native mobile
+      apps, server-to-server callers.
+    * **Passkey** (WebAuthn) — the primary credential for the
+      PWA.  Backed by iCloud Keychain / Google Password
+      Manager / 1Password / Bitwarden, syncs natively across
+      a user's devices, no plaintext bearer sitting in
+      `localStorage`.
+* **Server-side recovery blob** (opt-in 12-word phrase) for
+  the case where all passkeys are lost and the user isn't
+  using a manager that backs them up.
 
 Out (deferred):
 
-* **Passkeys / WebAuthn** as the bearer credential — the
-  right v2 answer, but PWA enrollment UX is still wonky in
-  Safari.  Filed as PR-4 for future work.
+* **Form-fill / iCloud Keychain trick** as a wallet credential
+  store — superseded by passkeys, which sync natively without
+  the autocomplete hack.
+* **PIN-encrypted localStorage** of the bearer — superseded
+  by passkeys, which don't put a long-lived bearer on the
+  device at all.
 * **Native iOS / Android apps** — the PWA covers both
   platforms via "Add to Home Screen."  No App Store friction,
   no per-platform codebase.  If demand justifies it later,
@@ -83,18 +91,29 @@ Wallet logic is straightforward — HTTP calls + DOM + QR
 rendering.  Doesn't need a framework.  Lit is the fallback if
 some component (e.g. the ledger list) gets unwieldy.
 
-### Same-origin by default
+### Backend selection — runtime, not install-time
 
-The PWA reads `window.location.origin + "/api"` for the
-backend.  No config file needed in the common case — install
-the PWA under the same Apache vhost that hosts FEAT-212 and
-everything wires up.
+The PWA defaults to `window.location.origin + "/api"` on
+first load.  If that responds, the PWA uses it — covers the
+common case where one operator runs PWA + node behind the
+same vhost.
 
-Override via a `config.json` next to `index.html`:
+If same-origin doesn't respond (PWA on a public host but the
+node lives behind Tailscale; multi-backend power user), the
+PWA's first-run screen prompts for `backend URL + bearer`.
+Settings → "Change backend" lets the user swap later without
+reinstalling.
+
+One PWA build serves every topology — hosted, self-hosted at
+home, hosted-PWA-against-tailnet-node.  No build-time flag
+to forget.
+
+Branding overrides (operator wants their own name / colour)
+live in a static `config.json` next to `index.html` that the
+operator can edit by hand after install:
 
 ```json
 {
-  "backend": "https://node.tailnet.example",
   "branding": {
     "name": "Bawee",
     "primary_color": "#7b3fe4"
@@ -102,8 +121,7 @@ Override via a `config.json` next to `index.html`:
 }
 ```
 
-`config.json` is written by the install verb based on its
-`--backend` flag.  Empty / missing config = same-origin.
+Empty / missing `config.json` = default branding.
 
 ### Service worker + offline
 
@@ -115,15 +133,11 @@ fetched live each time — only the shell is cached.
 ## The verb
 
 ```
-lightning ui install [<docroot>]
-                     [--backend <url>]
-                     [--apache-vhost <name>]
-                     [--no-vhost]
+lightning ui install [<docroot>] [--apache-vhost <name>] [--no-vhost]
     Copy the PWA files from $PREFIX/share/lightning/ui/ to
     <docroot> (default /var/www/html/lightning).  Write a
     vhost fragment to $PREFIX/share/lightning/apache/ui.conf
-    that the operator includes from their main vhost.  If
-    --backend is set, write a config.json baking in that URL.
+    that the operator includes from their main vhost.
 
 lightning ui uninstall [<docroot>]
     Remove the docroot tree + the vhost fragment.
@@ -134,87 +148,215 @@ lightning ui upgrade [<docroot>]
 ```
 
 The verb is intentionally thin — most of the work is `cp -r`.
+Backend URL selection is the PWA's runtime concern (default
+same-origin, prompt on first-run if unreachable, settings
+screen to change later), not a build-time argument.
+
 Defence in depth: the vhost fragment locks the docroot to
 `Options -ExecCGI -Indexes` (the PWA is purely static; no
 server-side scripts).
 
-## Key storage on the device
+## Credentials — two parallel paths
 
-The user's "key" is the FEAT-212 bearer token (`lt_...`).
-Lost bearer = lost account.
+The account has **two** credential types, each suited to its
+caller.  Both authenticate against the same FEAT-212 account.
 
-### Three orthogonal backup layers
+### 1. API key (long-lived bearer) — for non-browser callers
 
-1. **Browser / OS password manager** — *default-on, no
-   server involvement*.  On first login, render a hidden
-   form:
+The existing `lt_...` bearer minted by FEAT-212 PR-1 stays.
+It's the credential used by:
 
-   ```html
-   <form id="save-creds" autocomplete="on">
-     <input type="text"     name="username" autocomplete="username"
-            value="<account-id>" />
-     <input type="password" name="password" autocomplete="current-password"
-            value="<bearer>" />
-   </form>
-   ```
+* **LLM agents** (MCP clients calling the FEAT-212 PR-3
+  tools).  Agents hold the bearer in their own keychain
+  (Claude memory, 1Password CLI, etc.) and present it on
+  every JSON-RPC call.
+* **CLI scripts** — operator automation, monitoring probes,
+  pen-test harnesses.
+* **Native mobile apps** (when someone writes one outside
+  the PWA path) — long-lived bearer paired with the OS
+  keychain.
+* **Server-to-server integrations** — webhooks, payment
+  processors, CI bots.
 
-   Submit it once → iOS / Android / desktop browser prompts
-   "Save password?" → on accept, the bearer lands in iCloud
-   Keychain / Google Password Manager / 1Password / Bitwarden.
+The PWA can also accept the API key as a fallback login
+path (paste-bearer in Settings) — useful for self-hosters
+who already have an API key in hand from `account create`
+on their own node, and for debugging.
 
-   On reinstall or new device, the same form is autofilled,
-   JS reads the field value back, and the user is logged in.
-   This is the de facto pattern custodial Lightning PWAs use
-   today and is the most ergonomic for typical users.
+### 2. Passkey (WebAuthn) — for the PWA
 
-2. **Manual QR export** — *always works, no infra*.  The
-   Settings screen has a "Show recovery QR" button.  The QR
-   payload is a JSON blob `{backend, account_id, api_key}`.
-   User scans it from a password manager, saves to a paper
-   wallet, ships to a buddy as a delegation — operator's
-   choice.
+The PWA's primary credential.  At account creation (or first
+login), the PWA enrolls a passkey:
 
-3. **Opt-in server-side recovery blob** — *for users who
-   will lose their phone and their password manager*.  At
-   account creation, optionally generate a 12-word recovery
-   phrase (BIP-39 wordlist).  Local side:
+* The server returns a WebAuthn `PublicKeyCredentialCreation
+  Options` blob.
+* The PWA calls `navigator.credentials.create({publicKey: ...})`.
+  On iOS Safari this triggers Face ID / Touch ID + saves the
+  passkey to iCloud Keychain.  On Chrome / Edge, into Google
+  Password Manager or the OS keychain.  1Password / Bitwarden
+  / Dashlane hook in too.
+* The PWA posts the attestation to
+  `/api/accounts/<id>/passkeys/register/finish`.  Server
+  parses the COSE public key + stores it in a new table.
+* For every subsequent session, the PWA calls
+  `navigator.credentials.get({publicKey: ...})` with a server-
+  issued challenge.  Server verifies the assertion, issues a
+  short-lived **session token** (`sess_<random>`, 30-min TTL,
+  HMAC-signed).
+* The session token is what the PWA actually sends on each
+  HTTP call — `Authorization: Bearer sess_…`.  No long-lived
+  bearer ever sits on the device.
 
-   * Derive `key = PBKDF2(phrase, salt=account_id, iters=100k)`
-   * `blob = AES-GCM(key, bearer)`
-   * Send `POST /api/accounts/<id>/recovery` with `blob` +
-     `sha256(phrase)`.
+Trade-offs vs. the API-key path:
 
-   Server stores `(account_id, sha256(phrase), blob)` keyed
-   by the phrase hash.  Restore flow: user types the phrase
-   on a new device → JS hashes it → `POST /api/accounts/
-   recovery/restore` with just the hash → server returns the
-   encrypted blob → local PBKDF2 + AES-GCM decrypt.
+* ✅ No plaintext bearer in `localStorage`.  No PIN dance, no
+  XSS exposure of long-lived creds.
+* ✅ iCloud Keychain / Google Password Manager / 1Password
+  sync the passkey natively — multi-device + backup for free.
+* ✅ Biometric gate on every passkey assertion (face / touch).
+* ⚠️ Each new browser session needs a fresh passkey assertion
+  (one prompt to log in, then a session token covers the
+  next 30 min).
+* ⚠️ Lost all passkeys = lost account, unless the user
+  enrolled the opt-in recovery blob below or kept a copy of
+  the API key.
 
-   The server learns nothing about the bearer.  Trade-off:
-   we add a recovery surface (someone with the phrase can
-   recover the bearer; someone with read access to the
-   recovery table sees only `sha256(phrase) → encrypted blob`).
-   The phrase hash isn't account-id-bound on the wire — i.e.
-   restore-by-hash works without naming the account first;
-   that's deliberate so a user with only the phrase can
-   recover.
+### Session tokens
 
-### At-rest protection (a 4th layer)
+A session token is server-issued after a successful passkey
+assertion or an API-key paste-login.  Format:
 
-Before persisting the bearer to localStorage, wrap it with
-an AES-GCM key derived from a 6-digit PIN the user sets at
-login.  The PIN is short (typing on a phone), but it raises
-the bar for cross-app reads (XSS, shared device).  Lock-out
-after N wrong PINs falls back to "log in again from the
-password manager."
+```
+sess_<base64url(account_id || expiry || hmac(secret, account_id||expiry))>
+```
 
-Skip the PIN if the user opts out (default-on but skippable).
+* TTL: 30 min.  Refresh via `POST /api/accounts/<id>/session/
+  refresh` while still valid; expired sessions force a re-
+  auth.
+* HMAC-signed with a per-wallet secret in the secret store
+  (`secret put lightning.session.hmac-key`).
+* Verified by `api-account-verify` — same verb as for `lt_…`
+  bearers, just learns the new prefix.  No DB round-trip per
+  request (the token is self-contained).
 
-## Server-side recovery endpoints (PR-3)
+### Server-side recovery blob (opt-in)
+
+For users who will lose all their passkeys *and* their copy
+of the API key.  At account creation, optionally generate a
+12-word recovery phrase (BIP-39 wordlist).  Local side:
+
+* Derive `key = PBKDF2(phrase, salt=account_id, iters=100k)`
+* `blob = AES-GCM(key, api_key)`
+* Send `POST /api/accounts/<id>/recovery` with `blob` +
+  `sha256(phrase)`.
+
+Server stores `(account_id, sha256(phrase), blob)` keyed by
+the phrase hash.  Restore flow: user types the phrase on a
+new device → JS hashes it → `POST /api/accounts/recovery/
+restore` with just the hash → server returns the encrypted
+blob → local PBKDF2 + AES-GCM decrypt → user pastes-login
+with the recovered API key, then enrolls a fresh passkey
+from the new device.
+
+The server learns nothing about the API key.  Rate-limited
+aggressively at the Apache layer (it's the only anonymous
+endpoint that returns potentially-recoverable secrets, even
+encrypted).
+
+### Manual QR export
+
+Settings → "Show API key QR" — payload `{backend,
+account_id, api_key}`.  Paste into a password manager,
+delegate to an LLM agent, ship as a paper wallet.  Always
+works, no infra.
+
+## Server-side endpoints
+
+### Passkey (PR-3)
+
+```
+GET  /api/accounts/<id>/passkeys
+    Authorization: Bearer <key|sess>
+    Return: { "passkeys": [ { "credential_id": "...",
+                              "label": "iPhone 15",
+                              "created_at": <epoch>,
+                              "last_used_at": <epoch|null> }, ... ] }
+
+POST /api/accounts/<id>/passkeys/register/begin
+    Authorization: Bearer <key|sess>
+    Body:   { "label": "iPhone 15" }
+    Return: { "challenge": "<base64url>",
+              "options": <PublicKeyCredentialCreationOptions> }
+
+POST /api/accounts/<id>/passkeys/register/finish
+    Authorization: Bearer <key|sess>
+    Body:   { "challenge": "...",
+              "attestation": <PublicKeyCredentialJSON> }
+    Return: { "credential_id": "..." }
+
+POST /api/accounts/<id>/passkeys/login/begin
+    No auth (browser kicks off the assertion before holding a session).
+    Body:   { }
+    Return: { "challenge": "<base64url>",
+              "options": <PublicKeyCredentialRequestOptions> }
+
+POST /api/accounts/<id>/passkeys/login/finish
+    No auth.
+    Body:   { "challenge": "...",
+              "assertion": <PublicKeyCredentialJSON> }
+    Return: { "session": "sess_...", "expires_at": <epoch> }
+
+DELETE /api/accounts/<id>/passkeys/<credential_id>
+    Authorization: Bearer <key|sess>
+    Return: { "status": "revoked" }
+
+POST /api/accounts/<id>/session/refresh
+    Authorization: Bearer sess_<still-valid>
+    Return: { "session": "sess_...", "expires_at": <epoch> }
+```
+
+Schema:
+
+```sql
+CREATE TABLE IF NOT EXISTS account_passkeys (
+    id            INTEGER PRIMARY KEY,
+    account       TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE,
+    credential_id TEXT    NOT NULL UNIQUE,
+    public_key    BLOB    NOT NULL,
+    sign_count    INTEGER NOT NULL DEFAULT 0,
+    label         TEXT    NOT NULL DEFAULT '',
+    created_at    INTEGER NOT NULL,
+    last_used_at  INTEGER
+);
+
+-- Challenges are one-shot — stored just long enough to round-trip
+-- the begin/finish call.  Expired rows are cleaned by the GC sidecar.
+CREATE TABLE IF NOT EXISTS auth_challenges (
+    challenge   TEXT    PRIMARY KEY,
+    account     TEXT,   -- nullable: login/begin doesn't bind to one yet
+    purpose     TEXT    NOT NULL,  -- 'register' | 'login'
+    created_at  INTEGER NOT NULL,
+    expires_at  INTEGER NOT NULL
+);
+```
+
+### WebAuthn verification — Python helper
+
+COSE parsing + ES256 / EdDSA / RS256 signature verification
+in bash + jq is unworkable.  We add a small Python script
+under `libexec/lightning/_webauthn-verify` that the verbs
+call to validate attestations and assertions.  Single
+PyPI dep — the `webauthn` package — added to the
+`install-core --source` Python requirements.
+
+The verb-Python split keeps the rest of the codebase shell-
+first: only the cryptography lives in Python.
+
+### Recovery blob (PR-4)
 
 ```
 POST /api/accounts/<id>/recovery
-    Authorization: Bearer <key>
+    Authorization: Bearer <key|sess>
     Body: { "phrase_sha256": "hex", "blob": "base64" }
     Return: { "status": "stored" }
 
@@ -238,11 +380,10 @@ CREATE TABLE IF NOT EXISTS account_recovery (
 );
 ```
 
-Rate-limit `restore` aggressively at the Apache layer — it's
-the only anonymous endpoint that returns potentially-
-recoverable secrets (even encrypted).  Same rolling-log
-approach as PR-2's `accounts-create`, lower threshold
-(LIGHTNING_ACCOUNT_RECOVERY_RATE, default 3/min).
+Rate-limit `restore` aggressively at the Apache layer + a
+rolling-log limiter in the verb (same shape as PR-2's
+`accounts-create`).  Threshold: `LIGHTNING_ACCOUNT_RECOVERY
+_RATE`, default 3/min.
 
 ## Apache wiring
 
@@ -282,54 +423,63 @@ withdraw-anytime via the existing PR-2 `withdraw` endpoint.
 
 **Self-hosted** — user runs `lightning daemon install --system`
 on a small machine at home, exposes the API on their
-Tailscale tailnet, installs the PWA either on the same machine
-(default same-origin) or on a public host with `--backend
-https://node.tailnet.example`.  Settings screen accepts the
-URL + paste-bearer flow for users who want to point the same
-phone-installed PWA at multiple backends.
+Tailscale tailnet, installs the PWA on the same machine
+(default same-origin works) — or installs the PWA on a
+different host and lets the first-run prompt point it at
+`https://node.tailnet.example`.  Settings → "Change backend"
+swaps URLs later without a reinstall.
 
 Both modes share one PWA codebase.
 
 ## Phasing (PR plan)
 
 1. **PR-1 (this — spec only)** — file the design.  No code.
-2. **PR-2 (PWA + verb)** — static PWA under
+2. **PR-2 (PWA + `ui install` verb)** — static PWA under
    `share/lightning/ui/` + `lightning ui install/uninstall/
    upgrade` verb + Apache vhost fragment.  Default backend =
-   same-origin.  Covers account create, send (BOLT-11), recv
+   same-origin.  Login = paste API key (the FEAT-212 PR-1
+   bearer).  Covers account create, send (BOLT-11), recv
    (BOLT-11), topup display, balance, settings, manual QR
-   export.  No service worker, no recovery yet.
-3. **PR-3 (service worker + offline shell)** — PWA installable
+   export.  No service worker, no passkey, no recovery yet.
+3. **PR-3 (passkey + session tokens)** — `account_passkeys`
+   table + `auth_challenges` table + Python `_webauthn-
+   verify` helper + 7 new endpoints (passkeys list, register
+   begin/finish, login begin/finish, revoke, session refresh)
+   + PWA flow that enrolls a passkey on first login and uses
+   session tokens thereafter.  The PWA's "paste API key"
+   path stays as a fallback for self-hosters / debugging /
+   LLM delegation.
+4. **PR-4 (service worker + offline shell)** — PWA installable
    via "Add to Home Screen", offline shell cached, asset
-   hashing for cache bust.  Also adds the form-fill trick for
-   browser/OS password manager save.
-4. **PR-4 (server-side recovery)** — new HTTP endpoints +
-   schema column + PWA UI for "generate recovery phrase" and
-   "restore from phrase."  Rate-limited `restore`.
-5. **PR-5 (BOLT-12 + nicer UX)** — reusable offers in the
+   hashing for cache bust.
+5. **PR-5 (server-side recovery blob)** — opt-in 12-word
+   phrase + new endpoints + PWA UI for "generate recovery
+   phrase" and "restore from phrase."  Rate-limited `restore`.
+6. **PR-6 (BOLT-12 + nicer UX)** — reusable offers in the
    PWA (the verb already supports them via FEAT-212), QR
    scanner using `BarcodeDetector` API (Chrome) with a JS
    fallback for Safari, lightning-address autocomplete.
-6. **PR-6 (passkey support, follow-up)** — generate a passkey
-   at account creation, store its public key server-side, use
-   the passkey as the credential (no bearer at all).  Skippable
-   for users on platforms where passkey enrollment is rough.
 
-PR-2 + PR-3 are the minimum-shippable wallet.  PR-4 closes
-the recovery story.  PR-5 is UX polish.  PR-6 is the v2
-credential.
+PR-2 ships a working wallet (paste-bearer login).  PR-3 is
+the consumer UX (passkey-first).  PR-4 makes it a real PWA.
+PR-5 closes the recovery story.  PR-6 is UX polish.
 
 ## Test plan
 
 * **bats** — install verb writes files under docroot, vhost
   fragment is well-formed, uninstall removes them, upgrade
-  preserves config.json, --backend writes correct config.json.
-* **pytest** — the two new HTTP endpoints (PR-4) for recovery
-  store + restore + rate-limit + unknown-hash 404.
+  preserves a hand-edited config.json.
+* **pytest** — passkey endpoints (PR-3): challenge/begin
+  shape, finish validates attestation via the Python helper,
+  duplicate-credential rejection, session-token issuance +
+  expiry + refresh, revoke-by-cred-id; recovery endpoints
+  (PR-5) for store + restore + rate-limit + unknown-hash 404.
 * **manual** — install on a regtest node, open the PWA on a
-  phone, create an account, receive on-chain regtest sats,
-  the PR-4 deposit watcher credits the ledger, the PWA sees
-  the new balance.
+  phone, create an account, enroll a passkey via Face ID,
+  receive on-chain regtest sats, the FEAT-212 deposit watcher
+  credits the ledger, the PWA sees the new balance.  Cross-
+  device: log in to the same account on a laptop via the
+  iCloud-Keychain-synced passkey.
 
 ## Naming
 
