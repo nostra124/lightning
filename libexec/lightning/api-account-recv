@@ -1,0 +1,63 @@
+#!/bin/bash
+# lightning api-account-recv <address> <sat> [--desc <text>]
+#                                                            (FEAT-212 PR-2)
+#
+# Mints a BOLT-11 invoice tied to the account.  Wraps `lightning
+# invoice create` and projects its output into JSON:
+#   {"bolt11":"lnbc...","payment_hash":"...","amount_sat":<int>,"expiry":...}
+
+set -e
+[ $# -ge 2 ] || exit 1
+address="$1"; sat="$2"; shift 2
+desc="receive"
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--desc) desc="$2"; shift 2 ;;
+		*) exit 2 ;;
+	esac
+done
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+case "$sat" in ''|*[!0-9]*) exit 2 ;; esac
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$name" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+now=$(date -u +%s)
+sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
+
+# Drive lightning-cli directly so we get the JSON we want without
+# parsing the human-formatted `invoice` verb's output.
+command -v lightning-cli >/dev/null || { echo '{"error":"lightning-cli not installed"}'; exit 127; }
+label="api-${address:0:12}-$(date +%s%N)"
+inv_json=$(lightning-cli \
+	--lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+	--network="${LIGHTNING_NETWORK:-bitcoin}" \
+	invoice "$(( sat * 1000 ))msat" "$label" "$desc" 2>/dev/null) || {
+		echo '{"error":"invoice_failed"}'
+		exit 5
+	}
+
+# Persist the invoice into our table for ledger reconciliation (same
+# columns the FEAT-193 schema defined).
+bolt11=$(jq -r '.bolt11 // empty' <<<"$inv_json")
+payment_hash=$(jq -r '.payment_hash // empty' <<<"$inv_json")
+expiry=$(jq -r '.expires_at // empty' <<<"$inv_json")
+if [ -n "$bolt11" ] && [ -n "$payment_hash" ]; then
+	sqlite3 "$db" "INSERT OR IGNORE INTO invoices(bolt11, payment_hash, account, amount_msat, expiry, message) \
+		VALUES($(sql_quote "$bolt11"), $(sql_quote "$payment_hash"), $(sql_quote "$name"), $(( sat * 1000 )), $(sql_quote "$expiry"), $(sql_quote "$desc"));" 2>/dev/null || true
+fi
+
+jq -nc \
+	--arg b11 "$bolt11" \
+	--arg hash "$payment_hash" \
+	--argjson amount "$sat" \
+	--arg expiry "$expiry" \
+	'{bolt11: $b11, payment_hash: $hash, amount_sat: $amount, expiry: $expiry}'

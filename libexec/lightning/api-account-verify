@@ -1,0 +1,27 @@
+#!/bin/bash
+# lightning api-account-verify <address> <key>
+#
+# Constant-time verify the supplied bearer token against the API key
+# stored at secret/lightning.account.<address>.apikey (FEAT-212).
+# Exit 0 on match, non-zero otherwise.  No output either way; the
+# CGI translates exit code to 401/200.
+
+set -e
+[ $# -eq 2 ] || exit 1
+address="$1"; supplied="$2"
+
+# Bech32 only — same shape the dispatcher accepts.
+case "$address" in
+	bc1*|tb1*|bcrt1*) ;;
+	*) exit 2 ;;
+esac
+
+command -v secret >/dev/null || exit 127
+
+expected=$(secret get "lightning.account.$address.apikey" 2>/dev/null) || exit 1
+[ -n "$expected" ] || exit 1
+
+a=$(printf '%s' "$expected" | openssl dgst -sha256 | awk '{print $NF}')
+b=$(printf '%s' "$supplied" | openssl dgst -sha256 | awk '{print $NF}')
+[ "$a" = "$b" ] || exit 1
+exit 0

@@ -13,6 +13,11 @@ import sys
 
 OPERATOR_USER = os.environ.get("LIGHTNING_OPERATOR_USER", "alice")
 USER_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
+# FEAT-212 — bitcoin address shapes used as account IDs.  Bech32 only;
+# we don't accept legacy base58 (the wallet always mints bech32 via
+# `newaddr`).  Length: bech32 mainnet/testnet/regtest addresses run
+# 14–90 chars per BIP-173; we cap at 90 to avoid pathological inputs.
+ACCOUNT_ID_RE = re.compile(r"^(bc1|tb1|bcrt1)[0-9a-z]{10,87}$")
 
 
 def respond(status, body=None):
@@ -107,3 +112,53 @@ def read_body():
         return json.loads(sys.stdin.read(n))
     except json.JSONDecodeError:
         respond("400 Bad Request", {"error": "bad_json"})
+
+
+# --- FEAT-212 helpers ------------------------------------------------------
+
+def read_account_id_from_path(path_info):
+    """Pull the account-ID (bech32 bitcoin address) out of a PATH_INFO.
+
+    Apache routes /api/accounts/<id>/<verb> here with PATH_INFO set to
+    "/<id>/<verb>" (or "/<id>" / "" for the bare /api/accounts case).
+    """
+    parts = [p for p in path_info.split("/") if p]
+    if not parts:
+        return None, []
+    head, tail = parts[0], parts[1:]
+    if not ACCOUNT_ID_RE.match(head):
+        return None, []
+    return head, tail
+
+
+def read_bearer():
+    """FEAT-212 — bearer-token auth.
+
+    Apache passes the Authorization header as HTTP_AUTHORIZATION (the
+    canonical CGI mapping; mod_setenvif strips the scheme on some
+    setups, so we cope with both `Bearer xxx` and a raw token).
+    Returns the token or aborts with 401.
+    """
+    raw = os.environ.get("HTTP_AUTHORIZATION", "").strip()
+    if not raw:
+        respond("401 Unauthorized", {"error": "missing_bearer"})
+    if raw.lower().startswith("bearer "):
+        token = raw[7:].strip()
+    else:
+        token = raw
+    if not token:
+        respond("401 Unauthorized", {"error": "missing_bearer"})
+    return token
+
+
+def auth_account(account_id):
+    """Verify the request's bearer token against the API key stored
+    server-side for `account_id`. Aborts with 401 on mismatch."""
+    token = read_bearer()
+    rc = subprocess.run(
+        ["sudo", "-n", "-u", OPERATOR_USER, "lightning", "api-account-verify",
+         account_id, token],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    ).returncode
+    if rc != 0:
+        respond("401 Unauthorized", {"error": "invalid_bearer"})

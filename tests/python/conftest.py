@@ -17,6 +17,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CGI_DIR = REPO_ROOT / "share/lightning/wellknown/lightning"
 LNURLP_DIR = REPO_ROOT / "share/lightning/wellknown/lnurlp"
+API_DIR = REPO_ROOT / "share/lightning/wellknown/api"
 
 
 @pytest.fixture
@@ -133,3 +134,8 @@ def cgi_dir():
 @pytest.fixture
 def lnurlp_dir():
     return LNURLP_DIR
+
+
+@pytest.fixture
+def api_dir():
+    return API_DIR

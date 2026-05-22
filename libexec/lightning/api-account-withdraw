@@ -1,0 +1,60 @@
+#!/bin/bash
+# lightning api-account-withdraw <address> <sat> <onchain-addr>
+#                                                            (FEAT-212 PR-2)
+#
+# Submarine swap out (reverse): debit the account's Lightning
+# balance, settle on-chain at <onchain-addr>.  Returns the swap-id.
+#
+#   {"swap_id":"...","status":"created","amount_sat":<int>,
+#    "destination":"bc1q..."}
+
+set -e
+[ $# -eq 3 ] || exit 1
+address="$1"; sat="$2"; dest="$3"
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+case "$sat" in ''|*[!0-9]*) exit 2 ;; esac
+# Loose shape check on the destination (full bech32 + base58check
+# validation lives in boltzcli, which we'll error-through if the
+# input is bogus).  Just guard against obvious mishaps.
+[ "${#dest}" -ge 26 ] || { echo '{"error":"destination_too_short"}'; exit 2; }
+case "$dest" in bc1*|tb1*|bcrt1*|1*|3*|m*|n*|2*) ;;
+	*) echo '{"error":"destination_shape_unrecognised"}'; exit 2 ;;
+esac
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$name" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+now=$(date -u +%s)
+sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
+
+if ! command -v boltzcli >/dev/null 2>&1; then
+	echo '{"error":"boltzcli_not_installed","hint":"submarine-swap dependency"}'
+	exit 127
+fi
+
+swap_json=$(boltzcli createreverseswap --amount "$sat" --address "$dest" 2>/dev/null) || {
+	echo '{"error":"boltz_failed"}'
+	exit 5
+}
+
+swap_id=$(jq -r '.id // .swap_id // empty' <<<"$swap_json")
+[ -n "$swap_id" ] || swap_id="unknown"
+
+# Provisional debit; the swap watcher (PR-4) will reconcile on settle
+# (or refund on timeout).  Tag with the swap id for traceability.
+sqlite3 "$db" "INSERT INTO ledger(ts, account, direction, amount_msat, peer, message) \
+	VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$(( sat * 1000 )), $(sql_quote "$dest"), $(sql_quote "swap $swap_id"));" 2>/dev/null || true
+
+jq -nc \
+	--arg id "$swap_id" \
+	--argjson amount "$sat" \
+	--arg dest "$dest" \
+	'{swap_id: $id, status: "created", amount_sat: $amount, destination: $dest}'
