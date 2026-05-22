@@ -4615,3 +4615,161 @@ _acct212pr5_teardown() {
 	[ "$status" -eq 1 ]
 	_acct212pr5_teardown
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-213: operator fee skim primitives.
+# ---------------------------------------------------------------------------
+
+_acct213_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='rent';")
+	BATS_FEES="$LIGHTNING_WALLETS_ROOT/alice/fees.recfile"
+}
+
+_acct213_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-213: wallet new seeds the default fees.recfile" {
+	_acct213_setup
+	[ -f "$BATS_FEES" ]
+	grep -q "^operation: pay" "$BATS_FEES"
+	grep -q "^operation: withdraw" "$BATS_FEES"
+	grep -q "^operation: topup-onchain" "$BATS_FEES"
+	_acct213_teardown
+}
+
+@test "FEAT-213: wallet new commits fees.recfile to git" {
+	_acct213_setup
+	pushd "$LIGHTNING_WALLETS_ROOT/alice" >/dev/null
+	git ls-files | grep -q "^fees.recfile$"
+	popd >/dev/null
+	_acct213_teardown
+}
+
+@test "FEAT-213: topup-watcher skims operator fee from on-chain deposit" {
+	_acct213_setup
+	# Default topup-onchain rate is 2000 ppm = 0.2%.  A 100 000-sat
+	# deposit should skim 200 sat → house.
+	outs=$(jq -nc --arg a "$BATS_ADDR" \
+		'[{"txid":"deadbeef","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local skim
+	skim=$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='house';")
+	[ "$skim" = "200000" ]
+	# User balance = deposit - skim
+	local user
+	user=$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='rent';")
+	[ "$user" = "99800000" ]
+	_acct213_teardown
+}
+
+@test "FEAT-213: topup-watcher skims zero when rate_ppm is 0" {
+	_acct213_setup
+	# Override the default rate to 0 for topup-onchain.
+	sed -i '/^operation: topup-onchain$/,/^$/{s/^rate_ppm:.*$/rate_ppm:  0/}' "$BATS_FEES"
+	sed -i '/^operation: topup-onchain$/,/^$/{s/^base_sat:.*$/base_sat:  0/}' "$BATS_FEES"
+	outs=$(jq -nc --arg a "$BATS_ADDR" \
+		'[{"txid":"deadbeef","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local house_exists
+	house_exists=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='house';")
+	# House account is created lazily, only if skim > 0.  Zero rate = no house row.
+	[ "$house_exists" = "0" ]
+	_acct213_teardown
+}
+
+@test "FEAT-213: api-account-pay itemises into 4 ledger rows + creates house" {
+	_acct213_setup
+	"$LIGHTNING_BIN" api-account-pay "$BATS_ADDR" "lnbcrt10n1pmocktest" >/dev/null 2>&1
+	local rows
+	rows=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM ledger;")
+	# 4 rows: payment, network fee, operator fee, house credit
+	[ "$rows" = "4" ]
+	# House account auto-created
+	local house_exists
+	house_exists=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='house';")
+	[ "$house_exists" = "1" ]
+	# House description matches the bootstrap default
+	local house_desc
+	house_desc=$(sqlite3 "$BATS_DB" "SELECT description FROM accounts WHERE name='house';")
+	[ "$house_desc" = "operator fee revenue" ]
+	_acct213_teardown
+}
+
+@test "FEAT-213: api-account-pay JSON response includes operator_fee_sat" {
+	_acct213_setup
+	local body
+	body=$("$LIGHTNING_BIN" api-account-pay "$BATS_ADDR" "lnbcrt10n1pmocktest" 2>/dev/null)
+	echo "$body" | jq -e '.operator_fee_sat' >/dev/null
+	# 1000-msat invoice at base_sat=1 + rate_ppm=5000 = 1*1000 + 1000*5000/1M
+	# = 1005 msat = 1 sat (integer division).
+	local got
+	got=$(echo "$body" | jq -r '.operator_fee_sat')
+	[ "$got" = "1" ]
+	_acct213_teardown
+}
+
+@test "FEAT-213: api-account-pay double-entry — ledger sum = -sent_total" {
+	_acct213_setup
+	"$LIGHTNING_BIN" api-account-pay "$BATS_ADDR" "lnbcrt10n1pmocktest" >/dev/null 2>&1
+	# Sum across user + house: -invoice - network_fee - operator_fee + operator_fee
+	# = -invoice - network_fee.  Network fee is 1 msat; invoice is 1000 msat.
+	# So total = -1001 msat.
+	local total
+	total=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger;")
+	[ "$total" = "-1001" ]
+	_acct213_teardown
+}
+
+@test "FEAT-213: missing fees.recfile = no skim, no house" {
+	_acct213_setup
+	rm "$BATS_FEES"
+	outs=$(jq -nc --arg a "$BATS_ADDR" \
+		'[{"txid":"deadbeef","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local rows house
+	rows=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM ledger;")
+	[ "$rows" = "1" ]   # just the credit, no skim entries
+	house=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='house';")
+	[ "$house" = "0" ]
+	_acct213_teardown
+}
+
+@test "FEAT-213: house account is excluded from account list" {
+	_acct213_setup
+	"$LIGHTNING_BIN" api-account-pay "$BATS_ADDR" "lnbcrt10n1pmocktest" >/dev/null 2>&1
+	run "$LIGHTNING_BIN" account list
+	[ "$status" -eq 0 ]
+	# `rent` appears; `house` does not.
+	[[ "$output" == *"rent"* ]]
+	[[ "$output" != *"house"* ]]
+	_acct213_teardown
+}
+
+@test "FEAT-213: house account is excluded from GC" {
+	_acct213_setup
+	"$LIGHTNING_BIN" api-account-pay "$BATS_ADDR" "lnbcrt10n1pmocktest" >/dev/null 2>&1
+	# Backdate house's last_api_call_at to 95 days ago so it would
+	# otherwise qualify as stale, and rebalance its account to 0
+	# (which it already isn't — but to be sure we cover the would-gc
+	# trigger we also stamp closed_at far in the past).
+	local now_minus_95; now_minus_95=$(( $(date -u +%s) - 95 * 86400 ))
+	local long_ago=$(( $(date -u +%s) - 30 * 86400 ))
+	sqlite3 "$BATS_DB" "UPDATE accounts SET last_api_call_at = $now_minus_95, created_at = $now_minus_95, closed_at = $long_ago WHERE name='house';"
+	"$LIGHTNING_BIN" account gc run >/dev/null 2>&1
+	# House should still exist.
+	local count
+	count=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='house';")
+	[ "$count" = "1" ]
+	_acct213_teardown
+}
+
+# The FEAT-213 spec assertion lives in its own batch spec PR
+# (FEAT-213..220); this implementation PR doesn't carry it directly.
+# A spec-existence test would fail in CI until the spec PR merges.

@@ -48,13 +48,52 @@ swap_json=$(boltzcli createreverseswap --amount "$sat" --address "$dest" 2>/dev/
 swap_id=$(jq -r '.id // .swap_id // empty' <<<"$swap_json")
 [ -n "$swap_id" ] || swap_id="unknown"
 
+# FEAT-213 — operator-fee skim atop the boltz swap.
+amount_msat=$(( sat * 1000 ))
+fees_file="$WALLETS_ROOT/$wname/fees.recfile"
+operator_fee_msat=0
+if [ -f "$fees_file" ]; then
+	read -r fee_base_sat fee_rate_ppm < <(awk -v op="withdraw" '
+		BEGIN { RS=""; FS="\n"; b=0; r=0 }
+		{
+			in_op=0; bb=0; rr=0
+			for (i=1; i<=NF; i++) {
+				if ($i == "operation: " op) in_op=1
+				if ($i ~ /^base_sat: *[0-9-]/) { bb=$i; sub(/^base_sat: */, "", bb) }
+				if ($i ~ /^rate_ppm: *[0-9-]/) { rr=$i; sub(/^rate_ppm: */, "", rr) }
+			}
+			if (in_op) { b=bb; r=rr }
+		}
+		END { printf "%d %d\n", b+0, r+0 }
+	' "$fees_file")
+	operator_fee_msat=$(( fee_base_sat * 1000 + amount_msat * fee_rate_ppm / 1000000 ))
+fi
+operator_fee_sat=$(( operator_fee_msat / 1000 ))
+
+if [ "$operator_fee_msat" -gt 0 ]; then
+	sqlite3 "$db" "INSERT OR IGNORE INTO accounts(name, description, overdraft) \
+		VALUES('house', 'operator fee revenue', 'allow');" 2>/dev/null || true
+fi
+
 # Provisional debit; the swap watcher (PR-4) will reconcile on settle
 # (or refund on timeout).  Tag with the swap id for traceability.
-sqlite3 "$db" "INSERT INTO ledger(ts, account, direction, amount_msat, peer, message) \
-	VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$(( sat * 1000 )), $(sql_quote "$dest"), $(sql_quote "swap $swap_id"));" 2>/dev/null || true
+# Plus the operator-fee skim → house.
+sql="BEGIN;"
+sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
+sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$amount_msat, $(sql_quote "$dest"), $(sql_quote "swap $swap_id"));"
+if [ "$operator_fee_msat" -gt 0 ]; then
+	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
+	sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, $(sql_quote "$dest"), $(sql_quote "operator fee (swap $swap_id)"));"
+	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
+	sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, $(sql_quote "$dest"), $(sql_quote "fee from $name (swap $swap_id)"));"
+fi
+sql+=" COMMIT;"
+sqlite3 "$db" "$sql" 2>/dev/null || true
 
 jq -nc \
 	--arg id "$swap_id" \
 	--argjson amount "$sat" \
+	--argjson ofee "$operator_fee_sat" \
 	--arg dest "$dest" \
-	'{swap_id: $id, status: "created", amount_sat: $amount, destination: $dest}'
+	'{swap_id: $id, status: "created", amount_sat: $amount,
+	  operator_fee_sat: $ofee, destination: $dest}'
