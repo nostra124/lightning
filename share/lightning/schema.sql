@@ -1,16 +1,26 @@
--- lightning wallet schema (FEAT-193).
+-- lightning wallet schema (FEAT-193, extended FEAT-212).
 --
--- Five tables, no triggers, no views, no migrations in v1.
 -- WAL mode is configured at open time by the verbs.
+-- Migrations: idempotent ALTER TABLE in libexec/lightning/account's
+-- migrate_accounts_schema().  Existing wallets pick up new columns
+-- on their next account-verb invocation.
 
 PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;
 
 CREATE TABLE IF NOT EXISTS accounts (
-    name        TEXT    PRIMARY KEY,
-    description TEXT    NOT NULL DEFAULT '',
-    limit_sat   INTEGER,
-    overdraft   TEXT    NOT NULL DEFAULT 'deny'
+    name             TEXT    PRIMARY KEY,
+    description      TEXT    NOT NULL DEFAULT '',
+    limit_sat        INTEGER,
+    overdraft        TEXT    NOT NULL DEFAULT 'deny',
+    -- FEAT-212 — Bitcoin address that doubles as the canonical
+    -- account ID for the HTTP API (minted via lightning-cli newaddr
+    -- at create time).  NULL for legacy operator-created accounts.
+    address          TEXT,
+    -- FEAT-212 — lifecycle bookkeeping for the cleanup cron.
+    created_at       INTEGER,
+    closed_at        INTEGER,
+    last_api_call_at INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS ledger (
