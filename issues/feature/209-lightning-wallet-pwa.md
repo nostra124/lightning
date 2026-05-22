@@ -75,6 +75,17 @@ In scope for the initial ship (PR-2):
 * **`lightning ui install/uninstall/upgrade`** verb — drops
   files into a docroot + writes an Apache vhost fragment.
   Defence-in-depth `Options -ExecCGI -Indexes`.
+* **Inline documentation** shipped alongside the PWA under
+  `share/lightning/ui/docs/`.  Two complementary forms (see
+  the "Inline docs" section below for the full design):
+    * `docs/index.html` — human-readable HTML, linked from the
+      PWA Settings → Help and navigable from the docroot URL.
+    * `docs/llms.txt` — single-file plain-text dump an LLM
+      agent can fetch in one HTTP call and understand the
+      whole API + MCP surface from.
+  Scope: PWA usage + the FEAT-212 REST + MCP surfaces only.
+  Nothing about clightning install or channel management —
+  that's elsewhere in `share/doc/lightning/`.
 * **Passkey backend** — `account_passkeys` table, one-shot
   `auth_challenges` table, Python `_webauthn-verify` helper
   (single new dep: the `webauthn` PyPI package), 7 new
@@ -249,14 +260,63 @@ lightning ui upgrade [<docroot>]
 
 That's it.  The verb is thin on purpose.
 
-## Phasing
+## Inline docs (shipped with the PWA install)
+
+`lightning ui install` copies a small documentation tree
+alongside the PWA static files.  Two complementary forms,
+same content, different consumers:
+
+* `docs/index.html` — human-readable HTML, navigable from
+  the docroot URL.  Linked from the PWA's Settings → Help.
+  Plain HTML + CSS, no JS.  Covers PWA usage (how to create
+  an account, top up, send/receive, recovery), the FEAT-212
+  REST surface (endpoint by endpoint, with `curl` examples),
+  and the MCP surface (tool list + JSON-RPC envelope
+  examples + how to point an agent at `/api/mcp`).
+* `docs/llms.txt` — single-file plain-text dump that an LLM
+  agent can fetch in one HTTP call and learn the whole API +
+  MCP surface from.  Follows the emerging `llms.txt`
+  convention (a single concatenated markdown / plain-text
+  document at a well-known path).  Schema-rich: every
+  endpoint has its inputs, outputs, error codes, and a
+  worked example.
+
+Scope of these docs is *deliberately narrow*: PWA usage +
+REST API + MCP.  Nothing about clightning install, channel
+management, autopilot, watchtower, etc. — that's the
+**man-pages** territory below (operator-facing) and the
+`share/doc/lightning/` guides (educational long-form).
+
+Authoring approach: hand-written markdown source under
+`share/lightning/ui/docs/src/*.md`, converted to HTML at
+*package-build* time (not install time — keeps the install
+verb a pure copy).  llms.txt is just the concatenation of
+the markdown sources with a fixed ordering.
+
+Update cadence: any FEAT-212 endpoint change MUST update
+the inline docs in the same PR; same gate as the existing
+"man pages must reflect verb behaviour" convention.
+
+## CLI / operator-facing documentation — man pages
+
+Reminder: documentation for the `lightning` CLI itself is
+**man pages**, the standard unix convention.  One page already
+exists (`share/man/man1/lightning.1` — top-level overview);
+expanding it to cover every verb is tracked in **FEAT-221**.
+
+The man pages and the PWA-shipped inline docs cover different
+surfaces — operator-facing CLI vs. user-facing HTTP — and don't
+overlap, so no duplication / drift risk.
 
 * **PR-1 (this — spec)**
 * **PR-2 (the whole thing)** — PWA + verb + passkey backend +
-  all 7 endpoints + schema migration.  Ships a working wallet
-  on first commit.  Tests: bats for the verb + the new shell
-  verbs (passkey-register/login/etc.); pytest for the dispatcher
-  routing + WebAuthn helper exercised against canned vectors.
+  all 7 endpoints + schema migration + inline docs
+  (`docs/index.html` + `docs/llms.txt`) shipped under the
+  install verb's tree.  Ships a working wallet on first
+  commit.  Tests: bats for the verb + the new shell verbs
+  (passkey-register/login/etc.) + a "docs install correctly"
+  smoke check; pytest for the dispatcher routing + WebAuthn
+  helper exercised against canned vectors.
 * **PR-3 onward (optional polish, one ticket each)** —
   recovery blob, BOLT-12 receive in the PWA, QR scanner,
   lightning-address autocomplete, service worker / offline
