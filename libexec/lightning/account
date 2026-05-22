@@ -43,7 +43,31 @@ usage: lightning account <subcommand>
    apikey create <name> --scope read|write       issue an API key
    apikey list <name>                            which scopes exist
    apikey revoke <name> --scope read|write
+   topup <name> <sat> [--via lightning]          QR for on-chain top-up
+   withdraw <name> <sat> <onchain-addr>          submarine swap out
+   pay <name> <bolt11|bolt12|lnurl|addr|node-id>
+                                                 dispatch by string shape
+        [--sat <sat>]                             (keysend needs amount)
+   receive <name> <sat> [--desc <text>]
+                          [--reusable]            BOLT-12 + QR; default BOLT-11
 EOF
+}
+
+# FEAT-211 — account-centric user-facing verb surface.  Each new
+# subcommand below is a thin wrapper around an existing power-user
+# verb (invoice / offer / liquidity / lnurl / send) with the
+# --account context already plumbed.
+require_account() {
+	local name="$1"
+	[ -n "$name" ] || { echo "lightning account: missing account name" >&2; exit 1; }
+	local found
+	found=$(sqlite3 "$(active_db)" "SELECT 1 FROM accounts WHERE name = '${name//\'/\'\'}' LIMIT 1;" 2>/dev/null)
+	[ "$found" = "1" ] || {
+		echo "lightning account: account '$name' not found" >&2
+		echo "  list with: lightning account list" >&2
+		echo "  create with: lightning account create $name" >&2
+		exit 2
+	}
 }
 
 cmd_list() {
@@ -188,12 +212,196 @@ cmd_apikey() {
 	esac
 }
 
+# --- FEAT-211: account-centric verb facade --------------------------------
+
+cmd_topup() {
+	[ $# -lt 2 ] && { echo "usage: lightning account topup <name> <sat> [--via lightning]" >&2; exit 1; }
+	local name="$1" sat="$2"; shift 2
+	local via="onchain"
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--via)
+				case "$2" in
+					lightning|onchain) via="$2"; shift 2 ;;
+					*) echo "lightning account topup: --via must be 'lightning' or 'onchain'" >&2; exit 1 ;;
+				esac ;;
+			*) echo "lightning account topup: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	require_account "$name"
+
+	if [ "$via" = "lightning" ]; then
+		# BOLT-11 invoice tied to the account.
+		exec "$SELF_LIBEXEC/lightning/invoice" create "$sat" \
+			"topup-$name-$(date +%s)" \
+			--description "top-up of $name (Lightning)" \
+			--account "$name" --qr
+	fi
+
+	# Default: on-chain top-up.  Get a fresh receive address from the
+	# daemon, render the BIP-21 URI as QR.
+	command -v lightning-cli >/dev/null || {
+		echo "lightning account topup: lightning-cli not found" >&2; exit 127; }
+	local addr_json addr
+	addr_json=$(lightning-cli \
+		--lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+		--network="${LIGHTNING_NETWORK:-bitcoin}" \
+		newaddr 2>/dev/null) || {
+			echo "lightning account topup: newaddr failed (is lightningd running?)" >&2
+			exit 4
+		}
+	addr=$(jq -r '.bech32 // .p2tr // .p2wkh // empty' <<<"$addr_json")
+	[ -n "$addr" ] || {
+		echo "lightning account topup: lightningd returned no usable address" >&2
+		exit 4
+	}
+
+	echo "Top up account '$name' with $sat sats to:"
+	echo "  $addr"
+	echo "  (BIP-21: bitcoin:$addr?amount=$sat)"
+	echo ""
+	if [ -x "$SELF_LIBEXEC/lightning/qr" ]; then
+		"$SELF_LIBEXEC/lightning/qr" "bitcoin:$addr?amount=$sat"
+	fi
+}
+
+cmd_withdraw() {
+	[ $# -lt 3 ] && { echo "usage: lightning account withdraw <name> <sat> <onchain-addr>" >&2; exit 1; }
+	local name="$1" sat="$2" addr="$3"
+	require_account "$name"
+	# Loose bitcoin-address sanity check.  Better-than-nothing — full
+	# validation needs bech32 + base58check, which we don't shell out
+	# for.  Requires minimum length (26) so a typoed prefix like
+	# "not-an-address" doesn't sneak past the `n*` testnet rule.
+	if [ "${#addr}" -lt 26 ]; then
+		echo "lightning account withdraw: '$addr' doesn't look like a bitcoin address (too short)" >&2
+		exit 1
+	fi
+	case "$addr" in
+		bc1*|tb1*|bcrt1*|1*|3*|m*|n*|2*) ;;
+		*) echo "lightning account withdraw: '$addr' doesn't look like a bitcoin address" >&2; exit 1 ;;
+	esac
+
+	echo "Withdrawing $sat sat from account '$name' to $addr"
+	echo "  via reverse submarine swap (Boltz)"
+	if ! command -v boltzcli >/dev/null; then
+		echo "lightning account withdraw: boltzcli not installed" >&2
+		echo "  install:  https://github.com/BoltzExchange/boltz-client" >&2
+		echo "  alternative: close a channel and spend the resulting UTXO" >&2
+		exit 127
+	fi
+	boltzcli createreverseswap --amount "$sat" --address "$addr" || {
+		echo "lightning account withdraw: boltzcli reverse swap failed" >&2
+		exit 1
+	}
+
+	# Record the debit in the per-account ledger.
+	if [ -x "$SELF_LIBEXEC/lightning/ledger" ]; then
+		"$SELF_LIBEXEC/lightning/ledger" add out "$(( sat * 1000 ))" \
+			--account "$name" \
+			--note "withdraw to $addr" 2>/dev/null || true
+	fi
+	echo "ok"
+}
+
+# Dispatch on the payment-string shape.  Order matters — more specific
+# prefixes are checked before more general ones (lnbc* before generic
+# hex pubkey check, etc.).
+cmd_pay() {
+	[ $# -lt 2 ] && { echo "usage: lightning account pay <name> <payment-string> [--sat <sat>]" >&2; exit 1; }
+	local name="$1" target="$2"; shift 2
+	local sat=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--sat) sat="$2"; shift 2 ;;
+			*) echo "lightning account pay: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	require_account "$name"
+
+	# Normalise for prefix matching (don't lowercase the original — we
+	# pass the operator's exact input down so case-sensitive parsers
+	# downstream stay happy).
+	local lower; lower=$(printf '%s' "$target" | tr 'A-Z' 'a-z')
+
+	case "$lower" in
+		lnbc*|lntb*)
+			# BOLT-11 invoice (mainnet lnbc / testnet lntb / regtest lnbcrt
+			# — the last is covered by lnbc*).
+			exec "$SELF_LIBEXEC/lightning/invoice" pay "$target" --account "$name" ;;
+		lno*)
+			# BOLT-12 offer.
+			if [ -n "$sat" ]; then
+				exec "$SELF_LIBEXEC/lightning/offer" pay "$target" "$sat" --account "$name"
+			else
+				exec "$SELF_LIBEXEC/lightning/offer" pay "$target" --account "$name"
+			fi ;;
+		lnurl*)
+			# LNURL-pay.
+			exec "$SELF_LIBEXEC/lightning/lnurl" pay "$target" --account "$name" ;;
+		*@*.*)
+			# Lightning address (user@host).
+			exec "$SELF_LIBEXEC/lightning/lnurl" pay "$target" --account "$name" ;;
+		02*|03*)
+			# 66-char hex node pubkey → keysend.
+			if [ "${#target}" -ne 66 ]; then
+				echo "lightning account pay: '$target' starts like a node pubkey but isn't 66 chars" >&2
+				exit 1
+			fi
+			[ -n "$sat" ] || {
+				echo "lightning account pay: keysend needs --sat <amount>" >&2
+				exit 1
+			}
+			exec "$SELF_LIBEXEC/lightning/send" "$target" "$sat" --account "$name" ;;
+		*)
+			echo "lightning account pay: couldn't identify payment-string type" >&2
+			echo "  supported shapes:" >&2
+			echo "    lnbc* / lntb* / lnbcrt*  (BOLT-11 invoice)" >&2
+			echo "    lno*                     (BOLT-12 offer)" >&2
+			echo "    lnurl*                   (LNURL)" >&2
+			echo "    user@host                (Lightning address)" >&2
+			echo "    02xx... / 03xx... (66h)  (node pubkey, needs --sat)" >&2
+			exit 1 ;;
+	esac
+}
+
+cmd_receive() {
+	[ $# -lt 2 ] && { echo "usage: lightning account receive <name> <sat> [--desc <text>] [--reusable]" >&2; exit 1; }
+	local name="$1" sat="$2"; shift 2
+	local desc="" reusable=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--desc) desc="$2"; shift 2 ;;
+			--reusable) reusable=1; shift ;;
+			*) echo "lightning account receive: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	require_account "$name"
+	[ -n "$desc" ] || desc="receive to $name"
+
+	if [ "$reusable" -eq 1 ]; then
+		# BOLT-12 — reusable, payer fetches an invoice on the wire.
+		exec "$SELF_LIBEXEC/lightning/offer" create "$sat" "$desc" \
+			--account "$name" --qr
+	else
+		# BOLT-11 — single-use.
+		exec "$SELF_LIBEXEC/lightning/invoice" create "$sat" \
+			"receive-$name-$(date +%s)" \
+			--description "$desc" \
+			--account "$name" --qr
+	fi
+}
+
 case "${1:-}" in
-	list)   shift; cmd_list "$@" ;;
-	create) shift; cmd_create "$@" ;;
-	delete) shift; cmd_delete "$@" ;;
-	show)   shift; cmd_show "$@" ;;
-	apikey) shift; cmd_apikey "$@" ;;
-	"")     usage; exit 1 ;;
-	*)      echo "lightning account: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+	list)     shift; cmd_list "$@" ;;
+	create)   shift; cmd_create "$@" ;;
+	delete)   shift; cmd_delete "$@" ;;
+	show)     shift; cmd_show "$@" ;;
+	apikey)   shift; cmd_apikey "$@" ;;
+	topup)    shift; cmd_topup "$@" ;;
+	withdraw) shift; cmd_withdraw "$@" ;;
+	pay)      shift; cmd_pay "$@" ;;
+	receive)  shift; cmd_receive "$@" ;;
+	"")       usage; exit 1 ;;
+	*)        echo "lightning account: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac
