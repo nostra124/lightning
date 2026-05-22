@@ -3536,6 +3536,140 @@ _openrc_common_setup() {
 }
 
 # ---------------------------------------------------------------------------
+# FEAT-205: channel autopilot
+# ---------------------------------------------------------------------------
+
+@test "FEAT-205: channel autopilot (no args) prints usage" {
+	run "$LIGHTNING_BIN" channel autopilot
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"run"* ]]
+	[[ "$output" == *"status"* ]]
+	[[ "$output" == *"suggest"* ]]
+}
+
+@test "FEAT-205: channel autopilot --help describes the run/status/suggest split" {
+	run "$LIGHTNING_BIN" channel autopilot --help
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"daemon iteration"* ]]
+	[[ "$output" == *"suggestions"* ]]
+}
+
+@test "FEAT-205: channel autopilot status reports 'never run' when no state file" {
+	run "$LIGHTNING_BIN" channel autopilot status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"never run"* ]]
+	[[ "$output" == *"daemon install --autopilot"* ]]
+}
+
+@test "FEAT-205: channel autopilot run --dry-run reads config + computes plan" {
+	run "$LIGHTNING_BIN" channel autopilot run --dry-run
+	[ "$status" -eq 0 ]
+	# Plan summary lines visible.
+	[[ "$output" == *"starting"* ]]
+	[[ "$output" == *"band:"* ]]
+	[[ "$output" == *"daily cap:"* ]]
+	[[ "$output" == *"would run: lightning fee policy"* ]]
+	[[ "$output" == *"done"* ]]
+	# State file written even in dry-run.
+	[ -f "$HOME/.lightning/autopilot/state.recfile" ]
+	grep -q "^last_run:" "$HOME/.lightning/autopilot/state.recfile"
+	grep -q "^dry_run: 1" "$HOME/.lightning/autopilot/state.recfile"
+}
+
+@test "FEAT-205: channel autopilot honours autopilot.conf overrides" {
+	mkdir -p "$HOME/.lightning"
+	cat > "$HOME/.lightning/autopilot.conf" <<CFG
+rebalance_band_low: 25
+rebalance_band_high: 75
+rebalance_max_fee_ppm: 1234
+rebalance_daily_cap_sat: 99999
+fee_policy: lsp-style
+CFG
+	run "$LIGHTNING_BIN" channel autopilot run --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"25%..75%"* ]]
+	[[ "$output" == *"max ppm:"*"1234"* ]]
+	[[ "$output" == *"daily cap:"*"99999"* ]]
+	[[ "$output" == *"fee policy:"*"lsp-style"* ]]
+}
+
+@test "FEAT-205: channel autopilot run refuses when enabled=false" {
+	mkdir -p "$HOME/.lightning"
+	printf 'enabled: false\n' > "$HOME/.lightning/autopilot.conf"
+	run "$LIGHTNING_BIN" channel autopilot run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"disabled"* ]]
+}
+
+@test "FEAT-205: channel autopilot suggest writes a recfile + prints it" {
+	run "$LIGHTNING_BIN" channel autopilot suggest
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"wrote"* ]]
+	[[ "$output" == *"kind: stale-channels"* ]]
+	# A suggestions file landed.
+	ls "$HOME/.lightning/autopilot/"suggestions-*.recfile >/dev/null
+}
+
+@test "FEAT-205: channel autopilot run updates state's budget_day on next-day rollover" {
+	# Seed yesterday's state with some budget used.
+	mkdir -p "$HOME/.lightning/autopilot"
+	cat > "$HOME/.lightning/autopilot/state.recfile" <<EOF2
+last_run: 1970-01-01T00:00:00Z
+budget_day: 1970-01-01
+budget_used_sat: 4000
+budget_cap_sat: 5000
+EOF2
+	run "$LIGHTNING_BIN" channel autopilot run --dry-run
+	[ "$status" -eq 0 ]
+	# Budget should have reset to 0 since today != 1970-01-01.
+	grep -q "^budget_used_sat: 0$" "$HOME/.lightning/autopilot/state.recfile"
+}
+
+@test "FEAT-205: channel autopilot run unknown flag fails" {
+	run "$LIGHTNING_BIN" channel autopilot run --not-a-real-flag
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown flag"* ]]
+}
+
+@test "FEAT-205: channel verb's help mentions autopilot" {
+	run "$LIGHTNING_BIN" channel
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"autopilot"* ]]
+}
+
+@test "FEAT-205: daemon install --autopilot writes a sidecar (Linux)" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "Linux-only — checks the systemd timer files"
+	fi
+	# Don't trigger the systemd-system path; user-mode only.
+	run "$LIGHTNING_BIN" daemon install --autopilot --no-keepalive --no-alert
+	[ "$status" -eq 0 ]
+	[ -f "$HOME/.config/systemd/user/lightning-autopilot.service" ]
+	[ -f "$HOME/.config/systemd/user/lightning-autopilot.timer" ]
+	grep -q "channel autopilot run" "$HOME/.config/systemd/user/lightning-autopilot.service"
+	grep -q "OnUnitActiveSec=15min" "$HOME/.config/systemd/user/lightning-autopilot.timer"
+}
+
+@test "FEAT-205: daemon install (no --autopilot) does NOT write the sidecar" {
+	# The autopilot sidecar is opt-in, unlike keepalive/alert.
+	run "$LIGHTNING_BIN" daemon install --no-keepalive --no-alert
+	[ "$status" -eq 0 ]
+	[ ! -e "$HOME/.config/systemd/user/lightning-autopilot.service" ]
+	[ ! -e "$HOME/.config/systemd/user/lightning-autopilot.timer" ]
+}
+
+@test "FEAT-205: spec file exists with the expected id" {
+	# Move to done/ in the same PR that ships the implementation —
+	# matches the convention every other graduated FEAT followed.
+	f="$BATS_TEST_DIRNAME/../../issues/feature/done/205-channel-autopilot-verb.md"
+	[ -f "$f" ]
+	grep -q "^id: FEAT-205" "$f"
+	grep -q "^status: shipped" "$f"
+	grep -q "autopilot" "$f"
+	grep -q "rebalance" "$f"
+}
+
+# ---------------------------------------------------------------------------
 # FEAT-211: account-centric user-facing verb facade
 # ---------------------------------------------------------------------------
 

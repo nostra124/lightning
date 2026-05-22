@@ -23,6 +23,7 @@ RPC_FILE="$NETWORK_DIR/lightning-rpc"
 LAUNCHD_LABEL="network.lightning.lightningd"
 KEEPALIVE_LABEL="network.lightning.keepalive"
 ALERT_LABEL="network.lightning.alert"
+AUTOPILOT_LABEL="network.lightning.autopilot"
 LIGHTNING_CONF="$LIGHTNING_DIR/config"
 BACKEND_BLOCK_BEGIN="# >>> lightning backend — managed by 'daemon install'"
 BACKEND_BLOCK_END="# <<< lightning backend"
@@ -659,7 +660,7 @@ cmd_install() {
 	#   -1  leave backend config alone
 	#    1  enable trustedcoin (multi-explorer fallback)
 	#    0  disable any managed backend block (back to bitcoind/bcli)
-	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0
+	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0 autopilot=0
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--system)      system=1; shift ;;
@@ -670,6 +671,7 @@ cmd_install() {
 			--no-keepalive) keepalive=0; shift ;;
 			--no-alert)     alert=0; shift ;;
 			--lsps)        lsps=1; shift ;;
+			--autopilot)   autopilot=1; shift ;;
 			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
@@ -718,6 +720,13 @@ cmd_install() {
 	# (user-mode default-on; --no-alert opts out).
 	if [ "$alert" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
 		install_alert_sidecar
+	fi
+
+	# FEAT-205 sidecar — channel autopilot.  OPT-IN — only installed
+	# when --autopilot is explicitly passed.  Same gate as other
+	# sidecars (user-mode, non-OpenRC).
+	if [ "$autopilot" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
+		install_autopilot_sidecar
 	fi
 }
 
@@ -943,6 +952,93 @@ EOF
 	info "wrote $dir/lightning-alert.{service,timer}"
 	info "  enable + start with: systemctl --user enable --now lightning-alert.timer"
 	info "  opt out:  lightning daemon install --no-alert"
+}
+
+# FEAT-205 — channel autopilot sidecar.  Same pattern as keepalive /
+# alert but at 15-minute granularity.  OPT-IN — only installed when
+# `daemon install --autopilot` is passed (unlike keepalive / alert
+# which default on).
+install_autopilot_sidecar() {
+	local self_bin="$SELF_LIBEXEC/../bin/lightning"
+	self_bin=$(cd "$(dirname "$self_bin")" && pwd)/$(basename "$self_bin")
+
+	if is_macos; then
+		local plist="$HOME/Library/LaunchAgents/${AUTOPILOT_LABEL}.plist"
+		mkdir -p "$(dirname "$plist")"
+		cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${AUTOPILOT_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${self_bin}</string>
+        <string>channel</string>
+        <string>autopilot</string>
+        <string>run</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LIGHTNING_DIR</key>
+        <string>${LIGHTNING_DIR}</string>
+        <key>LIGHTNING_NETWORK</key>
+        <string>${LIGHTNING_NETWORK}</string>
+        <key>PATH</key>
+        <string>${PATH}</string>
+        <key>SELF_QUIET</key>
+        <string>1</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>900</integer>
+    <key>StandardOutPath</key>
+    <string>${LIGHTNING_DIR}/autopilot.log</string>
+    <key>StandardErrorPath</key>
+    <string>${LIGHTNING_DIR}/autopilot.log</string>
+</dict>
+</plist>
+EOF
+		info "wrote $plist (autopilot sidecar)"
+		info "  triggers: every 15min"
+		info "  log:      $LIGHTNING_DIR/autopilot.log"
+		info "  config:   $LIGHTNING_DIR/autopilot.conf"
+		return 0
+	fi
+
+	# Linux systemd --user.
+	local dir="$HOME/.config/systemd/user"
+	mkdir -p "$dir"
+	cat > "$dir/lightning-autopilot.service" <<EOF
+[Unit]
+Description=Lightning channel autopilot (FEAT-205)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=SELF_QUIET=1
+Environment=LIGHTNING_DIR=$LIGHTNING_DIR
+Environment=LIGHTNING_NETWORK=$LIGHTNING_NETWORK
+ExecStart=$self_bin channel autopilot run
+EOF
+	cat > "$dir/lightning-autopilot.timer" <<EOF
+[Unit]
+Description=Lightning channel autopilot timer (every 15min)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=lightning-autopilot.service
+
+[Install]
+WantedBy=timers.target
+EOF
+	systemctl --user daemon-reload 2>/dev/null || true
+	info "wrote $dir/lightning-autopilot.{service,timer}"
+	info "  enable + start with: systemctl --user enable --now lightning-autopilot.timer"
+	info "  config:  $LIGHTNING_DIR/autopilot.conf"
 }
 
 install_macos_system() {

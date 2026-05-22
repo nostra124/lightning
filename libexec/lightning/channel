@@ -40,6 +40,10 @@ subcommands:
    pending                              opening / closing channels
    scb emit [--out <file>]              static channel backup
    scb restore <file>                   restore from SCB
+   autopilot run|status|suggest         combined fee + rebalance +
+                                        suggest daemon (FEAT-205);
+                                        opt-in sidecar via
+                                        'daemon install --autopilot'
 EOF
 }
 
@@ -248,6 +252,261 @@ EOF
 	esac
 }
 
+# ---------------------------------------------------------------------------
+# FEAT-205 — channel autopilot
+#
+# Combines passive fee policy (delegated to `lightning fee policy`),
+# active rebalancing (delegated to `lightning rebalance`), and
+# informational channel-open/close suggestions into one periodic
+# verb.  Designed to be invoked from a sidecar timer every 15
+# minutes; safe to invoke manually at any time.
+#
+# Channel opens / closes are NEVER executed automatically — the verb
+# only writes suggestions to a recfile for the operator to review.
+# ---------------------------------------------------------------------------
+
+AUTOPILOT_DIR="$LIGHTNING_DIR/autopilot"
+AUTOPILOT_CONF="$LIGHTNING_DIR/autopilot.conf"
+AUTOPILOT_STATE="$AUTOPILOT_DIR/state.recfile"
+AUTOPILOT_SUGGESTIONS_TMPL="$AUTOPILOT_DIR/suggestions"
+
+# Default config values — used when autopilot.conf is missing or
+# doesn't specify the key.  Matches the spec table.
+autopilot_default_config() {
+	cat <<'EOF'
+enabled: true
+fee_policy: balanced
+rebalance_band_low: 10
+rebalance_band_high: 90
+rebalance_max_fee_ppm: 500
+rebalance_daily_cap_sat: 5000
+suggest_min_score: 8.0
+suggest_stale_weeks: 6
+EOF
+}
+
+# autopilot_config_get <key> [default]
+# Reads $key from $AUTOPILOT_CONF if present, falling back to the
+# default-config block, falling back to the second arg.
+autopilot_config_get() {
+	local key="$1" fallback="${2:-}"
+	local v
+	if [ -f "$AUTOPILOT_CONF" ]; then
+		v=$(grep -E "^${key}:" "$AUTOPILOT_CONF" 2>/dev/null | head -1 | sed -E "s/^${key}: *//")
+		[ -n "$v" ] && { echo "$v"; return; }
+	fi
+	v=$(autopilot_default_config | grep -E "^${key}:" | head -1 | sed -E "s/^${key}: *//")
+	[ -n "$v" ] && { echo "$v"; return; }
+	echo "$fallback"
+}
+
+cmd_autopilot() {
+	local sub="${1:-}"; shift 2>/dev/null || true
+	case "$sub" in
+		run)     cmd_autopilot_run     "$@" ;;
+		status)  cmd_autopilot_status  "$@" ;;
+		suggest) cmd_autopilot_suggest "$@" ;;
+		help|--help|-h|"")
+			cat >&2 <<'EOF'
+usage: lightning channel autopilot <subcommand>
+
+   run [--dry-run]    one daemon iteration: apply fee policy,
+                      rebalance unbalanced channels within budget,
+                      write suggestions to a recfile.
+   status             report last-run timestamp, recent actions,
+                      remaining daily rebalance budget.
+   suggest            run only the suggestions phase (no fee /
+                      rebalance side effects); useful interactively.
+
+Configuration: $LIGHTNING_DIR/autopilot.conf  (recfile, key: value)
+State:         $LIGHTNING_DIR/autopilot/state.recfile
+Suggestions:   $LIGHTNING_DIR/autopilot/suggestions-<timestamp>.recfile
+
+Channel opens / closes are NEVER executed automatically — the verb
+suggests, the operator decides.
+EOF
+			[ -z "$sub" ] && exit 1 || exit 0 ;;
+		*) error "channel autopilot: unknown subcommand '$sub'"; exit 1 ;;
+	esac
+}
+
+# Compute imbalance for each channel.  Output TSV:
+#   channel_id  local_pct  total_sat  state
+# Filters to CHANNELD_NORMAL channels only — pending / closing
+# channels can't be rebalanced.
+autopilot_imbalance_tsv() {
+	cli listpeerchannels | jq -r '
+		.channels[] |
+		select(.state == "CHANNELD_NORMAL") |
+		[
+			(.short_channel_id // .channel_id // "-"),
+			(if (.total_msat // 0) > 0
+			 then ((.to_us_msat // 0) * 100 / .total_msat | floor)
+			 else 0 end),
+			((.total_msat // 0) / 1000 | floor),
+			.state
+		] | @tsv
+	'
+}
+
+# Channels with zero forwards in the configured stale-weeks window
+# are candidates for closure suggestions.  Uses listforwards which
+# returns recent activity.
+autopilot_stale_channels() {
+	local stale_weeks
+	stale_weeks=$(autopilot_config_get suggest_stale_weeks 6)
+	# Build a set of channel-ids that HAVE recent forwards.
+	local active_set
+	active_set=$(cli listforwards 2>/dev/null | \
+		jq -r '.forwards[] | (.in_channel, .out_channel)' 2>/dev/null | \
+		sort -u)
+	# For each open channel, if not in the active set, mark stale.
+	autopilot_imbalance_tsv | while IFS=$'\t' read -r cid pct sat _state; do
+		if ! grep -qxF "$cid" <<<"$active_set"; then
+			printf '%s\t%s\t%d weeks\n' "$cid" "$sat" "$stale_weeks"
+		fi
+	done
+}
+
+cmd_autopilot_suggest() {
+	mkdir -p "$AUTOPILOT_DIR"
+	local ts; ts=$(date -u +%Y%m%dT%H%M%SZ)
+	local out="${AUTOPILOT_SUGGESTIONS_TMPL}-$ts.recfile"
+	{
+		printf 'kind: stale-channels\n'
+		printf 'generated_at: %s\n' "$ts"
+		printf 'description: channels with no forwarding activity in the last %s weeks; consider closing\n' "$(autopilot_config_get suggest_stale_weeks 6)"
+		printf '%%\n'
+		autopilot_stale_channels | while IFS=$'\t' read -r cid sat win; do
+			printf 'channel_id: %s\n' "$cid"
+			printf 'capacity_sat: %s\n' "$sat"
+			printf 'stale_for: %s\n' "$win"
+			printf '%%\n'
+		done
+	} > "$out"
+	echo "wrote $out"
+	# Echo to stdout too so an operator running interactively sees results.
+	cat "$out"
+}
+
+cmd_autopilot_run() {
+	local dry_run=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--dry-run) dry_run=1; shift ;;
+			--config) AUTOPILOT_CONF="$2"; shift 2 ;;
+			*) error "channel autopilot run: unknown flag '$1'"; exit 1 ;;
+		esac
+	done
+
+	# Bail early if the operator disabled it via config.
+	if [ "$(autopilot_config_get enabled true)" != "true" ]; then
+		echo "channel autopilot: disabled in $AUTOPILOT_CONF" >&2
+		return 0
+	fi
+
+	mkdir -p "$AUTOPILOT_DIR"
+	local started_at; started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+	local today; today=$(date -u +%Y-%m-%d)
+	local band_low band_high max_ppm daily_cap fee_policy
+	band_low=$(autopilot_config_get rebalance_band_low 10)
+	band_high=$(autopilot_config_get rebalance_band_high 90)
+	max_ppm=$(autopilot_config_get rebalance_max_fee_ppm 500)
+	daily_cap=$(autopilot_config_get rebalance_daily_cap_sat 5000)
+	fee_policy=$(autopilot_config_get fee_policy balanced)
+
+	# Reset daily rebalance budget if the day rolled over.
+	local last_day budget_used
+	last_day=$(grep "^budget_day:" "$AUTOPILOT_STATE" 2>/dev/null | tail -1 | awk '{print $2}')
+	budget_used=$(grep "^budget_used_sat:" "$AUTOPILOT_STATE" 2>/dev/null | tail -1 | awk '{print $2}')
+	if [ "$last_day" != "$today" ]; then
+		budget_used=0
+	fi
+	budget_used="${budget_used:-0}"
+
+	echo "channel autopilot: starting (dry-run=$dry_run)"
+	echo "  band:        ${band_low}%..${band_high}%"
+	echo "  max ppm:     $max_ppm"
+	echo "  daily cap:   $daily_cap sat   (used today: $budget_used)"
+	echo "  fee policy:  $fee_policy"
+
+	# 1. Apply fee policy via the fee verb (passive layer).
+	if [ "$dry_run" -eq 1 ]; then
+		echo "would run: lightning fee policy $fee_policy"
+	else
+		"$SELF_LIBEXEC/lightning/fee" policy "$fee_policy" >/dev/null 2>&1 || {
+			warn "channel autopilot: fee policy '$fee_policy' failed (continuing)"
+		}
+	fi
+
+	# 2. Identify channels outside the band; rebalance within budget.
+	local actions_log="" tsv
+	tsv=$(autopilot_imbalance_tsv)
+	while IFS=$'\t' read -r cid pct sat _state; do
+		[ -n "$cid" ] || continue
+		if [ "$pct" -lt "$band_low" ] || [ "$pct" -gt "$band_high" ]; then
+			# Compute the rebalance amount to bring us back to ~50%.
+			local target_pct=50 delta_pct delta_sat
+			delta_pct=$(( target_pct - pct ))
+			[ "$delta_pct" -lt 0 ] && delta_pct=$(( -delta_pct ))
+			delta_sat=$(( sat * delta_pct / 100 ))
+			# Check budget.
+			local would_spend=$(( delta_sat * max_ppm / 1000000 ))
+			[ "$would_spend" -lt 1 ] && would_spend=1
+			if [ $(( budget_used + would_spend )) -gt "$daily_cap" ]; then
+				echo "  skip $cid (pct=$pct%): daily budget would be exceeded"
+				actions_log="${actions_log}skipped: $cid (budget)\n"
+				continue
+			fi
+			if [ "$dry_run" -eq 1 ]; then
+				echo "would rebalance $cid (pct=$pct%, target=50%, delta=$delta_sat sat, max_fee=$would_spend sat)"
+				actions_log="${actions_log}would-rebalance: $cid pct=$pct%\n"
+			else
+				echo "rebalancing $cid (pct=$pct%, delta=$delta_sat sat)"
+				if "$SELF_LIBEXEC/lightning/rebalance" "$delta_sat" --max-fee "$would_spend" >/dev/null 2>&1; then
+					budget_used=$(( budget_used + would_spend ))
+					actions_log="${actions_log}rebalanced: $cid pct=$pct% spent=$would_spend\n"
+				else
+					actions_log="${actions_log}rebalance-failed: $cid pct=$pct%\n"
+				fi
+			fi
+		fi
+	done <<<"$tsv"
+
+	# 3. Suggestions phase (informational only).
+	cmd_autopilot_suggest >/dev/null
+
+	# 4. Write state.
+	{
+		printf 'last_run: %s\n' "$started_at"
+		printf 'budget_day: %s\n' "$today"
+		printf 'budget_used_sat: %s\n' "$budget_used"
+		printf 'budget_cap_sat: %s\n' "$daily_cap"
+		printf 'dry_run: %s\n' "$dry_run"
+		printf 'actions:\n'
+		# shellcheck disable=SC2059
+		printf "$actions_log"
+	} > "$AUTOPILOT_STATE"
+
+	echo "channel autopilot: done"
+}
+
+cmd_autopilot_status() {
+	if [ ! -f "$AUTOPILOT_STATE" ]; then
+		echo "channel autopilot: never run"
+		echo "  enable via: lightning daemon install --autopilot"
+		exit 0
+	fi
+	cat "$AUTOPILOT_STATE"
+	# Latest suggestions file, if any.
+	local last
+	last=$(ls -t "$AUTOPILOT_DIR"/suggestions-*.recfile 2>/dev/null | head -1)
+	if [ -n "$last" ]; then
+		echo "---"
+		echo "latest suggestions: $last"
+	fi
+}
+
 subhelp() {
 	case "$1" in
 		list)
@@ -324,6 +583,30 @@ Static Channel Backup (FEAT-185, BOLT-5 recovery aid):
                          for recovery on a fresh daemon.
 EOF
 			;;
+		autopilot)
+			cat <<'EOF'
+usage: lightning channel autopilot <subcommand>
+
+   run [--dry-run]    one daemon iteration: apply fee policy,
+                      rebalance unbalanced channels within budget,
+                      write suggestions to a recfile.
+   status             report last-run timestamp, recent actions,
+                      remaining daily rebalance budget.
+   suggest            run only the suggestions phase (no fee /
+                      rebalance side effects); useful interactively.
+
+Configuration lives at $LIGHTNING_DIR/autopilot.conf (recfile, key:
+value).  Defaults: band 10%..90%, max ppm 500, daily cap 5000 sat,
+fee policy "balanced".
+
+State at $LIGHTNING_DIR/autopilot/state.recfile.  Suggestion
+recfiles under $LIGHTNING_DIR/autopilot/suggestions-<timestamp>.
+
+Channel opens / closes are NEVER executed automatically — the verb
+suggests, the operator decides.  Opt in to a 15-min sidecar timer
+via 'lightning daemon install --autopilot'.
+EOF
+			;;
 		*)
 			usage
 			return 1
@@ -350,5 +633,6 @@ case "$SUB" in
 	info)        cmd_info "$@" ;;
 	pending)     cmd_pending "$@" ;;
 	scb)         cmd_scb "$@" ;;
+	autopilot)   cmd_autopilot "$@" ;;
 	*) usage; exit 1 ;;
 esac
