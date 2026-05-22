@@ -77,36 +77,55 @@ gzipped target.
 
 ```
 /                   account picker (existing accounts on this device)
-/login              paste API key (or scan QR), select backend URL
+/login              passkey assertion (or paste API key fallback)
 /create             create a new anon account (calls POST /api/accounts)
 /account/<id>       balance + last 10 ledger entries
 /account/<id>/send  paste invoice or scan QR; confirm; pay
 /account/<id>/recv  amount + description → BOLT-11 QR (auto-poll for paid)
 /account/<id>/offer BOLT-12 reusable invoice + QR
 /account/<id>/topup BIP-21 URI + QR (the address IS the account ID)
-/settings           backend URL, PIN, export, recovery setup
+/settings           passkey management, export API key, recovery setup
 ```
 
 Wallet logic is straightforward — HTTP calls + DOM + QR
 rendering.  Doesn't need a framework.  Lit is the fallback if
 some component (e.g. the ledger list) gets unwieldy.
 
-### Backend selection — runtime, not install-time
+### Same-origin only — no runtime backend switcher
 
-The PWA defaults to `window.location.origin + "/api"` on
-first load.  If that responds, the PWA uses it — covers the
-common case where one operator runs PWA + node behind the
-same vhost.
+The PWA reads `window.location.origin + "/api"` and that's
+the only backend it ever talks to.  No runtime "Change
+backend" UI, no first-run prompt, no settings field for the
+API URL.
 
-If same-origin doesn't respond (PWA on a public host but the
-node lives behind Tailscale; multi-backend power user), the
-PWA's first-run screen prompts for `backend URL + bearer`.
-Settings → "Change backend" lets the user swap later without
-reinstalling.
+The two real topologies both end up same-origin:
 
-One PWA build serves every topology — hosted, self-hosted at
-home, hosted-PWA-against-tailnet-node.  No build-time flag
-to forget.
+* **Provider-hosted** — operator runs PWA + node behind one
+  vhost (`https://bawee.site/wallet/` calls
+  `https://bawee.site/api/...`).  User trusts the provider;
+  same-origin is implicit.
+* **Self-hosted** — power user runs `lightning daemon
+  install --system` plus `lightning ui install` on their
+  Tailscale machine.  PWA is served from
+  `https://node.tailnet/wallet/`, API from
+  `https://node.tailnet/api/`.  Still same-origin.
+
+A "PWA at one origin, node at another" topology basically
+doesn't exist in practice — if you trust an operator enough
+to install their PWA, you trust them with the node behind
+it.  Removing the switcher kills a class of phishing-style
+gotchas (PWA from origin A pointed at malicious API B) and a
+class of state-management bugs (which account am I on which
+backend right now?).
+
+If a user wants to use a different provider, they install
+that provider's PWA from that provider's URL.  One install =
+one identity = one backend.
+
+If same-origin `/api` doesn't respond, the PWA shows a hard
+error ("This server doesn't expose a Lightning API") — no
+fallback prompt.  Misconfigured installs are an operator
+problem, not a user-recovery flow.
 
 Branding overrides (operator wants their own name / colour)
 live in a static `config.json` next to `index.html` that the
@@ -148,9 +167,9 @@ lightning ui upgrade [<docroot>]
 ```
 
 The verb is intentionally thin — most of the work is `cp -r`.
-Backend URL selection is the PWA's runtime concern (default
-same-origin, prompt on first-run if unreachable, settings
-screen to change later), not a build-time argument.
+The PWA is hard-wired to same-origin `/api`; the verb's only
+job is dropping files in the right place and writing the
+vhost fragment.
 
 Defence in depth: the vhost fragment locks the docroot to
 `Options -ExecCGI -Indexes` (the PWA is purely static; no
@@ -422,12 +441,11 @@ ledger, BOLT-11/12 receive directly to the node's pubkey,
 withdraw-anytime via the existing PR-2 `withdraw` endpoint.
 
 **Self-hosted** — user runs `lightning daemon install --system`
-on a small machine at home, exposes the API on their
-Tailscale tailnet, installs the PWA on the same machine
-(default same-origin works) — or installs the PWA on a
-different host and lets the first-run prompt point it at
-`https://node.tailnet.example`.  Settings → "Change backend"
-swaps URLs later without a reinstall.
++ `lightning ui install` on the same Tailscale-reachable
+machine.  PWA at `https://node.tailnet/wallet/`, API at
+`https://node.tailnet/api/`.  Same-origin; works out of the
+box.  No backend-URL field for the user to misconfigure, no
+"point my hosted PWA at my home node" topology to debug.
 
 Both modes share one PWA codebase.
 
