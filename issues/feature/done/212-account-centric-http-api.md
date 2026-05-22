@@ -2,7 +2,7 @@
 id: FEAT-212
 type: feature
 priority: high
-status: in-progress
+status: done
 ---
 
 # Account-centric HTTP API with self-service creation

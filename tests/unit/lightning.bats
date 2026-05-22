@@ -4437,3 +4437,174 @@ _acct212pr4_teardown() {
 	grep -q "install_topup_watcher_sidecar" "$f"
 	grep -q "TOPUP_WATCHER_LABEL" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-212 PR-5: account garbage collector.
+# ---------------------------------------------------------------------------
+
+_acct212pr5_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create fresh >/dev/null
+	"$LIGHTNING_BIN" account create stale >/dev/null
+	"$LIGHTNING_BIN" account create closer >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	# Backdate 'stale' to 95 days ago.
+	sqlite3 "$BATS_DB" "UPDATE accounts SET last_api_call_at = strftime('%s','now')-95*86400, created_at = strftime('%s','now')-95*86400 WHERE name='stale';"
+	# Mark 'closer' as long-closed (14 days ago).
+	sqlite3 "$BATS_DB" "UPDATE accounts SET closed_at = strftime('%s','now')-14*86400 WHERE name='closer';"
+}
+
+_acct212pr5_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-212 PR-5: account gc status reports candidate counts" {
+	_acct212pr5_setup
+	run "$LIGHTNING_BIN" account gc status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"total_accounts:    3"* ]]
+	[[ "$output" == *"would_close:       1"* ]]
+	[[ "$output" == *"would_delete:      1"* ]]
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: account gc dry-run lists plan but writes nothing" {
+	_acct212pr5_setup
+	run "$LIGHTNING_BIN" account gc dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"would-close	stale"* ]]
+	[[ "$output" == *"would-delete	closer"* ]]
+	# State unchanged.
+	local n_closed n_total
+	n_total=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name != '-';")
+	n_closed=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE closed_at IS NOT NULL;")
+	[ "$n_total" = "3" ]
+	[ "$n_closed" = "1" ]   # only the pre-existing 'closer'
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: account gc closes the stale account" {
+	_acct212pr5_setup
+	"$LIGHTNING_BIN" account gc run >/dev/null 2>&1
+	local stale_closed_at
+	stale_closed_at=$(sqlite3 "$BATS_DB" "SELECT closed_at FROM accounts WHERE name='stale';")
+	[ -n "$stale_closed_at" ]
+	[ "$stale_closed_at" != "0" ]
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: account gc deletes the long-closed account" {
+	_acct212pr5_setup
+	"$LIGHTNING_BIN" account gc run >/dev/null 2>&1
+	local n
+	n=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='closer';")
+	[ "$n" = "0" ]
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: account gc preserves fresh accounts" {
+	_acct212pr5_setup
+	"$LIGHTNING_BIN" account gc run >/dev/null 2>&1
+	local row
+	row=$(sqlite3 -separator '|' "$BATS_DB" "SELECT name, COALESCE(closed_at,0) FROM accounts WHERE name='fresh';")
+	[ "$row" = "fresh|0" ]
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: account gc never touches the unassigned (-) account" {
+	_acct212pr5_setup
+	# Make '-' look very old to ensure the filter is not based on age alone.
+	sqlite3 "$BATS_DB" "UPDATE accounts SET last_api_call_at = 0 WHERE name='-';"
+	"$LIGHTNING_BIN" account gc run >/dev/null 2>&1
+	local n
+	n=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='-';")
+	[ "$n" = "1" ]
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: account gc skips stale accounts with non-zero balance" {
+	_acct212pr5_setup
+	# Park 1000 msat into stale.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now'), 'stale', 'in', 1000, 'stake:0', 'test-fund');"
+	"$LIGHTNING_BIN" account gc run >/dev/null 2>&1
+	local closed_at
+	closed_at=$(sqlite3 "$BATS_DB" "SELECT COALESCE(closed_at,'') FROM accounts WHERE name='stale';")
+	[ -z "$closed_at" ]
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: account gc skips stale accounts with pending invoices" {
+	_acct212pr5_setup
+	sqlite3 "$BATS_DB" "INSERT INTO invoices(bolt11, payment_hash, account, amount_msat, expiry, state) \
+		VALUES('lnbcrt-pending-1', 'hash-1', 'stale', 1000, '4102444800', 'pending');"
+	"$LIGHTNING_BIN" account gc run >/dev/null 2>&1
+	local closed_at
+	closed_at=$(sqlite3 "$BATS_DB" "SELECT COALESCE(closed_at,'') FROM accounts WHERE name='stale';")
+	[ -z "$closed_at" ]
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: LIGHTNING_ACCOUNT_GC_DAYS=1 closes one-day-stale accounts" {
+	_acct212pr5_setup
+	# 'fresh' was created moments ago — backdate it 2 days.
+	sqlite3 "$BATS_DB" "UPDATE accounts SET last_api_call_at = strftime('%s','now')-2*86400, created_at = strftime('%s','now')-2*86400 WHERE name='fresh';"
+	LIGHTNING_ACCOUNT_GC_DAYS=1 "$LIGHTNING_BIN" account gc run >/dev/null 2>&1
+	local fresh_closed
+	fresh_closed=$(sqlite3 "$BATS_DB" "SELECT closed_at FROM accounts WHERE name='fresh';")
+	[ -n "$fresh_closed" ]
+	[ "$fresh_closed" != "0" ]
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: account gc preserves ledger entries after deletion (FK SET DEFAULT)" {
+	_acct212pr5_setup
+	# Add a ledger entry against 'closer' BEFORE its balance is checked.
+	# We want closer to have a net-zero balance so GC deletes it, but
+	# the historical entries should survive via the FK SET DEFAULT.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash) VALUES(datetime('now','-30 days'), 'closer', 'in', 1000, 'old:0');"
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash) VALUES(datetime('now','-30 days'), 'closer', 'out', -1000, 'old:1');"
+	"$LIGHTNING_BIN" account gc run >/dev/null 2>&1
+	# Account gone…
+	local accs
+	accs=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='closer';")
+	[ "$accs" = "0" ]
+	# …ledger rows survive on the '-' bucket.
+	local lentries
+	lentries=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM ledger WHERE payment_hash IN ('old:0','old:1');")
+	[ "$lentries" = "2" ]
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: account gc strips nicknames pointing at deleted address" {
+	_acct212pr5_setup
+	local addr
+	addr=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='closer';")
+	"$LIGHTNING_BIN" account nickname add "$addr" stale-nick >/dev/null
+	"$LIGHTNING_BIN" account gc run >/dev/null 2>&1
+	! grep -q "^address: $addr" "$LIGHTNING_WALLETS_ROOT/alice/accounts/nicknames.recfile"
+	! grep -q "^nickname: stale-nick" "$LIGHTNING_WALLETS_ROOT/alice/accounts/nicknames.recfile"
+	_acct212pr5_teardown
+}
+
+@test "FEAT-212 PR-5: account verb help lists gc" {
+	run "$LIGHTNING_BIN" account
+	[[ "$output" == *"gc run|dry-run|status"* ]]
+}
+
+@test "FEAT-212 PR-5: daemon install --account-gc accepts the flag" {
+	f="$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
+	grep -q "\-\-account-gc" "$f"
+	grep -q "install_account_gc_sidecar" "$f"
+	grep -q "ACCOUNT_GC_LABEL" "$f"
+}
+
+@test "FEAT-212 PR-5: account gc on unknown subcommand exits 1" {
+	_acct212pr5_setup
+	run "$LIGHTNING_BIN" account gc whatever
+	[ "$status" -eq 1 ]
+	_acct212pr5_teardown
+}
