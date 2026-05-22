@@ -4057,8 +4057,15 @@ _acct212_setup() {
 }
 
 @test "FEAT-212 PR-1: spec file exists with the expected id" {
-	f="$BATS_TEST_DIRNAME/../../issues/feature/212-account-centric-http-api.md"
-	[ -f "$f" ]
+	# Pre-PR-5 the file lived at issues/feature/; PR-5 moved it to
+	# issues/feature/done/ when the ticket completed.  Accept either.
+	f=""
+	for cand in \
+		"$BATS_TEST_DIRNAME/../../issues/feature/212-account-centric-http-api.md" \
+		"$BATS_TEST_DIRNAME/../../issues/feature/done/212-account-centric-http-api.md"; do
+		[ -f "$cand" ] && f="$cand" && break
+	done
+	[ -n "$f" ]
 	grep -q "^id: FEAT-212" "$f"
 	grep -q "Bitcoin address" "$f"
 	grep -q "MCP" "$f"
