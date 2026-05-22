@@ -4267,3 +4267,36 @@ _acct212pr2_teardown() {
 	[ -x "$f" ]
 	head -1 "$f" | grep -q python3
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-212 PR-3: MCP endpoint + manifest
+# ---------------------------------------------------------------------------
+
+@test "FEAT-212 PR-3: MCP CGI script is executable Python" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+	[ -x "$f" ]
+	head -1 "$f" | grep -q python3
+}
+
+@test "FEAT-212 PR-3: static manifest at .well-known/lightning/mcp.json is valid JSON" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/lightning/mcp.json"
+	[ -f "$f" ]
+	# Validates JSON.
+	jq -e '.' "$f" >/dev/null
+	# All 8 tool names enumerated.
+	for tool in account_create account_balance account_topup account_withdraw \
+	            account_pay account_recv account_recv_reusable account_close; do
+		jq -e --arg t "$tool" '.tools | index($t)' "$f" >/dev/null
+	done
+	# Resource URI templates.
+	jq -e '.resources | length == 3' "$f" >/dev/null
+	# Protocol version.
+	[ "$(jq -r '.protocolVersion' "$f")" = "2025-03-26" ]
+}
+
+@test "FEAT-212 PR-3: apache vhost adds /api/mcp ScriptAlias + mcp.json Alias" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+	grep -q "ScriptAlias /api/mcp" "$f"
+	grep -q "wellknown/api/mcp.py" "$f"
+	grep -q "Alias /.well-known/lightning/mcp.json" "$f"
+}

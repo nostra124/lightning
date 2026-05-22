@@ -224,17 +224,26 @@ poll or stream:
 
 ### Transport
 
-MCP over **HTTP + Server-Sent Events (SSE)** — the standard
-remote-MCP transport.  Persistent connection per agent; tool calls
-flow as JSON-RPC messages over SSE.  Endpoint path:
-`/.well-known/lightning/mcp/sse` (auth via bearer in the initial
-HTTP upgrade headers).
+MCP over **plain HTTP + JSON-RPC 2.0**.  POST `/api/mcp`, body
+is a JSON-RPC envelope, response is the JSON-RPC result.  No SSE
+on this server — the tool surface is request/response only, so
+the streaming side of the MCP "Streamable HTTP" transport
+(server-initiated messages back over GET+SSE) isn't needed.
 
-Apache CGI doesn't suit long-lived SSE connections, so the MCP
-server is **a small Python ASGI process** (FastAPI / Starlette +
-the official `mcp` Python SDK) reverse-proxied by Apache via
-`mod_proxy`.  Same systemd-managed pattern as the autopilot
-sidecar — but a long-running service rather than a 15-minute cron.
+Implementation: **CGI script** at
+`share/lightning/wellknown/api/mcp.py`, stdlib-only (no FastAPI,
+no `mcp` SDK).  The protocol pieces we need — initialize,
+tools/{list,call}, resources/{list,read}, prompts/list, ping —
+are a few hundred lines of straightforward JSON-RPC handling.
+Earlier plans for an ASGI long-runner were dropped: every call
+on our surface terminates synchronously, so the per-request
+fork-and-die of CGI is fine, and we keep the no-new-deps
+posture of the rest of `wellknown/`.
+
+If a future tool needs real streaming (e.g. wait for an invoice
+to settle), it lands as a separate SSE endpoint without
+disturbing existing callers — the MCP spec allows the two
+transports to coexist on the same server.
 
 ### Discovery
 
@@ -260,18 +269,19 @@ Same bearer token as the REST API.  Two-phase:
   server validates the token against the address derived from the
   init headers' `X-Account-Id` (or equivalent).
 
-### Why a separate process (not CGI)
+### Why CGI is enough
 
-MCP-over-SSE wants persistent connections.  CGI spawns a new
-process per request and tears it down; that's incompatible.
-ASGI + a long-running event loop is the standard pattern.
+The MCP "Streamable HTTP" transport spec mandates SSE only for
+servers that push server-initiated messages back to the client
+(progress updates, sampling requests, log records).  Our tool
+surface doesn't — every call returns a complete result
+synchronously.  Under that constraint plain POST / JSON-out is
+within the protocol, and CGI is fine.
 
-Trade-off: one more moving part (a systemd service).  Mitigated by
-the same sidecar-install pattern we use for autopilot — opt in
-with `daemon install --mcp` and the service file lands in
-`~/.config/systemd/user/` (user-mode operator) or
-`/etc/systemd/system/` (system-mode).  Same OpenRC + launchd
-parity the other sidecars have.
+This also removes the systemd-sidecar moving part the spec
+originally envisaged.  No `daemon install --mcp` needed; the
+endpoint is live the moment Apache restarts with the new
+vhost stanza.
 
 ### Out of scope (for the MCP layer)
 

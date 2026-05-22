@@ -1,0 +1,36 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schema/2025-03-26/server-manifest.json",
+  "name": "lightning",
+  "version": "0.1.0",
+  "protocolVersion": "2025-03-26",
+  "description": "Account-centric Lightning Network operations: open and close accounts, top up on-chain, pay BOLT-11 invoices, mint BOLT-11 / BOLT-12 receive invoices, withdraw via submarine swap. Backed by Core Lightning (clightning).",
+  "transport": {
+    "type": "http",
+    "endpoint": "/api/mcp",
+    "notes": "Plain JSON-RPC 2.0 over HTTP POST. No SSE / streaming on this server — the tool surface is request/response only."
+  },
+  "auth": {
+    "type": "bearer",
+    "scope": "per-account",
+    "obtain": "POST /api/accounts (no auth) — the response contains the account_id and the lt_-prefixed bearer token to use for every subsequent call."
+  },
+  "tools": [
+    "account_create",
+    "account_balance",
+    "account_topup",
+    "account_withdraw",
+    "account_pay",
+    "account_recv",
+    "account_recv_reusable",
+    "account_close"
+  ],
+  "resources": [
+    "account://{id}",
+    "account://{id}/ledger",
+    "account://{id}/topup"
+  ],
+  "links": {
+    "spec": "https://github.com/nostra124/lightning/blob/master/issues/feature/done/212-account-centric-http-api.md",
+    "rest": "/api/accounts"
+  }
+}
