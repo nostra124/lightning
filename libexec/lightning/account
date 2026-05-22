@@ -191,6 +191,8 @@ usage: lightning account <subcommand>
    topup-watcher run|dry-run|status              credit new on-chain
                                                  deposits to known
                                                  account-addresses
+   gc run|dry-run|status                         close stale + delete
+                                                 long-closed accounts
    topup <name> <sat> [--via lightning]          QR for on-chain top-up
    withdraw <name> <sat> <onchain-addr>          submarine swap out
    pay <name> <bolt11|bolt12|lnurl|addr|node-id>
@@ -598,6 +600,159 @@ _topup_watcher_status() {
 	fi
 }
 
+# FEAT-212 PR-5 — account garbage collection.
+#
+# Two stages, both safe:
+#
+#   1. "idle close" — accounts that are:
+#        * address-keyed (FEAT-212 minted, not legacy)
+#        * not already closed
+#        * balance_sat == 0
+#        * no API call in LIGHTNING_ACCOUNT_GC_DAYS days (default 90)
+#        * no pending invoice
+#      get their API key revoked + closed_at stamped.  Same effect
+#      as `account close` but driven by inactivity.
+#
+#   2. "expired close cleanup" — accounts that:
+#        * closed_at is set
+#        * closed more than LIGHTNING_ACCOUNT_GC_CLOSED_DAYS ago
+#          (default 7)
+#        * balance_sat == 0
+#      are DELETED from the schema.  The ledger's FK `ON DELETE
+#      SET DEFAULT` lifts any historical entries onto the '-'
+#      account, so audit history survives.  Nickname recfile
+#      entries pointing at the deleted address are stripped.
+#
+# Subcommands:
+#   run            do both stages
+#   dry-run        list what would happen, don't write
+#   status         show the candidate counts for the next run
+cmd_gc() {
+	local op="${1:-run}"
+	local dry=0
+	case "$op" in
+		run)               dry=0 ;;
+		dry-run|--dry-run) dry=1 ;;
+		status)            _gc_status; return ;;
+		*) echo "usage: lightning account gc {run|dry-run|status}" >&2; exit 1 ;;
+	esac
+
+	local db; db=$(active_db)
+	local now; now=$(date -u +%s)
+	local idle_days="${LIGHTNING_ACCOUNT_GC_DAYS:-90}"
+	local closed_days="${LIGHTNING_ACCOUNT_GC_CLOSED_DAYS:-7}"
+	case "$idle_days"    in ''|*[!0-9]*) idle_days=90 ;; esac
+	case "$closed_days"  in ''|*[!0-9]*) closed_days=7 ;; esac
+	local idle_cutoff=$(( now - idle_days * 86400 ))
+	local closed_cutoff=$(( now - closed_days * 86400 ))
+
+	# Stage 1 — idle accounts to close.
+	local stage1
+	stage1=$(sqlite3 -separator $'\t' "$db" "
+		SELECT a.name, a.address
+		FROM accounts a
+		WHERE a.address IS NOT NULL
+		  AND a.closed_at IS NULL
+		  AND a.name != '-'
+		  AND COALESCE(a.last_api_call_at, a.created_at, 0) < $idle_cutoff
+		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0
+		  AND NOT EXISTS (SELECT 1 FROM invoices WHERE account = a.name AND state = 'pending');")
+
+	# Stage 2 — already-closed accounts to delete.
+	local stage2
+	stage2=$(sqlite3 -separator $'\t' "$db" "
+		SELECT a.name, a.address
+		FROM accounts a
+		WHERE a.closed_at IS NOT NULL
+		  AND a.closed_at < $closed_cutoff
+		  AND a.name != '-'
+		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0;")
+
+	local closed=0 deleted=0 name addr
+	while IFS=$'\t' read -r name addr; do
+		[ -n "$name" ] || continue
+		if [ $dry -eq 1 ]; then
+			printf 'would-close\t%s\t%s\n' "$name" "$addr"
+		else
+			sqlite3 "$db" "UPDATE accounts SET closed_at = $now WHERE name = $(sql_quote "$name");"
+			if [ -n "$addr" ] && command -v secret >/dev/null 2>&1; then
+				secret rm "lightning.account.$addr.apikey" 2>/dev/null || true
+			fi
+			printf 'close\t%s\t%s\n' "$name" "$addr"
+		fi
+		closed=$((closed+1))
+	done <<<"$stage1"
+
+	while IFS=$'\t' read -r name addr; do
+		[ -n "$name" ] || continue
+		if [ $dry -eq 1 ]; then
+			printf 'would-delete\t%s\t%s\n' "$name" "$addr"
+		else
+			sqlite3 "$db" "DELETE FROM accounts WHERE name = $(sql_quote "$name");"
+			if [ -n "$addr" ]; then
+				if command -v secret >/dev/null 2>&1; then
+					secret rm "lightning.account.$addr.apikey" 2>/dev/null || true
+				fi
+				# Strip any nickname entries pointing at this address.
+				local nf; nf=$(nicknames_file)
+				if [ -f "$nf" ]; then
+					awk -v addr="$addr" '
+						BEGIN { RS=""; FS="\n" }
+						{
+							drop=0
+							for (i=1; i<=NF; i++) {
+								if ($i == "address: "addr) { drop=1; break }
+							}
+							if (!drop) { print; print "" }
+						}
+					' "$nf" > "$nf.tmp" && mv "$nf.tmp" "$nf"
+				fi
+			fi
+			printf 'delete\t%s\t%s\n' "$name" "$addr"
+		fi
+		deleted=$((deleted+1))
+	done <<<"$stage2"
+
+	if [ $dry -eq 1 ]; then
+		echo "gc dry-run: would close $closed, would delete $deleted (idle=${idle_days}d, closed=${closed_days}d)" >&2
+	else
+		echo "gc: closed $closed, deleted $deleted (idle=${idle_days}d, closed=${closed_days}d)" >&2
+	fi
+}
+
+_gc_status() {
+	local db; db=$(active_db)
+	local now; now=$(date -u +%s)
+	local idle_days="${LIGHTNING_ACCOUNT_GC_DAYS:-90}"
+	local closed_days="${LIGHTNING_ACCOUNT_GC_CLOSED_DAYS:-7}"
+	case "$idle_days"    in ''|*[!0-9]*) idle_days=90 ;; esac
+	case "$closed_days"  in ''|*[!0-9]*) closed_days=7 ;; esac
+	local idle_cutoff=$(( now - idle_days * 86400 ))
+	local closed_cutoff=$(( now - closed_days * 86400 ))
+
+	local n_idle n_closed n_total
+	n_total=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name != '-';")
+	n_idle=$(sqlite3 "$db" "
+		SELECT COUNT(*) FROM accounts a
+		WHERE a.address IS NOT NULL
+		  AND a.closed_at IS NULL
+		  AND a.name != '-'
+		  AND COALESCE(a.last_api_call_at, a.created_at, 0) < $idle_cutoff
+		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0
+		  AND NOT EXISTS (SELECT 1 FROM invoices WHERE account = a.name AND state = 'pending');")
+	n_closed=$(sqlite3 "$db" "
+		SELECT COUNT(*) FROM accounts a
+		WHERE a.closed_at IS NOT NULL
+		  AND a.closed_at < $closed_cutoff
+		  AND a.name != '-'
+		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0;")
+	printf "total_accounts:    %s\n" "$n_total"
+	printf "idle_days:         %s\n" "$idle_days"
+	printf "closed_grace_days: %s\n" "$closed_days"
+	printf "would_close:       %s\n" "$n_idle"
+	printf "would_delete:      %s\n" "$n_closed"
+}
+
 cmd_apikey() {
 	[ $# -lt 1 ] && { echo "usage: lightning account apikey {create,list,revoke} <name> --scope read|write" >&2; exit 1; }
 	local op="$1"; shift
@@ -829,6 +984,7 @@ case "${1:-}" in
 	close)    shift; cmd_close "$@" ;;
 	nickname) shift; cmd_nickname "$@" ;;
 	topup-watcher) shift; cmd_topup_watcher "$@" ;;
+	gc)       shift; cmd_gc "$@" ;;
 	apikey)   shift; cmd_apikey "$@" ;;
 	topup)    shift; cmd_topup "$@" ;;
 	withdraw) shift; cmd_withdraw "$@" ;;
