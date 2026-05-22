@@ -24,6 +24,7 @@ LAUNCHD_LABEL="network.lightning.lightningd"
 KEEPALIVE_LABEL="network.lightning.keepalive"
 ALERT_LABEL="network.lightning.alert"
 AUTOPILOT_LABEL="network.lightning.autopilot"
+TOPUP_WATCHER_LABEL="network.lightning.topup-watcher"
 LIGHTNING_CONF="$LIGHTNING_DIR/config"
 BACKEND_BLOCK_BEGIN="# >>> lightning backend — managed by 'daemon install'"
 BACKEND_BLOCK_END="# <<< lightning backend"
@@ -660,7 +661,7 @@ cmd_install() {
 	#   -1  leave backend config alone
 	#    1  enable trustedcoin (multi-explorer fallback)
 	#    0  disable any managed backend block (back to bitcoind/bcli)
-	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0 autopilot=0
+	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0 autopilot=0 topup_watcher=0
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--system)      system=1; shift ;;
@@ -672,6 +673,7 @@ cmd_install() {
 			--no-alert)     alert=0; shift ;;
 			--lsps)        lsps=1; shift ;;
 			--autopilot)   autopilot=1; shift ;;
+			--topup-watcher) topup_watcher=1; shift ;;
 			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
@@ -727,6 +729,13 @@ cmd_install() {
 	# sidecars (user-mode, non-OpenRC).
 	if [ "$autopilot" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
 		install_autopilot_sidecar
+	fi
+
+	# FEAT-212 PR-4 sidecar — deposit watcher.  Polls listfunds for
+	# new UTXOs at known account-addresses and credits the ledger.
+	# Same OPT-IN gate as autopilot.
+	if [ "$topup_watcher" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
+		install_topup_watcher_sidecar
 	fi
 }
 
@@ -1039,6 +1048,91 @@ EOF
 	info "wrote $dir/lightning-autopilot.{service,timer}"
 	info "  enable + start with: systemctl --user enable --now lightning-autopilot.timer"
 	info "  config:  $LIGHTNING_DIR/autopilot.conf"
+}
+
+# FEAT-212 PR-4 — deposit watcher sidecar.  Polls `listfunds` every
+# minute and credits the ledger for any new UTXO at a known account
+# address.  Same install pattern as autopilot, finer-grained cadence
+# (1 min vs 15 min) because operators expect "I sent sats to my
+# account address, where are they?" to resolve quickly.
+install_topup_watcher_sidecar() {
+	local self_bin="$SELF_LIBEXEC/../bin/lightning"
+	self_bin=$(cd "$(dirname "$self_bin")" && pwd)/$(basename "$self_bin")
+
+	if is_macos; then
+		local plist="$HOME/Library/LaunchAgents/${TOPUP_WATCHER_LABEL}.plist"
+		mkdir -p "$(dirname "$plist")"
+		cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${TOPUP_WATCHER_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${self_bin}</string>
+        <string>account</string>
+        <string>topup-watcher</string>
+        <string>run</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LIGHTNING_DIR</key>
+        <string>${LIGHTNING_DIR}</string>
+        <key>LIGHTNING_NETWORK</key>
+        <string>${LIGHTNING_NETWORK}</string>
+        <key>PATH</key>
+        <string>${PATH}</string>
+        <key>SELF_QUIET</key>
+        <string>1</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>60</integer>
+    <key>StandardOutPath</key>
+    <string>${LIGHTNING_DIR}/topup-watcher.log</string>
+    <key>StandardErrorPath</key>
+    <string>${LIGHTNING_DIR}/topup-watcher.log</string>
+</dict>
+</plist>
+EOF
+		info "wrote $plist (topup-watcher sidecar)"
+		info "  triggers: every 1min"
+		info "  log:      $LIGHTNING_DIR/topup-watcher.log"
+		return 0
+	fi
+
+	local dir="$HOME/.config/systemd/user"
+	mkdir -p "$dir"
+	cat > "$dir/lightning-topup-watcher.service" <<EOF
+[Unit]
+Description=Lightning on-chain deposit watcher (FEAT-212 PR-4)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=SELF_QUIET=1
+Environment=LIGHTNING_DIR=$LIGHTNING_DIR
+Environment=LIGHTNING_NETWORK=$LIGHTNING_NETWORK
+ExecStart=$self_bin account topup-watcher run
+EOF
+	cat > "$dir/lightning-topup-watcher.timer" <<EOF
+[Unit]
+Description=Lightning topup-watcher timer (every 1min)
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=1min
+Unit=lightning-topup-watcher.service
+
+[Install]
+WantedBy=timers.target
+EOF
+	systemctl --user daemon-reload 2>/dev/null || true
+	info "wrote $dir/lightning-topup-watcher.{service,timer}"
+	info "  enable + start with: systemctl --user enable --now lightning-topup-watcher.timer"
 }
 
 install_macos_system() {
