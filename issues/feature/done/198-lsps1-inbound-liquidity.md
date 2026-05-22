@@ -2,7 +2,7 @@
 id: FEAT-198
 type: feature
 priority: medium
-status: in-progress
+status: shipped
 ---
 
 # Real LSPS1 inbound liquidity — wrap the cln-lsps plugin

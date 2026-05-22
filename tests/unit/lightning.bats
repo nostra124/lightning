@@ -1276,9 +1276,12 @@ _lsps_plugin_loaded() {
 }
 
 @test "FEAT-198: spec file references the cln-lsps plugin approach" {
-	f="$BATS_TEST_DIRNAME/../../issues/feature/198-lsps1-inbound-liquidity.md"
+	# Moved to done/ when the ticket shipped — same convention every
+	# other graduated 0.x FEAT followed.
+	f="$BATS_TEST_DIRNAME/../../issues/feature/done/198-lsps1-inbound-liquidity.md"
 	[ -f "$f" ]
 	grep -q "^id: FEAT-198" "$f"
+	grep -q "^status: shipped" "$f"
 	grep -q "cln-lsps" "$f"
 	grep -q "Boltz" "$f"
 	grep -q "daemon install --lsps" "$f"
