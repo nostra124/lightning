@@ -1,0 +1,80 @@
+#!/bin/bash
+# lightning api-account-pay <address> <target> [--sat <sat>]   (FEAT-212 PR-2)
+#
+# Pays a BOLT-11 / BOLT-12 / LNURL / Lightning address / node-pubkey
+# target against the account.  Returns the payment receipt as JSON.
+#
+#   {"payment_hash":"...","amount_sat":<int>,"fee_sat":<int>,"status":"complete"}
+
+set -e
+[ $# -ge 2 ] || exit 1
+address="$1"; target="$2"; shift 2
+sat=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--sat) sat="$2"; shift 2 ;;
+		*) exit 2 ;;
+	esac
+done
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+if [ -n "$sat" ]; then
+	case "$sat" in ''|*[!0-9]*) exit 2 ;; esac
+fi
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$name" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+now=$(date -u +%s)
+sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
+
+# Only BOLT-11 path is wired in PR-2 (it's the common case for the
+# external-caller use case).  BOLT-12 / LNURL / keysend live behind
+# the existing CLI verbs and will be projected into the same JSON
+# shape in a follow-up; calling them via this endpoint returns 501
+# rather than half-working garbage.
+command -v lightning-cli >/dev/null || { echo '{"error":"lightning-cli not installed"}'; exit 127; }
+lower=$(printf '%s' "$target" | tr 'A-Z' 'a-z')
+case "$lower" in
+	lnbc*|lntb*) ;;
+	*)
+		printf '{"error":"target_shape_not_implemented","target_prefix":%s}\n' \
+			"$(jq -Rs . <<<"${lower:0:6}")"
+		exit 6 ;;
+esac
+
+pay_json=$(lightning-cli \
+	--lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+	--network="${LIGHTNING_NETWORK:-bitcoin}" \
+	pay "$target" 2>/dev/null) || {
+		echo '{"error":"pay_failed"}'
+		exit 5
+	}
+
+payment_hash=$(jq -r '.payment_hash // empty' <<<"$pay_json")
+amount_msat=$(jq -r '.amount_sent_msat // .msatoshi_sent // "0"' <<<"$pay_json" \
+	| sed 's/msat$//')
+sent_msat=$(jq -r '.amount_msat // .msatoshi // "0"' <<<"$pay_json" \
+	| sed 's/msat$//')
+status=$(jq -r '.status // "complete"' <<<"$pay_json")
+fee_msat=$(( amount_msat - sent_msat ))
+fee_sat=$(( fee_msat / 1000 ))
+sent_sat=$(( sent_msat / 1000 ))
+
+# Record the debit in the ledger.
+sqlite3 "$db" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+	VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$sent_msat, $(sql_quote "$payment_hash"), 'api pay');" 2>/dev/null || true
+
+jq -nc \
+	--arg hash "$payment_hash" \
+	--argjson amount "$sent_sat" \
+	--argjson fee "$fee_sat" \
+	--arg status "$status" \
+	'{payment_hash: $hash, amount_sat: $amount, fee_sat: $fee, status: $status}'

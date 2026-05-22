@@ -1,0 +1,44 @@
+#!/bin/bash
+# lightning api-account-balance <address>   (FEAT-212 PR-2)
+#
+# JSON balance for the account identified by the bech32 ID.
+# Caller is the CGI dispatcher; sudo-bridged through the operator
+# user.  Output matches FEAT-196 balance.py for client compatibility:
+#   {"balance_sat":<int>,"limit_sat":<int|null>,"overdraft":"deny"|...}
+
+set -e
+[ $# -eq 1 ] || exit 1
+address="$1"
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$name" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+# Touch last_api_call_at so the GC cron (PR-5) sees liveness.
+now=$(date -u +%s)
+sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
+
+read -r balance_msat limit_sat overdraft < <(
+	sqlite3 -separator ' ' "$db" "
+		SELECT COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name),0),
+		       COALESCE(a.limit_sat, -1),
+		       a.overdraft
+		FROM accounts a WHERE a.name = $(sql_quote "$name");"
+)
+
+if [ "$limit_sat" = "-1" ]; then
+	printf '{"balance_sat":%d,"limit_sat":null,"overdraft":"%s"}\n' \
+		"$(( balance_msat / 1000 ))" "$overdraft"
+else
+	printf '{"balance_sat":%d,"limit_sat":%d,"overdraft":"%s"}\n' \
+		"$(( balance_msat / 1000 ))" "$limit_sat" "$overdraft"
+fi

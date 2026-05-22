@@ -16,4 +16,36 @@ www-data ALL=(alice) NOPASSWD: \
     /usr/local/bin/lightning api-send    [a-z][a-zA-Z0-9_-]* *@*.* [0-9]* * *, \
     /usr/local/bin/lightning api-balance [a-z][a-zA-Z0-9_-]*, \
     /usr/local/bin/lightning api-verify  [a-z][a-zA-Z0-9_-]* read *, \
-    /usr/local/bin/lightning api-verify  [a-z][a-zA-Z0-9_-]* write *
+    /usr/local/bin/lightning api-verify  [a-z][a-zA-Z0-9_-]* write *, \
+    /usr/local/bin/lightning api-accounts-create, \
+    /usr/local/bin/lightning api-accounts-create --hint *, \
+    /usr/local/bin/lightning api-account-verify        bc1* *, \
+    /usr/local/bin/lightning api-account-verify        tb1* *, \
+    /usr/local/bin/lightning api-account-verify        bcrt1* *, \
+    /usr/local/bin/lightning api-account-balance       bc1*, \
+    /usr/local/bin/lightning api-account-balance       tb1*, \
+    /usr/local/bin/lightning api-account-balance       bcrt1*, \
+    /usr/local/bin/lightning api-account-topup         bc1* [0-9]*, \
+    /usr/local/bin/lightning api-account-topup         tb1* [0-9]*, \
+    /usr/local/bin/lightning api-account-topup         bcrt1* [0-9]*, \
+    /usr/local/bin/lightning api-account-topup         bc1*, \
+    /usr/local/bin/lightning api-account-topup         tb1*, \
+    /usr/local/bin/lightning api-account-topup         bcrt1*, \
+    /usr/local/bin/lightning api-account-close         bc1*, \
+    /usr/local/bin/lightning api-account-close         tb1*, \
+    /usr/local/bin/lightning api-account-close         bcrt1*, \
+    /usr/local/bin/lightning api-account-recv          bc1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-recv          tb1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-recv          bcrt1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-recv-reusable bc1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-recv-reusable tb1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-recv-reusable bcrt1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-recv-reusable bc1* any *, \
+    /usr/local/bin/lightning api-account-recv-reusable tb1* any *, \
+    /usr/local/bin/lightning api-account-recv-reusable bcrt1* any *, \
+    /usr/local/bin/lightning api-account-pay           bc1* * *, \
+    /usr/local/bin/lightning api-account-pay           tb1* * *, \
+    /usr/local/bin/lightning api-account-pay           bcrt1* * *, \
+    /usr/local/bin/lightning api-account-withdraw      bc1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-withdraw      tb1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-withdraw      bcrt1* [0-9]* *

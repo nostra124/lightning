@@ -1,0 +1,33 @@
+#!/bin/bash
+# lightning api-account-close <address>   (FEAT-212 PR-2)
+#
+# Marks the account closed (stamps closed_at) and revokes the API
+# key.  The row stays so the ledger still resolves; PR-5's GC sidecar
+# deletes long-empty closed accounts after a grace window.
+#
+#   {"status":"closed","closed_at":<unix-epoch>}
+
+set -e
+[ $# -eq 1 ] || exit 1
+address="$1"
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$name" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+now=$(date -u +%s)
+sqlite3 "$db" "UPDATE accounts SET closed_at = $now, last_api_call_at = $now WHERE address = $(sql_quote "$address");"
+
+if command -v secret >/dev/null 2>&1; then
+	secret rm "lightning.account.$address.apikey" 2>/dev/null || true
+fi
+
+printf '{"status":"closed","closed_at":%d}\n' "$now"
