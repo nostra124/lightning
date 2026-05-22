@@ -600,9 +600,9 @@ cmd_topup_watcher() {
 			sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'in', $amount_msat, 'on-chain', $(sql_quote "$pmt_hash"), 'topup-watcher');"
 			if [ "$operator_fee_msat" -gt 0 ]; then
 				sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
-				sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, 'on-chain', $(sql_quote "$pmt_hash"), 'operator fee');"
+				sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, 'on-chain', $(sql_quote "$pmt_hash"), 'fee:topup-onchain');"
 				sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
-				sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, 'on-chain', $(sql_quote "$pmt_hash"), $(sql_quote "fee from $name"));"
+				sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, 'on-chain', $(sql_quote "$pmt_hash"), $(sql_quote "fee:topup-onchain from $name"));"
 			fi
 			sql+=" COMMIT;"
 			sqlite3 "$db" "$sql"

@@ -4773,3 +4773,127 @@ _acct213_teardown() {
 # The FEAT-213 spec assertion lives in its own batch spec PR
 # (FEAT-213..220); this implementation PR doesn't carry it directly.
 # A spec-existence test would fail in CI until the spec PR merges.
+
+# ---------------------------------------------------------------------------
+# FEAT-214: fee revenue dashboard verb.
+# ---------------------------------------------------------------------------
+
+_acct214_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='rent';")
+}
+
+_acct214_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-214: fee-policy with no subcommand prints usage" {
+	_acct214_setup
+	run "$LIGHTNING_BIN" fee-policy
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"usage: lightning fee-policy"* ]]
+	_acct214_teardown
+}
+
+@test "FEAT-214: fee-policy show-rates reads fees.recfile" {
+	_acct214_setup
+	run "$LIGHTNING_BIN" fee-policy show-rates
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"pay"* ]]
+	[[ "$output" == *"5000"* ]]    # the default pay rate_ppm
+	[[ "$output" == *"withdraw"* ]]
+	[[ "$output" == *"topup-onchain"* ]]
+	_acct214_teardown
+}
+
+@test "FEAT-214: fee-policy status reports empty state before any skim" {
+	_acct214_setup
+	run "$LIGHTNING_BIN" fee-policy status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"no revenue yet"* ]]
+	_acct214_teardown
+}
+
+@test "FEAT-214: fee-policy status aggregates after activity" {
+	_acct214_setup
+	# Drive a topup skim (200-sat skim on 100k deposit).
+	outs=$(jq -nc --arg a "$BATS_ADDR" \
+		'[{"txid":"d1","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	# And a pay skim (1-sat skim on 1-sat mock-invoice).
+	"$LIGHTNING_BIN" api-account-pay "$BATS_ADDR" "lnbcrt1n1pmocktest" >/dev/null 2>&1
+
+	run "$LIGHTNING_BIN" fee-policy status
+	[ "$status" -eq 0 ]
+	# Total = 200 (topup) + 1 (pay) = 201 sat
+	[[ "$output" == *"total_revenue_sat: 201"* ]]
+	# Per-op breakdown lists both
+	[[ "$output" == *"topup-onchain"* ]]
+	[[ "$output" == *"200"* ]]
+	[[ "$output" == *"pay"* ]]
+	_acct214_teardown
+}
+
+@test "FEAT-214: fee-policy status --since filters out earlier rows" {
+	_acct214_setup
+	# Inject a historical skim 10 days ago.
+	sqlite3 "$BATS_DB" "INSERT OR IGNORE INTO accounts(name, description, overdraft) VALUES('house', 'operator fee revenue', 'allow');"
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now','-10 days'), 'house', 'in', 50000, 'deadbeef', 'fee:pay from rent');"
+	# And a fresh one today.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now'), 'house', 'in', 25000, 'cafebabe', 'fee:pay from rent');"
+	# --since yesterday should see only today's 25-sat row.
+	local since; since=$(date -u -d "1 day ago" +%Y-%m-%d 2>/dev/null || date -v-1d +%Y-%m-%d)
+	run "$LIGHTNING_BIN" fee-policy status --since "$since"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"total_revenue_sat: 25"* ]]
+	_acct214_teardown
+}
+
+@test "FEAT-214: fee-policy status --since rejects malformed dates" {
+	_acct214_setup
+	run "$LIGHTNING_BIN" fee-policy status --since "yesterday"
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"YYYY-MM-DD"* ]]
+	_acct214_teardown
+}
+
+@test "FEAT-214: per-operation buckets correctly tag skim sources" {
+	_acct214_setup
+	# Topup skim
+	outs=$(jq -nc --arg a "$BATS_ADDR" \
+		'[{"txid":"d1","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	# Pay skim
+	"$LIGHTNING_BIN" api-account-pay "$BATS_ADDR" "lnbcrt1n1pmocktest" >/dev/null 2>&1
+
+	# Check ledger has the new fee:<op> tagging.
+	local n_pay n_topup
+	n_pay=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM ledger WHERE account='house' AND message LIKE 'fee:pay%';")
+	n_topup=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM ledger WHERE account='house' AND message LIKE 'fee:topup-onchain%';")
+	[ "$n_pay" = "1" ]
+	[ "$n_topup" = "1" ]
+	_acct214_teardown
+}
+
+@test "FEAT-214: top-level help mentions fee-policy" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"fee-policy"* ]]
+}
+
+@test "FEAT-214: spec file exists with the expected id" {
+	for cand in \
+		"$BATS_TEST_DIRNAME/../../issues/feature/214-fee-revenue-dashboard.md" \
+		"$BATS_TEST_DIRNAME/../../issues/feature/done/214-fee-revenue-dashboard.md"; do
+		[ -f "$cand" ] && f="$cand" && break
+	done
+	[ -n "$f" ]
+	grep -q "^id: FEAT-214" "$f"
+	grep -q "fee-policy status" "$f"
+}

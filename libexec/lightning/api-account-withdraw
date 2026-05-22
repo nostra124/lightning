@@ -83,9 +83,9 @@ sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
 sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$amount_msat, $(sql_quote "$dest"), $(sql_quote "swap $swap_id"));"
 if [ "$operator_fee_msat" -gt 0 ]; then
 	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
-	sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, $(sql_quote "$dest"), $(sql_quote "operator fee (swap $swap_id)"));"
+	sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, $(sql_quote "$dest"), $(sql_quote "fee:withdraw (swap $swap_id)"));"
 	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
-	sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, $(sql_quote "$dest"), $(sql_quote "fee from $name (swap $swap_id)"));"
+	sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, $(sql_quote "$dest"), $(sql_quote "fee:withdraw from $name (swap $swap_id)"));"
 fi
 sql+=" COMMIT;"
 sqlite3 "$db" "$sql" 2>/dev/null || true

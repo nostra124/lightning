@@ -1,0 +1,187 @@
+#!/bin/bash
+# lightning fee-policy — operator-fee visibility (FEAT-214).
+#
+# Subcommands:
+#   status [--since YYYY-MM-DD]    revenue summary, broken down by
+#                                  operation and time window
+#   show-rates                     dump the current fees.recfile
+#                                  (canonical operator-readable
+#                                  view, no parsing surprises)
+#
+# Reads $wallet/state.db (house account's ledger) and
+# $wallet/fees.recfile.  Runs as the operator user; no HTTP
+# involvement at this layer — that lands in a future PR if/when
+# the PWA admin view actually needs it.
+#
+# The house account is populated by FEAT-213's skim verbs.
+# Operation tagging is via `message` field prefixes
+# (`fee:pay`, `fee:withdraw`, `fee:topup-onchain`); ledger
+# entries without a `fee:` prefix are aggregated as "other"
+# — useful for spotting if a new operation grew skim logic
+# without updating its message tag.
+
+set -e
+
+command -v sqlite3 >/dev/null || { echo "lightning: sqlite3 not installed" >&2; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+
+active_wallet_name() {
+	local name="default"
+	[ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
+	echo "$name"
+}
+
+active_db() {
+	local name; name=$(active_wallet_name)
+	local db="$WALLETS_ROOT/$name/state.db"
+	[ -f "$db" ] || { echo "lightning fee-policy: no active wallet (try \`lightning wallet new\`)" >&2; exit 2; }
+	echo "$db"
+}
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning fee-policy <subcommand>
+
+   status [--since YYYY-MM-DD]   revenue + breakdown + top accounts
+   show-rates                    current fees.recfile (formatted)
+EOF
+}
+
+cmd_status() {
+	local since=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--since)
+				since="$2"; shift 2
+				[[ "$since" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || {
+					echo "lightning fee-policy: --since needs YYYY-MM-DD" >&2; exit 1; }
+				;;
+			*) echo "lightning fee-policy status: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	local db; db=$(active_db)
+
+	# Window predicate for SQL.  ts is stored as 'YYYY-MM-DD HH:MM:SS'
+	# from datetime('now'); a date string sorts correctly under TEXT
+	# comparison, so we can compare lexicographically.
+	local ts_pred="1=1"
+	[ -n "$since" ] && ts_pred="ts >= '$since 00:00:00'"
+
+	# Existence check — house may not exist yet if no skim has ever
+	# fired.  Print a clear empty-state message and bail.
+	local house_exists
+	house_exists=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name = 'house';")
+	if [ "$house_exists" = "0" ]; then
+		echo "lightning fee-policy: no revenue yet"
+		echo "  (the house account is created lazily on the first non-zero skim)"
+		return 0
+	fi
+
+	# Total revenue (msat → sat).
+	local total_msat
+	total_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account = 'house' AND direction = 'in' AND $ts_pred;")
+	local total_sat=$(( total_msat / 1000 ))
+
+	# Per-operation breakdown.  Bucket by the message-prefix tag
+	# FEAT-214 introduced — fee:pay / fee:withdraw / fee:topup-onchain.
+	# Entries without a tag fall into "other".
+	echo "total_revenue_sat: $total_sat"
+	if [ -n "$since" ]; then
+		echo "window:            since $since"
+	else
+		echo "window:            all time"
+	fi
+	echo ""
+	echo "per-operation revenue:"
+	sqlite3 -separator $'\t' "$db" "
+		SELECT
+			CASE
+				WHEN message LIKE 'fee:pay%'           THEN 'pay'
+				WHEN message LIKE 'fee:withdraw%'      THEN 'withdraw'
+				WHEN message LIKE 'fee:topup-onchain%' THEN 'topup-onchain'
+				WHEN message LIKE 'fee:topup-ln%'      THEN 'topup-ln'
+				WHEN message LIKE 'fee:recv%'          THEN 'recv'
+				ELSE 'other'
+			END AS op,
+			COUNT(*)                 AS n,
+			SUM(amount_msat) / 1000  AS revenue_sat
+		FROM ledger
+		WHERE account = 'house' AND direction = 'in' AND $ts_pred
+		GROUP BY op
+		ORDER BY revenue_sat DESC;" | awk 'BEGIN{printf "  %-15s %10s %15s\n", "op", "count", "revenue_sat"}
+		{printf "  %-15s %10d %15d\n", $1, $2, $3}'
+
+	echo ""
+	echo "daily revenue (last 30 days):"
+	sqlite3 -separator $'\t' "$db" "
+		SELECT date(ts) AS day, SUM(amount_msat) / 1000 AS revenue_sat
+		FROM ledger
+		WHERE account = 'house' AND direction = 'in' AND date(ts) >= date('now', '-30 days') AND $ts_pred
+		GROUP BY day
+		ORDER BY day DESC
+		LIMIT 30;" | awk 'BEGIN{printf "  %-12s %15s\n", "day", "revenue_sat"}
+		{printf "  %-12s %15d\n", $1, $2}'
+
+	echo ""
+	echo "top contributing accounts (last 30 days):"
+	# Anonymise — show only first 8 chars of the address column.
+	# We extract the contributing account name from the message field
+	# (`fee:<op> from <name>`); JOIN against accounts for the address.
+	sqlite3 -separator $'\t' "$db" "
+		SELECT
+			substr(COALESCE(a.address, l.account_from), 1, 8) || '...' AS anon_id,
+			COUNT(*)                  AS n,
+			SUM(l.amount_msat) / 1000 AS revenue_sat
+		FROM (
+			SELECT
+				amount_msat,
+				ts,
+				CASE
+					WHEN message LIKE 'fee:% from %' THEN substr(message, instr(message, 'from ') + 5)
+					ELSE NULL
+				END AS account_from
+			FROM ledger
+			WHERE account = 'house' AND direction = 'in' AND date(ts) >= date('now', '-30 days') AND $ts_pred
+		) l
+		LEFT JOIN accounts a ON a.name = l.account_from
+		WHERE l.account_from IS NOT NULL
+		GROUP BY l.account_from
+		ORDER BY revenue_sat DESC
+		LIMIT 10;" | awk 'BEGIN{printf "  %-12s %10s %15s\n", "account", "count", "revenue_sat"}
+		{printf "  %-12s %10d %15d\n", $1, $2, $3}'
+}
+
+cmd_show_rates() {
+	local wname; wname=$(active_wallet_name)
+	local fees_file="$WALLETS_ROOT/$wname/fees.recfile"
+	if [ ! -f "$fees_file" ]; then
+		echo "lightning fee-policy: no fees.recfile in $wname (no skim active)"
+		return 0
+	fi
+	# Print operation:base:rate rows from the recfile, formatted as
+	# a table.  Skip comment lines + blank lines.
+	awk '
+		BEGIN { RS=""; FS="\n"; printf "  %-18s %12s %12s\n", "operation", "base_sat", "rate_ppm" }
+		{
+			op=""; base=""; rate=""
+			for (i=1; i<=NF; i++) {
+				if ($i ~ /^operation: /) { op=$i; sub(/^operation: */, "", op) }
+				if ($i ~ /^base_sat: /)  { base=$i; sub(/^base_sat: */, "", base) }
+				if ($i ~ /^rate_ppm: /)  { rate=$i; sub(/^rate_ppm: */, "", rate) }
+			}
+			if (op != "") printf "  %-18s %12s %12s\n", op, base, rate
+		}
+	' "$fees_file"
+}
+
+case "${1:-}" in
+	status)     shift; cmd_status "$@" ;;
+	show-rates) shift; cmd_show_rates "$@" ;;
+	"")         usage; exit 1 ;;
+	*)          echo "lightning fee-policy: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac
