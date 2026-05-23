@@ -19,6 +19,10 @@ and routes:
   GET  .../v1/accounts/<id>/referrals      -> referrals (FEAT-218)
   POST .../v1/accounts/<id>/invoice        -> commercial invoice (FEAT-225)
   GET  .../v1/accounts/<id>/invoice/<hash> -> invoice lookup    (FEAT-225)
+  GET  .../v1/accounts/<id>/standing-orders          -> list    (FEAT-226)
+  POST .../v1/accounts/<id>/standing-orders          -> create  (FEAT-226)
+  POST .../v1/accounts/<id>/standing-orders/<so_id>  -> pause/resume
+  DEL  .../v1/accounts/<id>/standing-orders/<so_id>  -> cancel
   POST .../v1/accounts/<id>/close          -> close
 
 All authenticated endpoints require Authorization: Bearer <key>.
@@ -157,6 +161,46 @@ def _recv(account_id, reusable=False):
     _lib.respond("200 OK", result)
 
 
+def _standing_orders(account_id, so_id=None):
+    # FEAT-226 — standing orders.  GET/POST on the collection; POST
+    # (pause/resume) + DELETE (cancel) on a single order.  Account-only.
+    _lib.auth_account(account_id)
+    m = _method()
+    if so_id is None:
+        if m == "GET":
+            result = _lib.call_verb("api-account-standing-order", account_id, "list")
+            _lib.respond("200 OK", result)
+        if m != "POST":
+            _lib.respond("405 Method Not Allowed", {"error": "use_get_or_post"})
+        body = _lib.read_body()
+        target = body.get("target", "")
+        sat = body.get("sat")
+        cadence = str(body.get("cadence", ""))
+        if not isinstance(target, str) or not target:
+            _lib.respond("400 Bad Request", {"error": "target_required"})
+        if not isinstance(sat, int) or sat <= 0:
+            _lib.respond("400 Bad Request", {"error": "sat_required"})
+        if cadence not in ("daily", "weekly", "monthly"):
+            _lib.respond("400 Bad Request", {"error": "bad_cadence"})
+        result = _lib.call_verb("api-account-standing-order", account_id,
+                                "create", target, str(sat), cadence)
+        _lib.respond("201 Created", result)
+    # Single-order operations.
+    if not re.fullmatch(r"so_[0-9a-z]{1,32}", so_id):
+        _lib.respond("400 Bad Request", {"error": "bad_order_id"})
+    if m == "DELETE":
+        result = _lib.call_verb("api-account-standing-order", account_id, "cancel", so_id)
+        _lib.respond("200 OK", result)
+    if m == "POST":
+        body = _lib.read_body()
+        action = str(body.get("action", ""))
+        if action not in ("pause", "resume"):
+            _lib.respond("400 Bad Request", {"error": "bad_action"})
+        result = _lib.call_verb("api-account-standing-order", account_id, action, so_id)
+        _lib.respond("200 OK", result)
+    _lib.respond("405 Method Not Allowed", {"error": "use_post_or_delete"})
+
+
 def _close(account_id):
     if _method() != "POST":
         _lib.respond("405 Method Not Allowed", {"error": "use_post"})
@@ -225,6 +269,9 @@ def main():
     if verb == "invoice":
         # POST .../invoice (create) or GET .../invoice/<payment_hash>.
         _invoice(account_id, tail[1] if len(tail) > 1 else None)
+        return
+    if verb == "standing-orders":
+        _standing_orders(account_id, tail[1] if len(tail) > 1 else None)
         return
     routes = {
         "balance": lambda: _balance(account_id),

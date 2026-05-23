@@ -6134,3 +6134,189 @@ _price229_teardown() {
 	[ -n "$f" ]
 	grep -q "^id: FEAT-229" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-226: standing orders (Dauerauftrag) — scheduled recurring payment.
+# ---------------------------------------------------------------------------
+
+_acct226_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create payer >/dev/null
+	"$LIGHTNING_BIN" account create landlord >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_PAYER_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='payer';")
+	# Fund payer.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES(datetime('now'),'payer','in',100000000,'seed');"
+}
+
+_acct226_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-226: create lands an active order with next_run in the future" {
+	_acct226_setup
+	run "$LIGHTNING_BIN" account standing-order create payer landlord 10000 monthly
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"status":"active"'* ]]
+	local nr now
+	nr=$(sqlite3 "$BATS_DB" "SELECT next_run FROM standing_orders WHERE account='payer';")
+	now=$(date -u +%s)
+	[ "$nr" -gt "$now" ]
+	# Monthly is ~28-31 days out.
+	[ "$nr" -gt "$(( now + 27*86400 ))" ]
+	[ "$nr" -lt "$(( now + 32*86400 ))" ]
+	_acct226_teardown
+}
+
+@test "FEAT-226: create rejects a bad cadence" {
+	_acct226_setup
+	run "$LIGHTNING_BIN" account standing-order create payer landlord 10000 hourly
+	[ "$status" -ne 0 ]
+	_acct226_teardown
+}
+
+@test "FEAT-226: create rejects a single-use BOLT-11 target" {
+	_acct226_setup
+	run "$LIGHTNING_BIN" account standing-order create payer lnbc10n1pmocktest 5000 daily
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"re-payable"* ]]
+	_acct226_teardown
+}
+
+@test "FEAT-226: create accepts a Lightning-address target" {
+	_acct226_setup
+	run "$LIGHTNING_BIN" account standing-order create payer alice@example.com 5000 weekly
+	[ "$status" -eq 0 ]
+	_acct226_teardown
+}
+
+@test "FEAT-226: run pays a due local-account order and advances next_run" {
+	_acct226_setup
+	"$LIGHTNING_BIN" account standing-order create payer landlord 10000 monthly >/dev/null
+	# Force it due.
+	sqlite3 "$BATS_DB" "UPDATE standing_orders SET next_run = strftime('%s','now') - 100;"
+	run "$LIGHTNING_BIN" account standing-order run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"paid":1'* ]]
+	# Ledger moved 10000 sat payer -> landlord.
+	[ "$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='landlord';")" = "10000000" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='payer';")" = "90000000" ]
+	# next_run advanced back into the future, last_run + failures reset.
+	local now nr lr
+	now=$(date -u +%s)
+	nr=$(sqlite3 "$BATS_DB" "SELECT next_run FROM standing_orders WHERE account='payer';")
+	lr=$(sqlite3 "$BATS_DB" "SELECT COALESCE(last_run,0) FROM standing_orders WHERE account='payer';")
+	[ "$nr" -gt "$now" ]
+	[ "$lr" -gt "0" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT failures FROM standing_orders WHERE account='payer';")" = "0" ]
+	_acct226_teardown
+}
+
+@test "FEAT-226: run skips a not-yet-due order" {
+	_acct226_setup
+	"$LIGHTNING_BIN" account standing-order create payer landlord 10000 monthly >/dev/null
+	run "$LIGHTNING_BIN" account standing-order run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"paid":0'* ]]
+	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='landlord';")" = "0" ]
+	_acct226_teardown
+}
+
+@test "FEAT-226: run skips a paused order" {
+	_acct226_setup
+	"$LIGHTNING_BIN" account standing-order create payer landlord 10000 monthly >/dev/null
+	local id
+	id=$(sqlite3 "$BATS_DB" "SELECT id FROM standing_orders WHERE account='payer';")
+	"$LIGHTNING_BIN" account standing-order pause "$id" >/dev/null
+	sqlite3 "$BATS_DB" "UPDATE standing_orders SET next_run = strftime('%s','now') - 100;"
+	run "$LIGHTNING_BIN" account standing-order run
+	[[ "$output" == *'"paid":0'* ]]
+	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='landlord';")" = "0" ]
+	_acct226_teardown
+}
+
+@test "FEAT-226: pause/resume/cancel transition status" {
+	_acct226_setup
+	"$LIGHTNING_BIN" account standing-order create payer landlord 10000 monthly >/dev/null
+	local id
+	id=$(sqlite3 "$BATS_DB" "SELECT id FROM standing_orders WHERE account='payer';")
+	"$LIGHTNING_BIN" account standing-order pause "$id" >/dev/null
+	[ "$(sqlite3 "$BATS_DB" "SELECT status FROM standing_orders WHERE id='$id';")" = "paused" ]
+	"$LIGHTNING_BIN" account standing-order resume "$id" >/dev/null
+	[ "$(sqlite3 "$BATS_DB" "SELECT status FROM standing_orders WHERE id='$id';")" = "active" ]
+	"$LIGHTNING_BIN" account standing-order cancel "$id" >/dev/null
+	[ "$(sqlite3 "$BATS_DB" "SELECT status FROM standing_orders WHERE id='$id';")" = "cancelled" ]
+	_acct226_teardown
+}
+
+@test "FEAT-226: a failed run auto-pauses after N failures" {
+	_acct226_setup
+	# `broke` has no balance + deny overdraft → transfer fails.
+	"$LIGHTNING_BIN" account create broke >/dev/null
+	"$LIGHTNING_BIN" account standing-order create broke landlord 5000 daily >/dev/null
+	sqlite3 "$BATS_DB" "UPDATE standing_orders SET next_run = strftime('%s','now') - 100 WHERE account='broke';"
+	LIGHTNING_STANDING_ORDER_MAX_FAILURES=1 run "$LIGHTNING_BIN" account standing-order run
+	[[ "$output" == *'"paused":1'* ]]
+	[ "$(sqlite3 "$BATS_DB" "SELECT status FROM standing_orders WHERE account='broke';")" = "paused" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT failures FROM standing_orders WHERE account='broke';")" = "1" ]
+	_acct226_teardown
+}
+
+@test "FEAT-226: dry-run does not pay" {
+	_acct226_setup
+	"$LIGHTNING_BIN" account standing-order create payer landlord 10000 monthly >/dev/null
+	sqlite3 "$BATS_DB" "UPDATE standing_orders SET next_run = strftime('%s','now') - 100;"
+	run "$LIGHTNING_BIN" account standing-order dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"would-pay"* ]]
+	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='landlord';")" = "0" ]
+	_acct226_teardown
+}
+
+@test "FEAT-226: HTTP verb create/list/pause/cancel emit JSON" {
+	_acct226_setup
+	local out id
+	out=$("$LIGHTNING_BIN" api-account-standing-order "$BATS_PAYER_ADDR" create landlord 5000 weekly)
+	[[ "$out" == *'"status":"active"'* ]]
+	id=$(echo "$out" | jq -r '.id')
+	[[ "$id" == so_* ]]
+	"$LIGHTNING_BIN" api-account-standing-order "$BATS_PAYER_ADDR" list | jq -e '.standing_orders | length == 1' >/dev/null
+	out=$("$LIGHTNING_BIN" api-account-standing-order "$BATS_PAYER_ADDR" pause "$id")
+	[[ "$out" == *'"status":"paused"'* ]]
+	out=$("$LIGHTNING_BIN" api-account-standing-order "$BATS_PAYER_ADDR" cancel "$id")
+	[[ "$out" == *'"status":"cancelled"'* ]]
+	_acct226_teardown
+}
+
+@test "FEAT-226: HTTP verb scopes orders to the owning account" {
+	_acct226_setup
+	"$LIGHTNING_BIN" account standing-order create landlord payer 1000 daily >/dev/null
+	# payer's list must NOT see landlord's order.
+	"$LIGHTNING_BIN" api-account-standing-order "$BATS_PAYER_ADDR" list | jq -e '.standing_orders | length == 0' >/dev/null
+	_acct226_teardown
+}
+
+@test "FEAT-226: daemon install --standing-orders accepts the flag" {
+	f="$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
+	grep -q "\-\-standing-orders" "$f"
+	grep -q "install_standing_orders_sidecar" "$f"
+	grep -q "STANDING_ORDER_LABEL" "$f"
+}
+
+@test "FEAT-226: sudoers fragment lists api-account-standing-order" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+	grep -q "api-account-standing-order" "$f"
+}
+
+@test "FEAT-226: schema declares standing_orders" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/schema.sql"
+	grep -q "CREATE TABLE IF NOT EXISTS standing_orders" "$f"
+}
+
+@test "FEAT-226: account verb usage lists standing-order" {
+	run "$LIGHTNING_BIN" account
+	[[ "$output" == *"standing-order"* ]]
+}

@@ -81,6 +81,25 @@ CREATE TABLE IF NOT EXISTS commerce_invoices (
     state        TEXT    NOT NULL DEFAULT 'issued'   -- issued | paid
 );
 
+-- FEAT-226 — standing orders (Dauerauftrag).  A scheduled recurring
+-- push payment to a *re-payable* target (LN address, BOLT-12 offer, or
+-- a local account name).  The runner sidecar picks up due rows
+-- (next_run <= now), pays via the normal pay/transfer path (so the
+-- operator fee tier applies), advances next_run by the cadence, and
+-- auto-pauses an order after too many consecutive failures.
+CREATE TABLE IF NOT EXISTS standing_orders (
+    id          TEXT    PRIMARY KEY,            -- so_<base32>
+    account     TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE,
+    target      TEXT    NOT NULL,               -- LN address | BOLT-12 offer | local account
+    sat         INTEGER NOT NULL,
+    cadence     TEXT    NOT NULL,               -- 'daily'|'weekly'|'monthly'
+    next_run    INTEGER NOT NULL,
+    last_run    INTEGER,
+    failures    INTEGER NOT NULL DEFAULT 0,     -- consecutive failed runs
+    status      TEXT    NOT NULL DEFAULT 'active',  -- active|paused|cancelled
+    created_at  INTEGER NOT NULL
+);
+
 -- FEAT-229 — price history.  One row per poll tick.  Stores the BTC
 -- price in a base fiat (whole-unit, e.g. EUR per 1 BTC); per-sat
 -- value is btc_fiat / 1e8, computed at query time.  History (not

@@ -103,6 +103,20 @@ migrate_accounts_schema() {
 		issued_at    INTEGER NOT NULL, \
 		state        TEXT    NOT NULL DEFAULT 'issued' \
 	);" 2>/dev/null || true
+
+	# FEAT-226 — standing orders (scheduled recurring push payments).
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS standing_orders ( \
+		id          TEXT    PRIMARY KEY, \
+		account     TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE, \
+		target      TEXT    NOT NULL, \
+		sat         INTEGER NOT NULL, \
+		cadence     TEXT    NOT NULL, \
+		next_run    INTEGER NOT NULL, \
+		last_run    INTEGER, \
+		failures    INTEGER NOT NULL DEFAULT 0, \
+		status      TEXT    NOT NULL DEFAULT 'active', \
+		created_at  INTEGER NOT NULL \
+	);" 2>/dev/null || true
 }
 
 # FEAT-212 — mint a fresh on-chain address from lightningd; that
@@ -253,6 +267,10 @@ usage: lightning account <subcommand>
                           [--reusable]            BOLT-12 + QR; default BOLT-11
    transfer <from> <to> <sat> [--note <text>]    intra-node move between
                                                  two local accounts
+   standing-order create <handle> <target> <sat> <daily|weekly|monthly>
+                          list [<handle>] | pause|resume|cancel <id>
+                          run | dry-run         scheduled recurring push
+                                                 payment (Dauerauftrag)
 EOF
 }
 
@@ -1237,6 +1255,168 @@ cmd_transfer() {
 	fi
 }
 
+# FEAT-226 — standing orders (Dauerauftrag).  Schedule a recurring
+# push payment to a re-payable target; a sidecar `run` executes due
+# orders.  Operator-side CLI; the HTTP surface is api-account-standing-
+# order (address-keyed) routed through accounts.py.
+_so_mint_id() {
+	local raw
+	raw=$(head -c 10 /dev/urandom | base32 2>/dev/null | tr 'A-Z' 'a-z' | tr -d '=\n' | cut -c1-16)
+	[ -n "$raw" ] || raw=$(head -c 10 /dev/urandom | od -An -tx1 | tr -d ' \n' | cut -c1-16)
+	echo "so_$raw"
+}
+
+# Advance a unix timestamp by one cadence step.  daily/weekly are fixed
+# seconds; monthly is a real calendar month (GNU date, then BSD date,
+# then a 30-day fallback) so "the 1st of the month" stays the 1st.
+_so_advance() {
+	local ts="$1" cadence="$2" n=""
+	case "$cadence" in
+		daily)  echo $(( ts + 86400 )) ;;
+		weekly) echo $(( ts + 604800 )) ;;
+		monthly)
+			local base
+			base=$(date -u -d "@$ts" "+%Y-%m-%dT%H:%M:%S" 2>/dev/null) \
+				&& n=$(date -u -d "$base +1 month" +%s 2>/dev/null)
+			[ -n "$n" ] || n=$(date -u -r "$ts" -v+1m +%s 2>/dev/null)
+			[ -n "$n" ] || n=$(( ts + 2592000 ))
+			echo "$n" ;;
+		*) echo "$ts" ;;
+	esac
+}
+
+# A target is re-payable if it's a local account, a BOLT-12 offer, an
+# LNURL, or a Lightning address.  A single-use BOLT-11 (lnbc*) is NOT.
+_so_validate_target() {
+	local t="$1" db="$2" lower
+	# Local account (by name or address)?
+	[ "$(sqlite3 "$db" "SELECT 1 FROM accounts WHERE (name = $(sql_quote "$t") OR address = $(sql_quote "$t")) LIMIT 1;" 2>/dev/null)" = "1" ] && return 0
+	lower=$(printf '%s' "$t" | tr 'A-Z' 'a-z')
+	case "$lower" in
+		lno*|lnurl*) return 0 ;;
+		*@*.*) return 0 ;;
+		lnbc*|lntb*) return 1 ;;   # single-use invoice — not re-payable
+		*) return 1 ;;
+	esac
+}
+
+cmd_standing_order() {
+	local op="${1:-}"; [ $# -gt 0 ] && shift
+	case "$op" in
+		create) _so_create "$@" ;;
+		list)   _so_list "$@" ;;
+		pause)  _so_transition paused "$@" ;;
+		resume) _so_transition active "$@" ;;
+		cancel) _so_transition cancelled "$@" ;;
+		run|dry-run|--dry-run) _so_run "$op" ;;
+		*) echo "usage: lightning account standing-order {create <handle> <target> <sat> <daily|weekly|monthly>|list [<handle>]|pause <id>|resume <id>|cancel <id>|run|dry-run}" >&2; exit 1 ;;
+	esac
+}
+
+_so_create() {
+	[ $# -lt 4 ] && { echo "usage: lightning account standing-order create <handle> <target> <sat> <daily|weekly|monthly>" >&2; exit 1; }
+	local handle="$1" target="$2" sat="$3" cadence="$4"
+	resolve_account "$handle" || { echo "lightning account standing-order: no such account '$handle'" >&2; exit 2; }
+	local name="$RESOLVED_NAME"
+	case "$sat" in ''|*[!0-9]*) echo "lightning account standing-order: <sat> must be a positive integer" >&2; exit 1 ;; esac
+	[ "$sat" -gt 0 ] || { echo "lightning account standing-order: <sat> must be > 0" >&2; exit 1; }
+	case "$cadence" in daily|weekly|monthly) ;; *) echo "lightning account standing-order: cadence must be daily|weekly|monthly" >&2; exit 1 ;; esac
+	local db; db=$(active_db)
+	_so_validate_target "$target" "$db" || { echo "lightning account standing-order: target '$target' is not re-payable (use a local account, BOLT-12 offer, LNURL, or LN address — not a single-use BOLT-11)" >&2; exit 1; }
+	local now id next
+	now=$(date -u +%s)
+	id=$(_so_mint_id)
+	next=$(_so_advance "$now" "$cadence")
+	sqlite3 "$db" "INSERT INTO standing_orders(id, account, target, sat, cadence, next_run, created_at) \
+		VALUES($(sql_quote "$id"), $(sql_quote "$name"), $(sql_quote "$target"), $sat, $(sql_quote "$cadence"), $next, $now);"
+	jq -nc --arg id "$id" --arg acct "$name" --arg target "$target" \
+		--argjson sat "$sat" --arg cadence "$cadence" --argjson next "$next" \
+		'{id:$id, account:$acct, target:$target, sat:$sat, cadence:$cadence, next_run:$next, status:"active"}'
+}
+
+_so_list() {
+	local db; db=$(active_db)
+	if [ $# -ge 1 ]; then
+		resolve_account "$1" || { echo "lightning account standing-order: no such account '$1'" >&2; exit 2; }
+		sqlite3 -header -separator $'\t' "$db" \
+			"SELECT id, account, target, sat, cadence, next_run, COALESCE(last_run,'') AS last_run, failures, status \
+			 FROM standing_orders WHERE account = $(sql_quote "$RESOLVED_NAME") ORDER BY next_run;"
+	else
+		sqlite3 -header -separator $'\t' "$db" \
+			"SELECT id, account, target, sat, cadence, next_run, COALESCE(last_run,'') AS last_run, failures, status \
+			 FROM standing_orders ORDER BY next_run;"
+	fi
+}
+
+_so_transition() {
+	local new_status="$1" id="$2"
+	[ -n "$id" ] || { echo "usage: lightning account standing-order {pause|resume|cancel} <id>" >&2; exit 1; }
+	local db; db=$(active_db)
+	[ "$(sqlite3 "$db" "SELECT 1 FROM standing_orders WHERE id = $(sql_quote "$id") LIMIT 1;")" = "1" ] || {
+		echo "lightning account standing-order: no such order '$id'" >&2; exit 2; }
+	sqlite3 "$db" "UPDATE standing_orders SET status = $(sql_quote "$new_status") WHERE id = $(sql_quote "$id");"
+	jq -nc --arg id "$id" --arg status "$new_status" '{id:$id, status:$status}'
+}
+
+# Pay one order's target on behalf of the account.  Local-account
+# targets go through the atomic transfer verb; external re-payable
+# targets reuse the pay-string dispatch.  Returns the underlying exit.
+_so_pay() {
+	local from_name="$1" target="$2" sat="$3" db="$4" lower
+	if [ "$(sqlite3 "$db" "SELECT 1 FROM accounts WHERE (name = $(sql_quote "$target") OR address = $(sql_quote "$target")) LIMIT 1;" 2>/dev/null)" = "1" ]; then
+		"$SELF_LIBEXEC/lightning/account" transfer "$from_name" "$target" "$sat" --note "standing-order"
+		return $?
+	fi
+	lower=$(printf '%s' "$target" | tr 'A-Z' 'a-z')
+	case "$lower" in
+		lno*)        "$SELF_LIBEXEC/lightning/offer" pay "$target" "$sat" --account "$from_name" ;;
+		lnurl*|*@*.*) "$SELF_LIBEXEC/lightning/lnurl" pay "$target" --account "$from_name" ;;
+		*) return 1 ;;
+	esac
+}
+
+_so_run() {
+	local dry=0
+	case "${1:-run}" in run) dry=0 ;; dry-run|--dry-run) dry=1 ;; esac
+	local db; db=$(active_db)
+	local now maxf
+	now=$(date -u +%s)
+	maxf="${LIGHTNING_STANDING_ORDER_MAX_FAILURES:-3}"
+	case "$maxf" in ''|*[!0-9]*) maxf=3 ;; esac
+	[ "$maxf" -ge 1 ] || maxf=1
+	local due
+	due=$(sqlite3 -separator $'\t' "$db" \
+		"SELECT id, account, target, sat, cadence, COALESCE(failures,0) \
+		 FROM standing_orders WHERE status = 'active' AND next_run <= $now ORDER BY next_run;")
+	local paid=0 failed=0 paused=0
+	local id acct target sat cadence failures
+	while IFS=$'\t' read -r id acct target sat cadence failures; do
+		[ -n "$id" ] || continue
+		if [ "$dry" -eq 1 ]; then
+			printf 'would-pay\t%s\t%s\t%s\t%s sat\n' "$id" "$acct" "$target" "$sat"
+			continue
+		fi
+		if _so_pay "$acct" "$target" "$sat" "$db" >/dev/null 2>&1; then
+			local next; next=$(_so_advance "$now" "$cadence")
+			sqlite3 "$db" "UPDATE standing_orders SET last_run = $now, next_run = $next, failures = 0 WHERE id = $(sql_quote "$id");"
+			paid=$((paid + 1))
+			printf 'paid\t%s\t%s\t%s\t%s sat\tnext %s\n' "$id" "$acct" "$target" "$sat" "$next"
+		else
+			local nf=$((failures + 1))
+			if [ "$nf" -ge "$maxf" ]; then
+				sqlite3 "$db" "UPDATE standing_orders SET failures = $nf, status = 'paused' WHERE id = $(sql_quote "$id");"
+				paused=$((paused + 1))
+				printf 'paused-after-failures\t%s\t%s\t%s\t%d failures\n' "$id" "$acct" "$target" "$nf" >&2
+			else
+				sqlite3 "$db" "UPDATE standing_orders SET failures = $nf WHERE id = $(sql_quote "$id");"
+				failed=$((failed + 1))
+				printf 'failed\t%s\t%s\t%s\t%d/%d\n' "$id" "$acct" "$target" "$nf" "$maxf" >&2
+			fi
+		fi
+	done <<<"$due"
+	printf '{"paid":%d,"failed":%d,"paused":%d}\n' "$paid" "$failed" "$paused"
+}
+
 case "${1:-}" in
 	list)     shift; cmd_list "$@" ;;
 	create)   shift; cmd_create "$@" ;;
@@ -1253,6 +1433,7 @@ case "${1:-}" in
 	pay)      shift; cmd_pay "$@" ;;
 	receive)  shift; cmd_receive "$@" ;;
 	transfer) shift; cmd_transfer "$@" ;;
+	standing-order) shift; cmd_standing_order "$@" ;;
 	"")       usage; exit 1 ;;
 	*)        echo "lightning account: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac

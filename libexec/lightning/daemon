@@ -28,6 +28,7 @@ TOPUP_WATCHER_LABEL="network.lightning.topup-watcher"
 ACCOUNT_GC_LABEL="network.lightning.account-gc"
 FEE_AUTOTUNE_LABEL="network.lightning.fee-autotune"
 PRICE_ORACLE_LABEL="network.lightning.price-oracle"
+STANDING_ORDER_LABEL="network.lightning.standing-orders"
 LIGHTNING_CONF="$LIGHTNING_DIR/config"
 BACKEND_BLOCK_BEGIN="# >>> lightning backend — managed by 'daemon install'"
 BACKEND_BLOCK_END="# <<< lightning backend"
@@ -664,7 +665,7 @@ cmd_install() {
 	#   -1  leave backend config alone
 	#    1  enable trustedcoin (multi-explorer fallback)
 	#    0  disable any managed backend block (back to bitcoind/bcli)
-	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0 autopilot=0 topup_watcher=0 account_gc=0 fee_autotune=0 price_oracle=0
+	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0 autopilot=0 topup_watcher=0 account_gc=0 fee_autotune=0 price_oracle=0 standing_orders=0
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--system)      system=1; shift ;;
@@ -680,6 +681,7 @@ cmd_install() {
 			--account-gc)  account_gc=1; shift ;;
 			--fee-autotune) fee_autotune=1; shift ;;
 			--price-oracle) price_oracle=1; shift ;;
+			--standing-orders) standing_orders=1; shift ;;
 			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
@@ -758,6 +760,12 @@ cmd_install() {
 	# FEAT-229 sidecar — price oracle poller.  15-min cadence.  Same gate.
 	if [ "$price_oracle" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
 		install_price_oracle_sidecar
+	fi
+
+	# FEAT-226 sidecar — standing-order runner.  Hourly cadence (finer
+	# than daily so a freshly-due order fires within the hour).  Same gate.
+	if [ "$standing_orders" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
+		install_standing_orders_sidecar
 	fi
 }
 
@@ -1408,6 +1416,88 @@ EOF
 	info "wrote $dir/lightning-price-oracle.{service,timer}"
 	info "  config:  \$wallet/price.recfile (base + feed url)"
 	info "  enable + start with: systemctl --user enable --now lightning-price-oracle.timer"
+}
+
+# FEAT-226 — standing-order runner sidecar.  Hourly cadence: picks up
+# due orders (next_run <= now), pays via the normal pay/transfer path,
+# advances next_run.  Same launchd / systemd-user pattern as the others.
+install_standing_orders_sidecar() {
+	local self_bin="$SELF_LIBEXEC/../bin/lightning"
+	self_bin=$(cd "$(dirname "$self_bin")" && pwd)/$(basename "$self_bin")
+
+	if is_macos; then
+		local plist="$HOME/Library/LaunchAgents/${STANDING_ORDER_LABEL}.plist"
+		mkdir -p "$(dirname "$plist")"
+		cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${STANDING_ORDER_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${self_bin}</string>
+        <string>account</string>
+        <string>standing-order</string>
+        <string>run</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LIGHTNING_DIR</key>
+        <string>${LIGHTNING_DIR}</string>
+        <key>LIGHTNING_NETWORK</key>
+        <string>${LIGHTNING_NETWORK}</string>
+        <key>PATH</key>
+        <string>${PATH}</string>
+        <key>SELF_QUIET</key>
+        <string>1</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>3600</integer>
+    <key>StandardOutPath</key>
+    <string>${LIGHTNING_DIR}/standing-orders.log</string>
+    <key>StandardErrorPath</key>
+    <string>${LIGHTNING_DIR}/standing-orders.log</string>
+</dict>
+</plist>
+EOF
+		info "wrote $plist (standing-orders sidecar)"
+		info "  triggers: hourly"
+		return 0
+	fi
+
+	local dir="$HOME/.config/systemd/user"
+	mkdir -p "$dir"
+	cat > "$dir/lightning-standing-orders.service" <<EOF
+[Unit]
+Description=Lightning standing-order runner (FEAT-226)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=SELF_QUIET=1
+Environment=LIGHTNING_DIR=$LIGHTNING_DIR
+Environment=LIGHTNING_NETWORK=$LIGHTNING_NETWORK
+ExecStart=$self_bin account standing-order run
+EOF
+	cat > "$dir/lightning-standing-orders.timer" <<EOF
+[Unit]
+Description=Lightning standing-orders timer (hourly)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1h
+Unit=lightning-standing-orders.service
+
+[Install]
+WantedBy=timers.target
+EOF
+	systemctl --user daemon-reload 2>/dev/null || true
+	info "wrote $dir/lightning-standing-orders.{service,timer}"
+	info "  enable + start with: systemctl --user enable --now lightning-standing-orders.timer"
 }
 
 install_macos_system() {

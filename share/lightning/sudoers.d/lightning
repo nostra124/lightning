@@ -34,6 +34,9 @@ www-data ALL=(alice) NOPASSWD: \
     /usr/local/bin/lightning api-account-invoice-get   bc1* *, \
     /usr/local/bin/lightning api-account-invoice-get   tb1* *, \
     /usr/local/bin/lightning api-account-invoice-get   bcrt1* *, \
+    /usr/local/bin/lightning api-account-standing-order bc1* *, \
+    /usr/local/bin/lightning api-account-standing-order tb1* *, \
+    /usr/local/bin/lightning api-account-standing-order bcrt1* *, \
     /usr/local/bin/lightning price now --base [A-Z]*, \
     /usr/local/bin/lightning api-account-verify        bc1* *, \
     /usr/local/bin/lightning api-account-verify        tb1* *, \
