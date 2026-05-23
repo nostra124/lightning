@@ -134,6 +134,39 @@ CREATE TABLE IF NOT EXISTS mandate_pulls (
     created_at  INTEGER NOT NULL
 );
 
+-- FEAT-228 — commerce charge lifecycle.  An intra-node merchant↔
+-- customer charge that moves through a state machine over time:
+-- escrow (hold/release/expire), auth-and-capture (authorize/capture/
+-- void), refund (full/partial), installments, and dunning (overdue
+-- handling driven by FEAT-225 terms).  Money moves are intra-node
+-- ledger transfers; in-flight funds sit in the `escrow` account.
+-- `commerce_events` is the append-only audit trail (basis for the
+-- FEAT-230 tax export).
+CREATE TABLE IF NOT EXISTS commerce_charges (
+    id                TEXT    PRIMARY KEY,          -- chg_<base32>
+    merchant          TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE,
+    customer          TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE,
+    amount_sat        INTEGER NOT NULL,
+    captured_sat      INTEGER NOT NULL DEFAULT 0,
+    refunded_sat      INTEGER NOT NULL DEFAULT 0,
+    installments_n    INTEGER NOT NULL DEFAULT 0,
+    installments_paid INTEGER NOT NULL DEFAULT 0,
+    reference         TEXT,                         -- FEAT-225 order/shipment ref
+    terms             TEXT,                         -- FEAT-225 terms (dunning)
+    state             TEXT    NOT NULL DEFAULT 'issued',
+    created_at        INTEGER NOT NULL,
+    due_at            INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS commerce_events (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    charge     TEXT    NOT NULL REFERENCES commerce_charges(id) ON DELETE CASCADE,
+    event      TEXT    NOT NULL,
+    amount_sat INTEGER NOT NULL DEFAULT 0,
+    ts         INTEGER NOT NULL,
+    detail     TEXT
+);
+
 -- FEAT-229 — price history.  One row per poll tick.  Stores the BTC
 -- price in a base fiat (whole-unit, e.g. EUR per 1 BTC); per-sat
 -- value is btc_fiat / 1e8, computed at query time.  History (not
@@ -194,3 +227,7 @@ INSERT OR IGNORE INTO accounts(name, description, overdraft)
 
 -- Seed the unassigned account so the SET DEFAULT FK lands somewhere.
 INSERT OR IGNORE INTO accounts(name, description) VALUES('-', 'unassigned');
+
+-- FEAT-228 — escrow holding account (funds in flight customer↔merchant).
+INSERT OR IGNORE INTO accounts(name, description, overdraft)
+    VALUES('escrow', 'commerce escrow holding', 'allow');

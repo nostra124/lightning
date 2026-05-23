@@ -849,3 +849,139 @@ def test_mandate_charge_requires_no_bearer_but_pulls_do(api_dir, bin_shim, light
                        REQUEST_METHOD="POST"))
     status, _, _ = parse(proc)
     assert "401" in status
+
+
+# --- FEAT-228 commerce charge lifecycle -----------------------------------
+
+
+CHG = "chg_abcdef0123456789"
+
+
+def test_charge_create_returns_201(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"id":"' + CHG + '","merchant":"shop","customer":"buyer","amount_sat":20000,"state":"issued"}'
+    lightning_stub({"api-account-verify": (0, ""), "api-account-charge": (0, body)})
+    payload = json.dumps({"customer": "buyer", "amount_sat": 20000,
+                          "reference": {"order_id": "O1"}, "due_days": 14}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/charges",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "201" in status
+    assert "issued" in body_out
+
+
+def test_charge_create_missing_amount_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-charge": (0, "{}")})
+    payload = json.dumps({"customer": "buyer"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/charges",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "amount_required" in body_out
+
+
+def test_charge_list_returns_200(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"charges":[{"id":"' + CHG + '","customer":"buyer","state":"issued"}]}'
+    lightning_stub({"api-account-verify": (0, ""), "api-account-charge": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/charges")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "buyer" in body_out
+
+
+def test_charge_show_returns_200(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"id":"' + CHG + '","state":"released","events":[]}'
+    lightning_stub({"api-account-verify": (0, ""), "api-account-charge": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/charges/{CHG}")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "released" in body_out
+
+
+def test_charge_hold_action(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"id":"' + CHG + '","state":"held"}'
+    lightning_stub({"api-account-verify": (0, ""), "api-account-charge": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/charges/{CHG}/hold",
+                                   REQUEST_METHOD="POST")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "held" in body_out
+
+
+def test_charge_capture_requires_sat(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-charge": (0, "{}")})
+    payload = json.dumps({}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/charges/{CHG}/capture",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "sat_required" in body_out
+
+
+def test_charge_installments_requires_n(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-charge": (0, "{}")})
+    payload = json.dumps({"n": 1}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/charges/{CHG}/installments",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "n_required" in body_out
+
+
+def test_charge_bad_state_maps_to_402(api_dir, bin_shim, lightning_stub, cgi, parse):
+    # Verb exits 6 on a bad-state transition; call_verb maps 6 -> 402.
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-charge": (6, '{"error":"bad_state"}')})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/charges/{CHG}/release",
+                                   REQUEST_METHOD="POST")))
+    status, _, body_out = parse(proc)
+    assert "402" in status
+    assert "bad_state" in body_out
+
+
+def test_charge_unknown_action_returns_404(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-charge": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/charges/{CHG}/explode",
+                                   REQUEST_METHOD="POST")))
+    status, _, _ = parse(proc)
+    assert "404" in status
+
+
+def test_charge_bad_id_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-charge": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/charges/NOT-an-id")))
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "bad_charge_id" in body_out
+
+
+def test_charge_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-charge": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim, PATH_INFO=f"/{ID}/charges"))
+    status, _, _ = parse(proc)
+    assert "401" in status

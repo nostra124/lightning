@@ -1,0 +1,271 @@
+#!/bin/bash
+# lightning api-account-charge <merchant-address> <op> [args]   (FEAT-228)
+#
+# Intra-node commerce charge lifecycle: a merchant-driven charge against
+# a local customer account that walks a small state machine over time.
+# Money moves are intra-node ledger transfers (FEAT-223 convention:
+# debit = negative amount_msat / 'out', credit = positive / 'in'); funds
+# in flight sit in the `escrow` holding account.  Every transition is
+# appended to commerce_events (audit trail + FEAT-230 tax-export basis).
+#
+#   draft/issued --hold--> held --release--> released --refund--> refunded
+#   issued --authorize--> authorized --capture--> captured
+#                                     \--void----> voided
+#   issued --installments N--> (pay-installment xN) --> paid
+#   issued --dun--> overdue --dun--> dunning_1 --dun--> dunning_2 ...
+#
+# Operations (merchant address is always $1):
+#   create <customer> <amount_sat> [--ref <json>] [--terms <json>] [--due-days N]
+#   hold <id> | release <id> | refund <id> [--sat N]
+#   authorize <id> | capture <id> <sat> | void <id>
+#   installments <id> <n> | pay-installment <id>
+#   dun <id> | list | show <id>
+#
+# Exit codes: 0 ok · 2 bad args · 4 unknown · 6 rule violation
+# (bad state / insufficient funds / cap).
+
+set -e
+[ $# -ge 2 ] || exit 1
+address="$1"; op="$2"; shift 2
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+command -v jq >/dev/null || { echo '{"error":"jq not installed"}'; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+merchant=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$merchant" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+now=$(date -u +%s)
+sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
+# Ensure the escrow holding account exists (lazy bootstrap).
+sqlite3 "$db" "INSERT OR IGNORE INTO accounts(name, description, overdraft) VALUES('escrow','commerce escrow holding','allow');" 2>/dev/null || true
+
+mint_id() {
+	local raw
+	raw=$(head -c 10 /dev/urandom | base32 2>/dev/null | tr 'A-Z' 'a-z' | tr -d '=\n' | cut -c1-16)
+	[ -n "$raw" ] || raw=$(head -c 10 /dev/urandom | od -An -tx1 | tr -d ' \n' | cut -c1-16)
+	echo "chg_$raw"
+}
+
+# Atomic intra-node ledger move (debit from, credit to).  tag is the
+# correlation id (the charge id); msg is the human label.
+_move() {
+	local from="$1" to="$2" sat="$3" tag="$4" msg="$5" msat
+	msat=$(( sat * 1000 ))
+	local sql="BEGIN;"
+	sql+=" INSERT INTO ledger(ts,account,direction,amount_msat,peer,payment_hash,message)"
+	sql+=" VALUES(datetime('now'),$(sql_quote "$from"),'out',-$msat,$(sql_quote "to:$to"),$(sql_quote "$tag"),$(sql_quote "$msg"));"
+	sql+=" INSERT INTO ledger(ts,account,direction,amount_msat,peer,payment_hash,message)"
+	sql+=" VALUES(datetime('now'),$(sql_quote "$to"),'in',$msat,$(sql_quote "from:$from"),$(sql_quote "$tag"),$(sql_quote "$msg"));"
+	sql+=" COMMIT;"
+	sqlite3 "$db" "$sql"
+}
+
+# True unless debiting `acct` by `sat` would breach a deny overdraft.
+_debit_ok() {
+	local acct="$1" sat="$2" bal od
+	bal=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account = $(sql_quote "$acct");")
+	od=$(sqlite3 "$db" "SELECT COALESCE(overdraft,'deny') FROM accounts WHERE name = $(sql_quote "$acct");")
+	[ "$od" != "deny" ] || [ "$(( bal - sat * 1000 ))" -ge 0 ]
+}
+
+_event() {
+	local chg="$1" ev="$2" sat="${3:-0}" detail="${4:-}"
+	sqlite3 "$db" "INSERT INTO commerce_events(charge, event, amount_sat, ts, detail) \
+		VALUES($(sql_quote "$chg"), $(sql_quote "$ev"), $sat, $now, $([ -n "$detail" ] && sql_quote "$detail" || echo NULL));"
+}
+
+# Load a charge scoped to this merchant -> CH_* globals; 1 if absent.
+CH_CUSTOMER=""; CH_AMOUNT=""; CH_CAPTURED=""; CH_REFUNDED=""; CH_IN=""; CH_IP=""; CH_TERMS=""; CH_STATE=""; CH_DUE=""
+_load() {
+	local id="$1" row
+	row=$(sqlite3 -separator $'\t' "$db" "SELECT customer, amount_sat, captured_sat, refunded_sat, \
+		installments_n, installments_paid, state, COALESCE(due_at,0) \
+		FROM commerce_charges WHERE id = $(sql_quote "$id") AND merchant = $(sql_quote "$merchant");")
+	[ -n "$row" ] || return 1
+	IFS=$'\t' read -r CH_CUSTOMER CH_AMOUNT CH_CAPTURED CH_REFUNDED CH_IN CH_IP CH_STATE CH_DUE <<<"$row"
+	CH_TERMS=$(sqlite3 "$db" "SELECT terms FROM commerce_charges WHERE id = $(sql_quote "$id");")
+	return 0
+}
+
+_emit() {
+	# $1 id  ->  the charge object as JSON.
+	sqlite3 -separator $'\t' "$db" "SELECT id, merchant, customer, amount_sat, captured_sat, refunded_sat, \
+		installments_n, installments_paid, state, created_at, COALESCE(due_at,0) \
+		FROM commerce_charges WHERE id = $(sql_quote "$1");" \
+		| jq -cR -n 'input | split("\t") | {id:.[0], merchant:.[1], customer:.[2],
+			amount_sat:(.[3]|tonumber), captured_sat:(.[4]|tonumber), refunded_sat:(.[5]|tonumber),
+			installments_n:(.[6]|tonumber), installments_paid:(.[7]|tonumber),
+			state:.[8], created_at:(.[9]|tonumber), due_at:(.[10]|tonumber)}'
+}
+
+case "$op" in
+	create)
+		[ $# -ge 2 ] || { echo '{"error":"usage_create"}'; exit 2; }
+		customer="$1"; amount="$2"; shift 2
+		ref_json=""; terms_json=""; due_days=""
+		while [ $# -gt 0 ]; do
+			case "$1" in
+				--ref)   ref_json="$2"; shift 2 ;;
+				--terms) terms_json="$2"; shift 2 ;;
+				--due-days) due_days="$2"; shift 2 ;;
+				*) echo '{"error":"unknown_flag"}'; exit 2 ;;
+			esac
+		done
+		case "$amount" in ''|*[!0-9]*) echo '{"error":"bad_amount"}'; exit 2 ;; esac
+		[ "$amount" -gt 0 ] || { echo '{"error":"bad_amount"}'; exit 2; }
+		cust_name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE name = $(sql_quote "$customer") OR address = $(sql_quote "$customer");")
+		[ -n "$cust_name" ] || { echo '{"error":"unknown_customer"}'; exit 4; }
+		[ "$cust_name" != "$merchant" ] || { echo '{"error":"customer_is_merchant"}'; exit 2; }
+		[ -z "$ref_json" ]   || jq -e . >/dev/null 2>&1 <<<"$ref_json"   || { echo '{"error":"ref_not_json"}'; exit 2; }
+		[ -z "$terms_json" ] || jq -e . >/dev/null 2>&1 <<<"$terms_json" || { echo '{"error":"terms_not_json"}'; exit 2; }
+		due_at="NULL"
+		case "$due_days" in
+			"") ;;
+			*[!0-9]*) echo '{"error":"bad_due_days"}'; exit 2 ;;
+			*) due_at=$(( now + due_days * 86400 )) ;;
+		esac
+		id=$(mint_id)
+		sqlite3 "$db" "INSERT INTO commerce_charges(id, merchant, customer, amount_sat, reference, terms, state, created_at, due_at) \
+			VALUES($(sql_quote "$id"), $(sql_quote "$merchant"), $(sql_quote "$cust_name"), $amount, \
+			       $([ -n "$ref_json" ] && sql_quote "$ref_json" || echo NULL), \
+			       $([ -n "$terms_json" ] && sql_quote "$terms_json" || echo NULL), \
+			       'issued', $now, $due_at);"
+		_event "$id" created "$amount"
+		_emit "$id"
+		;;
+	hold|authorize)
+		id="${1:-}"; _load "$id" || { echo '{"error":"unknown_charge"}'; exit 4; }
+		[ "$CH_STATE" = "issued" ] || { echo '{"error":"bad_state"}'; exit 6; }
+		_debit_ok "$CH_CUSTOMER" "$CH_AMOUNT" || { echo '{"error":"insufficient_funds"}'; exit 6; }
+		_move "$CH_CUSTOMER" escrow "$CH_AMOUNT" "$id" "charge:$op" || { echo '{"error":"move_failed"}'; exit 5; }
+		[ "$op" = "hold" ] && newstate="held" || newstate="authorized"
+		sqlite3 "$db" "UPDATE commerce_charges SET state = $(sql_quote "$newstate") WHERE id = $(sql_quote "$id");"
+		_event "$id" "$op" "$CH_AMOUNT"
+		_emit "$id"
+		;;
+	release)
+		id="${1:-}"; _load "$id" || { echo '{"error":"unknown_charge"}'; exit 4; }
+		[ "$CH_STATE" = "held" ] || { echo '{"error":"bad_state"}'; exit 6; }
+		_move escrow "$merchant" "$CH_AMOUNT" "$id" "charge:release" || { echo '{"error":"move_failed"}'; exit 5; }
+		sqlite3 "$db" "UPDATE commerce_charges SET state = 'released' WHERE id = $(sql_quote "$id");"
+		_event "$id" released "$CH_AMOUNT"
+		_emit "$id"
+		;;
+	capture)
+		id="${1:-}"; cap="${2:-}"
+		_load "$id" || { echo '{"error":"unknown_charge"}'; exit 4; }
+		[ "$CH_STATE" = "authorized" ] || { echo '{"error":"bad_state"}'; exit 6; }
+		case "$cap" in ''|*[!0-9]*) echo '{"error":"bad_capture_amount"}'; exit 2 ;; esac
+		[ "$cap" -gt 0 ] && [ "$cap" -le "$CH_AMOUNT" ] || { echo '{"error":"capture_exceeds_authorization"}'; exit 6; }
+		_move escrow "$merchant" "$cap" "$id" "charge:capture" || { echo '{"error":"move_failed"}'; exit 5; }
+		remainder=$(( CH_AMOUNT - cap ))
+		[ "$remainder" -gt 0 ] && { _move escrow "$CH_CUSTOMER" "$remainder" "$id" "charge:capture-remainder" || { echo '{"error":"move_failed"}'; exit 5; }; }
+		sqlite3 "$db" "UPDATE commerce_charges SET state = 'captured', captured_sat = $cap WHERE id = $(sql_quote "$id");"
+		_event "$id" captured "$cap"
+		_emit "$id"
+		;;
+	void)
+		id="${1:-}"; _load "$id" || { echo '{"error":"unknown_charge"}'; exit 4; }
+		[ "$CH_STATE" = "authorized" ] || { echo '{"error":"bad_state"}'; exit 6; }
+		_move escrow "$CH_CUSTOMER" "$CH_AMOUNT" "$id" "charge:void" || { echo '{"error":"move_failed"}'; exit 5; }
+		sqlite3 "$db" "UPDATE commerce_charges SET state = 'voided' WHERE id = $(sql_quote "$id");"
+		_event "$id" voided "$CH_AMOUNT"
+		_emit "$id"
+		;;
+	refund)
+		id="${1:-}"; shift || true
+		_load "$id" || { echo '{"error":"unknown_charge"}'; exit 4; }
+		refund_sat=""
+		while [ $# -gt 0 ]; do
+			case "$1" in --sat) refund_sat="$2"; shift 2 ;; *) echo '{"error":"unknown_flag"}'; exit 2 ;; esac
+		done
+		case "$CH_STATE" in released|captured|paid|partially_refunded) ;; *) echo '{"error":"bad_state"}'; exit 6 ;; esac
+		# Amount that actually reached the merchant.
+		base="$CH_AMOUNT"; [ "$CH_CAPTURED" -gt 0 ] && base="$CH_CAPTURED"
+		refundable=$(( base - CH_REFUNDED ))
+		[ -n "$refund_sat" ] || refund_sat="$refundable"
+		case "$refund_sat" in ''|*[!0-9]*) echo '{"error":"bad_refund_amount"}'; exit 2 ;; esac
+		{ [ "$refund_sat" -gt 0 ] && [ "$refund_sat" -le "$refundable" ]; } || { echo '{"error":"refund_exceeds_refundable"}'; exit 6; }
+		_debit_ok "$merchant" "$refund_sat" || { echo '{"error":"insufficient_funds"}'; exit 6; }
+		_move "$merchant" "$CH_CUSTOMER" "$refund_sat" "$id" "charge:refund" || { echo '{"error":"move_failed"}'; exit 5; }
+		new_refunded=$(( CH_REFUNDED + refund_sat ))
+		[ "$new_refunded" -ge "$base" ] && newstate="refunded" || newstate="partially_refunded"
+		sqlite3 "$db" "UPDATE commerce_charges SET state = $(sql_quote "$newstate"), refunded_sat = $new_refunded WHERE id = $(sql_quote "$id");"
+		_event "$id" refunded "$refund_sat"
+		_emit "$id"
+		;;
+	installments)
+		id="${1:-}"; n="${2:-}"
+		_load "$id" || { echo '{"error":"unknown_charge"}'; exit 4; }
+		[ "$CH_STATE" = "issued" ] || { echo '{"error":"bad_state"}'; exit 6; }
+		case "$n" in ''|*[!0-9]*) echo '{"error":"bad_n"}'; exit 2 ;; esac
+		[ "$n" -ge 2 ] || { echo '{"error":"installments_min_2"}'; exit 2; }
+		sqlite3 "$db" "UPDATE commerce_charges SET installments_n = $n, installments_paid = 0 WHERE id = $(sql_quote "$id");"
+		_event "$id" installments_planned 0 "n=$n"
+		_emit "$id"
+		;;
+	pay-installment)
+		id="${1:-}"; _load "$id" || { echo '{"error":"unknown_charge"}'; exit 4; }
+		[ "$CH_IN" -ge 2 ] || { echo '{"error":"no_installment_plan"}'; exit 6; }
+		[ "$CH_IP" -lt "$CH_IN" ] || { echo '{"error":"installments_complete"}'; exit 6; }
+		# Distribute rounding so the N partials sum to exactly amount.
+		k="$CH_IP"
+		partial=$(( CH_AMOUNT * (k + 1) / CH_IN - CH_AMOUNT * k / CH_IN ))
+		_debit_ok "$CH_CUSTOMER" "$partial" || { echo '{"error":"insufficient_funds"}'; exit 6; }
+		_move "$CH_CUSTOMER" "$merchant" "$partial" "$id" "charge:installment $((k+1))/$CH_IN" || { echo '{"error":"move_failed"}'; exit 5; }
+		paid=$(( CH_IP + 1 ))
+		if [ "$paid" -ge "$CH_IN" ]; then newstate="paid"; else newstate="$CH_STATE"; fi
+		sqlite3 "$db" "UPDATE commerce_charges SET installments_paid = $paid, state = $(sql_quote "$newstate") WHERE id = $(sql_quote "$id");"
+		_event "$id" installment_paid "$partial" "$paid/$CH_IN"
+		_emit "$id"
+		;;
+	dun)
+		id="${1:-}"; _load "$id" || { echo '{"error":"unknown_charge"}'; exit 4; }
+		[ "$CH_DUE" -gt 0 ] || { echo '{"error":"no_due_date"}'; exit 6; }
+		[ "$now" -gt "$CH_DUE" ] || { echo '{"error":"not_yet_due"}'; exit 6; }
+		case "$CH_STATE" in
+			issued|overdue) ;;
+			dunning_*) ;;
+			*) echo '{"error":"bad_state"}'; exit 6 ;;
+		esac
+		# Late fee from FEAT-225 terms (informational — surfaced for the
+		# next reminder / re-issue; not auto-charged here).
+		late_fee_sat=0
+		if [ -n "$CH_TERMS" ]; then
+			read -r lf_pct < <(jq -r '(.late_fee.pct // 0)' <<<"$CH_TERMS")
+			case "$lf_pct" in ''|*[!0-9.]*) lf_pct=0 ;; esac
+			late_fee_sat=$(awk -v a="$CH_AMOUNT" -v p="$lf_pct" 'BEGIN { printf "%d", a * p / 100 }')
+		fi
+		case "$CH_STATE" in
+			issued)    newstate="overdue" ;;
+			overdue)   newstate="dunning_1" ;;
+			dunning_*) newstate="dunning_$(( ${CH_STATE#dunning_} + 1 ))" ;;
+		esac
+		sqlite3 "$db" "UPDATE commerce_charges SET state = $(sql_quote "$newstate") WHERE id = $(sql_quote "$id");"
+		_event "$id" dunned "$late_fee_sat" "$CH_STATE -> $newstate"
+		jq -nc --arg id "$id" --arg state "$newstate" --argjson late "$late_fee_sat" \
+			'{id:$id, state:$state, late_fee_sat:$late}'
+		;;
+	list)
+		sqlite3 -separator $'\t' "$db" "SELECT id, customer, amount_sat, state, created_at, COALESCE(due_at,0) \
+			FROM commerce_charges WHERE merchant = $(sql_quote "$merchant") ORDER BY created_at DESC;" \
+			| jq -R -n '[ inputs | split("\t") | {id:.[0], customer:.[1], amount_sat:(.[2]|tonumber),
+				state:.[3], created_at:(.[4]|tonumber), due_at:(.[5]|tonumber)} ] | {charges: .}'
+		;;
+	show)
+		id="${1:-}"; _load "$id" || { echo '{"error":"unknown_charge"}'; exit 4; }
+		charge=$(_emit "$id")
+		events=$(sqlite3 -separator $'\t' "$db" "SELECT event, amount_sat, ts, COALESCE(detail,'') \
+			FROM commerce_events WHERE charge = $(sql_quote "$id") ORDER BY id;" \
+			| jq -R -n '[ inputs | split("\t") | {event:.[0], amount_sat:(.[1]|tonumber), ts:(.[2]|tonumber), detail:.[3]} ]')
+		jq -nc --argjson charge "$charge" --argjson events "$events" '$charge + {events: $events}'
+		;;
+	*) echo '{"error":"unknown_op"}'; exit 2 ;;
+esac

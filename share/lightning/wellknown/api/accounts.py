@@ -27,6 +27,9 @@ and routes:
   PATCH/DEL .../v1/accounts/<id>/mandates/<mid>      -> update/revoke
   POST .../v1/accounts/<id>/mandates/<mid>/charge    -> charge (secret-authed)
   POST .../v1/accounts/<id>/mandates/<mid>/pulls/<pid>/approve|deny
+  GET/POST .../v1/accounts/<id>/charges              -> list/create (FEAT-228)
+  GET  .../v1/accounts/<id>/charges/<cid>            -> show
+  POST .../v1/accounts/<id>/charges/<cid>/<action>   -> lifecycle transition
   POST .../v1/accounts/<id>/close          -> close
 
 All authenticated endpoints require Authorization: Bearer <key>.
@@ -310,6 +313,75 @@ def _mandates(account_id, tail):
     _lib.respond("404 Not Found")
 
 
+_CHARGE_ACTIONS = {
+    "hold", "release", "authorize", "void", "dun", "pay-installment",
+    "refund", "capture", "installments",
+}
+
+
+def _charges(account_id, tail):
+    # FEAT-228 — commerce charge lifecycle.  Merchant-driven (the path
+    # account is the merchant).  tail[0] == "charges".
+    _lib.auth_account(account_id)
+    m = _method()
+    if len(tail) == 1:
+        if m == "GET":
+            _lib.respond("200 OK", _lib.call_verb("api-account-charge", account_id, "list"))
+        if m != "POST":
+            _lib.respond("405 Method Not Allowed", {"error": "use_get_or_post"})
+        body = _lib.read_body()
+        customer = body.get("customer", "")
+        amount = body.get("amount_sat")
+        if not isinstance(customer, str) or not customer:
+            _lib.respond("400 Bad Request", {"error": "customer_required"})
+        if not isinstance(amount, int) or amount <= 0:
+            _lib.respond("400 Bad Request", {"error": "amount_required"})
+        args = ["api-account-charge", account_id, "create", customer, str(amount)]
+        if body.get("reference") is not None:
+            args += ["--ref", json.dumps(body["reference"])]
+        if body.get("terms") is not None:
+            args += ["--terms", json.dumps(body["terms"])]
+        due = body.get("due_days")
+        if isinstance(due, int) and due >= 0:
+            args += ["--due-days", str(due)]
+        _lib.respond("201 Created", _lib.call_verb(*args))
+
+    chg_id = tail[1]
+    if not re.fullmatch(r"chg_[0-9a-z]{1,32}", chg_id):
+        _lib.respond("400 Bad Request", {"error": "bad_charge_id"})
+
+    if len(tail) == 2:
+        if m != "GET":
+            _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+        _lib.respond("200 OK", _lib.call_verb("api-account-charge", account_id, "show", chg_id))
+
+    if len(tail) == 3:
+        action = tail[2]
+        if action not in _CHARGE_ACTIONS:
+            _lib.respond("404 Not Found")
+        if m != "POST":
+            _lib.respond("405 Method Not Allowed", {"error": "use_post"})
+        body = _lib.read_body()
+        args = ["api-account-charge", account_id, action, chg_id]
+        if action == "capture":
+            sat = body.get("sat")
+            if not isinstance(sat, int) or sat <= 0:
+                _lib.respond("400 Bad Request", {"error": "sat_required"})
+            args.append(str(sat))
+        elif action == "installments":
+            n = body.get("n")
+            if not isinstance(n, int) or n < 2:
+                _lib.respond("400 Bad Request", {"error": "n_required"})
+            args.append(str(n))
+        elif action == "refund":
+            sat = body.get("sat")
+            if isinstance(sat, int) and sat > 0:
+                args += ["--sat", str(sat)]
+        _lib.respond("200 OK", _lib.call_verb(*args))
+
+    _lib.respond("404 Not Found")
+
+
 def _close(account_id):
     if _method() != "POST":
         _lib.respond("405 Method Not Allowed", {"error": "use_post"})
@@ -384,6 +456,9 @@ def main():
         return
     if verb == "mandates":
         _mandates(account_id, tail)
+        return
+    if verb == "charges":
+        _charges(account_id, tail)
         return
     routes = {
         "balance": lambda: _balance(account_id),
