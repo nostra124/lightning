@@ -338,4 +338,4 @@ combined diff is easier to review than three separate ones.
 
 ## Milestone
 
-1.5.0 — same as FEAT-212.
+alpha — must ship before the feature-complete **alpha** cut (alpha = everything implemented; then beta hardening; then 1.0.0 is a formal version bump).

@@ -127,10 +127,7 @@ direction (operator becomes an LSP for the duration of the offer).
 
 ## Milestone
 
-None — research / future-discussion ticket.  Not assigned to a
-milestone; gated on the Nostr LP ecosystem survey + FEAT-198
-shipping (it provides the settlement primitive this discovery
-layer wires into).
+backlog — research, unscheduled.  Revisit post-1.0; not required for the alpha feature-complete cut.
 
 ## See also
 

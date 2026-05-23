@@ -80,5 +80,4 @@ Rationale:
 
 ## Milestone
 
-1.5.0 — must land with FEAT-224 before external callers
-integrate, so they start on `v1`.
+alpha — must ship before the feature-complete **alpha** cut (alpha = everything implemented; then beta hardening; then 1.0.0 is a formal version bump).

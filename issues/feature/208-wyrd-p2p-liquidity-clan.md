@@ -122,10 +122,7 @@ This is a strawman.  Pick from / modify after reading Wyrd's docs.
 
 ## Milestone
 
-None — research / future-discussion ticket.  Not assigned to a
-milestone; implementation work is gated on the Wyrd protocol shape
-being finalised + the design conversations called out under "Open
-questions" above.
+backlog — research, unscheduled.  Revisit post-1.0; not required for the alpha feature-complete cut.
 
 ## See also
 

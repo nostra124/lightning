@@ -2,7 +2,7 @@
 id: FEAT-214
 type: feature
 priority: medium
-status: research
+status: done
 ---
 
 # Fee revenue dashboard
@@ -51,4 +51,4 @@ FEAT-215 lands) and know the node is sustainable.
 
 ## Milestone
 
-1.5.0.
+alpha — **implemented**; on master, pre-release.  Part of the feature-complete alpha set.

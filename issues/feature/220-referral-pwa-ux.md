@@ -64,7 +64,7 @@ Honours the `?invite=<code>` URL parameter at account creation.
 
 ## Milestone
 
-1.5.0.
+alpha — must ship before the feature-complete **alpha** cut (alpha = everything implemented; then beta hardening; then 1.0.0 is a formal version bump).
 
 ## See also
 

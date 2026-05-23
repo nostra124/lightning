@@ -68,4 +68,4 @@ This is **opt-in only**.
 
 ## Milestone
 
-1.6.0 (post-1.5 polish — not on the critical path).
+alpha — must ship before the feature-complete **alpha** cut (alpha = everything implemented; then beta hardening; then 1.0.0 is a formal version bump).

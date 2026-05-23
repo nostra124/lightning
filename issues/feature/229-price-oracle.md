@@ -68,4 +68,4 @@ source + **stored historically**.  Two consumers:
 
 ## Milestone
 
-1.6.0.
+alpha — must ship before the feature-complete **alpha** cut (alpha = everything implemented; then beta hardening; then 1.0.0 is a formal version bump).
