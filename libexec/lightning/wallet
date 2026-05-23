@@ -128,13 +128,16 @@ EOF
 
 	# FEAT-213 — seed the operator-fee policy.  Plain text, git-
 	# tracked, operator-editable.  Default rates are conservative.
+	# FEAT-229 — seed the price-oracle config alongside it.
 	local defaults
-	if defaults=$(defaults_dir 2>/dev/null) && [ -f "$defaults/fees.recfile" ]; then
-		cp "$defaults/fees.recfile" fees.recfile
+	if defaults=$(defaults_dir 2>/dev/null); then
+		[ -f "$defaults/fees.recfile" ]  && cp "$defaults/fees.recfile"  fees.recfile
+		[ -f "$defaults/price.recfile" ] && cp "$defaults/price.recfile" price.recfile
 	fi
 
 	git add lightning-dir .gitignore state.sql
-	[ -f fees.recfile ] && git add fees.recfile
+	[ -f fees.recfile ]  && git add fees.recfile
+	[ -f price.recfile ] && git add price.recfile
 	git -c user.email=lightning@localhost -c user.name=lightning \
 		commit --quiet -m "init wallet $name"
 

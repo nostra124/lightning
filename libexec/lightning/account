@@ -82,6 +82,15 @@ migrate_accounts_schema() {
 		sqlite3 "$db" "ALTER TABLE invite_codes ADD COLUMN owner_user TEXT;" 2>/dev/null || true
 	echo "$ic_cols" | grep -qx "credit_account" || \
 		sqlite3 "$db" "ALTER TABLE invite_codes ADD COLUMN credit_account TEXT;" 2>/dev/null || true
+
+	# FEAT-229 — price history table.
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS prices ( \
+		ts        INTEGER NOT NULL, \
+		base      TEXT    NOT NULL, \
+		btc_fiat  REAL    NOT NULL, \
+		source    TEXT    NOT NULL, \
+		PRIMARY KEY (ts, base) \
+	);" 2>/dev/null || true
 }
 
 # FEAT-212 — mint a fresh on-chain address from lightningd; that
