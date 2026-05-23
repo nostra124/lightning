@@ -563,3 +563,134 @@ def test_invoice_create_get_is_405(api_dir, bin_shim, lightning_stub, cgi, parse
                env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/invoice")))
     status, _, _ = parse(proc)
     assert "405" in status
+
+
+# --- FEAT-226 standing orders ---------------------------------------------
+
+
+SO_ID = "so_abcdef0123456789"
+
+
+def test_standing_order_list_returns_200(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"standing_orders":[{"id":"' + SO_ID + '","target":"landlord","sat":10000}]}'
+    lightning_stub({
+        "api-account-verify":         (0, ""),
+        "api-account-standing-order": (0, body),
+    })
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/standing-orders")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "landlord" in body_out
+
+
+def test_standing_order_create_returns_201(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"id":"' + SO_ID + '","target":"landlord","sat":10000,"cadence":"monthly","status":"active"}'
+    lightning_stub({
+        "api-account-verify":         (0, ""),
+        "api-account-standing-order": (0, body),
+    })
+    payload = json.dumps({"target": "landlord", "sat": 10000, "cadence": "monthly"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/standing-orders",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "201" in status
+    assert SO_ID in body_out
+
+
+def test_standing_order_create_bad_cadence_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-standing-order": (0, "{}")})
+    payload = json.dumps({"target": "landlord", "sat": 10000, "cadence": "hourly"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/standing-orders",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "bad_cadence" in body_out
+
+
+def test_standing_order_create_missing_target_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-standing-order": (0, "{}")})
+    payload = json.dumps({"sat": 10000, "cadence": "daily"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/standing-orders",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "target_required" in body_out
+
+
+def test_standing_order_pause_via_post(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"id":"' + SO_ID + '","status":"paused"}'
+    lightning_stub({
+        "api-account-verify":         (0, ""),
+        "api-account-standing-order": (0, body),
+    })
+    payload = json.dumps({"action": "pause"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/standing-orders/{SO_ID}",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "paused" in body_out
+
+
+def test_standing_order_bad_action_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-standing-order": (0, "{}")})
+    payload = json.dumps({"action": "explode"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/standing-orders/{SO_ID}",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "bad_action" in body_out
+
+
+def test_standing_order_cancel_via_delete(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"id":"' + SO_ID + '","status":"cancelled"}'
+    lightning_stub({
+        "api-account-verify":         (0, ""),
+        "api-account-standing-order": (0, body),
+    })
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/standing-orders/{SO_ID}",
+                                   REQUEST_METHOD="DELETE")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "cancelled" in body_out
+
+
+def test_standing_order_bad_id_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-standing-order": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/standing-orders/NOT-an-id",
+                                   REQUEST_METHOD="DELETE")))
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "bad_order_id" in body_out
+
+
+def test_standing_order_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-standing-order": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim, PATH_INFO=f"/{ID}/standing-orders"))
+    status, _, _ = parse(proc)
+    assert "401" in status

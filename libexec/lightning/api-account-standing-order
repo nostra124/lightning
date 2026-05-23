@@ -1,0 +1,109 @@
+#!/bin/bash
+# lightning api-account-standing-order <address> <op> [args]   (FEAT-226)
+#
+# Address-keyed HTTP surface for standing orders (Dauerauftrag),
+# sudo-bridged from the accounts.py dispatcher.  Scoped to the
+# account that owns <address>.  Operations:
+#
+#   list                              -> {"standing_orders":[...]}
+#   create <target> <sat> <cadence>   -> the created order object
+#   pause  <so_id>                    -> {"id":..,"status":"paused"}
+#   resume <so_id>                    -> {"id":..,"status":"active"}
+#   cancel <so_id>                    -> {"id":..,"status":"cancelled"}
+#
+# The runner (`account standing-order run`) is operator-only and is
+# NOT reachable here.  Cadence ∈ daily|weekly|monthly; the target must
+# be re-payable (local account, BOLT-12 offer, LNURL, or LN address —
+# not a single-use BOLT-11).
+
+set -e
+[ $# -ge 2 ] || exit 1
+address="$1"; op="$2"; shift 2
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+
+command -v jq >/dev/null || { echo '{"error":"jq not installed"}'; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$name" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+now=$(date -u +%s)
+sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
+
+mint_id() {
+	local raw
+	raw=$(head -c 10 /dev/urandom | base32 2>/dev/null | tr 'A-Z' 'a-z' | tr -d '=\n' | cut -c1-16)
+	[ -n "$raw" ] || raw=$(head -c 10 /dev/urandom | od -An -tx1 | tr -d ' \n' | cut -c1-16)
+	echo "so_$raw"
+}
+
+advance() {
+	local ts="$1" cadence="$2" n=""
+	case "$cadence" in
+		daily)  echo $(( ts + 86400 )) ;;
+		weekly) echo $(( ts + 604800 )) ;;
+		monthly)
+			local base
+			base=$(date -u -d "@$ts" "+%Y-%m-%dT%H:%M:%S" 2>/dev/null) \
+				&& n=$(date -u -d "$base +1 month" +%s 2>/dev/null)
+			[ -n "$n" ] || n=$(date -u -r "$ts" -v+1m +%s 2>/dev/null)
+			[ -n "$n" ] || n=$(( ts + 2592000 ))
+			echo "$n" ;;
+		*) echo "$ts" ;;
+	esac
+}
+
+target_repayable() {
+	local t="$1" lower
+	[ "$(sqlite3 "$db" "SELECT 1 FROM accounts WHERE (name = $(sql_quote "$t") OR address = $(sql_quote "$t")) LIMIT 1;" 2>/dev/null)" = "1" ] && return 0
+	lower=$(printf '%s' "$t" | tr 'A-Z' 'a-z')
+	case "$lower" in
+		lno*|lnurl*) return 0 ;;
+		*@*.*) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+case "$op" in
+	list)
+		sqlite3 -separator $'\t' "$db" "SELECT id, target, sat, cadence, next_run, COALESCE(last_run,0), failures, status \
+			FROM standing_orders WHERE account = $(sql_quote "$name") ORDER BY next_run;" \
+			| jq -R -n '
+				[ inputs | split("\t")
+				  | {id:.[0], target:.[1], sat:(.[2]|tonumber), cadence:.[3],
+				     next_run:(.[4]|tonumber), last_run:(.[5]|tonumber),
+				     failures:(.[6]|tonumber), status:.[7]} ]
+				| {standing_orders: .}'
+		;;
+	create)
+		[ $# -ge 3 ] || { echo '{"error":"usage_create"}'; exit 2; }
+		target="$1"; sat="$2"; cadence="$3"
+		case "$sat" in ''|*[!0-9]*) echo '{"error":"bad_sat"}'; exit 2 ;; esac
+		[ "$sat" -gt 0 ] || { echo '{"error":"bad_sat"}'; exit 2; }
+		case "$cadence" in daily|weekly|monthly) ;; *) echo '{"error":"bad_cadence"}'; exit 2 ;; esac
+		target_repayable "$target" || { echo '{"error":"target_not_repayable"}'; exit 2; }
+		id=$(mint_id); next=$(advance "$now" "$cadence")
+		sqlite3 "$db" "INSERT INTO standing_orders(id, account, target, sat, cadence, next_run, created_at) \
+			VALUES($(sql_quote "$id"), $(sql_quote "$name"), $(sql_quote "$target"), $sat, $(sql_quote "$cadence"), $next, $now);"
+		jq -nc --arg id "$id" --arg target "$target" --argjson sat "$sat" \
+			--arg cadence "$cadence" --argjson next "$next" \
+			'{id:$id, target:$target, sat:$sat, cadence:$cadence, next_run:$next, status:"active"}'
+		;;
+	pause|resume|cancel)
+		so_id="${1:-}"
+		[ -n "$so_id" ] || { echo '{"error":"missing_id"}'; exit 2; }
+		case "$op" in pause) st=paused ;; resume) st=active ;; cancel) st=cancelled ;; esac
+		[ "$(sqlite3 "$db" "SELECT 1 FROM standing_orders WHERE id = $(sql_quote "$so_id") AND account = $(sql_quote "$name") LIMIT 1;")" = "1" ] \
+			|| { echo '{"error":"unknown_order"}'; exit 4; }
+		sqlite3 "$db" "UPDATE standing_orders SET status = $(sql_quote "$st") WHERE id = $(sql_quote "$so_id") AND account = $(sql_quote "$name");"
+		jq -nc --arg id "$so_id" --arg status "$st" '{id:$id, status:$status}'
+		;;
+	*) echo '{"error":"unknown_op"}'; exit 2 ;;
+esac
