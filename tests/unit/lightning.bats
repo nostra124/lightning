@@ -6724,3 +6724,121 @@ _sat() { sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0)/1000 FROM ledge
 	grep -q "CREATE TABLE IF NOT EXISTS commerce_events" "$f"
 	grep -q "VALUES('escrow'" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-230: tax-relevant transaction DATA export (FIFO, fiat-valued).
+# ---------------------------------------------------------------------------
+
+_acct230_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create trader >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	# Acquisitions: 2023-05-01 (500k sat @25000), 2024-01-10 (1M sat @40000).
+	# Disposal:    2024-06-10 (400k sat @50000) -> FIFO matches the 2023 lot.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES
+		('2023-05-01 12:00:00','trader','in', 500000000,'acq1'),
+		('2024-01-10 12:00:00','trader','in',1000000000,'acq2'),
+		('2024-06-10 12:00:00','trader','out',-400000000,'spend1');"
+	sqlite3 "$BATS_DB" "INSERT INTO prices(ts,base,btc_fiat,source) VALUES
+		(1682942400,'EUR',25000,'test'),
+		(1704888000,'EUR',40000,'test'),
+		(1718020800,'EUR',50000,'test');"
+}
+
+_acct230_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-230: FIFO disposal export computes the gain against the oldest lot" {
+	_acct230_setup
+	run "$LIGHTNING_BIN" export tax-data trader --year 2024 --base EUR --format json
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.disposals | length == 1' >/dev/null
+	[ "$(echo "$output" | jq -r '.disposals[0].acquisition_date')" = "2023-05-01" ]
+	echo "$output" | jq -e '.disposals[0].fiat_in == 100' >/dev/null
+	echo "$output" | jq -e '.disposals[0].fiat_out == 200' >/dev/null
+	echo "$output" | jq -e '.disposals[0].gain == 100' >/dev/null
+	echo "$output" | jq -e '.disposals[0].holding_days == 406' >/dev/null
+	echo "$output" | jq -e '.summary.total_gain == 100' >/dev/null
+	_acct230_teardown
+}
+
+@test "FEAT-230: output is labelled data-for-preparation, with a disclaimer" {
+	_acct230_setup
+	run "$LIGHTNING_BIN" export tax-data trader --year 2024 --format json
+	[ "$(echo "$output" | jq -r '.kind')" = "transaction_data_for_tax_preparation" ]
+	[[ "$(echo "$output" | jq -r '.disclaimer')" == *"NOT a tax report"* ]]
+	[ "$(echo "$output" | jq -r '.summary.freigrenze_eur')" = "600" ]
+	_acct230_teardown
+}
+
+@test "FEAT-230: year filter excludes disposals from other years" {
+	_acct230_setup
+	run "$LIGHTNING_BIN" export tax-data trader --year 2025 --format json
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.disposals | length == 0' >/dev/null
+	_acct230_teardown
+}
+
+@test "FEAT-230: missing price surfaces an explicit gap, never 0" {
+	_acct230_setup
+	# A disposal far from any price tick.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES('2024-09-01 12:00:00','trader','out',-100000000,'spend2');"
+	run "$LIGHTNING_BIN" export tax-data trader --year 2024 --format json
+	echo "$output" | jq -e '[.disposals[] | select(.price_gap == true)] | length >= 1' >/dev/null
+	# The gapped row has null gain (not 0).
+	echo "$output" | jq -e '[.disposals[] | select(.price_gap == true) | .gain] | all(. == null)' >/dev/null
+	_acct230_teardown
+}
+
+@test "FEAT-230: operator export values fee revenue at receipt" {
+	_acct230_setup
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES('2024-01-10 12:05:00','house','in',2500000,'fee:transfer');"
+	run "$LIGHTNING_BIN" export tax-data --operator --year 2024 --format json
+	[ "$status" -eq 0 ]
+	[ "$(echo "$output" | jq -r '.kind')" = "operator_fee_income_data_for_tax_preparation" ]
+	echo "$output" | jq -e '.income | length == 1' >/dev/null
+	# 2500 sat * 40000 / 1e8 = 1.00 EUR
+	echo "$output" | jq -e '.income[0].fiat_value == 1' >/dev/null
+	_acct230_teardown
+}
+
+@test "FEAT-230: CSV format validates (header + 8 columns)" {
+	_acct230_setup
+	run "$LIGHTNING_BIN" export tax-data trader --year 2024 --format csv
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"disposal_date,disposal_sat,acquisition_date,holding_days,fiat_in,fiat_out,gain,price_gap"* ]]
+	# The single data row has 8 comma-separated fields.
+	local cols
+	cols=$(echo "$output" | grep -v '^#' | grep '^2024-06-10' | awk -F, '{print NF}')
+	[ "$cols" = "8" ]
+	_acct230_teardown
+}
+
+@test "FEAT-230: bad format / missing year / unknown account are rejected" {
+	_acct230_setup
+	run "$LIGHTNING_BIN" export tax-data trader --year 2024 --format xml
+	[ "$status" -ne 0 ]
+	run "$LIGHTNING_BIN" export tax-data trader
+	[ "$status" -ne 0 ]
+	run "$LIGHTNING_BIN" export tax-data nobody --year 2024
+	[ "$status" -ne 0 ]
+	_acct230_teardown
+}
+
+@test "FEAT-230: export resolves an account by bech32 address too" {
+	_acct230_setup
+	local addr; addr=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='trader';")
+	run "$LIGHTNING_BIN" export tax-data "$addr" --year 2024 --format json
+	[ "$status" -eq 0 ]
+	[ "$(echo "$output" | jq -r '.account')" = "trader" ]
+	_acct230_teardown
+}
+
+@test "FEAT-230: sudoers fragment lists export tax-data" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+	grep -q "export tax-data" "$f"
+}

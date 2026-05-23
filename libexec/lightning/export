@@ -1,0 +1,283 @@
+#!/bin/bash
+# lightning export — tax-relevant transaction DATA export (FEAT-230).
+#
+# This produces SOURCE DATA for tax preparation — NOT a tax report, not
+# a declaration, and not tax advice.  Every movement is valued in a base
+# fiat at the FEAT-229 price for its timestamp; disposals are FIFO
+# lot-matched against acquisitions so the filer (or their advisor) can
+# compute gains.  German private-sale (§23 EStG) is the reference for
+# WHICH fields to include; simpler regimes use a subset.
+#
+# Subcommand:
+#   tax-data <account|--operator> --year YYYY [--base EUR] [--format csv|json]
+#
+#     account     a user account (handle: name or bech32 address) — walks
+#                 its ledger, classifies in=acquisition / out=disposal,
+#                 FIFO-matches, emits per-disposal rows + an annual summary.
+#     --operator  the house account's fee-revenue rows valued at receipt
+#                 (the operator's business-income inputs).
+#
+# Missing price for a timestamp is surfaced as an explicit gap marker —
+# never silently valued at 0.
+
+set -e
+
+command -v sqlite3 >/dev/null || { echo "lightning: sqlite3 not installed" >&2; exit 127; }
+command -v jq >/dev/null || { echo "lightning export: jq not installed" >&2; exit 127; }
+command -v awk >/dev/null || { echo "lightning export: awk not installed" >&2; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+# Max age (seconds) of a price tick still accepted as "the price at" an
+# entry's timestamp before it's treated as a gap.  Default 2 days.
+PRICE_WINDOW="${LIGHTNING_TAX_PRICE_WINDOW_SECS:-172800}"
+# Informational only — the §23 EStG Freigrenze (we report it; the filer
+# decides the treatment).
+FREIGRENZE_EUR="${LIGHTNING_TAX_FREIGRENZE:-600}"
+
+active_wallet_name() { local n="default"; [ -f "$ACTIVE_LINK" ] && n=$(cat "$ACTIVE_LINK"); echo "$n"; }
+active_db() {
+	local db; db="$WALLETS_ROOT/$(active_wallet_name)/state.db"
+	[ -f "$db" ] || { echo "lightning export: no active wallet (try \`lightning wallet new\`)" >&2; exit 2; }
+	echo "$db"
+}
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+DISCLAIMER="Transaction data for tax preparation -- NOT a tax report or advice. Generated with AI assistance; verify with a qualified tax advisor (Steuerberater). German section 23 EStG used as the field reference."
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning export tax-data <account|--operator> --year YYYY [--base EUR] [--format csv|json]
+
+   Source data for tax preparation (NOT a report / not advice).
+   Disposals are FIFO-matched against acquisitions and fiat-valued at
+   the price for each timestamp; missing prices show as gaps.
+EOF
+}
+
+cmd_tax_data() {
+	local target="" operator=0 year="" base="" format="json"
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--operator) operator=1; shift ;;
+			--year)     year="$2"; shift 2 ;;
+			--base)     base="$2"; shift 2 ;;
+			--format)   format="$2"; shift 2 ;;
+			-*) echo "lightning export tax-data: unknown flag '$1'" >&2; exit 1 ;;
+			*)  target="$1"; shift ;;
+		esac
+	done
+	case "$year" in ''|*[!0-9]*) echo "lightning export tax-data: --year YYYY required" >&2; exit 1 ;; esac
+	case "$format" in csv|json) ;; *) echo "lightning export tax-data: --format must be csv|json" >&2; exit 1 ;; esac
+	[ -n "$base" ] || base="EUR"
+
+	local db; db=$(active_db)
+
+	# Resolve the account: --operator -> house; else a handle.
+	local acct
+	if [ "$operator" -eq 1 ]; then
+		acct="house"
+	else
+		[ -n "$target" ] || { echo "lightning export tax-data: account or --operator required" >&2; exit 1; }
+		acct=$(sqlite3 "$db" "SELECT name FROM accounts WHERE name = $(sql_quote "$target") OR address = $(sql_quote "$target");")
+		[ -n "$acct" ] || { echo "lightning export tax-data: unknown account '$target'" >&2; exit 4; }
+	fi
+
+	# Price ticks for the base, ascending — fed to awk for nearest-tick
+	# valuation.
+	local prices_tsv
+	prices_tsv=$(sqlite3 -separator $'\t' "$db" \
+		"SELECT ts, btc_fiat FROM prices WHERE base = $(sql_quote "$base") ORDER BY ts ASC;")
+
+	if [ "$operator" -eq 1 ]; then
+		_operator_export "$db" "$acct" "$year" "$base" "$format" "$prices_tsv"
+	else
+		_account_export "$db" "$acct" "$year" "$base" "$format" "$prices_tsv"
+	fi
+}
+
+_account_export() {
+	local db="$1" acct="$2" year="$3" base="$4" format="$5" prices_tsv="$6"
+	# Ledger, chronological: unix-ts, date, amount_msat.
+	local ledger_tsv
+	ledger_tsv=$(sqlite3 -separator $'\t' "$db" \
+		"SELECT strftime('%s', ts), date(ts), amount_msat FROM ledger \
+		 WHERE account = $(sql_quote "$acct") ORDER BY strftime('%s', ts) ASC, id ASC;")
+
+	# FIFO lot-matching in awk.  Rows emitted as ROW<TAB>...; the annual
+	# rollup as SUM<TAB>...  Gap = price missing for acq or disposal.
+	local out
+	out=$(awk -v year="$year" -v window="$PRICE_WINDOW" \
+		-v prices="$prices_tsv" -v ledger="$ledger_tsv" '
+	BEGIN {
+		FS = "\t"
+		np = 0
+		n = split(prices, plines, "\n")
+		for (i = 1; i <= n; i++) {
+			if (plines[i] == "") continue
+			split(plines[i], a, "\t"); np++; pts[np] = a[1] + 0; pf[np] = a[2] + 0
+		}
+		head = 1; tail = 0           # FIFO lot queue
+		tot_gain = 0; tot_disp_msat = 0; nrows = 0; ngaps = 0; have_gain = 0
+		m = split(ledger, llines, "\n")
+		for (i = 1; i <= m; i++) {
+			if (llines[i] == "") continue
+			split(llines[i], e, "\t")
+			uts = e[1] + 0; ymd = e[2]; amsat = e[3] + 0
+			if (amsat > 0) {
+				tail++; lot_uts[tail] = uts; lot_ymd[tail] = ymd
+				lot_msat[tail] = amsat; lot_price[tail] = price_at(uts)
+			} else if (amsat < 0) {
+				d = -amsat; dprice = price_at(uts); dyear = substr(ymd, 1, 4) + 0
+				while (d > 0) {
+					if (head > tail) {
+						# Disposal with no remaining acquired lot.
+						if (dyear == year) emit(ymd, d, "UNMATCHED", -1, -1, dprice, uts, -1)
+						d = 0; break
+					}
+					mm = (d < lot_msat[head]) ? d : lot_msat[head]
+					if (dyear == year) emit(ymd, mm, lot_ymd[head], lot_uts[head], lot_price[head], dprice, uts, lot_uts[head])
+					lot_msat[head] -= mm; d -= mm
+					if (lot_msat[head] <= 0) head++
+				}
+			}
+		}
+		printf "SUM\t%.2f\t%d\t%d\t%d\t%d\n", tot_gain, tot_disp_msat, nrows, ngaps, have_gain
+	}
+	function emit(dymd, msat, aymd, auts, aprice, dprice, duts, lot_auts,   hold, fin, fout, g, gap) {
+		nrows++
+		gap = (aprice < 0 || dprice < 0) ? 1 : 0
+		if (lot_auts >= 0) hold = int((duts - lot_auts) / 86400); else hold = -1
+		tot_disp_msat += msat
+		if (gap) {
+			ngaps++
+			printf "ROW\t%s\t%d\t%s\t%s\t\t\t\t1\n", dymd, msat, aymd, (hold < 0 ? "" : hold)
+		} else {
+			fin = fiat(msat, aprice); fout = fiat(msat, dprice); g = fout - fin
+			tot_gain += g; have_gain = 1
+			printf "ROW\t%s\t%d\t%s\t%d\t%.2f\t%.2f\t%.2f\t0\n", dymd, msat, aymd, hold, fin, fout, g
+		}
+	}
+	function price_at(t,   i, best, bestd, d) {
+		best = -1; bestd = -1
+		for (i = 1; i <= np; i++) {
+			d = pts[i] - t; if (d < 0) d = -d
+			if (bestd < 0 || d < bestd) { bestd = d; best = pf[i] }
+		}
+		if (best < 0 || bestd > window) return -1
+		return best
+	}
+	function fiat(msat, btc) { return msat * btc / 100000000000.0 }
+	' <<<"")
+
+	_render "$format" "$acct" "$year" "$base" "$out" "account"
+}
+
+_operator_export() {
+	local db="$1" acct="$2" year="$3" base="$4" format="$5" prices_tsv="$6"
+	# House fee-revenue (incoming) rows in the year, valued at receipt.
+	local ledger_tsv
+	ledger_tsv=$(sqlite3 -separator $'\t' "$db" \
+		"SELECT strftime('%s', ts), date(ts), amount_msat, message FROM ledger \
+		 WHERE account = $(sql_quote "$acct") AND amount_msat > 0 \
+		   AND strftime('%Y', ts) = $(sql_quote "$year") ORDER BY strftime('%s', ts) ASC, id ASC;")
+
+	local out
+	out=$(awk -v window="$PRICE_WINDOW" -v prices="$prices_tsv" -v ledger="$ledger_tsv" '
+	BEGIN {
+		FS = "\t"; np = 0
+		n = split(prices, plines, "\n")
+		for (i = 1; i <= n; i++) { if (plines[i]=="") continue; split(plines[i], a, "\t"); np++; pts[np]=a[1]+0; pf[np]=a[2]+0 }
+		tot = 0; nrows = 0; ngaps = 0; have = 0
+		m = split(ledger, llines, "\n")
+		for (i = 1; i <= m; i++) {
+			if (llines[i] == "") continue
+			split(llines[i], e, "\t")
+			uts = e[1]+0; ymd = e[2]; msat = e[3]+0; msg = e[4]
+			p = price_at(uts); nrows++
+			if (p < 0) { ngaps++; printf "ROW\t%s\t%d\t\t%s\t1\n", ymd, msat, msg }
+			else { f = fiat(msat, p); tot += f; have = 1; printf "ROW\t%s\t%d\t%.2f\t%s\t0\n", ymd, msat, f, msg }
+		}
+		printf "SUM\t%.2f\t%d\t%d\t%d\n", tot, nrows, ngaps, have
+	}
+	function price_at(t,   i, best, bestd, d) {
+		best = -1; bestd = -1
+		for (i = 1; i <= np; i++) {
+			d = pts[i] - t; if (d < 0) d = -d
+			if (bestd < 0 || d < bestd) { bestd = d; best = pf[i] }
+		}
+		if (best < 0 || bestd > window) return -1
+		return best
+	}
+	function fiat(msat, btc) { return msat * btc / 100000000000.0 }
+	' <<<"")
+
+	_render "$format" "$acct" "$year" "$base" "$out" "operator"
+}
+
+# Render the awk ROW/SUM stream as JSON or CSV.
+_render() {
+	local format="$1" acct="$2" year="$3" base="$4" out="$5" kind="$6"
+	local rows summary
+	rows=$(grep '^ROW' <<<"$out" || true)
+	summary=$(grep '^SUM' <<<"$out" || true)
+
+	if [ "$kind" = "operator" ]; then
+		local s_total s_gaps
+		IFS=$'\t' read -r _ s_total _ s_gaps _ <<<"$summary"
+		if [ "$format" = "csv" ]; then
+			echo "# $DISCLAIMER"
+			echo "date,amount_sat,fiat_value,message,price_gap"
+			while IFS=$'\t' read -r _ d msat f msg gap; do
+				[ -n "$d" ] || continue
+				printf '%s,%d,%s,%s,%s\n' "$d" "$(( msat / 1000 ))" "${f:-GAP}" "${msg//,/ }" "$gap"
+			done <<<"$rows"
+			echo "# total_fiat_income,$s_total,$base,year,$year,gaps,${s_gaps:-0}"
+			return
+		fi
+		local rows_json
+		rows_json=$(awk 'BEGIN{FS="\t";print "["} $1=="ROW"{ if(c++)printf ",";
+			printf "{\"date\":\"%s\",\"amount_sat\":%d,\"fiat_value\":%s,\"message\":\"%s\",\"price_gap\":%s}",
+			$2,$3/1000,($6==1?"null":$4),$5,($6==1?"true":"false") } END{print "]"}' <<<"$rows")
+		jq -nc --arg acct "$acct" --argjson year "$year" --arg base "$base" \
+			--argjson rows "${rows_json:-[]}" --arg total "${s_total:-0}" \
+			--argjson gaps "${s_gaps:-0}" --arg disc "$DISCLAIMER" \
+			'{kind:"operator_fee_income_data_for_tax_preparation", account:$acct, year:$year, base:$base,
+			  income: $rows, summary:{total_fiat_income:($total|tonumber), price_gaps:$gaps}, disclaimer:$disc}'
+		return
+	fi
+
+	# account export
+	local s_gain s_gaps
+	IFS=$'\t' read -r _ s_gain _ _ s_gaps _ <<<"$summary"
+	if [ "$format" = "csv" ]; then
+		echo "# $DISCLAIMER"
+		echo "disposal_date,disposal_sat,acquisition_date,holding_days,fiat_in,fiat_out,gain,price_gap"
+		while IFS=$'\t' read -r _ dd dmsat ad hold fin fout gain gap; do
+			[ -n "$dd" ] || continue
+			printf '%s,%d,%s,%s,%s,%s,%s,%s\n' "$dd" "$(( dmsat / 1000 ))" "$ad" "${hold:-}" \
+				"${fin:-GAP}" "${fout:-GAP}" "${gain:-GAP}" "$gap"
+		done <<<"$rows"
+		echo "# total_gain,${s_gain:-0},$base,year,$year,freigrenze_eur,$FREIGRENZE_EUR,price_gaps,${s_gaps:-0}"
+		return
+	fi
+	local rows_json
+	rows_json=$(awk 'BEGIN{FS="\t";print "["} $1=="ROW"{ if(c++)printf ",";
+		gap=($9==1);
+		printf "{\"disposal_date\":\"%s\",\"disposal_sat\":%d,\"acquisition_date\":\"%s\",\"holding_days\":%s,\"fiat_in\":%s,\"fiat_out\":%s,\"gain\":%s,\"price_gap\":%s}",
+		$2,$3/1000,$4,($5==""?"null":$5),(gap?"null":$6),(gap?"null":$7),(gap?"null":$8),(gap?"true":"false") } END{print "]"}' <<<"$rows")
+	jq -nc --arg acct "$acct" --argjson year "$year" --arg base "$base" \
+		--argjson rows "${rows_json:-[]}" --arg gain "${s_gain:-0}" \
+		--argjson gaps "${s_gaps:-0}" --argjson freigrenze "$FREIGRENZE_EUR" \
+		--arg disc "$DISCLAIMER" \
+		'{kind:"transaction_data_for_tax_preparation", account:$acct, year:$year, base:$base,
+		  disposals: $rows,
+		  summary:{total_gain:($gain|tonumber), freigrenze_eur:$freigrenze, freigrenze_note:"informational only — the filer decides the treatment", price_gaps:$gaps},
+		  disclaimer:$disc}'
+}
+
+case "${1:-}" in
+	tax-data) shift; cmd_tax_data "$@" ;;
+	""|-h|--help) usage; [ "${1:-}" = "" ] && exit 1 || exit 0 ;;
+	*) echo "lightning export: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

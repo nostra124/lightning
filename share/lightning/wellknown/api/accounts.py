@@ -30,6 +30,7 @@ and routes:
   GET/POST .../v1/accounts/<id>/charges              -> list/create (FEAT-228)
   GET  .../v1/accounts/<id>/charges/<cid>            -> show
   POST .../v1/accounts/<id>/charges/<cid>/<action>   -> lifecycle transition
+  GET  .../v1/accounts/<id>/export/tax-data          -> tax-data export (FEAT-230)
   POST .../v1/accounts/<id>/close          -> close
 
 All authenticated endpoints require Authorization: Bearer <key>.
@@ -382,6 +383,40 @@ def _charges(account_id, tail):
     _lib.respond("404 Not Found")
 
 
+def _export(account_id):
+    # FEAT-230 — tax-data export.  GET .../export/tax-data?year=&base=&format=
+    # Account-bearer authed.  Returns CSV or JSON (so it can't go through
+    # _lib.call_verb, which assumes JSON) — we stream the verb's stdout
+    # with the right Content-Type.
+    if _method() != "GET":
+        _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+    _lib.auth_account(account_id)
+    q = _query()
+    year = q.get("year", [""])[0]
+    if not year.isdigit() or len(year) != 4:
+        _lib.respond("400 Bad Request", {"error": "year_required"})
+    base = q.get("base", ["EUR"])[0]
+    if not base.isalpha() or not (2 <= len(base) <= 5):
+        _lib.respond("400 Bad Request", {"error": "bad_base"})
+    fmt = q.get("format", ["json"])[0]
+    if fmt not in ("csv", "json"):
+        _lib.respond("400 Bad Request", {"error": "bad_format"})
+    r = subprocess.run(
+        ["sudo", "-n", "-u", _lib.OPERATOR_USER, "lightning", "export", "tax-data",
+         account_id, "--year", year, "--base", base.upper(), "--format", fmt],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        _lib.respond("502 Bad Gateway", {"error": "backend_failed",
+                                         "detail": r.stderr.strip()[:200]})
+    ctype = "text/csv" if fmt == "csv" else "application/json"
+    sys.stdout.write("Status: 200 OK\r\n")
+    sys.stdout.write(f"Content-Type: {ctype}\r\n\r\n")
+    sys.stdout.write(r.stdout)
+    sys.stdout.flush()
+    sys.exit(0)
+
+
 def _close(account_id):
     if _method() != "POST":
         _lib.respond("405 Method Not Allowed", {"error": "use_post"})
@@ -459,6 +494,11 @@ def main():
         return
     if verb == "charges":
         _charges(account_id, tail)
+        return
+    if verb == "export":
+        if len(tail) == 2 and tail[1] == "tax-data":
+            _export(account_id)
+        _lib.respond("404 Not Found")
         return
     routes = {
         "balance": lambda: _balance(account_id),
