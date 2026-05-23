@@ -1,35 +1,47 @@
 ---
 id: FEAT-224
 type: feature
-priority: medium
+priority: high
 status: research
 ---
 
-# Move the account API + MCP under `.well-known/lightning/`
+# Move the account API + MCP under `.well-known/lightning/v1/`
 
 ## Description
 
 The account API (FEAT-212 PR-2) currently lives at
 `/api/accounts/*` and MCP at `/api/mcp`.  Relocate both under
-`/.well-known/lightning/` so the transactional surface is a
-*discoverable* protocol endpoint, aligning with the existing
-`.well-known/lnurlp/` (FEAT-176) + `.well-known/lightning/
-mcp.json` manifest (FEAT-212 PR-3).  Webshops integrate
-against a standard, predictable location.
+`/.well-known/lightning/v1/` so the transactional surface is a
+*discoverable, versioned* protocol endpoint, aligning with the
+existing `.well-known/lnurlp/` (FEAT-176) + `.well-known/
+lightning/mcp.json` manifest (FEAT-212 PR-3).  Webshops
+integrate against a standard, predictable, version-pinned
+location.
 
-The **user API stays at `/api/users/`** — it's app-facing
-(PWA), not a discoverable protocol.
+The **user API moves to `/api/v1/users/`** — still app-facing
+(PWA), not under `.well-known`, but takes the same `v1`
+segment for consistency.
+
+Versioning rationale + contract live in **FEAT-232**; this
+ticket implements the move + the `v1` segment together so we
+relocate only once.
 
 ## Scope
 
-* Apache vhost: `ScriptAlias /.well-known/lightning/accounts
-  → wellknown/api/accounts.py` (was `/api/accounts`);
-  `/.well-known/lightning/mcp → wellknown/api/mcp.py` (was
-  `/api/mcp`).
+* Apache vhost:
+  `ScriptAlias /.well-known/lightning/v1/accounts →
+   wellknown/api/accounts.py` (was `/api/accounts`);
+  `/.well-known/lightning/v1/mcp → wellknown/api/mcp.py`
+  (was `/api/mcp`).
 * The dispatcher's `endpoints` map + the MCP manifest URLs
-  update to the new paths.
+  update to the new versioned paths.
 * The `api-accounts-create` response `endpoints` block emits
-  the `.well-known` paths.
+  the versioned `.well-known` paths.
+* New `/.well-known/lightning/versions.json` manifest
+  advertising `{ "versions": ["v1"], "default": "v1" }`
+  (FEAT-232).
+* Dispatcher validates the `v<N>` segment; unknown version →
+  `404 unknown_api_version`.
 * Docs (FEAT-209 inline docs, llms.txt) reflect the move.
 * **No back-compat dual-path** — `/api/accounts/*` is
   unreleased; just move it (operator confirmed nobody's
@@ -37,25 +49,30 @@ The **user API stays at `/api/users/`** — it's app-facing
 
 ## Out of scope
 
-* The user API location (`/api/users/`) — stays put.
+* Shipping a `v2` — FEAT-232 establishes the scheme; v2 lands
+  when a breaking change is needed.
 * Any change to auth, request/response shapes — pure
-  routing relocation.
+  routing relocation + version prefix.
 
 ## Acceptance criteria
 
-1. `GET /.well-known/lightning/accounts/<id>/balance` works
+1. `GET /.well-known/lightning/v1/accounts/<id>/balance` works
    exactly as `/api/accounts/<id>/balance` did.
-2. `POST /.well-known/lightning/mcp` serves the JSON-RPC
+2. `POST /.well-known/lightning/v1/mcp` serves the JSON-RPC
    dispatcher.
-3. The create-response `endpoints` block + mcp.json manifest
-   carry `.well-known` URLs.
-4. No route responds at the old `/api/accounts/*` paths.
+3. `GET /.well-known/lightning/versions.json` lists `["v1"]`.
+4. An unknown version segment returns `404
+   unknown_api_version`.
+5. The create-response `endpoints` block + mcp.json manifest
+   carry versioned `.well-known` URLs.
+6. No route responds at the old `/api/accounts/*` paths.
 
 ## Dependencies
 
 Touches FEAT-212 PR-2 (account dispatcher) + PR-3 (MCP).
-Should land before FEAT-225/226/227 add new endpoints, so
-those land at the right prefix from day one.
+Implements the FEAT-232 versioning decision.  Should land
+before FEAT-225/226/227 add new endpoints, so those land at
+the right versioned prefix from day one.
 
 ## Milestone
 

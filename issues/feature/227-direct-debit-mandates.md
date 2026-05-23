@@ -16,9 +16,21 @@ prior authorization (a mandate)
 customer re-approving each charge — while still giving the
 customer more control than SEPA does.
 
-Lightning is push-only, so a "pull" only works cleanly when
-both accounts live on the *same node* (it's a gated intra-node
-ledger op — FEAT-223).  Cross-node pull is explicitly deferred.
+Lightning is push-only, but a "pull" works in **both**
+topologies:
+
+* **Intra-node** (both accounts local) — a gated intra-node
+  ledger op (FEAT-223 transfer).  The operator moves the sats
+  on the merchant's behalf, bounded by the mandate.
+* **Cross-node** — because every node exposes the well-known
+  API publicly, the merchant POSTs to the *customer's*
+  `/.well-known/lightning/v1/accounts/<id>/mandates/<id>/
+  charge` endpoint; the customer's node validates the mandate
+  and **pushes** a one-time payment to the merchant.  The
+  pull is really "merchant-triggered, customer-side-executed
+  push, gated by a pre-authorized mandate" — Lightning's
+  push-only nature is respected.  (Earlier draft deferred
+  cross-node; the well-known-API insight makes it tractable.)
 
 ## The two modes
 
@@ -62,40 +74,56 @@ Per the design decision, both ship; the customer chooses:
   `POST .../mandates/<id>/pulls/<pull_id>/approve|deny` for
   mode (b).
 * Merchant-side: `POST .../mandates/<id>/pull {sat, reference}`
-  — in mode (a) executes immediately (intra-node transfer via
-  FEAT-223), in mode (b) creates a pending pull + notifies the
-  customer.
+  — the charge trigger.  Resolution:
+    * **Intra-node** (customer is local) — mode (a) executes
+      immediately as a ledger transfer (FEAT-223); mode (b)
+      creates a pending pull + notifies the customer.
+    * **Cross-node** (customer is on another node) — the
+      merchant calls the *customer node's*
+      `.../mandates/<id>/charge` endpoint; the customer node
+      validates the mandate + (mode a) pushes a one-time
+      payment to the merchant, or (mode b) holds for
+      approval then pushes.  The push reuses the existing
+      `pay` path.
 * Per-period cap enforced: a pull that would exceed
   `max_per_period` within the current window is rejected
   (mode a) or held (mode b).
 * Operator fee: each executed pull pays the `transfer` fee
-  tier (FEAT-213/219).
+  tier intra-node, or the `pay` fee tier cross-node
+  (FEAT-213/219).
+* Mandate authentication: the charge request must prove it
+  comes from the mandated merchant (a per-mandate shared
+  secret issued at authorization time, presented as a bearer
+  on the charge call).
 
 ## Out of scope
 
-* **Cross-node direct debit** — needs a customer-side
-  responder / LNURL-withdraw-style mechanism; not in this
-  ticket.  Intra-node only for v1.
 * Dispute / chargeback flow.
 * Mandate transfer between merchants.
+* Cross-node *liveness* guarantees — if the customer node is
+  offline at charge time, the merchant retries; we don't
+  queue on the customer side beyond the mandate record.
 
 ## Acceptance criteria
 
 1. Customer creates a mode-(a) mandate; merchant pulls within
-   the cap → executes immediately as an intra-node transfer.
+   the cap → executes immediately (intra-node ledger transfer
+   OR cross-node customer-push).
 2. A pull exceeding `max_per_period` in the window is
    rejected.
 3. Switching the mandate to mode (b): the next merchant pull
    lands `pending`; customer `approve` executes it, `deny`
    cancels it.
 4. Revoking a mandate blocks further pulls.
-5. Cross-node pull attempts return a clear
-   `cross_node_not_supported` error.
+5. A charge call without the mandate's shared secret is
+   rejected `401`.
 
 ## Dependencies
 
-* FEAT-223 (intra-node transfer is the execution primitive).
-* FEAT-224 (endpoint prefix).
+* FEAT-223 (intra-node transfer is the intra-node execution
+  primitive).
+* FEAT-212 PR-2 `pay` (the cross-node push primitive).
+* FEAT-224 (versioned endpoint prefix).
 * FEAT-225 (the `reference` on a pull reuses the commercial-
   invoice reference convention).
 
