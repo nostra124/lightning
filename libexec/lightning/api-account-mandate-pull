@@ -1,0 +1,163 @@
+#!/bin/bash
+# lightning api-account-mandate-pull <customer-address> <op> [args]   (FEAT-227)
+#
+# The pull (charge) lifecycle for a direct-debit mandate.  Lightning is
+# push-only, so the "pull" is always executed on the CUSTOMER node:
+#   * intra-node merchant  -> a FEAT-223 ledger transfer customer->merchant
+#   * cross-node merchant   -> a pay push to the merchant's payable target
+# Either way the operator fee tier applies (transfer / pay).
+#
+# Operations (all take the customer address as $1):
+#   charge  <mid> <secret> <sat> [--ref <json>]
+#       Merchant-triggered charge.  Authenticated by the per-mandate
+#       `secret` (NOT a customer bearer) — this is what a cross-node
+#       merchant POSTs to the customer node.  mode 'auto' executes
+#       immediately; mode 'approval' records a *pending* pull.
+#   approve <mid> <pull_id>      Customer OKs a pending pull -> execute.
+#   deny    <mid> <pull_id>      Customer rejects a pending pull.
+#
+# Exit codes: 0 ok · 2 bad args · 4 unknown · 6 rule violation
+# (cap exceeded / inactive / execution failed) · 7 auth failure
+# (bad/missing mandate secret).
+
+set -e
+[ $# -ge 2 ] || exit 1
+address="$1"; op="$2"; shift 2
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+command -v jq >/dev/null || { echo '{"error":"jq not installed"}'; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$name" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+now=$(date -u +%s)
+sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
+
+self_libexec=$(cd "$(dirname "$0")" && pwd)
+
+mint_id() {
+	local prefix="$1" raw
+	raw=$(head -c 10 /dev/urandom | base32 2>/dev/null | tr 'A-Z' 'a-z' | tr -d '=\n' | cut -c1-16)
+	[ -n "$raw" ] || raw=$(head -c 10 /dev/urandom | od -An -tx1 | tr -d ' \n' | cut -c1-16)
+	echo "${prefix}_$raw"
+}
+
+window_secs() {
+	case "$1" in daily) echo 86400 ;; weekly) echo 604800 ;; monthly) echo 2592000 ;; *) echo 2592000 ;; esac
+}
+
+# Sum of already-executed pulls for this mandate inside the current
+# rolling window — used for the per-period cap.
+spent_in_window() {
+	local mid="$1" period="$2" since
+	since=$(( now - $(window_secs "$period") ))
+	sqlite3 "$db" "SELECT COALESCE(SUM(sat),0) FROM mandate_pulls \
+		WHERE mandate = $(sql_quote "$mid") AND state = 'executed' AND created_at >= $since;"
+}
+
+# Execute the actual push.  Local merchant -> atomic transfer; external
+# payable target -> pay push.  Returns the underlying exit code.
+execute_push() {
+	local merchant="$1" sat="$2" lower
+	if [ "$(sqlite3 "$db" "SELECT 1 FROM accounts WHERE (name = $(sql_quote "$merchant") OR address = $(sql_quote "$merchant")) LIMIT 1;" 2>/dev/null)" = "1" ]; then
+		"$self_libexec/api-account-transfer" "$address" "$merchant" "$sat" --note "direct-debit"
+		return $?
+	fi
+	lower=$(printf '%s' "$merchant" | tr 'A-Z' 'a-z')
+	case "$lower" in
+		lno*)        "$self_libexec/account" pay "$name" "$merchant" --sat "$sat" ;;
+		lnurl*|*@*.*) "$self_libexec/account" pay "$name" "$merchant" ;;
+		*) return 1 ;;
+	esac
+}
+
+# Load a mandate scoped to this customer.  Sets MD_* globals; returns 1
+# if not found.
+MD_MERCHANT=""; MD_MAX=""; MD_PERIOD=""; MD_MODE=""; MD_STATUS=""; MD_SECRET=""
+load_mandate() {
+	local mid="$1" row
+	row=$(sqlite3 -separator $'\t' "$db" "SELECT merchant, max_per_period, period, mode, status, secret \
+		FROM mandates WHERE id = $(sql_quote "$mid") AND customer = $(sql_quote "$name");")
+	[ -n "$row" ] || return 1
+	IFS=$'\t' read -r MD_MERCHANT MD_MAX MD_PERIOD MD_MODE MD_STATUS MD_SECRET <<<"$row"
+	return 0
+}
+
+case "$op" in
+	charge)
+		[ $# -ge 3 ] || { echo '{"error":"usage_charge"}'; exit 2; }
+		mid="$1"; secret="$2"; sat="$3"; shift 3
+		ref_json=""
+		while [ $# -gt 0 ]; do
+			case "$1" in
+				--ref) ref_json="$2"; shift 2 ;;
+				*) echo '{"error":"unknown_flag"}'; exit 2 ;;
+			esac
+		done
+		case "$sat" in ''|*[!0-9]*) echo '{"error":"bad_sat"}'; exit 2 ;; esac
+		[ "$sat" -gt 0 ] || { echo '{"error":"bad_sat"}'; exit 2; }
+		# Auth: the mandate must exist for this customer AND the secret
+		# must match.  Either failure is an auth failure (don't leak
+		# which) -> 7 -> 401.
+		load_mandate "$mid" || { echo '{"error":"unauthorized"}'; exit 7; }
+		[ "$secret" = "$MD_SECRET" ] || { echo '{"error":"unauthorized"}'; exit 7; }
+		[ "$MD_STATUS" = "active" ] || { echo '{"error":"mandate_not_active"}'; exit 6; }
+		# Per-period cap.
+		spent=$(spent_in_window "$mid" "$MD_PERIOD")
+		[ "$(( spent + sat ))" -le "$MD_MAX" ] || { echo '{"error":"cap_exceeded"}'; exit 6; }
+		if [ -n "$ref_json" ]; then
+			jq -e . >/dev/null 2>&1 <<<"$ref_json" || { echo '{"error":"ref_not_json"}'; exit 2; }
+		fi
+		pid=$(mint_id mpl)
+		if [ "$MD_MODE" = "approval" ]; then
+			sqlite3 "$db" "INSERT INTO mandate_pulls(id, mandate, sat, reference, state, created_at) \
+				VALUES($(sql_quote "$pid"), $(sql_quote "$mid"), $sat, \
+				       $([ -n "$ref_json" ] && sql_quote "$ref_json" || echo NULL), 'pending', $now);"
+			jq -nc --arg pid "$pid" --arg mid "$mid" --argjson sat "$sat" \
+				'{pull_id:$pid, mandate:$mid, sat:$sat, state:"pending"}'
+			exit 0
+		fi
+		# mode auto — execute immediately.
+		if execute_push "$MD_MERCHANT" "$sat" >/dev/null 2>&1; then
+			sqlite3 "$db" "INSERT INTO mandate_pulls(id, mandate, sat, reference, state, created_at) \
+				VALUES($(sql_quote "$pid"), $(sql_quote "$mid"), $sat, \
+				       $([ -n "$ref_json" ] && sql_quote "$ref_json" || echo NULL), 'executed', $now);"
+			jq -nc --arg pid "$pid" --arg mid "$mid" --argjson sat "$sat" \
+				'{pull_id:$pid, mandate:$mid, sat:$sat, state:"executed"}'
+		else
+			echo '{"error":"execution_failed"}'; exit 6
+		fi
+		;;
+	approve|deny)
+		[ $# -ge 2 ] || { echo '{"error":"usage_'"$op"'"}'; exit 2; }
+		mid="$1"; pid="$2"
+		load_mandate "$mid" || { echo '{"error":"unknown_mandate"}'; exit 4; }
+		pstate=$(sqlite3 "$db" "SELECT state FROM mandate_pulls WHERE id = $(sql_quote "$pid") AND mandate = $(sql_quote "$mid");")
+		[ -n "$pstate" ] || { echo '{"error":"unknown_pull"}'; exit 4; }
+		[ "$pstate" = "pending" ] || { echo '{"error":"pull_not_pending"}'; exit 6; }
+		if [ "$op" = "deny" ]; then
+			sqlite3 "$db" "UPDATE mandate_pulls SET state = 'denied' WHERE id = $(sql_quote "$pid");"
+			jq -nc --arg pid "$pid" '{pull_id:$pid, state:"denied"}'
+			exit 0
+		fi
+		# approve — re-validate the mandate + cap, then execute.
+		[ "$MD_STATUS" = "active" ] || { echo '{"error":"mandate_not_active"}'; exit 6; }
+		psat=$(sqlite3 "$db" "SELECT sat FROM mandate_pulls WHERE id = $(sql_quote "$pid");")
+		spent=$(spent_in_window "$mid" "$MD_PERIOD")
+		[ "$(( spent + psat ))" -le "$MD_MAX" ] || { echo '{"error":"cap_exceeded"}'; exit 6; }
+		if execute_push "$MD_MERCHANT" "$psat" >/dev/null 2>&1; then
+			sqlite3 "$db" "UPDATE mandate_pulls SET state = 'executed' WHERE id = $(sql_quote "$pid");"
+			jq -nc --arg pid "$pid" --argjson sat "$psat" '{pull_id:$pid, sat:$sat, state:"executed"}'
+		else
+			echo '{"error":"execution_failed"}'; exit 6
+		fi
+		;;
+	*) echo '{"error":"unknown_op"}'; exit 2 ;;
+esac

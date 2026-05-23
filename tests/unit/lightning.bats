@@ -6320,3 +6320,166 @@ _acct226_teardown() {
 	run "$LIGHTNING_BIN" account
 	[[ "$output" == *"standing-order"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-227: direct debit (Lastschrift) + mandates.
+# ---------------------------------------------------------------------------
+
+_acct227_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create cust >/dev/null
+	"$LIGHTNING_BIN" account create shop >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_CUST_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='cust';")
+	BATS_SHOP_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='shop';")
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES(datetime('now'),'cust','in',100000000,'seed');"
+}
+
+_acct227_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+_mk_mandate() {
+	# $1 mode (auto|approval); echoes "<mid> <secret>"
+	local out
+	out=$("$LIGHTNING_BIN" api-account-mandate "$BATS_CUST_ADDR" create shop 50000 monthly --mode "${1:-auto}")
+	echo "$(echo "$out" | jq -r '.id') $(echo "$out" | jq -r '.secret')"
+}
+
+@test "FEAT-227: create mandate returns a secret + active status" {
+	_acct227_setup
+	run "$LIGHTNING_BIN" api-account-mandate "$BATS_CUST_ADDR" create shop 50000 monthly
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"status":"active"'* ]]
+	[ -n "$(echo "$output" | jq -r '.secret')" ]
+	[[ "$(echo "$output" | jq -r '.id')" == mdt_* ]]
+	_acct227_teardown
+}
+
+@test "FEAT-227: create rejects bad period / mode / non-positive max" {
+	_acct227_setup
+	run "$LIGHTNING_BIN" api-account-mandate "$BATS_CUST_ADDR" create shop 50000 hourly
+	[ "$status" -ne 0 ]
+	run "$LIGHTNING_BIN" api-account-mandate "$BATS_CUST_ADDR" create shop 50000 monthly --mode whenever
+	[ "$status" -ne 0 ]
+	run "$LIGHTNING_BIN" api-account-mandate "$BATS_CUST_ADDR" create shop 0 monthly
+	[ "$status" -ne 0 ]
+	_acct227_teardown
+}
+
+@test "FEAT-227: create rejects a single-use BOLT-11 merchant + self-mandate" {
+	_acct227_setup
+	run "$LIGHTNING_BIN" api-account-mandate "$BATS_CUST_ADDR" create lnbc10n1pmocktest 5000 daily
+	[ "$status" -ne 0 ]
+	run "$LIGHTNING_BIN" api-account-mandate "$BATS_CUST_ADDR" create cust 5000 daily
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"merchant_is_customer"* ]]
+	_acct227_teardown
+}
+
+@test "FEAT-227: auto-mode charge within cap executes an intra-node transfer" {
+	_acct227_setup
+	read -r mid secret <<<"$(_mk_mandate auto)"
+	run "$LIGHTNING_BIN" api-account-mandate-pull "$BATS_CUST_ADDR" charge "$mid" "$secret" 10000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"state":"executed"'* ]]
+	[ "$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='shop';")" = "10000000" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='cust';")" = "90000000" ]
+	_acct227_teardown
+}
+
+@test "FEAT-227: charge with the wrong secret is rejected (exit 7)" {
+	_acct227_setup
+	read -r mid secret <<<"$(_mk_mandate auto)"
+	run "$LIGHTNING_BIN" api-account-mandate-pull "$BATS_CUST_ADDR" charge "$mid" "deadbeef" 1000
+	[ "$status" -eq 7 ]
+	[[ "$output" == *"unauthorized"* ]]
+	# Nothing moved.
+	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='shop';")" = "0" ]
+	_acct227_teardown
+}
+
+@test "FEAT-227: a pull exceeding the per-period cap is rejected (exit 6)" {
+	_acct227_setup
+	read -r mid secret <<<"$(_mk_mandate auto)"
+	"$LIGHTNING_BIN" api-account-mandate-pull "$BATS_CUST_ADDR" charge "$mid" "$secret" 40000 >/dev/null
+	run "$LIGHTNING_BIN" api-account-mandate-pull "$BATS_CUST_ADDR" charge "$mid" "$secret" 20000
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"cap_exceeded"* ]]
+	_acct227_teardown
+}
+
+@test "FEAT-227: revoking a mandate blocks further pulls (exit 6)" {
+	_acct227_setup
+	read -r mid secret <<<"$(_mk_mandate auto)"
+	"$LIGHTNING_BIN" api-account-mandate "$BATS_CUST_ADDR" patch "$mid" --status revoked >/dev/null
+	run "$LIGHTNING_BIN" api-account-mandate-pull "$BATS_CUST_ADDR" charge "$mid" "$secret" 1000
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"mandate_not_active"* ]]
+	_acct227_teardown
+}
+
+@test "FEAT-227: approval-mode charge lands pending; approve executes" {
+	_acct227_setup
+	read -r mid secret <<<"$(_mk_mandate approval)"
+	local out pid
+	out=$("$LIGHTNING_BIN" api-account-mandate-pull "$BATS_CUST_ADDR" charge "$mid" "$secret" 5000)
+	[[ "$out" == *'"state":"pending"'* ]]
+	pid=$(echo "$out" | jq -r '.pull_id')
+	# Not executed yet.
+	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='shop';")" = "0" ]
+	run "$LIGHTNING_BIN" api-account-mandate-pull "$BATS_CUST_ADDR" approve "$mid" "$pid"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"state":"executed"'* ]]
+	[ "$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='shop';")" = "5000000" ]
+	_acct227_teardown
+}
+
+@test "FEAT-227: approval-mode deny cancels the pull" {
+	_acct227_setup
+	read -r mid secret <<<"$(_mk_mandate approval)"
+	local out pid
+	out=$("$LIGHTNING_BIN" api-account-mandate-pull "$BATS_CUST_ADDR" charge "$mid" "$secret" 5000)
+	pid=$(echo "$out" | jq -r '.pull_id')
+	run "$LIGHTNING_BIN" api-account-mandate-pull "$BATS_CUST_ADDR" deny "$mid" "$pid"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"state":"denied"'* ]]
+	[ "$(sqlite3 "$BATS_DB" "SELECT state FROM mandate_pulls WHERE id='$pid';")" = "denied" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='shop';")" = "0" ]
+	_acct227_teardown
+}
+
+@test "FEAT-227: list does not leak the secret" {
+	_acct227_setup
+	_mk_mandate auto >/dev/null
+	run "$LIGHTNING_BIN" api-account-mandate "$BATS_CUST_ADDR" list
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.mandates | length == 1' >/dev/null
+	echo "$output" | jq -e '.mandates[0] | has("secret") | not' >/dev/null
+	_acct227_teardown
+}
+
+@test "FEAT-227: patch switches the mode" {
+	_acct227_setup
+	read -r mid secret <<<"$(_mk_mandate auto)"
+	run "$LIGHTNING_BIN" api-account-mandate "$BATS_CUST_ADDR" patch "$mid" --mode approval
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"mode":"approval"'* ]]
+	[ "$(sqlite3 "$BATS_DB" "SELECT mode FROM mandates WHERE id='$mid';")" = "approval" ]
+	_acct227_teardown
+}
+
+@test "FEAT-227: sudoers fragment lists the mandate verbs" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+	grep -q "api-account-mandate " "$f"
+	grep -q "api-account-mandate-pull" "$f"
+}
+
+@test "FEAT-227: schema declares mandates + mandate_pulls" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/schema.sql"
+	grep -q "CREATE TABLE IF NOT EXISTS mandates" "$f"
+	grep -q "CREATE TABLE IF NOT EXISTS mandate_pulls" "$f"
+}
