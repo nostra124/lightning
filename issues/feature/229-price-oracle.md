@@ -64,7 +64,7 @@ source + **stored historically**.  Two consumers:
 ## Dependencies
 
 * FEAT-224 (versioned `.well-known` prefix for the HTTP route).
-* Feeds the FEAT-230 tax export.
+* Feeds the FEAT-230 tax-data export.
 
 ## Milestone
 

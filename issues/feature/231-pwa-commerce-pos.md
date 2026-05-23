@@ -31,7 +31,8 @@ Surface the core-banking + commerce features (FEAT-223/225/226/
   customer-facing half of mode (b).
 * **Fiat display** — amounts shown in the user's base currency
   alongside sats, everywhere (FEAT-229).
-* **Tax report download** — Settings → export (FEAT-230).
+* **Tax-data export** — Settings → "Export transaction data
+  (for tax)" (FEAT-230).  It's a data download, not a report.
 
 ## Out of scope
 
@@ -45,7 +46,7 @@ Surface the core-banking + commerce features (FEAT-223/225/226/
 * FEAT-209 PR-2 (the PWA must exist first).
 * FEAT-223 (transfer), FEAT-225 (commercial invoice),
   FEAT-226 (standing order), FEAT-227 (mandates),
-  FEAT-229 (fiat price), FEAT-230 (tax export) — surfaces all
+  FEAT-229 (fiat price), FEAT-230 (tax-data export) — surfaces all
   of them.
 
 ## Milestone
