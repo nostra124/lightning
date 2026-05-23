@@ -241,4 +241,4 @@ build the capabilities once, bundle per jurisdiction in config.
 
 ## Milestone
 
-1.6.0 (framework) + 1.7.0/1.8.0 (modules, as needed).
+alpha — must ship before the feature-complete **alpha** cut (the framework; individual compliance modules FEAT-234..242 are post-1.0 backlog, switched on per-jurisdiction as the hosted instance needs them).

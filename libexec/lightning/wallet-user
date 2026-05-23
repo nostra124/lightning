@@ -1,0 +1,164 @@
+#!/bin/bash
+# lightning wallet-user — the wallet-user layer above accounts (FEAT-222).
+#
+# A wallet-user is the human identity (passkey-authed in the PWA)
+# that owns one or more accounts.  This verb is the CLI / operator
+# bootstrap surface; the HTTP + passkey endpoints land in later
+# FEAT-222 PRs.  Note: stored in `wallet_users`, NOT the FEAT-176
+# `users` table (Lightning-Address localparts — a different concept).
+#
+# Subcommands:
+#   create [--label <text>] [--referrer <user-id>]
+#         Mint a new wallet-user.  Bootstrap path — no invite needed
+#         (the operator's first user comes from here; HTTP
+#         registration is invite-gated, this is not).
+#   list
+#         TSV of users + owned-account counts.
+#   show <id>
+#         Profile + the accounts this user owns.
+#   delete <id>
+#         Remove the user.  Owned accounts are orphaned
+#         (accounts.owner_user → NULL via the FK), not deleted.
+
+set -e
+
+command -v sqlite3 >/dev/null || { echo "lightning: sqlite3 not installed" >&2; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+
+active_wallet_name() {
+	local name="default"
+	[ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
+	echo "$name"
+}
+
+active_db() {
+	local name; name=$(active_wallet_name)
+	local db="$WALLETS_ROOT/$name/state.db"
+	[ -f "$db" ] || { echo "lightning wallet-user: no active wallet (try \`lightning wallet new\`)" >&2; exit 2; }
+	ensure_user_schema "$db"
+	echo "$db"
+}
+
+# Idempotent: make sure the wallet-user table exists even if the
+# account verb's migration hasn't run on this wallet yet.  (Both
+# verbs ensure it; CREATE IF NOT EXISTS is cheap + safe.)
+ensure_user_schema() {
+	local db="$1"
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS wallet_users ( \
+		id            TEXT PRIMARY KEY, \
+		created_at    INTEGER NOT NULL, \
+		referrer_user TEXT, \
+		label         TEXT NOT NULL DEFAULT '' \
+	);" 2>/dev/null || true
+}
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+# usr_ + 16 base32-lowercase chars (same alphabet as FEAT-218 invite
+# codes — readable, URL-safe, no checksum needed).
+mint_user_id() {
+	echo "usr_$(head -c 10 /dev/urandom | base32 | tr 'A-Z' 'a-z' | tr -d '=\n' | head -c 16)"
+}
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning wallet-user <subcommand>
+
+   create [--label <text>] [--referrer <user-id>]   mint a wallet-user
+   list                                              TSV: id, label, accounts
+   show <id>                                         profile + owned accounts
+   delete <id>                                       remove (orphans accounts)
+EOF
+}
+
+cmd_create() {
+	local label="" referrer=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--label)    label="$2"; shift 2 ;;
+			--referrer) referrer="$2"; shift 2 ;;
+			*) echo "lightning wallet-user create: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	local db; db=$(active_db)
+
+	if [ -n "$referrer" ]; then
+		local found
+		found=$(sqlite3 "$db" "SELECT 1 FROM wallet_users WHERE id = $(sql_quote "$referrer") LIMIT 1;")
+		[ "$found" = "1" ] || { echo "lightning wallet-user create: referrer '$referrer' not found" >&2; exit 2; }
+	fi
+
+	local id; id=$(mint_user_id)
+	local now; now=$(date -u +%s)
+	sqlite3 "$db" "INSERT INTO wallet_users(id, created_at, referrer_user, label) \
+		VALUES($(sql_quote "$id"), $now, $([ -n "$referrer" ] && sql_quote "$referrer" || echo NULL), $(sql_quote "$label"));"
+	echo "lightning wallet-user: created $id"
+	[ -n "$label" ]    && echo "  label:    $label"
+	[ -n "$referrer" ] && echo "  referrer: $referrer"
+	# Explicit success: the trailing `[ ... ] && echo` returns false
+	# when its test is false (e.g. no referrer), which would otherwise
+	# become the verb's non-zero exit status under `set -e`.
+	return 0
+}
+
+cmd_list() {
+	local db; db=$(active_db)
+	printf "id\tlabel\taccounts\tcreated_at\n"
+	sqlite3 -separator $'\t' "$db" "
+		SELECT u.id,
+		       u.label,
+		       (SELECT COUNT(*) FROM accounts a WHERE a.owner_user = u.id) AS accounts,
+		       u.created_at
+		FROM wallet_users u
+		ORDER BY u.created_at DESC;"
+}
+
+cmd_show() {
+	[ $# -lt 1 ] && { echo "usage: lightning wallet-user show <id>" >&2; exit 1; }
+	local id="$1"
+	local db; db=$(active_db)
+	local row
+	# Put the nullable referrer LAST: bash `read` with a tab IFS
+	# collapses an empty *middle* field (tab is whitespace), which
+	# would shift the columns.  A trailing empty is harmless.
+	row=$(sqlite3 -separator $'\t' "$db" \
+		"SELECT id, label, created_at, COALESCE(referrer_user,'') FROM wallet_users WHERE id = $(sql_quote "$id");")
+	[ -n "$row" ] || { echo "lightning wallet-user: no such user '$id'" >&2; exit 2; }
+	local uid label created ref
+	IFS=$'\t' read -r uid label created ref <<<"$row"
+	printf "id:           %s\n" "$uid"
+	printf "label:        %s\n" "${label:-(none)}"
+	printf "referrer:     %s\n" "${ref:-(none)}"
+	printf "created_at:   %s\n" "$created"
+	printf "\nowned accounts:\n"
+	sqlite3 -header -separator $'\t' "$db" \
+		"SELECT name, COALESCE(address,'') AS address, COALESCE(closed_at,0) AS closed_at \
+		 FROM accounts WHERE owner_user = $(sql_quote "$id") ORDER BY created_at;"
+}
+
+cmd_delete() {
+	[ $# -lt 1 ] && { echo "usage: lightning wallet-user delete <id>" >&2; exit 1; }
+	local id="$1"
+	local db; db=$(active_db)
+	local found
+	found=$(sqlite3 "$db" "SELECT 1 FROM wallet_users WHERE id = $(sql_quote "$id") LIMIT 1;")
+	[ "$found" = "1" ] || { echo "lightning wallet-user: no such user '$id'" >&2; exit 2; }
+	# Owned accounts are orphaned (owner_user → NULL) by the FK; the
+	# account rows + their balances survive.  Make the orphaning
+	# explicit in case foreign_keys pragma is off on this connection.
+	sqlite3 "$db" "PRAGMA foreign_keys=ON; \
+		UPDATE accounts SET owner_user = NULL WHERE owner_user = $(sql_quote "$id"); \
+		DELETE FROM wallet_users WHERE id = $(sql_quote "$id");"
+	echo "lightning wallet-user: deleted $id (owned accounts orphaned, not removed)"
+}
+
+case "${1:-}" in
+	create)  shift; cmd_create "$@" ;;
+	list)    shift; cmd_list "$@" ;;
+	show)    shift; cmd_show "$@" ;;
+	delete)  shift; cmd_delete "$@" ;;
+	"")      usage; exit 1 ;;
+	*)       echo "lightning wallet-user: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

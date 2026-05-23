@@ -151,6 +151,7 @@ objects:
                            unlock, push/pull, backup/restore)
    peer                    network peering (list, connect, bootstrap)
    account                 logical accounts and api keys
+   wallet-user             user identities that own accounts (FEAT-222)
    channel                 Lightning channels (open, close, balance, scb)
    fee                     per-channel fees (get, set, policy)
    fee-policy              operator-fee revenue + rates (FEAT-213/214)

@@ -43,13 +43,15 @@ active_db() {
 # FEAT-212 — additive, idempotent migration of the accounts table.
 # Pre-FEAT-212 wallets are missing address / created_at / closed_at /
 # last_api_call_at; add whichever are absent.  FEAT-218 extends with
-# the `referrer` column + the `invite_codes` table.
+# the `referrer` column + the `invite_codes` table.  FEAT-222 adds
+# the `wallet_users` table + accounts.owner_user + invite_codes'
+# owner_user/credit_account columns.
 migrate_accounts_schema() {
 	local db="$1"
 	local cols
 	cols=$(sqlite3 "$db" "PRAGMA table_info(accounts);" 2>/dev/null | awk -F'|' '{print $2}')
 	local col
-	for col in address created_at closed_at last_api_call_at referrer; do
+	for col in address created_at closed_at last_api_call_at referrer owner_user; do
 		echo "$cols" | grep -qx "$col" || {
 			local type=TEXT
 			case "$col" in created_at|closed_at|last_api_call_at) type=INTEGER ;; esac
@@ -64,6 +66,22 @@ migrate_accounts_schema() {
 		created_at  INTEGER NOT NULL, \
 		uses        INTEGER NOT NULL DEFAULT 0 \
 	);" 2>/dev/null || true
+
+	# FEAT-222 — wallet-user layer.  `wallet_users` (NOT the FEAT-176
+	# `users` lnaddr table) is the human identity that owns accounts.
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS wallet_users ( \
+		id            TEXT PRIMARY KEY, \
+		created_at    INTEGER NOT NULL, \
+		referrer_user TEXT, \
+		label         TEXT NOT NULL DEFAULT '' \
+	);" 2>/dev/null || true
+	# invite_codes gains owner_user + credit_account (additive).
+	local ic_cols
+	ic_cols=$(sqlite3 "$db" "PRAGMA table_info(invite_codes);" 2>/dev/null | awk -F'|' '{print $2}')
+	echo "$ic_cols" | grep -qx "owner_user" || \
+		sqlite3 "$db" "ALTER TABLE invite_codes ADD COLUMN owner_user TEXT;" 2>/dev/null || true
+	echo "$ic_cols" | grep -qx "credit_account" || \
+		sqlite3 "$db" "ALTER TABLE invite_codes ADD COLUMN credit_account TEXT;" 2>/dev/null || true
 }
 
 # FEAT-212 — mint a fresh on-chain address from lightningd; that

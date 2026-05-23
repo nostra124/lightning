@@ -219,9 +219,17 @@ The invitation flow is:
 
 ### Schema (additive)
 
+> **Implementation note (PR-2):** the table is named **`wallet_users`**,
+> not `users` — the name `users` is already taken by FEAT-176's
+> Lightning-Address localpart→account mapping.  The CLI verb
+> (`lightning user`) + the HTTP surface (`/api/v1/users/`) keep the
+> "user" name; only the table differs.  The ID is `usr_` + 16
+> base32-lowercase chars (same alphabet as FEAT-218 invite codes),
+> not base58.
+
 ```sql
-CREATE TABLE IF NOT EXISTS users (
-    id              TEXT PRIMARY KEY,           -- usr_<22 base58 chars>
+CREATE TABLE IF NOT EXISTS wallet_users (
+    id              TEXT PRIMARY KEY,           -- usr_<16 base32 chars>
     created_at      INTEGER NOT NULL,
     referrer_user   TEXT REFERENCES users(id) ON DELETE SET NULL,
     label           TEXT NOT NULL DEFAULT ''    -- optional human label

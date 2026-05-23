@@ -1,4 +1,5 @@
--- lightning wallet schema (FEAT-193, extended FEAT-212, FEAT-218).
+-- lightning wallet schema (FEAT-193, extended FEAT-212, FEAT-218,
+-- FEAT-222).
 --
 -- WAL mode is configured at open time by the verbs.
 -- Migrations: idempotent ALTER TABLE / CREATE TABLE IF NOT EXISTS in
@@ -27,16 +28,39 @@ CREATE TABLE IF NOT EXISTS accounts (
     -- Manual override via `lightning account set-referrer` (admin
     -- escape hatch for sybil-defence cases).
     referrer         TEXT    DEFAULT 'house'
-                             REFERENCES accounts(name) ON DELETE SET DEFAULT
+                             REFERENCES accounts(name) ON DELETE SET DEFAULT,
+    -- FEAT-222 — the owning wallet-user (the human identity above
+    -- accounts).  NULL = anonymous account (no owner).  FK to
+    -- wallet_users (NOT the FEAT-176 `users` lnaddr table, which is a
+    -- different concept).  ON DELETE SET NULL orphans the account if
+    -- its owner is removed; the GC later reaps idle orphans.
+    owner_user       TEXT    REFERENCES wallet_users(id) ON DELETE SET NULL
 );
 
 -- FEAT-218 — invite codes minted by accounts that want to refer
 -- newcomers.  Anonymous; the only secret is the code value itself.
+-- FEAT-222 grows owner_user + credit_account: a user-minted code
+-- names which of the user's accounts receives the referral credit.
+-- The legacy `account` column is the fallback credit target when
+-- owner_user is NULL (pre-FEAT-222 account-linked codes).
 CREATE TABLE IF NOT EXISTS invite_codes (
-    code        TEXT    PRIMARY KEY,
-    account     TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE,
-    created_at  INTEGER NOT NULL,
-    uses        INTEGER NOT NULL DEFAULT 0
+    code           TEXT    PRIMARY KEY,
+    account        TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE,
+    created_at     INTEGER NOT NULL,
+    uses           INTEGER NOT NULL DEFAULT 0,
+    owner_user     TEXT    REFERENCES wallet_users(id) ON DELETE CASCADE,
+    credit_account TEXT    REFERENCES accounts(name) ON DELETE SET NULL
+);
+
+-- FEAT-222 — the user layer above accounts.  A wallet-user is the
+-- human identity (passkey-authed in the PWA) that owns one or more
+-- accounts.  Named `wallet_users` to avoid colliding with the
+-- FEAT-176 `users` table (Lightning-Address localparts).
+CREATE TABLE IF NOT EXISTS wallet_users (
+    id            TEXT    PRIMARY KEY,            -- usr_<base32>
+    created_at    INTEGER NOT NULL,
+    referrer_user TEXT    REFERENCES wallet_users(id) ON DELETE SET NULL,
+    label         TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS ledger (

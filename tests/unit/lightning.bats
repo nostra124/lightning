@@ -5701,3 +5701,154 @@ _acct223_teardown() {
 	[ -x "$f" ]
 	head -1 "$f" | grep -q python3
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-222 PR-2: wallet-user layer (schema + CLI bootstrap).
+# ---------------------------------------------------------------------------
+
+_user222_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+}
+
+_user222_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-222 PR-2: schema has wallet_users distinct from the FEAT-176 users table" {
+	_user222_setup
+	# Both tables exist + are different.
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='wallet_users';")" = "1" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='users';")" = "1" ]
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: accounts gains owner_user; invite_codes gains owner_user + credit_account" {
+	_user222_setup
+	sqlite3 "$BATS_DB" "PRAGMA table_info(accounts);" | awk -F'|' '{print $2}' | grep -qx owner_user
+	sqlite3 "$BATS_DB" "PRAGMA table_info(invite_codes);" | awk -F'|' '{print $2}' | grep -qx owner_user
+	sqlite3 "$BATS_DB" "PRAGMA table_info(invite_codes);" | awk -F'|' '{print $2}' | grep -qx credit_account
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: user create mints a usr_ id" {
+	_user222_setup
+	run "$LIGHTNING_BIN" wallet-user create --label operator
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"created usr_"* ]]
+	[[ "$output" == *"label:    operator"* ]]
+	local uid
+	uid=$(echo "$output" | awk '/created/{print $4}')
+	[[ "$uid" =~ ^usr_[a-z0-9]{16}$ ]]
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: user create --referrer requires an existing user" {
+	_user222_setup
+	run "$LIGHTNING_BIN" wallet-user create --referrer usr_nope
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"not found"* ]]
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: user create --referrer records the link" {
+	_user222_setup
+	local parent
+	parent=$("$LIGHTNING_BIN" wallet-user create --label parent | awk '/created/{print $4}')
+	"$LIGHTNING_BIN" wallet-user create --label child --referrer "$parent" >/dev/null
+	local got
+	got=$(sqlite3 "$BATS_DB" "SELECT referrer_user FROM wallet_users WHERE label='child';")
+	[ "$got" = "$parent" ]
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: user list shows owned-account counts" {
+	_user222_setup
+	local uid
+	uid=$("$LIGHTNING_BIN" wallet-user create --label op | awk '/created/{print $4}')
+	"$LIGHTNING_BIN" account create acct1 >/dev/null 2>&1
+	sqlite3 "$BATS_DB" "UPDATE accounts SET owner_user='$uid' WHERE name='acct1';"
+	run "$LIGHTNING_BIN" wallet-user list
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "id	label	accounts	created_at" ]]
+	[[ "$output" == *"$uid"*"op"*"1"* ]]
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: user show lists owned accounts" {
+	_user222_setup
+	local uid
+	uid=$("$LIGHTNING_BIN" wallet-user create --label op | awk '/created/{print $4}')
+	"$LIGHTNING_BIN" account create acct1 >/dev/null 2>&1
+	sqlite3 "$BATS_DB" "UPDATE accounts SET owner_user='$uid' WHERE name='acct1';"
+	run "$LIGHTNING_BIN" wallet-user show "$uid"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"id:           $uid"* ]]
+	[[ "$output" == *"referrer:     (none)"* ]]
+	[[ "$output" == *"acct1"* ]]
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: user show on unknown id errors" {
+	_user222_setup
+	run "$LIGHTNING_BIN" wallet-user show usr_nope
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"no such user"* ]]
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: user delete orphans owned accounts (does not delete them)" {
+	_user222_setup
+	local uid
+	uid=$("$LIGHTNING_BIN" wallet-user create --label op | awk '/created/{print $4}')
+	"$LIGHTNING_BIN" account create acct1 >/dev/null 2>&1
+	sqlite3 "$BATS_DB" "UPDATE accounts SET owner_user='$uid' WHERE name='acct1';"
+	"$LIGHTNING_BIN" wallet-user delete "$uid"
+	# Account survives; owner cleared.
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='acct1';")" = "1" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(owner_user,'NULL') FROM accounts WHERE name='acct1';")" = "NULL" ]
+	# User gone.
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM wallet_users WHERE id='$uid';")" = "0" ]
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: user delete on unknown id errors" {
+	_user222_setup
+	run "$LIGHTNING_BIN" wallet-user delete usr_nope
+	[ "$status" -eq 2 ]
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: user with no subcommand prints usage" {
+	run "$LIGHTNING_BIN" wallet-user
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"usage: lightning wallet-user"* ]]
+}
+
+@test "FEAT-222 PR-2: top-level help lists the user verb" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"wallet-user"* ]]
+}
+
+@test "FEAT-222 PR-2: account migration is idempotent for the new columns" {
+	_user222_setup
+	# Run an account verb twice → no error, columns stable.
+	"$LIGHTNING_BIN" account list >/dev/null
+	"$LIGHTNING_BIN" account list >/dev/null
+	[ "$(sqlite3 "$BATS_DB" "PRAGMA table_info(accounts);" | awk -F'|' '$2=="owner_user"' | wc -l | tr -d ' ')" = "1" ]
+	_user222_teardown
+}
+
+@test "FEAT-222 PR-2: spec file present + notes the wallet_users rename" {
+	for cand in \
+		"$BATS_TEST_DIRNAME/../../issues/feature/222-user-layer.md" \
+		"$BATS_TEST_DIRNAME/../../issues/feature/done/222-user-layer.md"; do
+		[ -f "$cand" ] && f="$cand" && break
+	done
+	[ -n "$f" ]
+	grep -q "^id: FEAT-222" "$f"
+	grep -q "wallet_users" "$f"
+}
