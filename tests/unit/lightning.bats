@@ -4210,7 +4210,8 @@ _acct212pr2_teardown() {
 	# Description was persisted in the DB.
 	local db="$LIGHTNING_WALLETS_ROOT/alice/state.db"
 	local got
-	got=$(sqlite3 "$db" "SELECT description FROM accounts WHERE description != '' AND description != 'unassigned' LIMIT 1;")
+	# Exclude house (FEAT-218 pre-seeds it with 'operator fee revenue').
+	got=$(sqlite3 "$db" "SELECT description FROM accounts WHERE description != '' AND name NOT IN ('-', 'house') LIMIT 1;")
 	[ "$got" = "personal pocket" ]
 	_acct212pr2_teardown
 }
@@ -4486,7 +4487,7 @@ _acct212pr5_teardown() {
 	[[ "$output" == *"would-delete	closer"* ]]
 	# State unchanged.
 	local n_closed n_total
-	n_total=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name != '-';")
+	n_total=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-', 'house');")
 	n_closed=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE closed_at IS NOT NULL;")
 	[ "$n_total" = "3" ]
 	[ "$n_closed" = "1" ]   # only the pre-existing 'closer'
@@ -4677,10 +4678,12 @@ _acct213_teardown() {
 	outs=$(jq -nc --arg a "$BATS_ADDR" \
 		'[{"txid":"deadbeef","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
 	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
-	local house_exists
-	house_exists=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='house';")
-	# House account is created lazily, only if skim > 0.  Zero rate = no house row.
-	[ "$house_exists" = "0" ]
+	# FEAT-218 pre-seeds `house` so the referrer FK default has a
+	# target.  House row exists from wallet new; with zero skim,
+	# there should be no in-credit ledger entries against it.
+	local house_credits
+	house_credits=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='house' AND direction='in';")
+	[ "$house_credits" = "0" ]
 	_acct213_teardown
 }
 
@@ -4727,17 +4730,19 @@ _acct213_teardown() {
 	_acct213_teardown
 }
 
-@test "FEAT-213: missing fees.recfile = no skim, no house" {
+@test "FEAT-213: missing fees.recfile = no skim, no house credits" {
 	_acct213_setup
 	rm "$BATS_FEES"
 	outs=$(jq -nc --arg a "$BATS_ADDR" \
 		'[{"txid":"deadbeef","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
 	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
-	local rows house
+	local rows house_credits
 	rows=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM ledger;")
 	[ "$rows" = "1" ]   # just the credit, no skim entries
-	house=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='house';")
-	[ "$house" = "0" ]
+	# FEAT-218 pre-seeds house; with no fees.recfile the verbs skip the
+	# skim, so there should be zero in-credit ledger entries on house.
+	house_credits=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='house' AND direction='in';")
+	[ "$house_credits" = "0" ]
 	_acct213_teardown
 }
 
@@ -5086,4 +5091,223 @@ _acct215_teardown() {
 	[ -n "$f" ]
 	grep -q "^id: FEAT-215" "$f"
 	grep -q "autotune" "$f"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-218: referral schema + invite codes.
+# ---------------------------------------------------------------------------
+
+_acct218_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create alice-acct >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='alice-acct';")
+}
+
+_acct218_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-218: wallet new pre-seeds house account with FK-safe ordering" {
+	_acct218_setup
+	# Both house and `-` exist; their referrer defaults to 'house'.
+	local row
+	row=$(sqlite3 -separator '|' "$BATS_DB" "SELECT name, referrer FROM accounts WHERE name IN ('-','house') ORDER BY name;")
+	[ "$row" = "$(printf '%s\n' '-|house' 'house|house')" ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: invite_codes table exists post-migration" {
+	_acct218_setup
+	local n
+	n=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='invite_codes';")
+	[ "$n" = "1" ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: account verb help mentions invite-code" {
+	_acct218_setup
+	run "$LIGHTNING_BIN" account
+	[[ "$output" == *"invite-code create"* ]]
+	[[ "$output" == *"invite-code list"* ]]
+	[[ "$output" == *"invite-code revoke"* ]]
+	_acct218_teardown
+}
+
+@test "FEAT-218: invite-code create mints a 7-char alpha-num code" {
+	_acct218_setup
+	run "$LIGHTNING_BIN" account invite-code create alice-acct
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"code:"* ]]
+	[[ "$output" == *"account: alice-acct"* ]]
+	[[ "$output" == *"link:    ?invite="* ]]
+	local code
+	code=$(echo "$output" | awk '/^code:/{print $2}')
+	[[ "$code" =~ ^[a-z0-9]{7}$ ]]
+	_acct218_teardown
+}
+
+@test "FEAT-218: invite-code create with --code accepts a vanity string" {
+	_acct218_setup
+	run "$LIGHTNING_BIN" account invite-code create alice-acct --code mycode
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"code:    mycode"* ]]
+	_acct218_teardown
+}
+
+@test "FEAT-218: invite-code create rejects invalid vanity strings" {
+	_acct218_setup
+	run "$LIGHTNING_BIN" account invite-code create alice-acct --code "Inv ALID!"
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"[a-z0-9]"* ]]
+	_acct218_teardown
+}
+
+@test "FEAT-218: invite-code create rejects duplicate codes" {
+	_acct218_setup
+	"$LIGHTNING_BIN" account invite-code create alice-acct --code dup1 >/dev/null
+	run "$LIGHTNING_BIN" account invite-code create alice-acct --code dup1
+	[ "$status" -eq 3 ]
+	[[ "$output" == *"already exists"* ]]
+	_acct218_teardown
+}
+
+@test "FEAT-218: invite-code list shows minted codes" {
+	_acct218_setup
+	"$LIGHTNING_BIN" account invite-code create alice-acct --code abc >/dev/null
+	"$LIGHTNING_BIN" account invite-code create alice-acct --code xyz >/dev/null
+	run "$LIGHTNING_BIN" account invite-code list alice-acct
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "code	account	uses	created_at" ]]
+	[[ "$output" == *"abc"*"alice-acct"* ]]
+	[[ "$output" == *"xyz"*"alice-acct"* ]]
+	_acct218_teardown
+}
+
+@test "FEAT-218: invite-code revoke removes the code" {
+	_acct218_setup
+	"$LIGHTNING_BIN" account invite-code create alice-acct --code foo >/dev/null
+	"$LIGHTNING_BIN" account invite-code revoke foo
+	local n
+	n=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM invite_codes WHERE code='foo';")
+	[ "$n" = "0" ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: invite-code revoke on unknown code errors clearly" {
+	_acct218_setup
+	run "$LIGHTNING_BIN" account invite-code revoke nope
+	[ "$status" -eq 2 ]
+	[[ "$output" == *"not found"* ]]
+	_acct218_teardown
+}
+
+@test "FEAT-218: api-accounts-create with valid code stamps referrer" {
+	_acct218_setup
+	"$LIGHTNING_BIN" account invite-code create alice-acct --code abcd >/dev/null
+	REMOTE_ADDR=10.0.0.1 "$LIGHTNING_BIN" api-accounts-create --invite-code abcd >/dev/null
+	local ref
+	ref=$(sqlite3 "$BATS_DB" "SELECT referrer FROM accounts WHERE name LIKE 'anon-%' ORDER BY name DESC LIMIT 1;")
+	[ "$ref" = "alice-acct" ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: api-accounts-create with unknown code silently falls back to house" {
+	_acct218_setup
+	REMOTE_ADDR=10.0.0.2 run "$LIGHTNING_BIN" api-accounts-create --invite-code totally-bogus-code
+	[ "$status" -eq 0 ]
+	local ref
+	ref=$(sqlite3 "$BATS_DB" "SELECT referrer FROM accounts WHERE name LIKE 'anon-%' ORDER BY name DESC LIMIT 1;")
+	[ "$ref" = "house" ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: api-accounts-create without code defaults referrer to house" {
+	_acct218_setup
+	REMOTE_ADDR=10.0.0.3 "$LIGHTNING_BIN" api-accounts-create >/dev/null
+	local ref
+	ref=$(sqlite3 "$BATS_DB" "SELECT referrer FROM accounts WHERE name LIKE 'anon-%' ORDER BY name DESC LIMIT 1;")
+	[ "$ref" = "house" ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: api-accounts-create with code increments uses counter" {
+	_acct218_setup
+	"$LIGHTNING_BIN" account invite-code create alice-acct --code countme >/dev/null
+	REMOTE_ADDR=10.0.0.4 "$LIGHTNING_BIN" api-accounts-create --invite-code countme >/dev/null
+	REMOTE_ADDR=10.0.0.5 "$LIGHTNING_BIN" api-accounts-create --invite-code countme >/dev/null
+	local uses
+	uses=$(sqlite3 "$BATS_DB" "SELECT uses FROM invite_codes WHERE code='countme';")
+	[ "$uses" = "2" ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: api-accounts-create JSON response includes referrer + referrals endpoint" {
+	_acct218_setup
+	"$LIGHTNING_BIN" account invite-code create alice-acct --code linktest >/dev/null
+	local body
+	body=$(REMOTE_ADDR=10.0.0.6 "$LIGHTNING_BIN" api-accounts-create --invite-code linktest 2>/dev/null)
+	echo "$body" | jq -e '.referrer' >/dev/null
+	echo "$body" | jq -e '.endpoints.referrals' >/dev/null
+	local ref
+	ref=$(echo "$body" | jq -r '.referrer')
+	[ "$ref" = "alice-acct" ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: api-account-referrals returns the direct downline" {
+	_acct218_setup
+	"$LIGHTNING_BIN" account invite-code create alice-acct --code dl1 >/dev/null
+	REMOTE_ADDR=10.0.0.7 "$LIGHTNING_BIN" api-accounts-create --invite-code dl1 >/dev/null
+	REMOTE_ADDR=10.0.0.8 "$LIGHTNING_BIN" api-accounts-create --invite-code dl1 >/dev/null
+	local body
+	body=$("$LIGHTNING_BIN" api-account-referrals "$BATS_ADDR")
+	local n
+	n=$(echo "$body" | jq '.referrals | length')
+	[ "$n" = "2" ]
+	# Accrued credits stay 0 in FEAT-218; FEAT-219 fills them in.
+	[ "$(echo "$body" | jq '.referrals[0].accrued_credits_sat')" = "0" ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: api-account-referrals on an account with no downline returns empty array" {
+	_acct218_setup
+	local body
+	body=$("$LIGHTNING_BIN" api-account-referrals "$BATS_ADDR")
+	[ "$body" = '{"referrals": []}' ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: api-account-referrals rejects non-bech32 input" {
+	_acct218_setup
+	run "$LIGHTNING_BIN" api-account-referrals "1AbCdEfGhIjKlMnOpQrStUvWxYz123"
+	[ "$status" -ne 0 ]
+	_acct218_teardown
+}
+
+@test "FEAT-218: api-account-referrals on unknown address returns error JSON" {
+	_acct218_setup
+	run "$LIGHTNING_BIN" api-account-referrals "bcrt1qaaa00000000000000000000000000000000000000"
+	[[ "$output" == *'"error"'* ]]
+	_acct218_teardown
+}
+
+@test "FEAT-218: sudoers fragment lists the new verbs" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+	grep -q "api-account-referrals" "$f"
+	grep -q "api-accounts-create --invite-code" "$f"
+}
+
+@test "FEAT-218: spec file exists with the expected id" {
+	for cand in \
+		"$BATS_TEST_DIRNAME/../../issues/feature/218-referral-schema.md" \
+		"$BATS_TEST_DIRNAME/../../issues/feature/done/218-referral-schema.md"; do
+		[ -f "$cand" ] && f="$cand" && break
+	done
+	[ -n "$f" ]
+	grep -q "^id: FEAT-218" "$f"
+	grep -q "invite_codes" "$f"
 }

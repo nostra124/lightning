@@ -365,3 +365,55 @@ def test_raw_token_without_bearer_prefix_works(api_dir, bin_shim, lightning_stub
     proc = cgi(api_dir / SCRIPT, env=e)
     status, _, body_out = parse(proc)
     assert "200" in status
+
+
+# --- FEAT-218 referrals ---------------------------------------------------
+
+
+def test_referrals_happy_path(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"referrals":[{"account_id":"' + ID + '","joined_at":1,"accrued_credits_sat":0}]}'
+    lightning_stub({
+        "api-account-verify":    (0, ""),
+        "api-account-referrals": (0, body),
+    })
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/referrals")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "referrals" in body_out
+
+
+def test_referrals_post_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-referrals": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/referrals",
+                                   REQUEST_METHOD="POST")))
+    status, _, _ = parse(proc)
+    assert "405" in status
+
+
+def test_referrals_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-referrals": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim, PATH_INFO=f"/{ID}/referrals"))
+    status, _, _ = parse(proc)
+    assert "401" in status
+
+
+def test_create_with_invite_code_passes_through(api_dir, bin_shim, lightning_stub, cgi, parse):
+    """The dispatcher should pass invite_code from the JSON body
+    down to api-accounts-create as --invite-code."""
+    body = '{"account_id":"' + ID + '","referrer":"alice"}'
+    lightning_stub({"api-accounts-create": (0, body)})
+    payload = json.dumps({"invite_code": "abcd"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim,
+                       REQUEST_METHOD="POST",
+                       CONTENT_LENGTH=str(len(payload))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "201" in status
+    assert "alice" in body_out

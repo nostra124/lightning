@@ -19,6 +19,12 @@ www-data ALL=(alice) NOPASSWD: \
     /usr/local/bin/lightning api-verify  [a-z][a-zA-Z0-9_-]* write *, \
     /usr/local/bin/lightning api-accounts-create, \
     /usr/local/bin/lightning api-accounts-create --hint *, \
+    /usr/local/bin/lightning api-accounts-create --invite-code *, \
+    /usr/local/bin/lightning api-accounts-create --hint * --invite-code *, \
+    /usr/local/bin/lightning api-accounts-create --invite-code * --hint *, \
+    /usr/local/bin/lightning api-account-referrals     bc1*, \
+    /usr/local/bin/lightning api-account-referrals     tb1*, \
+    /usr/local/bin/lightning api-account-referrals     bcrt1*, \
     /usr/local/bin/lightning api-account-verify        bc1* *, \
     /usr/local/bin/lightning api-account-verify        tb1* *, \
     /usr/local/bin/lightning api-account-verify        bcrt1* *, \

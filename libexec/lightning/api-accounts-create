@@ -15,11 +15,15 @@
 # global bucket (so a single client can be slowed even via NAT).
 
 set -e
-[ $# -le 2 ] || exit 1
 hint=""
-if [ "${1:-}" = "--hint" ]; then
-	hint="${2:-}"; shift 2
-fi
+invite_code=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--hint)        hint="$2"; shift 2 ;;
+		--invite-code) invite_code="$2"; shift 2 ;;
+		*) exit 1 ;;
+	esac
+done
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIMIT_DEFAULT_SAT=100000
@@ -89,17 +93,46 @@ if [ -z "$address" ] || [ -z "$api_key" ]; then
 	exit 5
 fi
 
+# FEAT-218 — resolve invite code to a referrer + stamp it on the new
+# account.  Unknown / revoked codes fall back to `referrer = 'house'`
+# silently (we don't reject account creation over a bad invite —
+# user-hostile).  Increment the code's `uses` counter on success.
+referrer="house"
+if [ -n "$invite_code" ]; then
+	WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+	ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+	wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+	db="$WALLETS_ROOT/$wname/state.db"
+	sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+	if [ -f "$db" ]; then
+		looked_up=$(sqlite3 "$db" \
+			"SELECT account FROM invite_codes WHERE code = $(sql_quote "$invite_code") LIMIT 1;" 2>/dev/null)
+		if [ -n "$looked_up" ]; then
+			referrer="$looked_up"
+			# Stamp the new account's referrer + bump the code's uses.
+			# The `account create` row was inserted by the helper verb
+			# above; we patch the referrer here so the change shows up
+			# in the same wallet-new schema regardless of migration
+			# state.
+			sqlite3 "$db" "UPDATE accounts SET referrer = $(sql_quote "$referrer") WHERE address = $(sql_quote "$address");" 2>/dev/null || true
+			sqlite3 "$db" "UPDATE invite_codes SET uses = uses + 1 WHERE code = $(sql_quote "$invite_code");" 2>/dev/null || true
+		fi
+	fi
+fi
+
 base="/api/accounts/$address"
 jq -nc \
 	--arg id "$address" \
 	--arg key "$api_key" \
 	--arg uri "bitcoin:$address" \
 	--arg base "$base" \
+	--arg referrer "$referrer" \
 	--argjson limit "$LIMIT_DEFAULT_SAT" \
 	'{
 		account_id: $id,
 		api_key:    $key,
 		topup_uri:  $uri,
+		referrer:   $referrer,
 		limit_sat:  $limit,
 		overdraft:  "deny",
 		endpoints: {
@@ -109,6 +142,7 @@ jq -nc \
 			pay:           ($base + "/pay"),
 			recv:          ($base + "/recv"),
 			recv_reusable: ($base + "/recv-reusable"),
+			referrals:     ($base + "/referrals"),
 			close:         ($base + "/close")
 		}
 	}'

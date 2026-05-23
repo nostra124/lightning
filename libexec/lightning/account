@@ -42,19 +42,28 @@ active_db() {
 
 # FEAT-212 — additive, idempotent migration of the accounts table.
 # Pre-FEAT-212 wallets are missing address / created_at / closed_at /
-# last_api_call_at; add whichever are absent.
+# last_api_call_at; add whichever are absent.  FEAT-218 extends with
+# the `referrer` column + the `invite_codes` table.
 migrate_accounts_schema() {
 	local db="$1"
 	local cols
 	cols=$(sqlite3 "$db" "PRAGMA table_info(accounts);" 2>/dev/null | awk -F'|' '{print $2}')
 	local col
-	for col in address created_at closed_at last_api_call_at; do
+	for col in address created_at closed_at last_api_call_at referrer; do
 		echo "$cols" | grep -qx "$col" || {
 			local type=TEXT
 			case "$col" in created_at|closed_at|last_api_call_at) type=INTEGER ;; esac
 			sqlite3 "$db" "ALTER TABLE accounts ADD COLUMN $col $type;" 2>/dev/null || true
 		}
 	done
+
+	# FEAT-218 — invite codes table.
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS invite_codes ( \
+		code        TEXT PRIMARY KEY, \
+		account     TEXT NOT NULL REFERENCES accounts(name) ON DELETE CASCADE, \
+		created_at  INTEGER NOT NULL, \
+		uses        INTEGER NOT NULL DEFAULT 0 \
+	);" 2>/dev/null || true
 }
 
 # FEAT-212 — mint a fresh on-chain address from lightningd; that
@@ -193,6 +202,9 @@ usage: lightning account <subcommand>
                                                  account-addresses
    gc run|dry-run|status                         close stale + delete
                                                  long-closed accounts
+   invite-code create <handle> [--code <s>]      mint a referral code
+   invite-code list [<handle>]                   TSV: code, account, uses
+   invite-code revoke <code>
    topup <name> <sat> [--via lightning]          QR for on-chain top-up
    withdraw <name> <sat> <onchain-addr>          submarine swap out
    pay <name> <bolt11|bolt12|lnurl|addr|node-id>
@@ -790,6 +802,105 @@ _gc_status() {
 	printf "would_delete:      %s\n" "$n_closed"
 }
 
+# FEAT-218 — invite code management.  Codes are 7-char base32-ish
+# strings (uppercase letters + digits, [A-Z2-9] minus 0/1/I/O which
+# confuse humans) that map back to an account name via the
+# invite_codes table.  Used by `POST /api/accounts {"invite_code":...}`
+# to stamp `referrer` on new accounts.
+cmd_invite_code() {
+	local op="${1:-}"
+	case "$op" in
+		create) shift; _invite_code_create "$@" ;;
+		list)   shift; _invite_code_list "$@" ;;
+		revoke) shift; _invite_code_revoke "$@" ;;
+		*) echo "usage: lightning account invite-code {create|list|revoke}" >&2; exit 1 ;;
+	esac
+}
+
+_invite_code_mint() {
+	# 7 chars from [a-z0-9] (lowercase to dodge the I/O/1/0 readability
+	# issue without resorting to a custom alphabet).  Source: urandom
+	# → base32 → lowercase → strip pad → first 7 chars.
+	head -c 8 /dev/urandom | base32 | tr 'A-Z' 'a-z' | tr -d '=\n' | head -c 7
+}
+
+_invite_code_create() {
+	local handle="" code=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--code) code="$2"; shift 2 ;;
+			*) handle="$1"; shift ;;
+		esac
+	done
+	local db; db=$(active_db)
+	# Default account = the active wallet's name-equivalent — fall
+	# back to the operator's own account if not supplied.  Most CLI
+	# users want to mint a code for an existing account they own.
+	if [ -z "$handle" ]; then
+		echo "usage: lightning account invite-code create <handle> [--code <vanity>]" >&2
+		exit 1
+	fi
+	resolve_account "$handle" || {
+		echo "lightning account invite-code: no such account '$handle'" >&2
+		exit 2
+	}
+	local name="$RESOLVED_NAME"
+
+	if [ -z "$code" ]; then
+		code=$(_invite_code_mint)
+	else
+		# Sanity-check operator-supplied codes — keep them in the
+		# expected alphabet so resolution stays predictable.
+		[[ "$code" =~ ^[a-z0-9]{3,32}$ ]] || {
+			echo "lightning account invite-code: --code must be 3-32 chars of [a-z0-9]" >&2
+			exit 1
+		}
+	fi
+
+	local now; now=$(date -u +%s)
+	sqlite3 "$db" "INSERT INTO invite_codes(code, account, created_at) \
+		VALUES($(sql_quote "$code"), $(sql_quote "$name"), $now);" 2>/dev/null || {
+			echo "lightning account invite-code: '$code' already exists" >&2
+			exit 3
+		}
+	echo "code:    $code"
+	echo "account: $name"
+	echo "link:    ?invite=$code"
+}
+
+_invite_code_list() {
+	local handle="$1"
+	local where=""
+	if [ -n "$handle" ]; then
+		resolve_account "$handle" || {
+			echo "lightning account invite-code: no such account '$handle'" >&2
+			exit 2
+		}
+		where="WHERE account = $(sql_quote "$RESOLVED_NAME")"
+	fi
+	local db; db=$(active_db)
+	printf "code\taccount\tuses\tcreated_at\n"
+	sqlite3 -separator $'\t' "$db" \
+		"SELECT code, account, uses, created_at FROM invite_codes $where ORDER BY created_at DESC;"
+}
+
+_invite_code_revoke() {
+	[ $# -lt 1 ] && { echo "usage: lightning account invite-code revoke <code>" >&2; exit 1; }
+	local code="$1"
+	local db; db=$(active_db)
+	# Use change-count to tell whether a row was actually deleted.
+	local before after
+	before=$(sqlite3 "$db" "SELECT COUNT(*) FROM invite_codes WHERE code = $(sql_quote "$code");")
+	sqlite3 "$db" "DELETE FROM invite_codes WHERE code = $(sql_quote "$code");" 2>/dev/null || true
+	after=$(sqlite3 "$db" "SELECT COUNT(*) FROM invite_codes WHERE code = $(sql_quote "$code");")
+	if [ "$before" -gt 0 ] && [ "$after" = "0" ]; then
+		echo "lightning account invite-code: revoked $code"
+	else
+		echo "lightning account invite-code: '$code' not found" >&2
+		exit 2
+	fi
+}
+
 cmd_apikey() {
 	[ $# -lt 1 ] && { echo "usage: lightning account apikey {create,list,revoke} <name> --scope read|write" >&2; exit 1; }
 	local op="$1"; shift
@@ -1022,6 +1133,7 @@ case "${1:-}" in
 	nickname) shift; cmd_nickname "$@" ;;
 	topup-watcher) shift; cmd_topup_watcher "$@" ;;
 	gc)       shift; cmd_gc "$@" ;;
+	invite-code) shift; cmd_invite_code "$@" ;;
 	apikey)   shift; cmd_apikey "$@" ;;
 	topup)    shift; cmd_topup "$@" ;;
 	withdraw) shift; cmd_withdraw "$@" ;;
