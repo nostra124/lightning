@@ -4263,10 +4263,11 @@ _acct212pr2_teardown() {
 	grep -q "api-account-close" "$f"
 }
 
-@test "FEAT-212 PR-2: apache vhost adds /api/accounts ScriptAlias" {
+@test "FEAT-212 PR-2: apache vhost maps the account API (FEAT-224 versioned path)" {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
 	[ -f "$f" ]
-	grep -q "/api/accounts" "$f"
+	# FEAT-224/232: moved under /.well-known/lightning/v1/.
+	grep -q "ScriptAlias /.well-known/lightning/v1/accounts" "$f"
 	grep -q "wellknown/api/accounts.py" "$f"
 }
 
@@ -4302,9 +4303,9 @@ _acct212pr2_teardown() {
 	[ "$(jq -r '.protocolVersion' "$f")" = "2025-03-26" ]
 }
 
-@test "FEAT-212 PR-3: apache vhost adds /api/mcp ScriptAlias + mcp.json Alias" {
+@test "FEAT-212 PR-3: apache vhost maps MCP (FEAT-224 versioned) + mcp.json Alias" {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
-	grep -q "ScriptAlias /api/mcp" "$f"
+	grep -q "ScriptAlias /.well-known/lightning/v1/mcp" "$f"
 	grep -q "wellknown/api/mcp.py" "$f"
 	grep -q "Alias /.well-known/lightning/mcp.json" "$f"
 }
@@ -5646,3 +5647,57 @@ _acct223_teardown() {
 
 # The FEAT-223 spec assertion lives in its own batch spec PR
 # (FEAT-223..227); this implementation PR doesn't carry it directly.
+
+# ---------------------------------------------------------------------------
+# FEAT-224 + FEAT-232: versioned .well-known move + API versioning.
+# ---------------------------------------------------------------------------
+
+@test "FEAT-224: apache vhost mounts account API + MCP under .well-known/v1" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+	grep -q "ScriptAlias /.well-known/lightning/v1/accounts" "$f"
+	grep -q "ScriptAlias /.well-known/lightning/v1/mcp" "$f"
+	# Old unversioned aliases are gone.
+	! grep -qE "ScriptAlias /api/accounts\b" "$f"
+	! grep -qE "ScriptAlias /api/mcp\b" "$f"
+}
+
+@test "FEAT-224: api-accounts-create emits versioned .well-known endpoint URLs" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	local body
+	body=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create 2>/dev/null)
+	[[ "$(echo "$body" | jq -r '.endpoints.balance')" == /.well-known/lightning/v1/accounts/*/balance ]]
+	[[ "$(echo "$body" | jq -r '.endpoints.transfer')" == /.well-known/lightning/v1/accounts/*/transfer ]]
+	[[ "$(echo "$body" | jq -r '.endpoints.referrals')" == /.well-known/lightning/v1/accounts/*/referrals ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-232: versions.json advertises v1 as default" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/lightning/versions.json"
+	[ -f "$f" ]
+	jq -e '.versions | index("v1")' "$f" >/dev/null
+	[ "$(jq -r '.default' "$f")" = "v1" ]
+	jq -e '.surfaces.accounts == "/.well-known/lightning/v1/accounts"' "$f" >/dev/null
+	jq -e '.surfaces.mcp == "/.well-known/lightning/v1/mcp"' "$f" >/dev/null
+}
+
+@test "FEAT-224: mcp.json manifest carries the versioned endpoint" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/lightning/mcp.json"
+	[ "$(jq -r '.transport.endpoint' "$f")" = "/.well-known/lightning/v1/mcp" ]
+	[ "$(jq -r '.apiVersion' "$f")" = "v1" ]
+	[ "$(jq -r '.links.rest' "$f")" = "/.well-known/lightning/v1/accounts" ]
+}
+
+@test "FEAT-232: apache vhost has the unknown-version catch-all + versions.json Alias" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+	grep -q "version_gate.py" "$f"
+	grep -q "Alias /.well-known/lightning/versions.json" "$f"
+}
+
+@test "FEAT-232: version_gate is executable Python" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/version_gate.py"
+	[ -x "$f" ]
+	head -1 "$f" | grep -q python3
+}

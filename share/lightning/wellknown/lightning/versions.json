@@ -1,0 +1,10 @@
+{
+  "versions": ["v1"],
+  "default": "v1",
+  "deprecated": {},
+  "base": "/.well-known/lightning",
+  "surfaces": {
+    "accounts": "/.well-known/lightning/v1/accounts",
+    "mcp": "/.well-known/lightning/v1/mcp"
+  }
+}
