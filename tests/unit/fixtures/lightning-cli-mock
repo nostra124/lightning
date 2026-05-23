@@ -89,6 +89,9 @@ EOF
 		;;
 	invoice)
 		# args: msat label desc expiry
+		# FEAT-225 — stash the description so tests can assert the
+		# recoverable `[ref:<base64url>]` tail round-trips.
+		[ -n "$MOCK_STATE" ] && printf '%s' "$4" > "$MOCK_STATE.lastdesc"
 		hash=$(echo -n "$2$3" | sha256sum | cut -c1-64)
 		cat <<EOF
 {
@@ -267,6 +270,12 @@ EOF
 }
 EOF
 		fi
+		;;
+	listinvoices)
+		# FEAT-225 — settlement lookup by payment_hash.  Tests drive the
+		# result set via MOCK_LISTINVOICES (a JSON array literal for the
+		# `invoices` field); default empty = unpaid / not found.
+		printf '{"invoices": %s}\n' "${MOCK_LISTINVOICES:-[]}"
 		;;
 	*)
 		echo "mock lightning-cli: unhandled command '$1'" >&2

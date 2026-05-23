@@ -5649,6 +5649,165 @@ _acct223_teardown() {
 # (FEAT-223..227); this implementation PR doesn't carry it directly.
 
 # ---------------------------------------------------------------------------
+# FEAT-225: commercial invoice with structured reference + payment terms.
+# ---------------------------------------------------------------------------
+
+_acct225_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create shop >/dev/null
+	"$LIGHTNING_BIN" account create other >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_SHOP_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='shop';")
+	BATS_OTHER_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='other';")
+}
+
+_acct225_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning" "$MOCK_STATE.lastdesc"
+}
+
+@test "FEAT-225: invoice create returns bolt11 + payment_hash + face/effective" {
+	_acct225_setup
+	run "$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 100000
+	[ "$status" -eq 0 ]
+	[[ "$(echo "$output" | jq -r '.bolt11')" == lnbcrt* ]]
+	[ "$(echo "$output" | jq -r '.face_sat')" = "100000" ]
+	[ "$(echo "$output" | jq -r '.effective_sat')" = "100000" ]
+	[ -n "$(echo "$output" | jq -r '.payment_hash')" ]
+	_acct225_teardown
+}
+
+@test "FEAT-225: reference is embedded recoverably in the BOLT-11 description" {
+	_acct225_setup
+	"$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 5000 \
+		--ref '{"order_id":"A-42","delivery_note":"DN-7","memo":"widgets"}' >/dev/null
+	local desc b64 pad json
+	desc=$(cat "$MOCK_STATE.lastdesc")
+	[[ "$desc" == *"widgets [ref:"* ]]
+	# Pull the base64url payload back out and decode it.
+	b64=$(echo "$desc" | sed -n 's/.*\[ref:\([A-Za-z0-9_-]*\)\].*/\1/p')
+	[ -n "$b64" ]
+	pad=$(( (4 - ${#b64} % 4) % 4 ))
+	while [ "$pad" -gt 0 ]; do b64="${b64}="; pad=$((pad-1)); done
+	json=$(echo "$b64" | tr '_-' '/+' | base64 -d)
+	[ "$(echo "$json" | jq -r '.order_id')" = "A-42" ]
+	[ "$(echo "$json" | jq -r '.delivery_note')" = "DN-7" ]
+	_acct225_teardown
+}
+
+@test "FEAT-225: invoice create persists a commerce_invoices row + mirrors to invoices" {
+	_acct225_setup
+	local out hash
+	out=$("$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 12345 --ref '{"order_id":"X1"}')
+	hash=$(echo "$out" | jq -r '.payment_hash')
+	[ "$(sqlite3 "$BATS_DB" "SELECT face_sat FROM commerce_invoices WHERE payment_hash='$hash';")" = "12345" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT account FROM commerce_invoices WHERE payment_hash='$hash';")" = "shop" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT state FROM commerce_invoices WHERE payment_hash='$hash';")" = "issued" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM invoices WHERE payment_hash='$hash';")" = "1" ]
+	_acct225_teardown
+}
+
+@test "FEAT-225: Skonto discount applies at issue time" {
+	_acct225_setup
+	run "$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 100000 \
+		--terms '{"due_days":14,"skonto":{"within_days":7,"discount_pct":2}}'
+	[ "$status" -eq 0 ]
+	[ "$(echo "$output" | jq -r '.effective_sat')" = "98000" ]
+	_acct225_teardown
+}
+
+@test "FEAT-225: invoice-get returns the reference back + paid:false before settle" {
+	_acct225_setup
+	local hash
+	hash=$("$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 5000 --ref '{"order_id":"A-42"}' | jq -r '.payment_hash')
+	run "$LIGHTNING_BIN" api-account-invoice-get "$BATS_SHOP_ADDR" "$hash"
+	[ "$status" -eq 0 ]
+	[ "$(echo "$output" | jq -r '.reference.order_id')" = "A-42" ]
+	[ "$(echo "$output" | jq -r '.paid')" = "false" ]
+	[ "$(echo "$output" | jq -r '.state')" = "issued" ]
+	_acct225_teardown
+}
+
+@test "FEAT-225: invoice-get flips to paid:true after (mock) settlement" {
+	_acct225_setup
+	local hash
+	hash=$("$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 5000 | jq -r '.payment_hash')
+	MOCK_LISTINVOICES='[{"status":"paid"}]' run "$LIGHTNING_BIN" api-account-invoice-get "$BATS_SHOP_ADDR" "$hash"
+	[ "$status" -eq 0 ]
+	[ "$(echo "$output" | jq -r '.paid')" = "true" ]
+	[ "$(echo "$output" | jq -r '.state')" = "paid" ]
+	# Persisted.
+	[ "$(sqlite3 "$BATS_DB" "SELECT state FROM commerce_invoices WHERE payment_hash='$hash';")" = "paid" ]
+	_acct225_teardown
+}
+
+@test "FEAT-225: invoice-get computes a late fee once past the grace period" {
+	_acct225_setup
+	local hash
+	hash=$("$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 100000 \
+		--terms '{"due_days":14,"skonto":{"within_days":7,"discount_pct":2},"late_fee":{"after_days":14,"pct":5}}' \
+		| jq -r '.payment_hash')
+	# Backdate issuance 30 days: past due(14)+grace(14)=28 → late fee.
+	sqlite3 "$BATS_DB" "UPDATE commerce_invoices SET issued_at = issued_at - 30*86400 WHERE payment_hash='$hash';"
+	run "$LIGHTNING_BIN" api-account-invoice-get "$BATS_SHOP_ADDR" "$hash"
+	[ "$status" -eq 0 ]
+	[ "$(echo "$output" | jq -r '.effective_sat')" = "105000" ]
+	_acct225_teardown
+}
+
+@test "FEAT-225: invoice-get reports face == effective when no terms" {
+	_acct225_setup
+	local hash
+	hash=$("$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 7777 | jq -r '.payment_hash')
+	run "$LIGHTNING_BIN" api-account-invoice-get "$BATS_SHOP_ADDR" "$hash"
+	[ "$(echo "$output" | jq -r '.face_sat')" = "7777" ]
+	[ "$(echo "$output" | jq -r '.effective_sat')" = "7777" ]
+	[ "$(echo "$output" | jq -r '.terms')" = "null" ]
+	_acct225_teardown
+}
+
+@test "FEAT-225: invoice-get is scoped to the owning account" {
+	_acct225_setup
+	local hash
+	hash=$("$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 5000 | jq -r '.payment_hash')
+	# `other` must not be able to read shop's invoice.
+	run "$LIGHTNING_BIN" api-account-invoice-get "$BATS_OTHER_ADDR" "$hash"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown invoice"* ]]
+	_acct225_teardown
+}
+
+@test "FEAT-225: invoice create rejects non-positive amount + bad JSON" {
+	_acct225_setup
+	run "$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 0
+	[ "$status" -ne 0 ]
+	run "$LIGHTNING_BIN" api-account-invoice "$BATS_SHOP_ADDR" 100 --ref 'not json'
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"ref_not_json"* ]]
+	_acct225_teardown
+}
+
+@test "FEAT-225: invoice verbs reject unknown account" {
+	_acct225_setup
+	run "$LIGHTNING_BIN" api-account-invoice "bcrt1qaaa00000000000000000000000000000000000000" 100
+	[[ "$output" == *"unknown account"* ]]
+	_acct225_teardown
+}
+
+@test "FEAT-225: sudoers fragment lists the invoice verbs" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+	grep -q "api-account-invoice " "$f"
+	grep -q "api-account-invoice-get " "$f"
+}
+
+@test "FEAT-225: schema declares commerce_invoices" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/schema.sql"
+	grep -q "CREATE TABLE IF NOT EXISTS commerce_invoices" "$f"
+}
+
+# ---------------------------------------------------------------------------
 # FEAT-224 + FEAT-232: versioned .well-known move + API versioning.
 # ---------------------------------------------------------------------------
 

@@ -17,13 +17,17 @@ and routes:
   POST .../v1/accounts/<id>/recv-reusable  -> recv-reusable (BOLT-12)
   POST .../v1/accounts/<id>/transfer       -> transfer (FEAT-223)
   GET  .../v1/accounts/<id>/referrals      -> referrals (FEAT-218)
+  POST .../v1/accounts/<id>/invoice        -> commercial invoice (FEAT-225)
+  GET  .../v1/accounts/<id>/invoice/<hash> -> invoice lookup    (FEAT-225)
   POST .../v1/accounts/<id>/close          -> close
 
 All authenticated endpoints require Authorization: Bearer <key>.
 Create is anonymous + rate-limited at the verb layer.
 """
 
+import json
 import os
+import re
 import sys
 import urllib.parse
 from pathlib import Path
@@ -169,6 +173,35 @@ def _referrals(account_id):
     _lib.respond("200 OK", result)
 
 
+def _invoice(account_id, payment_hash=None):
+    # FEAT-225 — commercial invoice.  POST .../invoice mints a new one;
+    # GET .../invoice/<payment_hash> looks one up + recomputes the
+    # effective (Skonto/late-fee) amount.  Both are merchant-only.
+    _lib.auth_account(account_id)
+    if payment_hash is not None:
+        if _method() != "GET":
+            _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+        if not re.fullmatch(r"[0-9a-fA-F]{1,64}", payment_hash):
+            _lib.respond("400 Bad Request", {"error": "bad_payment_hash"})
+        result = _lib.call_verb("api-account-invoice-get", account_id, payment_hash)
+        _lib.respond("200 OK", result)
+    if _method() != "POST":
+        _lib.respond("405 Method Not Allowed", {"error": "use_post"})
+    body = _lib.read_body()
+    sat = body.get("sat")
+    if not isinstance(sat, int) or sat <= 0:
+        _lib.respond("400 Bad Request", {"error": "sat_required"})
+    args = ["api-account-invoice", account_id, str(sat)]
+    ref = body.get("reference")
+    terms = body.get("terms")
+    if ref is not None:
+        args += ["--ref", json.dumps(ref)]
+    if terms is not None:
+        args += ["--terms", json.dumps(terms)]
+    result = _lib.call_verb(*args)
+    _lib.respond("201 Created", result)
+
+
 def main():
     path_info = os.environ.get("PATH_INFO", "")
     account_id, tail = _lib.read_account_id_from_path(path_info)
@@ -189,6 +222,10 @@ def main():
         _lib.respond("404 Not Found")
 
     verb = tail[0]
+    if verb == "invoice":
+        # POST .../invoice (create) or GET .../invoice/<payment_hash>.
+        _invoice(account_id, tail[1] if len(tail) > 1 else None)
+        return
     routes = {
         "balance": lambda: _balance(account_id),
         "topup": lambda: _topup(account_id),
