@@ -4210,8 +4210,9 @@ _acct212pr2_teardown() {
 	# Description was persisted in the DB.
 	local db="$LIGHTNING_WALLETS_ROOT/alice/state.db"
 	local got
-	# Exclude house (FEAT-218 pre-seeds it with 'operator fee revenue').
-	got=$(sqlite3 "$db" "SELECT description FROM accounts WHERE description != '' AND name NOT IN ('-', 'house') LIMIT 1;")
+	# Exclude house (FEAT-218 pre-seeds it with 'operator fee revenue')
+	# and escrow (FEAT-228 holding account).
+	got=$(sqlite3 "$db" "SELECT description FROM accounts WHERE description != '' AND name NOT IN ('-', 'house', 'escrow') LIMIT 1;")
 	[ "$got" = "personal pocket" ]
 	_acct212pr2_teardown
 }
@@ -4488,7 +4489,7 @@ _acct212pr5_teardown() {
 	[[ "$output" == *"would-delete	closer"* ]]
 	# State unchanged.
 	local n_closed n_total
-	n_total=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-', 'house');")
+	n_total=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-', 'house', 'escrow');")
 	n_closed=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE closed_at IS NOT NULL;")
 	[ "$n_total" = "3" ]
 	[ "$n_closed" = "1" ]   # only the pre-existing 'closer'
@@ -6482,4 +6483,244 @@ _mk_mandate() {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/schema.sql"
 	grep -q "CREATE TABLE IF NOT EXISTS mandates" "$f"
 	grep -q "CREATE TABLE IF NOT EXISTS mandate_pulls" "$f"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-228: commerce charge lifecycle (escrow / auth-capture / refund /
+# installments / dunning).
+# ---------------------------------------------------------------------------
+
+_acct228_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create shop >/dev/null
+	"$LIGHTNING_BIN" account create buyer >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_SHOP_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='shop';")
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES(datetime('now'),'buyer','in',100000000,'seed');"
+}
+
+_acct228_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+_chg() {
+	# echoes a new charge id for buyer of $1 sat (extra args passed through)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" create buyer "$@" | jq -r '.id'
+}
+
+_sat() { sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0)/1000 FROM ledger WHERE account='$1';"; }
+
+@test "FEAT-228: create issues a charge in state issued" {
+	_acct228_setup
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" create buyer 20000 --ref '{"order_id":"O1"}'
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"state":"issued"'* ]]
+	[[ "$(echo "$output" | jq -r '.id')" == chg_* ]]
+	_acct228_teardown
+}
+
+@test "FEAT-228: create rejects bad amount / unknown customer / self" {
+	_acct228_setup
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" create buyer 0
+	[ "$status" -ne 0 ]
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" create nobody 1000
+	[ "$status" -ne 0 ]
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" create shop 1000
+	[ "$status" -ne 0 ]
+	_acct228_teardown
+}
+
+@test "FEAT-228: escrow hold moves funds to escrow; release pays the merchant" {
+	_acct228_setup
+	local id; id=$(_chg 20000)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" hold "$id" >/dev/null
+	[ "$(_sat buyer)" = "80000" ]
+	[ "$(_sat escrow)" = "20000" ]
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" release "$id"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"state":"released"'* ]]
+	[ "$(_sat escrow)" = "0" ]
+	[ "$(_sat shop)" = "20000" ]
+	_acct228_teardown
+}
+
+@test "FEAT-228: hold requires sufficient customer balance" {
+	_acct228_setup
+	local id; id=$(_chg 999999999)
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" hold "$id"
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"insufficient_funds"* ]]
+	_acct228_teardown
+}
+
+@test "FEAT-228: release only from held state" {
+	_acct228_setup
+	local id; id=$(_chg 20000)
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" release "$id"
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"bad_state"* ]]
+	_acct228_teardown
+}
+
+@test "FEAT-228: partial then full refund walks state + reverses funds" {
+	_acct228_setup
+	local id; id=$(_chg 20000)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" hold "$id" >/dev/null
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" release "$id" >/dev/null
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" refund "$id" --sat 5000
+	[[ "$output" == *'"state":"partially_refunded"'* ]]
+	[ "$(_sat shop)" = "15000" ]
+	[ "$(_sat buyer)" = "85000" ]
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" refund "$id"
+	[[ "$output" == *'"state":"refunded"'* ]]
+	[ "$(_sat shop)" = "0" ]
+	[ "$(_sat buyer)" = "100000" ]
+	_acct228_teardown
+}
+
+@test "FEAT-228: refund cannot exceed the amount the merchant received" {
+	_acct228_setup
+	local id; id=$(_chg 20000)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" hold "$id" >/dev/null
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" release "$id" >/dev/null
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" refund "$id" --sat 30000
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"refund_exceeds_refundable"* ]]
+	_acct228_teardown
+}
+
+@test "FEAT-228: authorize then capture < amount returns the remainder" {
+	_acct228_setup
+	local id; id=$(_chg 10000)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" authorize "$id" >/dev/null
+	[ "$(_sat escrow)" = "10000" ]
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" capture "$id" 8000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"state":"captured"'* ]]
+	[ "$(_sat shop)" = "8000" ]
+	[ "$(_sat escrow)" = "0" ]
+	[ "$(_sat buyer)" = "92000" ]
+	_acct228_teardown
+}
+
+@test "FEAT-228: capture cannot exceed the authorized amount" {
+	_acct228_setup
+	local id; id=$(_chg 10000)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" authorize "$id" >/dev/null
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" capture "$id" 20000
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"capture_exceeds_authorization"* ]]
+	_acct228_teardown
+}
+
+@test "FEAT-228: void returns the full authorized amount to the customer" {
+	_acct228_setup
+	local id; id=$(_chg 10000)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" authorize "$id" >/dev/null
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" void "$id"
+	[[ "$output" == *'"state":"voided"'* ]]
+	[ "$(_sat escrow)" = "0" ]
+	[ "$(_sat buyer)" = "100000" ]
+	[ "$(_sat shop)" = "0" ]
+	_acct228_teardown
+}
+
+@test "FEAT-228: installments amortise to exactly the amount and reach paid" {
+	_acct228_setup
+	local id; id=$(_chg 9000)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" installments "$id" 3 >/dev/null
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" pay-installment "$id" >/dev/null
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" pay-installment "$id" >/dev/null
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" pay-installment "$id"
+	[[ "$output" == *'"state":"paid"'* ]]
+	[ "$(_sat shop)" = "9000" ]
+	[ "$(_sat buyer)" = "91000" ]
+	# A 4th installment is rejected.
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" pay-installment "$id"
+	[ "$status" -eq 6 ]
+	_acct228_teardown
+}
+
+@test "FEAT-228: installments with a non-divisible amount still sum exactly" {
+	_acct228_setup
+	local id; id=$(_chg 10000)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" installments "$id" 3 >/dev/null
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" pay-installment "$id" >/dev/null
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" pay-installment "$id" >/dev/null
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" pay-installment "$id" >/dev/null
+	[ "$(_sat shop)" = "10000" ]
+	_acct228_teardown
+}
+
+@test "FEAT-228: dunning advances stages on an overdue charge + reports late fee" {
+	_acct228_setup
+	local id; id=$(_chg 5000 --terms '{"late_fee":{"pct":5}}' --due-days 0)
+	sqlite3 "$BATS_DB" "UPDATE commerce_charges SET due_at = strftime('%s','now')-100 WHERE id='$id';"
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" dun "$id"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"state":"overdue"'* ]]
+	[[ "$output" == *'"late_fee_sat":250'* ]]
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" dun "$id"
+	[[ "$output" == *'"state":"dunning_1"'* ]]
+	_acct228_teardown
+}
+
+@test "FEAT-228: dun before the due date is rejected" {
+	_acct228_setup
+	local id; id=$(_chg 5000 --due-days 30)
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" dun "$id"
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"not_yet_due"* ]]
+	_acct228_teardown
+}
+
+@test "FEAT-228: show returns the charge + its event log" {
+	_acct228_setup
+	local id; id=$(_chg 20000)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" hold "$id" >/dev/null
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" release "$id" >/dev/null
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" show "$id"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.events | length == 3' >/dev/null
+	echo "$output" | jq -e '.events[0].event == "created"' >/dev/null
+	_acct228_teardown
+}
+
+@test "FEAT-228: list + scoping to the merchant" {
+	_acct228_setup
+	_chg 1000 >/dev/null
+	_chg 2000 >/dev/null
+	run "$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" list
+	echo "$output" | jq -e '.charges | length == 2' >/dev/null
+	# buyer (as a merchant) sees none.
+	local buyer_addr; buyer_addr=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='buyer';")
+	run "$LIGHTNING_BIN" api-account-charge "$buyer_addr" list
+	echo "$output" | jq -e '.charges | length == 0' >/dev/null
+	_acct228_teardown
+}
+
+@test "FEAT-228: ledger stays balanced across a full lifecycle" {
+	_acct228_setup
+	local id; id=$(_chg 12000)
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" hold "$id" >/dev/null
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" release "$id" >/dev/null
+	"$LIGHTNING_BIN" api-account-charge "$BATS_SHOP_ADDR" refund "$id" --sat 4000 >/dev/null
+	# Sum of all ledger rows tagged to this charge nets to zero.
+	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE payment_hash='$id';")" = "0" ]
+	_acct228_teardown
+}
+
+@test "FEAT-228: sudoers fragment lists api-account-charge" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+	grep -q "api-account-charge" "$f"
+}
+
+@test "FEAT-228: schema declares commerce_charges + commerce_events + escrow" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/schema.sql"
+	grep -q "CREATE TABLE IF NOT EXISTS commerce_charges" "$f"
+	grep -q "CREATE TABLE IF NOT EXISTS commerce_events" "$f"
+	grep -q "VALUES('escrow'" "$f"
 }

@@ -138,6 +138,37 @@ migrate_accounts_schema() {
 		state       TEXT    NOT NULL, \
 		created_at  INTEGER NOT NULL \
 	);" 2>/dev/null || true
+
+	# FEAT-228 — commerce charge lifecycle (escrow / auth-capture /
+	# refund / installments / dunning) + an append-only event log.
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS commerce_charges ( \
+		id                TEXT    PRIMARY KEY, \
+		merchant          TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE, \
+		customer          TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE, \
+		amount_sat        INTEGER NOT NULL, \
+		captured_sat      INTEGER NOT NULL DEFAULT 0, \
+		refunded_sat      INTEGER NOT NULL DEFAULT 0, \
+		installments_n    INTEGER NOT NULL DEFAULT 0, \
+		installments_paid INTEGER NOT NULL DEFAULT 0, \
+		reference         TEXT, \
+		terms             TEXT, \
+		state             TEXT    NOT NULL DEFAULT 'issued', \
+		created_at        INTEGER NOT NULL, \
+		due_at            INTEGER \
+	);" 2>/dev/null || true
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS commerce_events ( \
+		id         INTEGER PRIMARY KEY AUTOINCREMENT, \
+		charge     TEXT    NOT NULL REFERENCES commerce_charges(id) ON DELETE CASCADE, \
+		event      TEXT    NOT NULL, \
+		amount_sat INTEGER NOT NULL DEFAULT 0, \
+		ts         INTEGER NOT NULL, \
+		detail     TEXT \
+	);" 2>/dev/null || true
+	# Escrow holding account — funds in flight between customer and
+	# merchant sit here (held / authorized).  overdraft=allow so a
+	# release/void leg is never blocked by a limit.
+	sqlite3 "$db" "INSERT OR IGNORE INTO accounts(name, description, overdraft) \
+		VALUES('escrow', 'commerce escrow holding', 'allow');" 2>/dev/null || true
 }
 
 # FEAT-212 — mint a fresh on-chain address from lightningd; that
@@ -323,12 +354,12 @@ cmd_list() {
 			       a.overdraft
 			FROM accounts a
 			LEFT JOIN ledger l ON l.account = a.name
-			WHERE a.name NOT IN ('-', 'house')
+			WHERE a.name NOT IN ('-', 'house', 'escrow')
 			GROUP BY a.name
 			ORDER BY a.name;"
 	else
 		sqlite3 -header -separator $'\t' "$(active_db)" \
-			"SELECT name, description, COALESCE(limit_sat, -1) AS limit_sat, overdraft FROM accounts WHERE name NOT IN ('-', 'house') ORDER BY name;"
+			"SELECT name, description, COALESCE(limit_sat, -1) AS limit_sat, overdraft FROM accounts WHERE name NOT IN ('-', 'house', 'escrow') ORDER BY name;"
 	fi
 }
 
@@ -820,7 +851,7 @@ cmd_gc() {
 		FROM accounts a
 		WHERE a.address IS NOT NULL
 		  AND a.closed_at IS NULL
-		  AND a.name NOT IN ('-', 'house')
+		  AND a.name NOT IN ('-', 'house', 'escrow')
 		  AND COALESCE(a.last_api_call_at, a.created_at, 0) < $idle_cutoff
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0
 		  AND NOT EXISTS (SELECT 1 FROM invoices WHERE account = a.name AND state = 'pending');")
@@ -832,7 +863,7 @@ cmd_gc() {
 		FROM accounts a
 		WHERE a.closed_at IS NOT NULL
 		  AND a.closed_at < $closed_cutoff
-		  AND a.name NOT IN ('-', 'house')
+		  AND a.name NOT IN ('-', 'house', 'escrow')
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0;")
 
 	local closed=0 deleted=0 name addr
@@ -898,12 +929,12 @@ _gc_status() {
 	local closed_cutoff=$(( now - closed_days * 86400 ))
 
 	local n_idle n_closed n_total
-	n_total=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-', 'house');")
+	n_total=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-', 'house', 'escrow');")
 	n_idle=$(sqlite3 "$db" "
 		SELECT COUNT(*) FROM accounts a
 		WHERE a.address IS NOT NULL
 		  AND a.closed_at IS NULL
-		  AND a.name NOT IN ('-', 'house')
+		  AND a.name NOT IN ('-', 'house', 'escrow')
 		  AND COALESCE(a.last_api_call_at, a.created_at, 0) < $idle_cutoff
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0
 		  AND NOT EXISTS (SELECT 1 FROM invoices WHERE account = a.name AND state = 'pending');")
@@ -911,7 +942,7 @@ _gc_status() {
 		SELECT COUNT(*) FROM accounts a
 		WHERE a.closed_at IS NOT NULL
 		  AND a.closed_at < $closed_cutoff
-		  AND a.name NOT IN ('-', 'house')
+		  AND a.name NOT IN ('-', 'house', 'escrow')
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0;")
 	printf "total_accounts:    %s\n" "$n_total"
 	printf "idle_days:         %s\n" "$idle_days"

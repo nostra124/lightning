@@ -43,6 +43,9 @@ www-data ALL=(alice) NOPASSWD: \
     /usr/local/bin/lightning api-account-mandate-pull  bc1* *, \
     /usr/local/bin/lightning api-account-mandate-pull  tb1* *, \
     /usr/local/bin/lightning api-account-mandate-pull  bcrt1* *, \
+    /usr/local/bin/lightning api-account-charge        bc1* *, \
+    /usr/local/bin/lightning api-account-charge        tb1* *, \
+    /usr/local/bin/lightning api-account-charge        bcrt1* *, \
     /usr/local/bin/lightning price now --base [A-Z]*, \
     /usr/local/bin/lightning api-account-verify        bc1* *, \
     /usr/local/bin/lightning api-account-verify        tb1* *, \
