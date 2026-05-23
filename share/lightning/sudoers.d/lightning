@@ -25,6 +25,9 @@ www-data ALL=(alice) NOPASSWD: \
     /usr/local/bin/lightning api-account-referrals     bc1*, \
     /usr/local/bin/lightning api-account-referrals     tb1*, \
     /usr/local/bin/lightning api-account-referrals     bcrt1*, \
+    /usr/local/bin/lightning api-account-transfer      bc1* * [0-9]*, \
+    /usr/local/bin/lightning api-account-transfer      tb1* * [0-9]*, \
+    /usr/local/bin/lightning api-account-transfer      bcrt1* * [0-9]*, \
     /usr/local/bin/lightning api-account-verify        bc1* *, \
     /usr/local/bin/lightning api-account-verify        tb1* *, \
     /usr/local/bin/lightning api-account-verify        bcrt1* *, \

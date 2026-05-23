@@ -212,6 +212,8 @@ usage: lightning account <subcommand>
         [--sat <sat>]                             (keysend needs amount)
    receive <name> <sat> [--desc <text>]
                           [--reusable]            BOLT-12 + QR; default BOLT-11
+   transfer <from> <to> <sat> [--note <text>]    intra-node move between
+                                                 two local accounts
 EOF
 }
 
@@ -1162,6 +1164,40 @@ cmd_receive() {
 	fi
 }
 
+# FEAT-223 — operator-side inter-account transfer.  Resolves both
+# handles, then drives the api-account-transfer verb (which carries
+# the atomic ledger + fee logic).  The sender must have a minted
+# address (the verb is address-keyed).
+cmd_transfer() {
+	[ $# -lt 3 ] && { echo "usage: lightning account transfer <from> <to> <sat> [--note <text>]" >&2; exit 1; }
+	local from="$1" to="$2" sat="$3"; shift 3
+	local note=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--note) note="$2"; shift 2 ;;
+			*) echo "lightning account transfer: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	case "$sat" in ''|*[!0-9]*) echo "lightning account transfer: <sat> must be a positive integer" >&2; exit 1 ;; esac
+
+	resolve_account "$from" || { echo "lightning account transfer: no such sender '$from'" >&2; exit 2; }
+	[ -n "$RESOLVED_ADDRESS" ] || { echo "lightning account transfer: sender '$from' has no address (legacy account); transfer needs an address-keyed sender" >&2; exit 2; }
+	local from_addr="$RESOLVED_ADDRESS"
+
+	# Resolve the recipient to a name the verb accepts (it takes a
+	# bech32 address or a bare name).  Prefer the address if present.
+	resolve_account "$to" || { echo "lightning account transfer: no such recipient '$to'" >&2; exit 2; }
+	local to_arg="$RESOLVED_NAME"
+	[ -n "$RESOLVED_ADDRESS" ] && to_arg="$RESOLVED_ADDRESS"
+
+	local self_libexec; self_libexec=$(cd "$(dirname "$0")" && pwd)
+	if [ -n "$note" ]; then
+		"$self_libexec/api-account-transfer" "$from_addr" "$to_arg" "$sat" --note "$note"
+	else
+		"$self_libexec/api-account-transfer" "$from_addr" "$to_arg" "$sat"
+	fi
+}
+
 case "${1:-}" in
 	list)     shift; cmd_list "$@" ;;
 	create)   shift; cmd_create "$@" ;;
@@ -1177,6 +1213,7 @@ case "${1:-}" in
 	withdraw) shift; cmd_withdraw "$@" ;;
 	pay)      shift; cmd_pay "$@" ;;
 	receive)  shift; cmd_receive "$@" ;;
+	transfer) shift; cmd_transfer "$@" ;;
 	"")       usage; exit 1 ;;
 	*)        echo "lightning account: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac
