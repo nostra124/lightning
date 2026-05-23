@@ -74,13 +74,16 @@ cmd_status() {
 	local ts_pred="1=1"
 	[ -n "$since" ] && ts_pred="ts >= '$since 00:00:00'"
 
-	# Existence check — house may not exist yet if no skim has ever
-	# fired.  Print a clear empty-state message and bail.
-	local house_exists
-	house_exists=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name = 'house';")
-	if [ "$house_exists" = "0" ]; then
+	# Empty-state check — house is pre-seeded by FEAT-218's schema
+	# (so the referrer FK has a target from wallet new onward).  We
+	# detect "no skim has fired" via the absence of in-credit rows
+	# rather than the absence of the row.
+	local house_in_rows
+	house_in_rows=$(sqlite3 "$db" "SELECT COUNT(*) FROM ledger \
+		WHERE account = 'house' AND direction = 'in' AND $ts_pred;")
+	if [ "$house_in_rows" = "0" ]; then
 		echo "lightning fee-policy: no revenue yet"
-		echo "  (the house account is created lazily on the first non-zero skim)"
+		echo "  (no operator-fee skim has been booked into house yet)"
 		return 0
 	fi
 

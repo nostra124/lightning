@@ -39,9 +39,12 @@ def _create():
         _lib.respond("405 Method Not Allowed", {"error": "use_post"})
     body = _lib.read_body()
     hint = str(body.get("hint", ""))[:64] if isinstance(body, dict) else ""
+    invite = str(body.get("invite_code", ""))[:32] if isinstance(body, dict) else ""
     args = ["api-accounts-create"]
     if hint:
         args += ["--hint", hint]
+    if invite:
+        args += ["--invite-code", invite]
     result = _lib.call_verb(*args)
     _lib.respond("201 Created", result)
 
@@ -133,6 +136,14 @@ def _close(account_id):
     _lib.respond("200 OK", result)
 
 
+def _referrals(account_id):
+    if _method() != "GET":
+        _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+    _lib.auth_account(account_id)
+    result = _lib.call_verb("api-account-referrals", account_id)
+    _lib.respond("200 OK", result)
+
+
 def main():
     path_info = os.environ.get("PATH_INFO", "")
     account_id, tail = _lib.read_account_id_from_path(path_info)
@@ -160,6 +171,7 @@ def main():
         "pay": lambda: _pay(account_id),
         "recv": lambda: _recv(account_id, reusable=False),
         "recv-reusable": lambda: _recv(account_id, reusable=True),
+        "referrals": lambda: _referrals(account_id),
         "close": lambda: _close(account_id),
     }
     handler = routes.get(verb)

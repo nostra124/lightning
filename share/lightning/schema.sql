@@ -1,9 +1,10 @@
--- lightning wallet schema (FEAT-193, extended FEAT-212).
+-- lightning wallet schema (FEAT-193, extended FEAT-212, FEAT-218).
 --
 -- WAL mode is configured at open time by the verbs.
--- Migrations: idempotent ALTER TABLE in libexec/lightning/account's
--- migrate_accounts_schema().  Existing wallets pick up new columns
--- on their next account-verb invocation.
+-- Migrations: idempotent ALTER TABLE / CREATE TABLE IF NOT EXISTS in
+-- libexec/lightning/account's migrate_accounts_schema().  Existing
+-- wallets pick up new columns + tables on their next account-verb
+-- invocation.
 
 PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;
@@ -20,7 +21,22 @@ CREATE TABLE IF NOT EXISTS accounts (
     -- FEAT-212 — lifecycle bookkeeping for the cleanup cron.
     created_at       INTEGER,
     closed_at        INTEGER,
-    last_api_call_at INTEGER
+    last_api_call_at INTEGER,
+    -- FEAT-218 — single-level referrer.  Default 'house' so every
+    -- account participates in the operator-fee chain by default.
+    -- Manual override via `lightning account set-referrer` (admin
+    -- escape hatch for sybil-defence cases).
+    referrer         TEXT    DEFAULT 'house'
+                             REFERENCES accounts(name) ON DELETE SET DEFAULT
+);
+
+-- FEAT-218 — invite codes minted by accounts that want to refer
+-- newcomers.  Anonymous; the only secret is the code value itself.
+CREATE TABLE IF NOT EXISTS invite_codes (
+    code        TEXT    PRIMARY KEY,
+    account     TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE,
+    created_at  INTEGER NOT NULL,
+    uses        INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS ledger (
@@ -60,6 +76,13 @@ CREATE TABLE IF NOT EXISTS users (
     max_sat     INTEGER NOT NULL DEFAULT 100000000,
     comment_max INTEGER NOT NULL DEFAULT 256
 );
+
+-- Seed house FIRST so the default `referrer = 'house'` on every
+-- subsequent insert has a valid FK target.  Same overdraft=allow as
+-- in FEAT-213's lazy bootstrap.  House's own referrer is itself
+-- (self-FK; SQLite allows this).
+INSERT OR IGNORE INTO accounts(name, description, overdraft)
+    VALUES('house', 'operator fee revenue', 'allow');
 
 -- Seed the unassigned account so the SET DEFAULT FK lands somewhere.
 INSERT OR IGNORE INTO accounts(name, description) VALUES('-', 'unassigned');
