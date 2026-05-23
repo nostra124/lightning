@@ -985,3 +985,71 @@ def test_charge_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
                env=env(bin_shim, PATH_INFO=f"/{ID}/charges"))
     status, _, _ = parse(proc)
     assert "401" in status
+
+
+# --- FEAT-230 tax-data export ---------------------------------------------
+
+
+def test_export_json_streams_verb_output(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"kind":"transaction_data_for_tax_preparation","disposals":[],"summary":{}}'
+    lightning_stub({"api-account-verify": (0, ""), "export": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/export/tax-data",
+                                   QUERY_STRING="year=2024&base=EUR&format=json")))
+    status, headers, body_out = parse(proc)
+    assert "200" in status
+    assert "application/json" in headers.get("content-type", "")
+    assert "transaction_data_for_tax_preparation" in body_out
+
+
+def test_export_csv_sets_text_csv_content_type(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = "disposal_date,disposal_sat,acquisition_date,holding_days,fiat_in,fiat_out,gain,price_gap\n"
+    lightning_stub({"api-account-verify": (0, ""), "export": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/export/tax-data",
+                                   QUERY_STRING="year=2024&format=csv")))
+    status, headers, body_out = parse(proc)
+    assert "200" in status
+    assert "text/csv" in headers.get("content-type", "")
+    assert "disposal_date" in body_out
+
+
+def test_export_missing_year_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "export": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/export/tax-data",
+                                   QUERY_STRING="base=EUR")))
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "year_required" in body_out
+
+
+def test_export_bad_format_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "export": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/export/tax-data",
+                                   QUERY_STRING="year=2024&format=xml")))
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "bad_format" in body_out
+
+
+def test_export_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "export": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim, PATH_INFO=f"/{ID}/export/tax-data",
+                       QUERY_STRING="year=2024"))
+    status, _, _ = parse(proc)
+    assert "401" in status
+
+
+def test_export_unknown_subpath_returns_404(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "export": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/export/everything")))
+    status, _, _ = parse(proc)
+    assert "404" in status
