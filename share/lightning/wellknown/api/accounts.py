@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""Dispatcher for /api/accounts/* (FEAT-212 PR-2).
+"""Dispatcher for /.well-known/lightning/v1/accounts/* (FEAT-212 PR-2;
+moved + versioned by FEAT-224 / FEAT-232).
 
-Apache CGI maps the entire /api/accounts/* URL tree to this single
-script.  The script parses PATH_INFO + REQUEST_METHOD and routes:
+Apache maps the whole `/.well-known/lightning/v1/accounts` URL tree to
+this single script; the prefix is consumed by the ScriptAlias, so
+PATH_INFO still arrives as the `<id>/<verb>` tail (the dispatcher is
+unchanged by the move).  The script parses PATH_INFO + REQUEST_METHOD
+and routes:
 
-  POST /api/accounts                     -> create (anonymous)
-  GET  /api/accounts/<id>/balance        -> balance
-  GET  /api/accounts/<id>/topup[?sat=N]  -> topup
-  POST /api/accounts/<id>/withdraw       -> withdraw
-  POST /api/accounts/<id>/pay            -> pay
-  POST /api/accounts/<id>/recv           -> recv
-  POST /api/accounts/<id>/recv-reusable  -> recv-reusable (BOLT-12)
-  POST /api/accounts/<id>/close          -> close
+  POST .../v1/accounts                     -> create (anonymous)
+  GET  .../v1/accounts/<id>/balance        -> balance
+  GET  .../v1/accounts/<id>/topup[?sat=N]  -> topup
+  POST .../v1/accounts/<id>/withdraw       -> withdraw
+  POST .../v1/accounts/<id>/pay            -> pay
+  POST .../v1/accounts/<id>/recv           -> recv
+  POST .../v1/accounts/<id>/recv-reusable  -> recv-reusable (BOLT-12)
+  POST .../v1/accounts/<id>/transfer       -> transfer (FEAT-223)
+  GET  .../v1/accounts/<id>/referrals      -> referrals (FEAT-218)
+  POST .../v1/accounts/<id>/close          -> close
 
 All authenticated endpoints require Authorization: Bearer <key>.
 Create is anonymous + rate-limited at the verb layer.

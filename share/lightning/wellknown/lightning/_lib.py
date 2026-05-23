@@ -119,8 +119,9 @@ def read_body():
 def read_account_id_from_path(path_info):
     """Pull the account-ID (bech32 bitcoin address) out of a PATH_INFO.
 
-    Apache routes /api/accounts/<id>/<verb> here with PATH_INFO set to
-    "/<id>/<verb>" (or "/<id>" / "" for the bare /api/accounts case).
+    Apache routes /.well-known/lightning/v1/accounts/<id>/<verb> here
+    with PATH_INFO set to "/<id>/<verb>" (or "/<id>" / "" for the bare
+    create case).  The versioned prefix is consumed by the ScriptAlias.
     """
     parts = [p for p in path_info.split("/") if p]
     if not parts:

@@ -22,7 +22,7 @@ Protocol version reported: "2025-03-26".  Capabilities:
   - prompts (list — empty)
   - logging (no-op)
 
-POST /api/mcp   body: JSON-RPC 2.0 envelope.
+POST /.well-known/lightning/v1/mcp   body: JSON-RPC 2.0 envelope.
 """
 
 import json

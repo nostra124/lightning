@@ -120,7 +120,7 @@ if [ -n "$invite_code" ]; then
 	fi
 fi
 
-base="/api/accounts/$address"
+base="/.well-known/lightning/v1/accounts/$address"
 jq -nc \
 	--arg id "$address" \
 	--arg key "$api_key" \
@@ -142,6 +142,7 @@ jq -nc \
 			pay:           ($base + "/pay"),
 			recv:          ($base + "/recv"),
 			recv_reusable: ($base + "/recv-reusable"),
+			transfer:      ($base + "/transfer"),
 			referrals:     ($base + "/referrals"),
 			close:         ($base + "/close")
 		}
