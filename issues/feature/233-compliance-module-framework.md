@@ -34,6 +34,34 @@ documentation burden beyond the operator's own tax export
 (FEAT-230).  So: **modules default off**; the hosted operator
 opts in.
 
+Concretely this is a **system-mode** concern (FEAT-183
+three-user install — the daemon running a public, custodial
+instance for others).  Private / family / user-mode installs:
+people running their own node for their own (or close
+relations') funds won't care, and nothing here is on for them.
+The framework only earns its keep on a commercial system-mode
+deployment.
+
+## Mandatory legal disclaimer (a hard requirement)
+
+Every surface that touches compliance — the `compliance.recfile`
+header, `lightning compliance status`, each module's man page
+(FEAT-221), the inline docs (FEAT-209), and the PWA's
+operator/admin view — MUST carry a prominent disclaimer:
+
+> These compliance tools were implemented with AI assistance.
+> They provide *technical capabilities*, not legal advice and
+> not a guarantee of regulatory compliance.  Whether they
+> satisfy any obligation in your jurisdiction is your
+> responsibility — **consult a qualified local lawyer** before
+> operating a custodial service.
+
+This text (or a close variant) is shipped in a single
+`share/lightning/compliance/DISCLAIMER.txt`, referenced from
+each surface so it stays consistent.  `compliance preset
+<name>` prints it on first application; `compliance status`
+footers it.  No compliance module's docs ship without it.
+
 ## The hook framework (the architecturally significant part)
 
 Core value-moving verbs gain compliance hook-dispatch at three
@@ -161,6 +189,9 @@ build the capabilities once, bundle per jurisdiction in config.
   `lightning compliance preset <name>` (apply a bundle).
 * A `compliance_events` append-only audit log (every
   hook decision recorded — itself a compliance requirement).
+* `share/lightning/compliance/DISCLAIMER.txt` (the AI-built /
+  consult-a-lawyer text) + its wiring into `compliance status`
+  (footer) and `compliance preset` (printed on apply).
 * NO actual module logic — each module ships in its own
   sub-ticket (FEAT-234..242).  The framework lands with all
   hooks no-op so the core verbs are wired + tested before any
@@ -184,9 +215,13 @@ build the capabilities once, bundle per jurisdiction in config.
 3. A stub pre-hook that denies blocks the transaction with its
    error surfaced as a 4xx; a stub post-hook records to
    `compliance_events` without blocking.
-4. `compliance status` reports which modules are on.
+4. `compliance status` reports which modules are on + footers
+   the legal disclaimer.
 5. The hook-dispatch adds no measurable latency when all
    modules are off (config check short-circuits).
+6. `compliance preset <name>` prints the DISCLAIMER.txt text
+   on application; the file ships under
+   `share/lightning/compliance/`.
 
 ## Phasing
 
