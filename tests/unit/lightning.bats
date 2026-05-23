@@ -6842,3 +6842,99 @@ _acct230_teardown() {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
 	grep -q "export tax-data" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-216: interest mode — negative fees pay users a yield (opt-in).
+# ---------------------------------------------------------------------------
+
+_acct216_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create saver >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='saver';")
+	BATS_FEES="$LIGHTNING_WALLETS_ROOT/alice/fees.recfile"
+}
+
+_acct216_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+_deposit_100k() {
+	local outs
+	outs=$(jq -nc --arg a "$BATS_ADDR" \
+		'[{"txid":"feed","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+}
+
+@test "FEAT-216: interest mode credits the user a yield on a deposit" {
+	_acct216_setup
+	# topup-onchain: interest on, rate -2000 ppm (-0.2%).
+	sed -i '/^operation: topup-onchain$/,/^$/{s/^rate_ppm:.*/rate_ppm:  -2000/; s/^interest_mode:.*/interest_mode: on/}' "$BATS_FEES"
+	_deposit_100k
+	# 100 000-sat deposit + 200-sat interest = 100 200 sat.
+	[ "$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='saver';")" = "100200000" ]
+	_acct216_teardown
+}
+
+@test "FEAT-216: the interest subsidy is debited from house with the matching payment_hash" {
+	_acct216_setup
+	sed -i '/^operation: topup-onchain$/,/^$/{s/^rate_ppm:.*/rate_ppm:  -2000/; s/^interest_mode:.*/interest_mode: on/}' "$BATS_FEES"
+	_deposit_100k
+	[ "$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='house';")" = "-200000" ]
+	# Same payment_hash links the user credit and the house debit.
+	local ph
+	ph=$(sqlite3 "$BATS_DB" "SELECT payment_hash FROM ledger WHERE account='house' AND message LIKE 'interest:%';")
+	[ -n "$ph" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM ledger WHERE payment_hash='$ph' AND message LIKE 'interest:%';")" = "2" ]
+	_acct216_teardown
+}
+
+@test "FEAT-216: a negative rate with interest_mode off pays NO subsidy (clamped)" {
+	_acct216_setup
+	# Negative rate but interest mode off -> skim clamps to 0.
+	sed -i '/^operation: topup-onchain$/,/^$/{s/^rate_ppm:.*/rate_ppm:  -2000/; s/^interest_mode:.*/interest_mode: off/}' "$BATS_FEES"
+	_deposit_100k
+	# User gets exactly the deposit; house untouched.
+	[ "$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='saver';")" = "100000000" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='house';")" = "0" ]
+	_acct216_teardown
+}
+
+@test "FEAT-216: autotune refuses a negative rate when interest_mode is off" {
+	_acct216_setup
+	sed -i '/^operation: topup-onchain$/,/^$/{s/^rate_ppm:.*/rate_ppm:  -2000/; s/^interest_mode:.*/interest_mode: off/}' "$BATS_FEES"
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 run "$LIGHTNING_BIN" fee-policy autotune dry-run
+	[ "$status" -eq 3 ]
+	[[ "$output" == *"interest_mode is off"* ]]
+	_acct216_teardown
+}
+
+@test "FEAT-216: autotune accepts a negative rate when interest_mode is on" {
+	_acct216_setup
+	sed -i '/^operation: topup-onchain$/,/^$/{s/^rate_ppm:.*/rate_ppm:  -1000/; s/^interest_mode:.*/interest_mode: on/}' "$BATS_FEES"
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 run "$LIGHTNING_BIN" fee-policy autotune dry-run
+	[ "$status" -eq 0 ]
+	_acct216_teardown
+}
+
+@test "FEAT-216: fee-policy status reports the cumulative interest subsidy" {
+	_acct216_setup
+	sed -i '/^operation: topup-onchain$/,/^$/{s/^rate_ppm:.*/rate_ppm:  -2000/; s/^interest_mode:.*/interest_mode: on/}' "$BATS_FEES"
+	_deposit_100k
+	run "$LIGHTNING_BIN" fee-policy status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"interest_subsidy_paid_sat: 200"* ]]
+	[[ "$output" == *"interest_mode_ops:"* ]]
+	[[ "$output" == *"topup-onchain"* ]]
+	_acct216_teardown
+}
+
+@test "FEAT-216: default fees.recfile ships interest_mode off + a legal caution" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/defaults/fees.recfile"
+	grep -q "interest_mode: off" "$f"
+	grep -qi "CAUTION" "$f"
+	grep -qi "deposit-taking" "$f"
+}
