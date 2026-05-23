@@ -607,14 +607,52 @@ cmd_topup_watcher() {
 				sqlite3 "$db" "INSERT OR IGNORE INTO accounts(name, description, overdraft) \
 					VALUES('house', 'operator fee revenue', 'allow');" 2>/dev/null || true
 			fi
+			# FEAT-219 — referral split (same shape as api-account-pay).
+			tw_referral_msat=0
+			tw_referrer=""
+			tw_direct_pct="${LIGHTNING_REFERRAL_DIRECT_PCT:-0}"
+			case "$tw_direct_pct" in ''|*[!0-9]*) tw_direct_pct=0 ;; esac
+			[ "$tw_direct_pct" -gt 100 ] && tw_direct_pct=100
+			if [ "$operator_fee_msat" -gt 0 ] && [ "$tw_direct_pct" -gt 0 ]; then
+				tw_referrer=$(sqlite3 "$db" "SELECT COALESCE(referrer, 'house') FROM accounts WHERE name = $(sql_quote "$name");" 2>/dev/null)
+				case "$tw_referrer" in
+					""|"house"|"-") tw_referrer="" ;;
+					*)
+						tw_min_msat=$(( ${LIGHTNING_REFERRAL_MIN_ACTIVITY_SAT:-10000} * 1000 ))
+						tw_act_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(ABS(amount_msat)), 0) FROM ledger \
+							WHERE account = $(sql_quote "$name") AND message NOT LIKE 'fee:%';" 2>/dev/null)
+						[ "${tw_act_msat:-0}" -lt "$tw_min_msat" ] && tw_referrer=""
+						;;
+				esac
+				if [ -n "$tw_referrer" ]; then
+					tw_cap_msat=$(( ${LIGHTNING_REFERRAL_MAX_PER_DAY_SAT:-10000} * 1000 ))
+					tw_today_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger \
+						WHERE account = $(sql_quote "$tw_referrer") \
+						  AND direction = 'in' \
+						  AND message LIKE 'fee:referral%' \
+						  AND date(ts) = date('now');" 2>/dev/null)
+					[ "${tw_today_msat:-0}" -ge "$tw_cap_msat" ] && tw_referrer=""
+				fi
+				if [ -n "$tw_referrer" ]; then
+					tw_referral_msat=$(( operator_fee_msat * tw_direct_pct / 100 ))
+				fi
+			fi
+			tw_house_msat=$(( operator_fee_msat - tw_referral_msat ))
+
 			sql="BEGIN;"
 			sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
 			sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'in', $amount_msat, 'on-chain', $(sql_quote "$pmt_hash"), 'topup-watcher');"
 			if [ "$operator_fee_msat" -gt 0 ]; then
 				sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
 				sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, 'on-chain', $(sql_quote "$pmt_hash"), 'fee:topup-onchain');"
-				sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
-				sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, 'on-chain', $(sql_quote "$pmt_hash"), $(sql_quote "fee:topup-onchain from $name"));"
+				if [ "$tw_house_msat" -gt 0 ]; then
+					sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+					sql+=" VALUES(datetime('now'), 'house', 'in', $tw_house_msat, 'on-chain', $(sql_quote "$pmt_hash"), $(sql_quote "fee:topup-onchain from $name"));"
+				fi
+				if [ "$tw_referral_msat" -gt 0 ] && [ -n "$tw_referrer" ]; then
+					sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+					sql+=" VALUES(datetime('now'), $(sql_quote "$tw_referrer"), 'in', $tw_referral_msat, $(sql_quote "referee:$name"), $(sql_quote "$pmt_hash"), $(sql_quote "fee:referral from $name"));"
+				fi
 			fi
 			sql+=" COMMIT;"
 			sqlite3 "$db" "$sql"

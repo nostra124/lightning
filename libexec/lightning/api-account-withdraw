@@ -75,17 +75,57 @@ if [ "$operator_fee_msat" -gt 0 ]; then
 		VALUES('house', 'operator fee revenue', 'allow');" 2>/dev/null || true
 fi
 
+# FEAT-219 — referral split.  Same logic as api-account-pay; see
+# that verb's comments for the sybil-defence reasoning.
+referral_msat=0
+referrer=""
+direct_pct="${LIGHTNING_REFERRAL_DIRECT_PCT:-0}"
+case "$direct_pct" in ''|*[!0-9]*) direct_pct=0 ;; esac
+[ "$direct_pct" -gt 100 ] && direct_pct=100
+if [ "$operator_fee_msat" -gt 0 ] && [ "$direct_pct" -gt 0 ]; then
+	referrer=$(sqlite3 "$db" "SELECT COALESCE(referrer, 'house') FROM accounts WHERE name = $(sql_quote "$name");" 2>/dev/null)
+	case "$referrer" in
+		""|"house"|"-") referrer="" ;;
+		*)
+			min_msat=$(( ${LIGHTNING_REFERRAL_MIN_ACTIVITY_SAT:-10000} * 1000 ))
+			act_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(ABS(amount_msat)), 0) FROM ledger \
+				WHERE account = $(sql_quote "$name") AND message NOT LIKE 'fee:%';" 2>/dev/null)
+			[ "${act_msat:-0}" -lt "$min_msat" ] && referrer=""
+			;;
+	esac
+	if [ -n "$referrer" ]; then
+		cap_msat=$(( ${LIGHTNING_REFERRAL_MAX_PER_DAY_SAT:-10000} * 1000 ))
+		today_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger \
+			WHERE account = $(sql_quote "$referrer") \
+			  AND direction = 'in' \
+			  AND message LIKE 'fee:referral%' \
+			  AND date(ts) = date('now');" 2>/dev/null)
+		[ "${today_msat:-0}" -ge "$cap_msat" ] && referrer=""
+	fi
+	if [ -n "$referrer" ]; then
+		referral_msat=$(( operator_fee_msat * direct_pct / 100 ))
+	fi
+fi
+house_share_msat=$(( operator_fee_msat - referral_msat ))
+referral_sat=$(( referral_msat / 1000 ))
+
 # Provisional debit; the swap watcher (PR-4) will reconcile on settle
 # (or refund on timeout).  Tag with the swap id for traceability.
-# Plus the operator-fee skim → house.
+# Plus the operator-fee skim → house + (optionally) referrer.
 sql="BEGIN;"
 sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
 sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$amount_msat, $(sql_quote "$dest"), $(sql_quote "swap $swap_id"));"
 if [ "$operator_fee_msat" -gt 0 ]; then
 	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
 	sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, $(sql_quote "$dest"), $(sql_quote "fee:withdraw (swap $swap_id)"));"
-	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
-	sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, $(sql_quote "$dest"), $(sql_quote "fee:withdraw from $name (swap $swap_id)"));"
+	if [ "$house_share_msat" -gt 0 ]; then
+		sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
+		sql+=" VALUES(datetime('now'), 'house', 'in', $house_share_msat, $(sql_quote "$dest"), $(sql_quote "fee:withdraw from $name (swap $swap_id)"));"
+	fi
+	if [ "$referral_msat" -gt 0 ] && [ -n "$referrer" ]; then
+		sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, message)"
+		sql+=" VALUES(datetime('now'), $(sql_quote "$referrer"), 'in', $referral_msat, $(sql_quote "referee:$name"), $(sql_quote "fee:referral from $name (swap $swap_id)"));"
+	fi
 fi
 sql+=" COMMIT;"
 sqlite3 "$db" "$sql" 2>/dev/null || true
@@ -94,6 +134,7 @@ jq -nc \
 	--arg id "$swap_id" \
 	--argjson amount "$sat" \
 	--argjson ofee "$operator_fee_sat" \
+	--argjson rfee "$referral_sat" \
 	--arg dest "$dest" \
 	'{swap_id: $id, status: "created", amount_sat: $amount,
-	  operator_fee_sat: $ofee, destination: $dest}'
+	  operator_fee_sat: $ofee, referral_fee_sat: $rfee, destination: $dest}'

@@ -106,11 +106,53 @@ if [ "$operator_fee_msat" -gt 0 ]; then
 		VALUES('house', 'operator fee revenue', 'allow');" 2>/dev/null || true
 fi
 
-# Record the debits + the house credit.  Up to four separate
-# rows so the ledger stays double-entry-clean: the user's
-# out-rows sum to -sent_total_msat-operator_fee_msat; the house
-# in-row is +operator_fee_msat.  Same payment_hash on all rows
-# for trace.
+# FEAT-219 — referral split.  Direct referrer takes a configurable
+# percentage of the skim, rest goes to house.  Default 0 (back-compat
+# with FEAT-213: house keeps everything).  Sybil defences:
+#   * min referee activity threshold (non-fee in/out volume)
+#   * per-day cap on credits to any one referrer
+# Both checked here at skim time; either failure routes the would-be
+# referrer share to house instead (silently — no error to the caller).
+referral_msat=0
+referrer=""
+direct_pct="${LIGHTNING_REFERRAL_DIRECT_PCT:-0}"
+case "$direct_pct" in ''|*[!0-9]*) direct_pct=0 ;; esac
+[ "$direct_pct" -gt 100 ] && direct_pct=100
+if [ "$operator_fee_msat" -gt 0 ] && [ "$direct_pct" -gt 0 ]; then
+	referrer=$(sqlite3 "$db" "SELECT COALESCE(referrer, 'house') FROM accounts WHERE name = $(sql_quote "$name");" 2>/dev/null)
+	case "$referrer" in
+		""|"house"|"-") referrer="" ;;
+		*)
+			# Sybil 1: referee must have transacted ≥ N sats of
+			# non-fee volume.
+			min_msat=$(( ${LIGHTNING_REFERRAL_MIN_ACTIVITY_SAT:-10000} * 1000 ))
+			act_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(ABS(amount_msat)), 0) FROM ledger \
+				WHERE account = $(sql_quote "$name") AND message NOT LIKE 'fee:%';" 2>/dev/null)
+			[ "${act_msat:-0}" -lt "$min_msat" ] && referrer=""
+			;;
+	esac
+	if [ -n "$referrer" ]; then
+		# Sybil 2: per-day cap on credits to this referrer.
+		cap_msat=$(( ${LIGHTNING_REFERRAL_MAX_PER_DAY_SAT:-10000} * 1000 ))
+		today_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger \
+			WHERE account = $(sql_quote "$referrer") \
+			  AND direction = 'in' \
+			  AND message LIKE 'fee:referral%' \
+			  AND date(ts) = date('now');" 2>/dev/null)
+		[ "${today_msat:-0}" -ge "$cap_msat" ] && referrer=""
+	fi
+	if [ -n "$referrer" ]; then
+		referral_msat=$(( operator_fee_msat * direct_pct / 100 ))
+	fi
+fi
+house_share_msat=$(( operator_fee_msat - referral_msat ))
+referral_sat=$(( referral_msat / 1000 ))
+
+# Record the debits + the house credit.  Up to five separate rows so
+# the ledger stays double-entry-clean: the user's out-rows sum to
+# -sent_total_msat-operator_fee_msat; the in-rows on house +
+# referrer sum to +operator_fee_msat.  Same payment_hash on all
+# rows for trace.
 sql="BEGIN;"
 sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message)"
 sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$invoice_msat, $(sql_quote "$payment_hash"), 'api pay');"
@@ -119,8 +161,14 @@ sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$network_fee_msat, 
 if [ "$operator_fee_msat" -gt 0 ]; then
 	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message)"
 	sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$operator_fee_msat, $(sql_quote "$payment_hash"), 'fee:pay');"
-	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message)"
-	sql+=" VALUES(datetime('now'), 'house', 'in', $operator_fee_msat, $(sql_quote "$payment_hash"), $(sql_quote "fee:pay from $name"));"
+	if [ "$house_share_msat" -gt 0 ]; then
+		sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message)"
+		sql+=" VALUES(datetime('now'), 'house', 'in', $house_share_msat, $(sql_quote "$payment_hash"), $(sql_quote "fee:pay from $name"));"
+	fi
+	if [ "$referral_msat" -gt 0 ] && [ -n "$referrer" ]; then
+		sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+		sql+=" VALUES(datetime('now'), $(sql_quote "$referrer"), 'in', $referral_msat, $(sql_quote "referee:$name"), $(sql_quote "$payment_hash"), $(sql_quote "fee:referral from $name"));"
+	fi
 fi
 sql+=" COMMIT;"
 sqlite3 "$db" "$sql" 2>/dev/null || true
@@ -130,6 +178,7 @@ jq -nc \
 	--argjson amount "$sent_sat" \
 	--argjson fee "$network_fee_sat" \
 	--argjson ofee "$operator_fee_sat" \
+	--argjson rfee "$referral_sat" \
 	--arg status "$status" \
 	'{payment_hash: $hash, amount_sat: $amount, fee_sat: $fee,
-	  operator_fee_sat: $ofee, status: $status}'
+	  operator_fee_sat: $ofee, referral_fee_sat: $rfee, status: $status}'

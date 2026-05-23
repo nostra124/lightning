@@ -5311,3 +5311,186 @@ _acct218_teardown() {
 	grep -q "^id: FEAT-218" "$f"
 	grep -q "invite_codes" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-219: referral fee distribution.
+# ---------------------------------------------------------------------------
+
+_acct219_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create inv-acct >/dev/null
+	"$LIGHTNING_BIN" account invite-code create inv-acct --code refcode >/dev/null
+	REMOTE_ADDR=10.0.0.1 "$LIGHTNING_BIN" api-accounts-create --invite-code refcode >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_INV_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='inv-acct';")
+	BATS_REF_NAME=$(sqlite3 "$BATS_DB" "SELECT name FROM accounts WHERE name LIKE 'anon-%' LIMIT 1;")
+	BATS_REF_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='$BATS_REF_NAME';")
+}
+
+_acct219_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-219: with DIRECT_PCT=0 (default), whole skim still goes to house" {
+	_acct219_setup
+	outs=$(jq -nc --arg a "$BATS_REF_ADDR" \
+		'[{"txid":"d1","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	# No DIRECT_PCT → default 0 → no split.
+	MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local house ref
+	house=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='house' AND direction='in';")
+	ref=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='inv-acct' AND direction='in';")
+	[ "$house" = "200000" ]
+	[ "$ref" = "0" ]
+	_acct219_teardown
+}
+
+@test "FEAT-219: brand-new referee fails min-activity sybil 1 → all to house" {
+	_acct219_setup
+	outs=$(jq -nc --arg a "$BATS_REF_ADDR" \
+		'[{"txid":"d1","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	# Referee has zero prior activity; default min=10000 sat blocks split.
+	LIGHTNING_REFERRAL_DIRECT_PCT=20 \
+		MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local ref
+	ref=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='inv-acct' AND direction='in';")
+	[ "$ref" = "0" ]
+	_acct219_teardown
+}
+
+@test "FEAT-219: qualified referee splits skim 20/80 between referrer and house" {
+	_acct219_setup
+	# Seed referee activity past the default min via a synthetic ledger
+	# entry (faster than running a real topup, which the previous test
+	# already covers in isolation).
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now'), '$BATS_REF_NAME', 'in', 100000000, 'seed', 'topup-watcher');"
+	outs=$(jq -nc --arg a "$BATS_REF_ADDR" \
+		'[{"txid":"d2","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	LIGHTNING_REFERRAL_DIRECT_PCT=20 \
+		MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	# Skim on this topup = 200_000 msat; 20% = 40_000 msat to inv-acct,
+	# 160_000 msat to house.  (House also has the previous-test 200_000
+	# from the seed? No, we didn't run the no-split path here.)
+	local ref house
+	ref=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='inv-acct' AND direction='in' AND message LIKE 'fee:referral%';")
+	house=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='house' AND direction='in';")
+	[ "$ref" = "40000" ]
+	[ "$house" = "160000" ]
+	_acct219_teardown
+}
+
+@test "FEAT-219: per-day cap on referrer credits routes overflow to house" {
+	_acct219_setup
+	# Seed activity to pass sybil 1.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now'), '$BATS_REF_NAME', 'in', 100000000, 'seed', 'topup-watcher');"
+	# Seed today's referral credit at exactly the cap.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, message) \
+		VALUES(datetime('now'), 'inv-acct', 'in', 10000000, 'fee:referral from prior');"
+	outs=$(jq -nc --arg a "$BATS_REF_ADDR" \
+		'[{"txid":"dx","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	# Default cap = 10000 sat = 10M msat; already there → next skim
+	# routes referrer share to house.
+	LIGHTNING_REFERRAL_DIRECT_PCT=20 \
+		MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local today_new
+	today_new=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='inv-acct' AND direction='in' AND message LIKE 'fee:referral from $BATS_REF_NAME%';")
+	[ "$today_new" = "0" ]
+	_acct219_teardown
+}
+
+@test "FEAT-219: api-account-pay JSON response includes referral_fee_sat" {
+	_acct219_setup
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now'), '$BATS_REF_NAME', 'in', 100000000, 'seed', 'topup-watcher');"
+	local body
+	body=$(LIGHTNING_REFERRAL_DIRECT_PCT=20 "$LIGHTNING_BIN" api-account-pay "$BATS_REF_ADDR" "lnbcrt100p1pmocktest" 2>/dev/null)
+	echo "$body" | jq -e '.referral_fee_sat' >/dev/null
+	_acct219_teardown
+}
+
+@test "FEAT-219: api-account-referrals reflects accrued credits" {
+	_acct219_setup
+	# Seed activity + a referral credit directly so we don't depend on
+	# the topup-watcher path within this test.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now'), '$BATS_REF_NAME', 'in', 100000000, 'seed', 'topup-watcher');"
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, peer, message) \
+		VALUES(datetime('now'), 'inv-acct', 'in', 40000, 'referee:$BATS_REF_NAME', 'fee:referral from $BATS_REF_NAME');"
+	local body
+	body=$("$LIGHTNING_BIN" api-account-referrals "$BATS_INV_ADDR")
+	local credit
+	credit=$(echo "$body" | jq ".referrals[0].accrued_credits_sat")
+	[ "$credit" = "40" ]
+	_acct219_teardown
+}
+
+@test "FEAT-219: referee with referrer='house' never gets a split" {
+	_acct219_setup
+	# Create a second referee with referrer=house (no invite code used).
+	REMOTE_ADDR=10.0.0.99 "$LIGHTNING_BIN" api-accounts-create >/dev/null
+	local other
+	other=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name LIKE 'anon-%' AND referrer='house' LIMIT 1;")
+	# Seed activity past threshold.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		SELECT datetime('now'), name, 'in', 100000000, 'seed', 'topup-watcher' FROM accounts WHERE address = '$other';"
+	outs=$(jq -nc --arg a "$other" \
+		'[{"txid":"dx","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	LIGHTNING_REFERRAL_DIRECT_PCT=20 \
+		MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	# Nothing should hit inv-acct's ledger.
+	local inv
+	inv=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='inv-acct';")
+	[ "$inv" = "0" ]
+	_acct219_teardown
+}
+
+@test "FEAT-219: invalid DIRECT_PCT is clamped sensibly" {
+	_acct219_setup
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now'), '$BATS_REF_NAME', 'in', 100000000, 'seed', 'topup-watcher');"
+	# DIRECT_PCT=999 → clamped to 100 → whole skim goes to referrer.
+	outs=$(jq -nc --arg a "$BATS_REF_ADDR" \
+		'[{"txid":"d2","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	LIGHTNING_REFERRAL_DIRECT_PCT=999 \
+		MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	local ref house
+	ref=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='inv-acct' AND direction='in' AND message LIKE 'fee:referral from $BATS_REF_NAME%';")
+	house=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='house' AND direction='in' AND message LIKE 'fee:topup-onchain from $BATS_REF_NAME%';")
+	[ "$ref" = "200000" ]
+	[ "$house" = "0" ]
+	_acct219_teardown
+}
+
+@test "FEAT-219: skim + referral redistribution is double-entry-clean" {
+	_acct219_setup
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message) \
+		VALUES(datetime('now'), '$BATS_REF_NAME', 'in', 100000000, 'seed', 'topup-watcher');"
+	outs=$(jq -nc --arg a "$BATS_REF_ADDR" \
+		'[{"txid":"d2","output":0,"status":"confirmed","address":$a,"amount_msat":"100000000msat"}]')
+	LIGHTNING_REFERRAL_DIRECT_PCT=20 \
+		MOCK_LISTFUNDS_OUTPUTS="$outs" "$LIGHTNING_BIN" account topup-watcher run >/dev/null 2>&1
+	# The topup-watcher row is external on-chain money (non-zero on
+	# purpose) — the rest of the rows on this payment_hash are
+	# redistributions that must sum to zero.
+	local redist
+	redist=$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger \
+		WHERE payment_hash='d2:0' AND message != 'topup-watcher';")
+	[ "$redist" = "0" ]
+	_acct219_teardown
+}
+
+@test "FEAT-219: spec file exists with the expected id" {
+	for cand in \
+		"$BATS_TEST_DIRNAME/../../issues/feature/219-referral-fee-distribution.md" \
+		"$BATS_TEST_DIRNAME/../../issues/feature/done/219-referral-fee-distribution.md"; do
+		[ -f "$cand" ] && f="$cand" && break
+	done
+	[ -n "$f" ]
+	grep -q "^id: FEAT-219" "$f"
+	grep -q "referral_split" "$f"
+}
