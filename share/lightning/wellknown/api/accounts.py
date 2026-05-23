@@ -23,6 +23,10 @@ and routes:
   POST .../v1/accounts/<id>/standing-orders          -> create  (FEAT-226)
   POST .../v1/accounts/<id>/standing-orders/<so_id>  -> pause/resume
   DEL  .../v1/accounts/<id>/standing-orders/<so_id>  -> cancel
+  GET/POST .../v1/accounts/<id>/mandates             -> list/create (FEAT-227)
+  PATCH/DEL .../v1/accounts/<id>/mandates/<mid>      -> update/revoke
+  POST .../v1/accounts/<id>/mandates/<mid>/charge    -> charge (secret-authed)
+  POST .../v1/accounts/<id>/mandates/<mid>/pulls/<pid>/approve|deny
   POST .../v1/accounts/<id>/close          -> close
 
 All authenticated endpoints require Authorization: Bearer <key>.
@@ -32,6 +36,7 @@ Create is anonymous + rate-limited at the verb layer.
 import json
 import os
 import re
+import subprocess
 import sys
 import urllib.parse
 from pathlib import Path
@@ -201,6 +206,110 @@ def _standing_orders(account_id, so_id=None):
     _lib.respond("405 Method Not Allowed", {"error": "use_post_or_delete"})
 
 
+def _mandate_charge(account_id, mid):
+    # FEAT-227 — merchant-triggered charge.  Authenticated by the
+    # per-mandate secret (body `secret` or X-Mandate-Secret header), NOT
+    # a customer bearer — this is the endpoint a cross-node merchant
+    # POSTs to.  Maps the verb's auth/rule exit codes to 401/402.
+    if _method() != "POST":
+        _lib.respond("405 Method Not Allowed", {"error": "use_post"})
+    body = _lib.read_body()
+    secret = body.get("secret") or os.environ.get("HTTP_X_MANDATE_SECRET", "")
+    sat = body.get("sat")
+    ref = body.get("reference")
+    if not isinstance(secret, str) or not secret:
+        _lib.respond("401 Unauthorized", {"error": "missing_mandate_secret"})
+    if not isinstance(sat, int) or sat <= 0:
+        _lib.respond("400 Bad Request", {"error": "sat_required"})
+    args = ["api-account-mandate-pull", account_id, "charge", mid, secret, str(sat)]
+    if ref is not None:
+        args += ["--ref", json.dumps(ref)]
+    r = subprocess.run(
+        ["sudo", "-n", "-u", _lib.OPERATOR_USER, "lightning", *args],
+        capture_output=True, text=True,
+    )
+    if r.returncode == 7:
+        _lib.respond("401 Unauthorized", {"error": "invalid_mandate_secret"})
+    if r.returncode == 6:
+        try:
+            _lib.respond("402 Payment Required", json.loads(r.stdout or "{}"))
+        except json.JSONDecodeError:
+            _lib.respond("402 Payment Required", {"error": "rule_violation"})
+    if r.returncode != 0:
+        _lib.respond("502 Bad Gateway", {"error": "backend_failed"})
+    try:
+        _lib.respond("200 OK", json.loads(r.stdout))
+    except json.JSONDecodeError:
+        _lib.respond("502 Bad Gateway", {"error": "bad_json"})
+
+
+def _mandates(account_id, tail):
+    # tail[0] == "mandates".  Sub-shapes:
+    #   mandates                      GET list / POST create   (customer bearer)
+    #   mandates/<mid>                PATCH update / DELETE revoke (bearer)
+    #   mandates/<mid>/charge         POST charge (mandate-secret authed)
+    #   mandates/<mid>/pulls/<pid>/approve|deny  POST (bearer)
+    if len(tail) == 1:
+        _lib.auth_account(account_id)
+        if _method() == "GET":
+            _lib.respond("200 OK", _lib.call_verb("api-account-mandate", account_id, "list"))
+        if _method() != "POST":
+            _lib.respond("405 Method Not Allowed", {"error": "use_get_or_post"})
+        body = _lib.read_body()
+        merchant = body.get("merchant", "")
+        maxp = body.get("max_per_period")
+        period = str(body.get("period", ""))
+        mode = str(body.get("mode", "auto"))
+        if not isinstance(merchant, str) or not merchant:
+            _lib.respond("400 Bad Request", {"error": "merchant_required"})
+        if not isinstance(maxp, int) or maxp <= 0:
+            _lib.respond("400 Bad Request", {"error": "max_per_period_required"})
+        if period not in ("daily", "weekly", "monthly"):
+            _lib.respond("400 Bad Request", {"error": "bad_period"})
+        if mode not in ("auto", "approval"):
+            _lib.respond("400 Bad Request", {"error": "bad_mode"})
+        result = _lib.call_verb("api-account-mandate", account_id, "create",
+                                merchant, str(maxp), period, "--mode", mode)
+        _lib.respond("201 Created", result)
+
+    mid = tail[1]
+    if not re.fullmatch(r"mdt_[0-9a-z]{1,32}", mid):
+        _lib.respond("400 Bad Request", {"error": "bad_mandate_id"})
+
+    if len(tail) == 2:
+        _lib.auth_account(account_id)
+        if _method() == "DELETE":
+            result = _lib.call_verb("api-account-mandate", account_id, "patch",
+                                    mid, "--status", "revoked")
+            _lib.respond("200 OK", result)
+        if _method() != "PATCH":
+            _lib.respond("405 Method Not Allowed", {"error": "use_patch_or_delete"})
+        body = _lib.read_body()
+        args = ["api-account-mandate", account_id, "patch", mid]
+        mode = body.get("mode")
+        status = body.get("status")
+        if isinstance(mode, str) and mode:
+            args += ["--mode", mode]
+        if isinstance(status, str) and status:
+            args += ["--status", status]
+        _lib.respond("200 OK", _lib.call_verb(*args))
+
+    if len(tail) == 3 and tail[2] == "charge":
+        _mandate_charge(account_id, mid)
+
+    if len(tail) == 5 and tail[2] == "pulls" and tail[4] in ("approve", "deny"):
+        _lib.auth_account(account_id)
+        if _method() != "POST":
+            _lib.respond("405 Method Not Allowed", {"error": "use_post"})
+        pid = tail[3]
+        if not re.fullmatch(r"mpl_[0-9a-z]{1,32}", pid):
+            _lib.respond("400 Bad Request", {"error": "bad_pull_id"})
+        result = _lib.call_verb("api-account-mandate-pull", account_id, tail[4], mid, pid)
+        _lib.respond("200 OK", result)
+
+    _lib.respond("404 Not Found")
+
+
 def _close(account_id):
     if _method() != "POST":
         _lib.respond("405 Method Not Allowed", {"error": "use_post"})
@@ -272,6 +381,9 @@ def main():
         return
     if verb == "standing-orders":
         _standing_orders(account_id, tail[1] if len(tail) > 1 else None)
+        return
+    if verb == "mandates":
+        _mandates(account_id, tail)
         return
     routes = {
         "balance": lambda: _balance(account_id),

@@ -100,6 +100,40 @@ CREATE TABLE IF NOT EXISTS standing_orders (
     created_at  INTEGER NOT NULL
 );
 
+-- FEAT-227 — direct debit (Lastschrift) mandates.  A customer
+-- pre-authorizes a merchant to pull up to `max_per_period` every
+-- `period`.  Lightning is push-only, so a "pull" is a
+-- merchant-triggered, customer-side-executed push gated by the
+-- mandate: the merchant presents the per-mandate `secret` on the
+-- charge call.  `mode` = 'auto' pulls execute immediately; 'approval'
+-- holds each pull pending the customer's OK.  `merchant` is a local
+-- account name (intra-node, executed as a FEAT-223 transfer) OR an
+-- external payable target (cross-node, executed as a pay push); it is
+-- therefore not FK-constrained.  `customer` is always local.
+CREATE TABLE IF NOT EXISTS mandates (
+    id              TEXT    PRIMARY KEY,            -- mdt_<base32>
+    merchant        TEXT    NOT NULL,               -- local account | payable target
+    customer        TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE,
+    max_per_period  INTEGER NOT NULL,
+    period          TEXT    NOT NULL,               -- 'daily'|'weekly'|'monthly'
+    mode            TEXT    NOT NULL DEFAULT 'auto', -- 'auto'|'approval'
+    status          TEXT    NOT NULL DEFAULT 'active',  -- active|paused|revoked
+    secret          TEXT    NOT NULL,               -- bearer for the charge call
+    created_at      INTEGER NOT NULL
+);
+
+-- Individual pull attempts against a mandate.  state walks
+-- pending -> approved -> executed (mode 'approval') or straight to
+-- executed (mode 'auto'); a customer-denied pull lands 'denied'.
+CREATE TABLE IF NOT EXISTS mandate_pulls (
+    id          TEXT    PRIMARY KEY,                -- mpl_<base32>
+    mandate     TEXT    NOT NULL REFERENCES mandates(id) ON DELETE CASCADE,
+    sat         INTEGER NOT NULL,
+    reference   TEXT,                               -- FEAT-225 order/shipment ref
+    state       TEXT    NOT NULL,                   -- pending|approved|executed|denied
+    created_at  INTEGER NOT NULL
+);
+
 -- FEAT-229 — price history.  One row per poll tick.  Stores the BTC
 -- price in a base fiat (whole-unit, e.g. EUR per 1 BTC); per-sat
 -- value is btc_fiat / 1e8, computed at query time.  History (not

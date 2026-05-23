@@ -1,0 +1,116 @@
+#!/bin/bash
+# lightning api-account-mandate <address> <op> [args]   (FEAT-227)
+#
+# Customer-side direct-debit mandate management, sudo-bridged from the
+# accounts.py dispatcher.  <address> is the CUSTOMER account (the payer
+# who authorizes a merchant to pull).  Operations:
+#
+#   create <merchant> <max_per_period> <period> [--mode auto|approval]
+#       -> the mandate object incl. the one-time `secret` the customer
+#          hands to the merchant for the charge call.
+#   list  -> {"mandates":[...]}   (mandates where <address> is customer
+#            or merchant; the secret is never echoed back here)
+#   patch <mid> [--mode auto|approval] [--status active|paused|revoked]
+#       -> the updated {id, mode, status}
+#
+# The pull lifecycle (charge / approve / deny) lives in the sibling
+# verb api-account-mandate-pull.  Period ∈ daily|weekly|monthly.  The
+# merchant may be a local account (intra-node) or an external payable
+# target (cross-node: LN address / BOLT-12 offer / LNURL).
+
+set -e
+[ $# -ge 2 ] || exit 1
+address="$1"; op="$2"; shift 2
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+command -v jq >/dev/null || { echo '{"error":"jq not installed"}'; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$name" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+now=$(date -u +%s)
+sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
+
+mint_id() {
+	local prefix="$1" raw
+	raw=$(head -c 10 /dev/urandom | base32 2>/dev/null | tr 'A-Z' 'a-z' | tr -d '=\n' | cut -c1-16)
+	[ -n "$raw" ] || raw=$(head -c 10 /dev/urandom | od -An -tx1 | tr -d ' \n' | cut -c1-16)
+	echo "${prefix}_$raw"
+}
+mint_secret() { head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n'; }
+
+merchant_valid() {
+	local m="$1" lower
+	[ "$(sqlite3 "$db" "SELECT 1 FROM accounts WHERE (name = $(sql_quote "$m") OR address = $(sql_quote "$m")) LIMIT 1;" 2>/dev/null)" = "1" ] && return 0
+	lower=$(printf '%s' "$m" | tr 'A-Z' 'a-z')
+	case "$lower" in lno*|lnurl*) return 0 ;; *@*.*) return 0 ;; *) return 1 ;; esac
+}
+
+case "$op" in
+	create)
+		[ $# -ge 3 ] || { echo '{"error":"usage_create"}'; exit 2; }
+		merchant="$1"; maxp="$2"; period="$3"; shift 3
+		mode="auto"
+		while [ $# -gt 0 ]; do
+			case "$1" in
+				--mode) mode="$2"; shift 2 ;;
+				*) echo '{"error":"unknown_flag"}'; exit 2 ;;
+			esac
+		done
+		case "$maxp" in ''|*[!0-9]*) echo '{"error":"bad_max"}'; exit 2 ;; esac
+		[ "$maxp" -gt 0 ] || { echo '{"error":"bad_max"}'; exit 2; }
+		case "$period" in daily|weekly|monthly) ;; *) echo '{"error":"bad_period"}'; exit 2 ;; esac
+		case "$mode" in auto|approval) ;; *) echo '{"error":"bad_mode"}'; exit 2 ;; esac
+		merchant_valid "$merchant" || { echo '{"error":"bad_merchant"}'; exit 2; }
+		# A merchant cannot mandate themselves.
+		[ "$merchant" != "$name" ] && [ "$merchant" != "$address" ] || { echo '{"error":"merchant_is_customer"}'; exit 2; }
+		id=$(mint_id mdt); secret=$(mint_secret)
+		sqlite3 "$db" "INSERT INTO mandates(id, merchant, customer, max_per_period, period, mode, status, secret, created_at) \
+			VALUES($(sql_quote "$id"), $(sql_quote "$merchant"), $(sql_quote "$name"), $maxp, $(sql_quote "$period"), $(sql_quote "$mode"), 'active', $(sql_quote "$secret"), $now);"
+		jq -nc --arg id "$id" --arg merchant "$merchant" --arg customer "$name" \
+			--argjson max "$maxp" --arg period "$period" --arg mode "$mode" --arg secret "$secret" \
+			'{id:$id, merchant:$merchant, customer:$customer, max_per_period:$max, period:$period, mode:$mode, status:"active", secret:$secret}'
+		;;
+	list)
+		sqlite3 -separator $'\t' "$db" "SELECT id, merchant, customer, max_per_period, period, mode, status, created_at \
+			FROM mandates WHERE customer = $(sql_quote "$name") OR merchant = $(sql_quote "$name") OR merchant = $(sql_quote "$address") ORDER BY created_at DESC;" \
+			| jq -R -n '
+				[ inputs | split("\t")
+				  | {id:.[0], merchant:.[1], customer:.[2], max_per_period:(.[3]|tonumber),
+				     period:.[4], mode:.[5], status:.[6], created_at:(.[7]|tonumber)} ]
+				| {mandates: .}'
+		;;
+	patch)
+		mid="${1:-}"; [ -n "$mid" ] || { echo '{"error":"missing_id"}'; exit 2; }
+		shift
+		new_mode=""; new_status=""
+		while [ $# -gt 0 ]; do
+			case "$1" in
+				--mode)   new_mode="$2"; shift 2 ;;
+				--status) new_status="$2"; shift 2 ;;
+				*) echo '{"error":"unknown_flag"}'; exit 2 ;;
+			esac
+		done
+		# Only the mandate's CUSTOMER may patch it.
+		[ "$(sqlite3 "$db" "SELECT 1 FROM mandates WHERE id = $(sql_quote "$mid") AND customer = $(sql_quote "$name") LIMIT 1;")" = "1" ] \
+			|| { echo '{"error":"unknown_mandate"}'; exit 4; }
+		if [ -n "$new_mode" ]; then
+			case "$new_mode" in auto|approval) ;; *) echo '{"error":"bad_mode"}'; exit 2 ;; esac
+			sqlite3 "$db" "UPDATE mandates SET mode = $(sql_quote "$new_mode") WHERE id = $(sql_quote "$mid");"
+		fi
+		if [ -n "$new_status" ]; then
+			case "$new_status" in active|paused|revoked) ;; *) echo '{"error":"bad_status"}'; exit 2 ;; esac
+			sqlite3 "$db" "UPDATE mandates SET status = $(sql_quote "$new_status") WHERE id = $(sql_quote "$mid");"
+		fi
+		read -r r_mode r_status < <(sqlite3 -separator ' ' "$db" "SELECT mode, status FROM mandates WHERE id = $(sql_quote "$mid");")
+		jq -nc --arg id "$mid" --arg mode "$r_mode" --arg status "$r_status" '{id:$id, mode:$mode, status:$status}'
+		;;
+	*) echo '{"error":"unknown_op"}'; exit 2 ;;
+esac

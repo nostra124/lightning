@@ -117,6 +117,27 @@ migrate_accounts_schema() {
 		status      TEXT    NOT NULL DEFAULT 'active', \
 		created_at  INTEGER NOT NULL \
 	);" 2>/dev/null || true
+
+	# FEAT-227 — direct-debit mandates + pull attempts.
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS mandates ( \
+		id              TEXT    PRIMARY KEY, \
+		merchant        TEXT    NOT NULL, \
+		customer        TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE, \
+		max_per_period  INTEGER NOT NULL, \
+		period          TEXT    NOT NULL, \
+		mode            TEXT    NOT NULL DEFAULT 'auto', \
+		status          TEXT    NOT NULL DEFAULT 'active', \
+		secret          TEXT    NOT NULL, \
+		created_at      INTEGER NOT NULL \
+	);" 2>/dev/null || true
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS mandate_pulls ( \
+		id          TEXT    PRIMARY KEY, \
+		mandate     TEXT    NOT NULL REFERENCES mandates(id) ON DELETE CASCADE, \
+		sat         INTEGER NOT NULL, \
+		reference   TEXT, \
+		state       TEXT    NOT NULL, \
+		created_at  INTEGER NOT NULL \
+	);" 2>/dev/null || true
 }
 
 # FEAT-212 — mint a fresh on-chain address from lightningd; that

@@ -694,3 +694,158 @@ def test_standing_order_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, 
                env=env(bin_shim, PATH_INFO=f"/{ID}/standing-orders"))
     status, _, _ = parse(proc)
     assert "401" in status
+
+
+# --- FEAT-227 direct-debit mandates ---------------------------------------
+
+
+MDT = "mdt_abcdef0123456789"
+MPL = "mpl_abcdef0123456789"
+
+
+def test_mandate_create_returns_201(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"id":"' + MDT + '","merchant":"shop","customer":"cust","mode":"auto","status":"active","secret":"s3cr3t"}'
+    lightning_stub({"api-account-verify": (0, ""), "api-account-mandate": (0, body)})
+    payload = json.dumps({"merchant": "shop", "max_per_period": 50000, "period": "monthly"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/mandates",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "201" in status
+    assert "s3cr3t" in body_out
+
+
+def test_mandate_create_bad_period_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-mandate": (0, "{}")})
+    payload = json.dumps({"merchant": "shop", "max_per_period": 50000, "period": "hourly"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/mandates",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "bad_period" in body_out
+
+
+def test_mandate_list_returns_200(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"mandates":[{"id":"' + MDT + '","merchant":"shop","status":"active"}]}'
+    lightning_stub({"api-account-verify": (0, ""), "api-account-mandate": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/mandates")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "shop" in body_out
+
+
+def test_mandate_patch_returns_200(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"id":"' + MDT + '","mode":"approval","status":"active"}'
+    lightning_stub({"api-account-verify": (0, ""), "api-account-mandate": (0, body)})
+    payload = json.dumps({"mode": "approval"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/mandates/{MDT}",
+                                   REQUEST_METHOD="PATCH",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "approval" in body_out
+
+
+def test_mandate_revoke_via_delete(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"id":"' + MDT + '","mode":"auto","status":"revoked"}'
+    lightning_stub({"api-account-verify": (0, ""), "api-account-mandate": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/mandates/{MDT}",
+                                   REQUEST_METHOD="DELETE")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "revoked" in body_out
+
+
+def test_mandate_charge_happy_path(api_dir, bin_shim, lightning_stub, cgi, parse):
+    # Secret-authed (no bearer). The verb echoes an executed pull.
+    body = '{"pull_id":"' + MPL + '","state":"executed","sat":10000}'
+    lightning_stub({"api-account-mandate-pull": (0, body)})
+    payload = json.dumps({"secret": "s3cr3t", "sat": 10000}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim,
+                       PATH_INFO=f"/{ID}/mandates/{MDT}/charge",
+                       REQUEST_METHOD="POST",
+                       CONTENT_LENGTH=str(len(payload))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "executed" in body_out
+
+
+def test_mandate_charge_missing_secret_returns_401(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-mandate-pull": (0, "{}")})
+    payload = json.dumps({"sat": 10000}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim,
+                       PATH_INFO=f"/{ID}/mandates/{MDT}/charge",
+                       REQUEST_METHOD="POST",
+                       CONTENT_LENGTH=str(len(payload))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "401" in status
+    assert "missing_mandate_secret" in body_out
+
+
+def test_mandate_charge_bad_secret_maps_to_401(api_dir, bin_shim, lightning_stub, cgi, parse):
+    # Verb exits 7 on auth failure; dispatcher maps 7 -> 401.
+    lightning_stub({"api-account-mandate-pull": (7, '{"error":"unauthorized"}')})
+    payload = json.dumps({"secret": "wrong", "sat": 10000}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim,
+                       PATH_INFO=f"/{ID}/mandates/{MDT}/charge",
+                       REQUEST_METHOD="POST",
+                       CONTENT_LENGTH=str(len(payload))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "401" in status
+    assert "invalid_mandate_secret" in body_out
+
+
+def test_mandate_charge_cap_exceeded_maps_to_402(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-mandate-pull": (6, '{"error":"cap_exceeded"}')})
+    payload = json.dumps({"secret": "s3cr3t", "sat": 999999}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim,
+                       PATH_INFO=f"/{ID}/mandates/{MDT}/charge",
+                       REQUEST_METHOD="POST",
+                       CONTENT_LENGTH=str(len(payload))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "402" in status
+    assert "cap_exceeded" in body_out
+
+
+def test_mandate_pull_approve(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"pull_id":"' + MPL + '","state":"executed"}'
+    lightning_stub({"api-account-verify": (0, ""), "api-account-mandate-pull": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/mandates/{MDT}/pulls/{MPL}/approve",
+                                   REQUEST_METHOD="POST")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "executed" in body_out
+
+
+def test_mandate_charge_requires_no_bearer_but_pulls_do(api_dir, bin_shim, lightning_stub, cgi, parse):
+    # approve without a bearer -> 401.
+    lightning_stub({"api-account-verify": (0, ""), "api-account-mandate-pull": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim,
+                       PATH_INFO=f"/{ID}/mandates/{MDT}/pulls/{MPL}/deny",
+                       REQUEST_METHOD="POST"))
+    status, _, _ = parse(proc)
+    assert "401" in status
