@@ -91,6 +91,18 @@ migrate_accounts_schema() {
 		source    TEXT    NOT NULL, \
 		PRIMARY KEY (ts, base) \
 	);" 2>/dev/null || true
+
+	# FEAT-225 — commercial invoices (reference + terms).
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS commerce_invoices ( \
+		payment_hash TEXT    PRIMARY KEY, \
+		account      TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE, \
+		bolt11       TEXT    NOT NULL, \
+		face_sat     INTEGER NOT NULL, \
+		reference    TEXT, \
+		terms        TEXT, \
+		issued_at    INTEGER NOT NULL, \
+		state        TEXT    NOT NULL DEFAULT 'issued' \
+	);" 2>/dev/null || true
 }
 
 # FEAT-212 — mint a fresh on-chain address from lightningd; that

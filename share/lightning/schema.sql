@@ -63,6 +63,24 @@ CREATE TABLE IF NOT EXISTS wallet_users (
     label         TEXT    NOT NULL DEFAULT ''
 );
 
+-- FEAT-225 — commercial invoices.  A merchant-issued invoice that
+-- carries a structured order/shipment reference + optional payment
+-- terms (due date, Skonto early-pay discount, late fee).  Keyed by
+-- payment_hash so a settled payment reconciles back to the order.
+-- The effective amount (face / discounted / late) is computed at
+-- query time from `terms` + `issued_at`; the BOLT-11 itself is a
+-- fixed-amount quote at the face value.
+CREATE TABLE IF NOT EXISTS commerce_invoices (
+    payment_hash TEXT    PRIMARY KEY,
+    account      TEXT    NOT NULL REFERENCES accounts(name) ON DELETE CASCADE,
+    bolt11       TEXT    NOT NULL,
+    face_sat     INTEGER NOT NULL,
+    reference    TEXT,               -- JSON: {order_id, delivery_note, ...}
+    terms        TEXT,               -- JSON: {due_days, skonto, late_fee}
+    issued_at    INTEGER NOT NULL,
+    state        TEXT    NOT NULL DEFAULT 'issued'   -- issued | paid
+);
+
 -- FEAT-229 — price history.  One row per poll tick.  Stores the BTC
 -- price in a base fiat (whole-unit, e.g. EUR per 1 BTC); per-sat
 -- value is btc_fiat / 1e8, computed at query time.  History (not

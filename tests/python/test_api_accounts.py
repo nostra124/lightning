@@ -478,3 +478,88 @@ def test_transfer_get_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
                env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/transfer")))
     status, _, _ = parse(proc)
     assert "405" in status
+
+
+# --- FEAT-225 commercial invoice ------------------------------------------
+
+
+HASH = "a" * 64
+
+
+def test_invoice_create_returns_201(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = ('{"bolt11":"lnbcrt1","payment_hash":"' + HASH +
+            '","face_sat":100000,"effective_sat":98000,'
+            '"reference":{"order_id":"A-42"},"terms":{"due_days":14}}')
+    lightning_stub({
+        "api-account-verify":  (0, ""),
+        "api-account-invoice": (0, body),
+    })
+    payload = json.dumps({
+        "sat": 100000,
+        "reference": {"order_id": "A-42"},
+        "terms": {"due_days": 14, "skonto": {"within_days": 7, "discount_pct": 2}},
+    }).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/invoice",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "201" in status
+    assert "A-42" in body_out
+
+
+def test_invoice_create_missing_sat_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-invoice": (0, "{}")})
+    payload = json.dumps({"reference": {"order_id": "X"}}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/invoice",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "sat_required" in body_out
+
+
+def test_invoice_create_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-invoice": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim, PATH_INFO=f"/{ID}/invoice", REQUEST_METHOD="POST"))
+    status, _, _ = parse(proc)
+    assert "401" in status
+
+
+def test_invoice_get_returns_200(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = ('{"bolt11":"lnbcrt1","payment_hash":"' + HASH +
+            '","face_sat":100000,"effective_sat":98000,'
+            '"reference":{"order_id":"A-42"},"paid":false,"state":"issued"}')
+    lightning_stub({
+        "api-account-verify":      (0, ""),
+        "api-account-invoice-get": (0, body),
+    })
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/invoice/{HASH}")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "A-42" in body_out
+
+
+def test_invoice_get_bad_hash_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-invoice-get": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/invoice/not-hex!")))
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "bad_payment_hash" in body_out
+
+
+def test_invoice_create_get_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
+    # GET on the bare .../invoice (no hash) is the create slot — POST only.
+    lightning_stub({"api-account-verify": (0, ""), "api-account-invoice": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/invoice")))
+    status, _, _ = parse(proc)
+    assert "405" in status
