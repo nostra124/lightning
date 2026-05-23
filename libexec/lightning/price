@@ -1,0 +1,201 @@
+#!/bin/bash
+# lightning price — sat/fiat price oracle (FEAT-229).
+#
+# Fetches the BTC price in a base fiat from an operator-configured
+# feed and STORES it (history, not just the latest tick) so any
+# ledger entry can be valued at the price for its timestamp — the
+# basis for the FEAT-230 tax-data export + PWA fiat display.
+#
+# Subcommands:
+#   poll [--base <CUR>]            fetch the latest tick + store it
+#   now  [--base <CUR>]            latest stored tick (JSON)
+#   at   <unix-ts> [--base <CUR>]  nearest stored tick to <ts> (JSON)
+#   value <sat> [--base <CUR>] [--at <ts>]
+#                                  value <sat> in the base fiat,
+#                                  using the now/at tick
+#
+# Config: $wallet/price.recfile (base, source, url, price_jq).
+# Driven by `daemon install --price-oracle` (a poll timer).
+
+set -e
+
+command -v sqlite3 >/dev/null || { echo "lightning: sqlite3 not installed" >&2; exit 127; }
+command -v jq >/dev/null || { echo "lightning price: jq not installed" >&2; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+
+active_wallet_name() {
+	local name="default"
+	[ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
+	echo "$name"
+}
+
+active_db() {
+	local name; name=$(active_wallet_name)
+	local db="$WALLETS_ROOT/$name/state.db"
+	[ -f "$db" ] || { echo "lightning price: no active wallet (try \`lightning wallet new\`)" >&2; exit 2; }
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS prices ( \
+		ts INTEGER NOT NULL, base TEXT NOT NULL, btc_fiat REAL NOT NULL, \
+		source TEXT NOT NULL, PRIMARY KEY (ts, base));" 2>/dev/null || true
+	echo "$db"
+}
+
+price_recfile() {
+	echo "$WALLETS_ROOT/$(active_wallet_name)/price.recfile"
+}
+
+# Read a single scalar field from price.recfile.
+cfg() {
+	local key="$1" f
+	f=$(price_recfile)
+	[ -f "$f" ] || return 0
+	awk -v k="$key" '$1 == k":" { sub(/^[^:]*:[[:space:]]*/, ""); print; exit }' "$f"
+}
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning price <subcommand>
+
+   poll [--base <CUR>]                       fetch + store the latest tick
+   now  [--base <CUR>]                       latest stored tick (JSON)
+   at   <unix-ts> [--base <CUR>]             nearest stored tick (JSON)
+   value <sat> [--base <CUR>] [--at <ts>]    value <sat> in base fiat
+EOF
+}
+
+resolve_base() {
+	# Explicit flag > config > EUR fallback.
+	local b="$1"
+	[ -n "$b" ] && { echo "$b"; return; }
+	b=$(cfg base)
+	echo "${b:-EUR}"
+}
+
+cmd_poll() {
+	local base=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--base) base="$2"; shift 2 ;;
+			*) echo "lightning price poll: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	base=$(resolve_base "$base")
+	local db; db=$(active_db)
+
+	local source url price_jq
+	source=$(cfg source); url=$(cfg url); price_jq=$(cfg price_jq)
+	[ -n "$url" ] || { echo "lightning price poll: no 'url' in price.recfile" >&2; exit 3; }
+	[ -n "$price_jq" ] || price_jq=".{BASE}"
+	[ -n "$source" ] || source="unknown"
+
+	# {BASE} substitution in both url + jq path.
+	url="${url//\{BASE\}/$base}"
+	price_jq="${price_jq//\{BASE\}/$base}"
+
+	# Fetch.  MOCK_PRICE_RESPONSE short-circuits the network for tests.
+	local resp
+	if [ -n "$MOCK_PRICE_RESPONSE" ]; then
+		resp="$MOCK_PRICE_RESPONSE"
+	else
+		command -v curl >/dev/null || { echo "lightning price poll: curl not installed" >&2; exit 127; }
+		resp=$(curl -fsS --max-time 15 "$url" 2>/dev/null) || {
+			echo "lightning price poll: fetch failed ($url)" >&2; exit 4; }
+	fi
+
+	local btc_fiat
+	btc_fiat=$(jq -r "$price_jq // empty" <<<"$resp" 2>/dev/null)
+	case "$btc_fiat" in
+		''|*[!0-9.]*) echo "lightning price poll: feed gave no numeric price for $base (jq: $price_jq)" >&2; exit 5 ;;
+	esac
+
+	local now; now=$(date -u +%s)
+	sqlite3 "$db" "INSERT OR REPLACE INTO prices(ts, base, btc_fiat, source) \
+		VALUES($now, $(sql_quote "$base"), $btc_fiat, $(sql_quote "$source"));"
+	echo "lightning price: stored $base $btc_fiat (source $source, ts $now)" >&2
+	printf '{"ts":%d,"base":"%s","btc_fiat":%s,"source":"%s"}\n' "$now" "$base" "$btc_fiat" "$source"
+}
+
+# Emit the JSON for a row, or an error object.  $1=base $2=ts-or-empty
+_emit_tick() {
+	local db="$1" base="$2" at="$3"
+	local row
+	if [ -n "$at" ]; then
+		# Nearest tick to $at: order by absolute distance.
+		row=$(sqlite3 -separator $'\t' "$db" \
+			"SELECT ts, btc_fiat, source FROM prices WHERE base = $(sql_quote "$base") \
+			 ORDER BY ABS(ts - $at) ASC, ts DESC LIMIT 1;")
+	else
+		row=$(sqlite3 -separator $'\t' "$db" \
+			"SELECT ts, btc_fiat, source FROM prices WHERE base = $(sql_quote "$base") \
+			 ORDER BY ts DESC LIMIT 1;")
+	fi
+	if [ -z "$row" ]; then
+		printf '{"error":"no_price_data","base":"%s"}\n' "$base"
+		return 1
+	fi
+	local ts btc_fiat source
+	IFS=$'\t' read -r ts btc_fiat source <<<"$row"
+	printf '{"ts":%s,"base":"%s","btc_fiat":%s,"source":"%s"}\n' "$ts" "$base" "$btc_fiat" "$source"
+}
+
+cmd_now() {
+	local base=""
+	while [ $# -gt 0 ]; do
+		case "$1" in --base) base="$2"; shift 2 ;; *) exit 1 ;; esac
+	done
+	base=$(resolve_base "$base")
+	local db; db=$(active_db)
+	_emit_tick "$db" "$base" "" || exit 4
+}
+
+cmd_at() {
+	[ $# -ge 1 ] || { echo "usage: lightning price at <unix-ts> [--base <CUR>]" >&2; exit 1; }
+	local at="$1"; shift
+	case "$at" in ''|*[!0-9]*) echo "lightning price at: <unix-ts> must be an integer" >&2; exit 1 ;; esac
+	local base=""
+	while [ $# -gt 0 ]; do
+		case "$1" in --base) base="$2"; shift 2 ;; *) exit 1 ;; esac
+	done
+	base=$(resolve_base "$base")
+	local db; db=$(active_db)
+	_emit_tick "$db" "$base" "$at" || exit 4
+}
+
+cmd_value() {
+	[ $# -ge 1 ] || { echo "usage: lightning price value <sat> [--base <CUR>] [--at <ts>]" >&2; exit 1; }
+	local sat="$1"; shift
+	case "$sat" in ''|*[!0-9]*) echo "lightning price value: <sat> must be an integer" >&2; exit 1 ;; esac
+	local base="" at=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--base) base="$2"; shift 2 ;;
+			--at)   at="$2"; shift 2 ;;
+			*) exit 1 ;;
+		esac
+	done
+	base=$(resolve_base "$base")
+	local db; db=$(active_db)
+	local tick
+	tick=$(_emit_tick "$db" "$base" "$at") || { echo "$tick"; exit 4; }
+	local btc_fiat ts
+	btc_fiat=$(jq -r '.btc_fiat' <<<"$tick")
+	ts=$(jq -r '.ts' <<<"$tick")
+	# fiat = sat * btc_fiat / 1e8.  Use awk for float math.
+	local fiat
+	fiat=$(awk -v s="$sat" -v p="$btc_fiat" 'BEGIN { printf "%.2f", s * p / 100000000 }')
+	jq -nc --argjson sat "$sat" --arg base "$base" --argjson fiat "$fiat" \
+		--argjson btc "$btc_fiat" --argjson ts "$ts" \
+		'{sat: $sat, base: $base, fiat: $fiat, btc_fiat: $btc, priced_at: $ts}'
+}
+
+case "${1:-}" in
+	poll)  shift; cmd_poll "$@" ;;
+	now)   shift; cmd_now "$@" ;;
+	at)    shift; cmd_at "$@" ;;
+	value) shift; cmd_value "$@" ;;
+	"")    usage; exit 1 ;;
+	*)     echo "lightning price: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+esac

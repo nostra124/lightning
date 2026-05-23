@@ -1,0 +1,24 @@
+# Price-oracle config (FEAT-229).
+#
+# Selects the feed `lightning price poll` fetches the BTC/fiat
+# rate from, and the base fiat currency.  Plain text, git-tracked
+# alongside the wallet state.
+#
+# Fields:
+#   base        the fiat currency to value sats in (EUR / USD / ...)
+#   source      a short name for the feed (informational + stored
+#               on each price row)
+#   url         the HTTP endpoint to GET; {BASE} is substituted with
+#               the base currency (upper-case)
+#   price_jq    a jq expression, applied to the response, that yields
+#               the BTC price in `base` (a number)
+#
+# Default: mempool.space (no API key, broad currency support).  Swap
+# to Kraken / Coinbase / a self-hosted feed by editing url+price_jq.
+# Operators on a restrictive network policy point this at whatever
+# their policy allows.
+
+base:     EUR
+source:   mempool
+url:      https://mempool.space/api/v1/prices
+price_jq: .{BASE}

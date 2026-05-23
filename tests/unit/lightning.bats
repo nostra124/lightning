@@ -5852,3 +5852,126 @@ _user222_teardown() {
 	grep -q "^id: FEAT-222" "$f"
 	grep -q "wallet_users" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-229: sat/fiat price oracle.
+# ---------------------------------------------------------------------------
+
+_price229_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+}
+
+_price229_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-229: wallet new seeds price.recfile + schema has prices" {
+	_price229_setup
+	[ -f "$LIGHTNING_WALLETS_ROOT/alice/price.recfile" ]
+	grep -q "^base:" "$LIGHTNING_WALLETS_ROOT/alice/price.recfile"
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='prices';")" = "1" ]
+	_price229_teardown
+}
+
+@test "FEAT-229: price now with no data returns error + exit 4" {
+	_price229_setup
+	run "$LIGHTNING_BIN" price now
+	[ "$status" -eq 4 ]
+	[[ "$output" == *'"error":"no_price_data"'* ]]
+	_price229_teardown
+}
+
+@test "FEAT-229: price poll stores a tick from the feed" {
+	_price229_setup
+	MOCK_PRICE_RESPONSE='{"USD":65000,"EUR":60000}' "$LIGHTNING_BIN" price poll >/dev/null 2>&1
+	[ "$(sqlite3 "$BATS_DB" "SELECT btc_fiat FROM prices WHERE base='EUR';")" = "60000.0" ]
+	_price229_teardown
+}
+
+@test "FEAT-229: price now returns the latest tick" {
+	_price229_setup
+	MOCK_PRICE_RESPONSE='{"EUR":60000}' "$LIGHTNING_BIN" price poll >/dev/null 2>&1
+	run "$LIGHTNING_BIN" price now
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"base":"EUR"'* ]]
+	[[ "$output" == *'"btc_fiat":60000'* ]]
+	_price229_teardown
+}
+
+@test "FEAT-229: price value computes fiat = sat * btc_fiat / 1e8" {
+	_price229_setup
+	MOCK_PRICE_RESPONSE='{"EUR":60000}' "$LIGHTNING_BIN" price poll >/dev/null 2>&1
+	# 100_000 sat at 60_000 EUR/BTC = 60.00 EUR.
+	run "$LIGHTNING_BIN" price value 100000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"fiat":60'* ]]
+	# 1 BTC = full price.
+	run "$LIGHTNING_BIN" price value 100000000
+	[[ "$output" == *'"fiat":60000'* ]]
+	_price229_teardown
+}
+
+@test "FEAT-229: price at returns the nearest stored tick" {
+	_price229_setup
+	MOCK_PRICE_RESPONSE='{"EUR":60000}' "$LIGHTNING_BIN" price poll >/dev/null 2>&1
+	local ts
+	ts=$(sqlite3 "$BATS_DB" "SELECT ts FROM prices WHERE base='EUR';")
+	# Query a timestamp 1000s away — still the nearest (only) tick.
+	run "$LIGHTNING_BIN" price at $(( ts + 1000 ))
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"\"ts\":$ts"* ]]
+	_price229_teardown
+}
+
+@test "FEAT-229: price poll rejects a non-numeric feed response" {
+	_price229_setup
+	MOCK_PRICE_RESPONSE='{"EUR":"not-a-number"}' run "$LIGHTNING_BIN" price poll
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"no numeric price"* ]]
+	_price229_teardown
+}
+
+@test "FEAT-229: price poll honours --base + per-base storage" {
+	_price229_setup
+	MOCK_PRICE_RESPONSE='{"USD":65000,"EUR":60000}' "$LIGHTNING_BIN" price poll --base USD >/dev/null 2>&1
+	[ "$(sqlite3 "$BATS_DB" "SELECT btc_fiat FROM prices WHERE base='USD';")" = "65000.0" ]
+	_price229_teardown
+}
+
+@test "FEAT-229: price with no subcommand prints usage" {
+	run "$LIGHTNING_BIN" price
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"usage: lightning price"* ]]
+}
+
+@test "FEAT-229: top-level help lists the price verb" {
+	run "$LIGHTNING_BIN" help
+	[[ "$output" == *"price"*"oracle"* ]]
+}
+
+@test "FEAT-229: daemon install --price-oracle is wired" {
+	f="$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
+	grep -q "\-\-price-oracle" "$f"
+	grep -q "install_price_oracle_sidecar" "$f"
+	grep -q "PRICE_ORACLE_LABEL" "$f"
+}
+
+@test "FEAT-229: apache vhost adds the public price endpoint" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+	grep -q "ScriptAlias /.well-known/lightning/v1/price" "$f"
+	grep -q "wellknown/api/price.py" "$f"
+}
+
+@test "FEAT-229: spec file present" {
+	for cand in \
+		"$BATS_TEST_DIRNAME/../../issues/feature/229-price-oracle.md" \
+		"$BATS_TEST_DIRNAME/../../issues/feature/done/229-price-oracle.md"; do
+		[ -f "$cand" ] && f="$cand" && break
+	done
+	[ -n "$f" ]
+	grep -q "^id: FEAT-229" "$f"
+}

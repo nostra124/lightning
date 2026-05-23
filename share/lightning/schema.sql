@@ -63,6 +63,19 @@ CREATE TABLE IF NOT EXISTS wallet_users (
     label         TEXT    NOT NULL DEFAULT ''
 );
 
+-- FEAT-229 — price history.  One row per poll tick.  Stores the BTC
+-- price in a base fiat (whole-unit, e.g. EUR per 1 BTC); per-sat
+-- value is btc_fiat / 1e8, computed at query time.  History (not
+-- just the latest tick) is required so every ledger entry can be
+-- valued at the fiat price for ITS timestamp (FEAT-230 tax export).
+CREATE TABLE IF NOT EXISTS prices (
+    ts        INTEGER NOT NULL,   -- unix epoch of the tick
+    base      TEXT    NOT NULL,   -- 'EUR' | 'USD' | ...
+    btc_fiat  REAL    NOT NULL,   -- base-fiat units per 1 BTC
+    source    TEXT    NOT NULL,   -- which feed produced it
+    PRIMARY KEY (ts, base)
+);
+
 CREATE TABLE IF NOT EXISTS ledger (
     id           INTEGER PRIMARY KEY,
     ts           TEXT    NOT NULL,
