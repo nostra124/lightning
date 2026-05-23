@@ -2,7 +2,7 @@
 id: FEAT-213
 type: feature
 priority: high
-status: research
+status: done
 ---
 
 # Operator-fee skim primitives
@@ -98,7 +98,7 @@ Single PR.  Schema additive (just the `INSERT OR IGNORE` for
 
 ## Milestone
 
-1.5.0.
+alpha — **implemented**; on master, pre-release.  Part of the feature-complete alpha set.
 
 ## See also
 

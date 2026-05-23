@@ -51,5 +51,4 @@ Surface the core-banking + commerce features (FEAT-223/225/226/
 
 ## Milestone
 
-1.7.0 (lands as the commerce features stabilise; pieces can
-ship incrementally as each backend feature lands).
+alpha — must ship before the feature-complete **alpha** cut (alpha = everything implemented; then beta hardening; then 1.0.0 is a formal version bump).

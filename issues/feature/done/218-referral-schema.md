@@ -2,7 +2,7 @@
 id: FEAT-218
 type: feature
 priority: medium
-status: research
+status: done
 ---
 
 # Referral schema + invite codes
@@ -85,7 +85,7 @@ existing endpoint.
 
 ## Milestone
 
-1.5.0.
+alpha — **implemented**; on master, pre-release.  Part of the feature-complete alpha set.
 
 ## See also
 

@@ -76,4 +76,4 @@ overdue → (dunning_1 → dunning_2 → ... ) → paid | written_off
 
 ## Milestone
 
-1.7.0 (commerce epic, second wave — after the 1.6 basics).
+alpha — must ship before the feature-complete **alpha** cut (alpha = everything implemented; then beta hardening; then 1.0.0 is a formal version bump).

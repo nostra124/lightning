@@ -105,4 +105,4 @@ taxation needs, so nothing has to be reconstructed later:
 
 ## Milestone
 
-1.7.0.
+alpha — must ship before the feature-complete **alpha** cut (alpha = everything implemented; then beta hardening; then 1.0.0 is a formal version bump).

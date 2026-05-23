@@ -129,4 +129,4 @@ Per the design decision, both ship; the customer chooses:
 
 ## Milestone
 
-1.6.0 (commerce epic).
+alpha — must ship before the feature-complete **alpha** cut (alpha = everything implemented; then beta hardening; then 1.0.0 is a formal version bump).

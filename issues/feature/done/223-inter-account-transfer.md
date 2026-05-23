@@ -2,7 +2,7 @@
 id: FEAT-223
 type: feature
 priority: high
-status: research
+status: done
 ---
 
 # Inter-account transfer — the core-banking primitive
@@ -61,4 +61,4 @@ machinery in place.
 
 ## Milestone
 
-1.5.0.
+alpha — **implemented**; on master, pre-release.  Part of the feature-complete alpha set.

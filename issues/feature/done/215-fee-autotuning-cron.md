@@ -2,7 +2,7 @@
 id: FEAT-215
 type: feature
 priority: medium
-status: research
+status: done
 ---
 
 # Fee auto-tuning cron
@@ -62,4 +62,4 @@ ledger, and an operator-set target monthly net income.
 
 ## Milestone
 
-1.5.0.
+alpha — **implemented**; on master, pre-release.  Part of the feature-complete alpha set.
