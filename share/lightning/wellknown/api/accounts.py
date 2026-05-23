@@ -100,6 +100,25 @@ def _pay(account_id):
     _lib.respond("200 OK", result)
 
 
+def _transfer(account_id):
+    if _method() != "POST":
+        _lib.respond("405 Method Not Allowed", {"error": "use_post"})
+    _lib.auth_account(account_id)
+    body = _lib.read_body()
+    to = body.get("to", "")
+    sat = body.get("sat")
+    note = str(body.get("note", ""))[:256]
+    if not isinstance(to, str) or not to:
+        _lib.respond("400 Bad Request", {"error": "to_required"})
+    if not isinstance(sat, int) or sat <= 0:
+        _lib.respond("400 Bad Request", {"error": "sat_required"})
+    args = ["api-account-transfer", account_id, to, str(sat)]
+    if note:
+        args += ["--note", note]
+    result = _lib.call_verb(*args)
+    _lib.respond("200 OK", result)
+
+
 def _recv(account_id, reusable=False):
     if _method() != "POST":
         _lib.respond("405 Method Not Allowed", {"error": "use_post"})
@@ -171,6 +190,7 @@ def main():
         "pay": lambda: _pay(account_id),
         "recv": lambda: _recv(account_id, reusable=False),
         "recv-reusable": lambda: _recv(account_id, reusable=True),
+        "transfer": lambda: _transfer(account_id),
         "referrals": lambda: _referrals(account_id),
         "close": lambda: _close(account_id),
     }

@@ -1,0 +1,160 @@
+#!/bin/bash
+# lightning api-account-transfer <from-addr> <to> <sat> [--note <text>]
+#                                                            (FEAT-223)
+#
+# Atomic intra-node transfer between two accounts on this node.
+# No Lightning network involved — both accounts are local ledger
+# rows, so a transfer is a single SQLite transaction: debit the
+# sender, credit the recipient.  The core-banking primitive the
+# commerce epic (FEAT-225/226/227) builds on.
+#
+#   {"transfer_id":"xfer:...","from":"...","to":"...",
+#    "amount_sat":<int>,"operator_fee_sat":<int>}
+
+set -e
+[ $# -ge 3 ] || exit 1
+from_addr="$1"; to="$2"; sat="$3"; shift 3
+note=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--note) note="$2"; shift 2 ;;
+		*) exit 2 ;;
+	esac
+done
+
+case "$from_addr" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+case "$sat" in ''|*[!0-9]*) exit 2 ;; esac
+[ "$sat" -gt 0 ] || { echo '{"error":"amount_must_be_positive"}'; exit 2; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+from_name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$from_addr");")
+[ -n "$from_name" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+# Resolve `to`: bech32 → address lookup; otherwise treat as a name.
+case "$to" in
+	bc1*|tb1*|bcrt1*)
+		to_name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$to");") ;;
+	*)
+		to_name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE name = $(sql_quote "$to");") ;;
+esac
+[ -n "$to_name" ] || { echo '{"error":"unknown_recipient"}'; exit 4; }
+[ "$to_name" != "$from_name" ] || { echo '{"error":"cannot_transfer_to_self"}'; exit 2; }
+
+now=$(date -u +%s)
+sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$from_addr");" 2>/dev/null || true
+
+amount_msat=$(( sat * 1000 ))
+
+# FEAT-213/219 — operator-fee skim on the transfer (op `transfer`,
+# default 0 in fees.recfile so intra-node moves can stay free) +
+# referral split.  Same pattern as api-account-pay.
+fees_file="$WALLETS_ROOT/$wname/fees.recfile"
+operator_fee_msat=0
+if [ -f "$fees_file" ]; then
+	read -r fee_base_sat fee_rate_ppm < <(awk -v op="transfer" '
+		BEGIN { RS=""; FS="\n"; b=0; r=0 }
+		{
+			in_op=0; bb=0; rr=0
+			for (i=1; i<=NF; i++) {
+				if ($i == "operation: " op) in_op=1
+				if ($i ~ /^base_sat: *[0-9-]/) { bb=$i; sub(/^base_sat: */, "", bb) }
+				if ($i ~ /^rate_ppm: *[0-9-]/) { rr=$i; sub(/^rate_ppm: */, "", rr) }
+			}
+			if (in_op) { b=bb; r=rr }
+		}
+		END { printf "%d %d\n", b+0, r+0 }
+	' "$fees_file")
+	operator_fee_msat=$(( fee_base_sat * 1000 + amount_msat * fee_rate_ppm / 1000000 ))
+fi
+operator_fee_sat=$(( operator_fee_msat / 1000 ))
+
+# Balance check honouring the sender's overdraft policy.
+sender_balance_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger WHERE account = $(sql_quote "$from_name");")
+sender_overdraft=$(sqlite3 "$db" "SELECT COALESCE(overdraft, 'deny') FROM accounts WHERE name = $(sql_quote "$from_name");")
+total_debit_msat=$(( amount_msat + operator_fee_msat ))
+if [ "$sender_overdraft" = "deny" ] && [ "$(( sender_balance_msat - total_debit_msat ))" -lt 0 ]; then
+	echo '{"error":"balance_insufficient"}'
+	exit 6
+fi
+
+# Bootstrap house (idempotent) if a fee will be booked.
+if [ "$operator_fee_msat" -gt 0 ]; then
+	sqlite3 "$db" "INSERT OR IGNORE INTO accounts(name, description, overdraft) \
+		VALUES('house', 'operator fee revenue', 'allow');" 2>/dev/null || true
+fi
+
+# FEAT-219 referral split on the operator fee.
+referral_msat=0
+referrer=""
+direct_pct="${LIGHTNING_REFERRAL_DIRECT_PCT:-0}"
+case "$direct_pct" in ''|*[!0-9]*) direct_pct=0 ;; esac
+[ "$direct_pct" -gt 100 ] && direct_pct=100
+if [ "$operator_fee_msat" -gt 0 ] && [ "$direct_pct" -gt 0 ]; then
+	referrer=$(sqlite3 "$db" "SELECT COALESCE(referrer, 'house') FROM accounts WHERE name = $(sql_quote "$from_name");" 2>/dev/null)
+	case "$referrer" in
+		""|"house"|"-") referrer="" ;;
+		*)
+			min_msat=$(( ${LIGHTNING_REFERRAL_MIN_ACTIVITY_SAT:-10000} * 1000 ))
+			act_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(ABS(amount_msat)), 0) FROM ledger \
+				WHERE account = $(sql_quote "$from_name") AND message NOT LIKE 'fee:%';" 2>/dev/null)
+			[ "${act_msat:-0}" -lt "$min_msat" ] && referrer=""
+			;;
+	esac
+	if [ -n "$referrer" ]; then
+		cap_msat=$(( ${LIGHTNING_REFERRAL_MAX_PER_DAY_SAT:-10000} * 1000 ))
+		today_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger \
+			WHERE account = $(sql_quote "$referrer") \
+			  AND direction = 'in' \
+			  AND message LIKE 'fee:referral%' \
+			  AND date(ts) = date('now');" 2>/dev/null)
+		[ "${today_msat:-0}" -ge "$cap_msat" ] && referrer=""
+	fi
+	if [ -n "$referrer" ]; then
+		referral_msat=$(( operator_fee_msat * direct_pct / 100 ))
+	fi
+fi
+house_share_msat=$(( operator_fee_msat - referral_msat ))
+
+# Correlation id ties all rows of this transfer together.
+xfer_id="xfer:$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+msg_note="transfer"
+[ -n "$note" ] && msg_note="transfer: $note"
+
+# One atomic transaction: sender debit + recipient credit + the
+# optional fee rows.  All-or-nothing — a mid-batch failure rolls
+# the whole thing back so balances never desync.
+sql="BEGIN;"
+sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+sql+=" VALUES(datetime('now'), $(sql_quote "$from_name"), 'out', -$amount_msat, $(sql_quote "to:$to_name"), $(sql_quote "$xfer_id"), $(sql_quote "$msg_note"));"
+sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+sql+=" VALUES(datetime('now'), $(sql_quote "$to_name"), 'in', $amount_msat, $(sql_quote "from:$from_name"), $(sql_quote "$xfer_id"), $(sql_quote "$msg_note"));"
+if [ "$operator_fee_msat" -gt 0 ]; then
+	sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message)"
+	sql+=" VALUES(datetime('now'), $(sql_quote "$from_name"), 'out', -$operator_fee_msat, $(sql_quote "$xfer_id"), 'fee:transfer');"
+	if [ "$house_share_msat" -gt 0 ]; then
+		sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message)"
+		sql+=" VALUES(datetime('now'), 'house', 'in', $house_share_msat, $(sql_quote "$xfer_id"), $(sql_quote "fee:transfer from $from_name"));"
+	fi
+	if [ "$referral_msat" -gt 0 ] && [ -n "$referrer" ]; then
+		sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+		sql+=" VALUES(datetime('now'), $(sql_quote "$referrer"), 'in', $referral_msat, $(sql_quote "referee:$from_name"), $(sql_quote "$xfer_id"), $(sql_quote "fee:referral from $from_name"));"
+	fi
+fi
+sql+=" COMMIT;"
+sqlite3 "$db" "$sql" 2>/dev/null || { echo '{"error":"transfer_failed"}'; exit 5; }
+
+jq -nc \
+	--arg id "$xfer_id" \
+	--arg from "$from_name" \
+	--arg to "$to_name" \
+	--argjson amount "$sat" \
+	--argjson ofee "$operator_fee_sat" \
+	'{transfer_id: $id, from: $from, to: $to, amount_sat: $amount,
+	  operator_fee_sat: $ofee, status: "complete"}'

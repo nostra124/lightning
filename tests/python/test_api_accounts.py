@@ -417,3 +417,64 @@ def test_create_with_invite_code_passes_through(api_dir, bin_shim, lightning_stu
     status, _, body_out = parse(proc)
     assert "201" in status
     assert "alice" in body_out
+
+
+# --- FEAT-223 transfer ----------------------------------------------------
+
+
+def test_transfer_happy_path(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"transfer_id":"xfer:abc","from":"alpha","to":"beta","amount_sat":1000,"status":"complete"}'
+    lightning_stub({
+        "api-account-verify":   (0, ""),
+        "api-account-transfer": (0, body),
+    })
+    payload = json.dumps({"to": "beta", "sat": 1000, "note": "x"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/transfer",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "xfer:abc" in body_out
+
+
+def test_transfer_missing_to_returns_400(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-transfer": (0, "{}")})
+    payload = json.dumps({"sat": 1000}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/transfer",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "400" in status
+    assert "to_required" in body_out
+
+
+def test_transfer_insufficient_balance_maps_to_402(api_dir, bin_shim, lightning_stub, cgi, parse):
+    # The verb exits 6 on balance_insufficient; _lib.call_verb maps rc 6 → 402.
+    lightning_stub({
+        "api-account-verify":   (0, ""),
+        "api-account-transfer": (6, '{"error":"balance_insufficient"}'),
+    })
+    payload = json.dumps({"to": "beta", "sat": 999999}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/transfer",
+                                   REQUEST_METHOD="POST",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "402" in status
+    assert "balance_insufficient" in body_out
+
+
+def test_transfer_get_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-transfer": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/transfer")))
+    status, _, _ = parse(proc)
+    assert "405" in status

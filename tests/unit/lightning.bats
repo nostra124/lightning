@@ -5494,3 +5494,155 @@ _acct219_teardown() {
 	grep -q "^id: FEAT-219" "$f"
 	grep -q "referral_split" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-223: inter-account transfer.
+# ---------------------------------------------------------------------------
+
+_acct223_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create alpha >/dev/null
+	"$LIGHTNING_BIN" account create beta >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_A_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='alpha';")
+	BATS_B_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='beta';")
+	# Fund alpha.
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES(datetime('now'),'alpha','in',100000000,'seed');"
+}
+
+_acct223_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-223: transfer moves sats between accounts atomically" {
+	_acct223_setup
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta 10000 --note lunch
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"status":"complete"'* ]]
+	local a b
+	a=$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='alpha';")
+	b=$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='beta';")
+	[ "$a" = "90000000" ]
+	[ "$b" = "10000000" ]
+	_acct223_teardown
+}
+
+@test "FEAT-223: transfer ledger rows share a correlation id" {
+	_acct223_setup
+	"$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta 10000 >/dev/null
+	local n distinct
+	n=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM ledger WHERE payment_hash LIKE 'xfer:%';")
+	distinct=$(sqlite3 "$BATS_DB" "SELECT COUNT(DISTINCT payment_hash) FROM ledger WHERE payment_hash LIKE 'xfer:%';")
+	[ "$n" = "2" ]
+	[ "$distinct" = "1" ]
+	_acct223_teardown
+}
+
+@test "FEAT-223: transfer to self is rejected" {
+	_acct223_setup
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" alpha 100
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"cannot_transfer_to_self"* ]]
+	_acct223_teardown
+}
+
+@test "FEAT-223: transfer to unknown recipient is rejected" {
+	_acct223_setup
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" nosuchaccount 100
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown_recipient"* ]]
+	_acct223_teardown
+}
+
+@test "FEAT-223: overdraft=deny blocks an over-balance transfer (exit 6)" {
+	_acct223_setup
+	# beta has zero balance + deny policy.
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_B_ADDR" alpha 999999
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"balance_insufficient"* ]]
+	# No rows written (rolled back).
+	local n
+	n=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM ledger WHERE payment_hash LIKE 'xfer:%';")
+	[ "$n" = "0" ]
+	_acct223_teardown
+}
+
+@test "FEAT-223: transfer resolves recipient by address too" {
+	_acct223_setup
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" "$BATS_B_ADDR" 7000
+	[ "$status" -eq 0 ]
+	local b
+	b=$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='beta';")
+	[ "$b" = "7000000" ]
+	_acct223_teardown
+}
+
+@test "FEAT-223: zero / non-numeric amount rejected" {
+	_acct223_setup
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta 0
+	[ "$status" -ne 0 ]
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta abc
+	[ "$status" -ne 0 ]
+	_acct223_teardown
+}
+
+@test "FEAT-223: transfer skims an operator fee when configured" {
+	_acct223_setup
+	# Set transfer fee to 1% (10000 ppm).
+	sed -i '/^operation: transfer$/,/^$/{s/^rate_ppm:.*$/rate_ppm:  10000/}' "$LIGHTNING_WALLETS_ROOT/alice/fees.recfile"
+	"$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta 10000 >/dev/null
+	# 10000-sat transfer at 1% = 100-sat fee → house.
+	local house
+	house=$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='house' AND direction='in';")
+	[ "$house" = "100000" ]
+	# alpha debited amount + fee.
+	local a
+	a=$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='alpha';")
+	# 100000000 - 10000000 (transfer) - 100000 (fee) = 89900000
+	[ "$a" = "89900000" ]
+	_acct223_teardown
+}
+
+@test "FEAT-223: redistribution (excluding the transfer pair) is balanced" {
+	_acct223_setup
+	sed -i '/^operation: transfer$/,/^$/{s/^rate_ppm:.*$/rate_ppm:  10000/}' "$LIGHTNING_WALLETS_ROOT/alice/fees.recfile"
+	"$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta 10000 >/dev/null
+	# All rows for this xfer sum to -fee (the transfer pair cancels;
+	# the fee leaves alpha and lands split house/referrer).  With no
+	# referrer, alpha -fee, house +fee → fee rows net zero; transfer
+	# pair nets zero → grand total zero.
+	local total
+	total=$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE payment_hash LIKE 'xfer:%';")
+	[ "$total" = "0" ]
+	_acct223_teardown
+}
+
+@test "FEAT-223: CLI account transfer works with handles" {
+	_acct223_setup
+	run "$LIGHTNING_BIN" account transfer alpha beta 5000 --note "via cli"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"status":"complete"'* ]]
+	_acct223_teardown
+}
+
+@test "FEAT-223: account verb help lists transfer" {
+	run "$LIGHTNING_BIN" account
+	[[ "$output" == *"transfer <from> <to> <sat>"* ]]
+}
+
+@test "FEAT-223: default fees.recfile carries a transfer op" {
+	_acct223_setup
+	grep -q "^operation: transfer" "$LIGHTNING_WALLETS_ROOT/alice/fees.recfile"
+	_acct223_teardown
+}
+
+@test "FEAT-223: sudoers fragment lists api-account-transfer" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+	grep -q "api-account-transfer" "$f"
+}
+
+# The FEAT-223 spec assertion lives in its own batch spec PR
+# (FEAT-223..227); this implementation PR doesn't carry it directly.
