@@ -7035,3 +7035,156 @@ _paytarget_history() {
 	run "$LIGHTNING_BIN" channel
 	[[ "$output" == *"paytarget-intel"* ]]
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-233: compliance module framework (hooks + config + audit log).
+# ---------------------------------------------------------------------------
+
+_cc_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create alpha >/dev/null
+	"$LIGHTNING_BIN" account create beta >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_CF="$LIGHTNING_WALLETS_ROOT/alice/compliance.recfile"
+	BATS_A_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='alpha';")
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES(datetime('now'),'alpha','in',100000000,'seed');"
+}
+
+_cc_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+_cc_test_module() {
+	# $1 = deny|allow ; append a self-test module record.
+	printf '\nmodule: test\nenabled: on\ndecision: %s\n' "$1" >> "$BATS_CF"
+}
+
+@test "FEAT-233: with no compliance.recfile every hook is a no-op (transfer works)" {
+	_cc_setup
+	[ ! -f "$BATS_CF" ]
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta 10000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"status":"complete"'* ]]
+	# No audit rows written when the framework is off.
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM compliance_events;")" = "0" ]
+	_cc_teardown
+}
+
+@test "FEAT-233: preset us-msb enables the expected module set" {
+	_cc_setup
+	run "$LIGHTNING_BIN" compliance preset us-msb
+	[ "$status" -eq 0 ]
+	[ -f "$BATS_CF" ]
+	run "$LIGHTNING_BIN" compliance status
+	[[ "$output" == *"kyc"*"on"* ]]
+	# kyc / screening / travel_rule on; data_subject_rights off in this preset.
+	"$LIGHTNING_BIN" compliance status | grep -E "^  kyc " | grep -q on
+	"$LIGHTNING_BIN" compliance status | grep -E "^  travel_rule " | grep -q on
+	"$LIGHTNING_BIN" compliance status | grep -E "^  proof_of_reserves " | grep -q on
+	_cc_teardown
+}
+
+@test "FEAT-233: a deny pre-hook blocks the transaction (exit 6 + error)" {
+	_cc_setup
+	"$LIGHTNING_BIN" compliance preset off >/dev/null
+	_cc_test_module deny
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta 5000
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"compliance_denied"* ]]
+	# The transfer did NOT move funds.
+	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account='beta';")" = "0" ]
+	# The deny was recorded to the audit log.
+	[ "$(sqlite3 "$BATS_DB" "SELECT decision FROM compliance_events WHERE hook='pre' AND op='transfer';")" = "deny" ]
+	_cc_teardown
+}
+
+@test "FEAT-233: a post-hook records to compliance_events without blocking" {
+	_cc_setup
+	"$LIGHTNING_BIN" compliance preset off >/dev/null
+	_cc_test_module allow
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta 5000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"status":"complete"'* ]]
+	# Funds moved AND a post observe row exists.
+	[ "$(sqlite3 "$BATS_DB" "SELECT SUM(amount_msat) FROM ledger WHERE account='beta';")" = "5000000" ]
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM compliance_events WHERE hook='post' AND op='transfer' AND decision='observe';")" -ge 1 ]
+	_cc_teardown
+}
+
+@test "FEAT-233: pay + withdraw + create are wired to the hooks" {
+	_cc_setup
+	"$LIGHTNING_BIN" compliance preset off >/dev/null
+	_cc_test_module deny
+	# pay denied
+	run "$LIGHTNING_BIN" api-account-pay "$BATS_A_ADDR" lnbcrt10n1xxx
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"compliance_denied"* ]]
+	# create denied (anonymous self-service)
+	REMOTE_ADDR=9.9.9.9 run "$LIGHTNING_BIN" api-accounts-create
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"compliance_denied"* ]]
+	_cc_teardown
+}
+
+@test "FEAT-233: compliance status reports modules + footers the disclaimer" {
+	_cc_setup
+	"$LIGHTNING_BIN" compliance preset de-custodial >/dev/null
+	run "$LIGHTNING_BIN" compliance status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"DISCLAIMER"* ]]
+	[[ "$output" == *"consult a qualified local lawyer"* ]]
+	_cc_teardown
+}
+
+@test "FEAT-233: preset prints the disclaimer on application" {
+	_cc_setup
+	run "$LIGHTNING_BIN" compliance preset uk-fca
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"consult a qualified local lawyer"* ]]
+	_cc_teardown
+}
+
+@test "FEAT-233: unknown preset is rejected" {
+	_cc_setup
+	run "$LIGHTNING_BIN" compliance preset narnia
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown preset"* ]]
+	_cc_teardown
+}
+
+@test "FEAT-233: status with no config reports framework OFF" {
+	_cc_setup
+	run "$LIGHTNING_BIN" compliance status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"framework OFF"* ]]
+	_cc_teardown
+}
+
+@test "FEAT-233: GC retention veto holds a delete-eligible account" {
+	_cc_setup
+	# Make beta a long-closed, delete-eligible account.
+	sqlite3 "$BATS_DB" "UPDATE accounts SET closed_at = strftime('%s','now') - 400*86400, created_at = strftime('%s','now') - 500*86400 WHERE name='beta';"
+	"$LIGHTNING_BIN" compliance preset off >/dev/null
+	_cc_test_module deny
+	run "$LIGHTNING_BIN" account gc run
+	[ "$status" -eq 0 ]
+	# beta retained (legal hold), not deleted.
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='beta';")" = "1" ]
+	[[ "$output" == *"retain"* ]]
+	_cc_teardown
+}
+
+@test "FEAT-233: DISCLAIMER.txt ships under share/lightning/compliance" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/compliance/DISCLAIMER.txt"
+	[ -f "$f" ]
+	grep -qi "not legal advice" "$f"
+	grep -qi "consult a qualified local lawyer" "$f"
+}
+
+@test "FEAT-233: schema declares compliance_events" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/schema.sql"
+	grep -q "CREATE TABLE IF NOT EXISTS compliance_events" "$f"
+}

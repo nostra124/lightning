@@ -56,6 +56,21 @@ ratelimit_check() {
 
 ratelimit_check
 
+# FEAT-233 — compliance pre-create hook (fast no-op unless opted in; a
+# module may deny creation, e.g. geo-block or KYC-before-open).
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+cc_self=$(cd "$(dirname "$0")" && pwd)
+compliance_hook() {
+	[ -s "$WALLETS_ROOT/$wname/compliance.recfile" ] || return 0
+	local out rc
+	out=$("$cc_self/compliance" hook "$1" "$2" "$3" 2>/dev/null); rc=$?
+	[ "$rc" -eq 0 ] || { [ -n "$out" ] && echo "$out"; }
+	return "$rc"
+}
+compliance_hook pre create '{"op":"create"}' || exit 6
+
 # Synthesize a stable local `name` for the SQLite primary key.  The
 # user-facing handle is the bitcoin address; this is just a unique
 # internal label.  Random 8 hex chars is plenty (collision after
@@ -119,6 +134,9 @@ if [ -n "$invite_code" ]; then
 		fi
 	fi
 fi
+
+# FEAT-233 — lifecycle hook: record the account creation (never blocks).
+compliance_hook lifecycle create "{\"op\":\"create\",\"account\":\"$address\"}" || true
 
 base="/.well-known/lightning/v1/accounts/$address"
 jq -nc \

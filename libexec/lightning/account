@@ -169,6 +169,20 @@ migrate_accounts_schema() {
 	# release/void leg is never blocked by a limit.
 	sqlite3 "$db" "INSERT OR IGNORE INTO accounts(name, description, overdraft) \
 		VALUES('escrow', 'commerce escrow holding', 'allow');" 2>/dev/null || true
+
+	# FEAT-233 — compliance audit log.  Every hook decision (allow /
+	# deny / observe) is appended here; the log itself is a compliance
+	# requirement.  Empty + cheap until a module is enabled.
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS compliance_events ( \
+		id        INTEGER PRIMARY KEY AUTOINCREMENT, \
+		ts        INTEGER NOT NULL, \
+		hook      TEXT    NOT NULL, \
+		op        TEXT    NOT NULL, \
+		module    TEXT    NOT NULL DEFAULT '-', \
+		decision  TEXT    NOT NULL, \
+		account   TEXT, \
+		detail    TEXT \
+	);" 2>/dev/null || true
 }
 
 # FEAT-212 — mint a fresh on-chain address from lightningd; that
@@ -906,6 +920,14 @@ cmd_gc() {
 		if [ $dry -eq 1 ]; then
 			printf 'would-delete\t%s\t%s\n' "$name" "$addr"
 		else
+			# FEAT-233 — retention lifecycle hook: a compliance module
+			# may hold the record (legal_hold) and veto the delete.  Fast
+			# no-op unless the operator opted in via compliance.recfile.
+			if [ -s "$WALLETS_ROOT/$(active_wallet_name)/compliance.recfile" ] \
+			   && ! "$SELF_LIBEXEC/lightning/compliance" hook lifecycle gc "{\"account\":\"$name\",\"op\":\"gc\"}" >/dev/null 2>&1; then
+				printf 'retain\t%s\t%s\tlegal_hold\n' "$name" "$addr"
+				continue
+			fi
 			sqlite3 "$db" "DELETE FROM accounts WHERE name = $(sql_quote "$name");"
 			if [ -n "$addr" ]; then
 				if command -v secret >/dev/null 2>&1; then
