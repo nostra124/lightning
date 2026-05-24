@@ -1,0 +1,59 @@
+.TH "LIGHTNING-ALERT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-alert \- threshold-driven webhooks (FEAT-204)
+.SH SYNOPSIS
+.B lightning alert
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning alert — threshold-driven webhooks (FEAT-204).
+
+Rules live as recfiles under $LIGHTNING_DIR/alerts/<name>.conf.
+`alert run` evaluates every rule, fires the matching webhook
+when the condition trips, honours per-rule cooldown.
+
+Designed to be invoked from a scheduler — `daemon install`
+writes a sidecar (launchd / systemd .timer) that calls
+`alert run` every minute.
+.fi
+.SH USAGE
+.nf
+usage: lightning alert <subcommand> [args]
+
+   Threshold-driven webhooks for node monitoring. Rules live
+   as recfiles under \e$LIGHTNING_DIR/alerts/<name>.conf;
+   \e`alert run\e` evaluates them and fires webhooks when
+   conditions trip. Designed for scheduler invocation.
+
+subcommands:
+   create <name> --on <condition> --webhook <url>
+          [--threshold <value>] [--cooldown <duration>]
+                              create or replace a rule
+   list                       all rules (recfile, multi-record)
+   remove <name>              delete a rule and its cooldown state
+   test <name>                evaluate once; if firing, send a
+                              [TEST] webhook even past cooldown
+   run [--once]               evaluate every rule, fire matching
+                              webhooks (sidecar entry point)
+
+conditions:
+   peer_offline               any peer in .connected = false
+   channel_offline            any normal channel with peer offline
+   channel_ratio_outside      any normal channel outside
+                              [<lo>%, <hi>%] (threshold "lo,hi";
+                              default "10,90")
+   daemon_down                lightning-cli getinfo fails
+   balance_below              on-chain balance < threshold sat
+   low_inbound_capacity       total inbound < threshold sat
+
+webhooks:
+   https://hooks.slack.com/...    Slack incoming webhook
+   https://discord.com/api/...    Discord webhook
+   https://api.telegram.org/...   Telegram bot sendMessage
+   mailto:<addr>                  shells out to mail(1)
+   https://other/...              generic POST {alert: "<msg>"}
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

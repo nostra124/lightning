@@ -1,0 +1,36 @@
+.TH "LIGHTNING-OFFER" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-offer \- BOLT-12 offers (create + pay)
+.SH SYNOPSIS
+.B lightning offer
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning offer — BOLT-12 offers (create + pay).
+
+Implements: BOLT-12 per FEAT-173.
+  share/doc/lightning/standards/bolts/12-offer-encoding.md
+
+Subcommands:
+  create <sat>|any <description> [--qr]
+  pay <bolt12-offer> [<sat>] [--message <text>]
+.fi
+.SH USAGE
+.nf
+usage: lightning offer <subcommand> [args]
+
+   BOLT-12 offers — reusable invoices. A single offer string can
+   be paid many times; each payer fetches a fresh BOLT-12 invoice
+   on the wire. Requires clightning ≥ 22.11 with
+   experimental-offers enabled. See
+   share/doc/lightning/standards/bolts/12-offer-encoding.md.
+   Each sub-command also accepts --help.
+
+subcommands:
+   create <sat>|any <description> [--qr]
+   pay <bolt12-offer> [<sat>] [--message <text>]
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

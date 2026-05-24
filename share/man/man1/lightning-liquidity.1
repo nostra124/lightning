@@ -1,0 +1,39 @@
+.TH "LIGHTNING-LIQUIDITY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-liquidity \- channel-liquidity management
+.SH SYNOPSIS
+.B lightning liquidity
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning liquidity — channel-liquidity management.
+
+Implements FEAT-175.
+
+Subcommands:
+  status                  TSV: channel inbound / outbound (sat)
+  in <sat> [--provider <name>]    acquire INBOUND (want to receive more)
+  out <sat> [--provider <name>]   acquire OUTBOUND (want to send more)
+  loop in|out <sat>               Lightning Loop wrapper
+  boltz in|out <sat>              Boltz wrapper
+  lsp <name> buy <sat>            LSPS1 channel purchase
+  provider default <name>         set the default
+.fi
+.SH USAGE
+.nf
+usage: lightning liquidity <subcommand>
+
+   status                              TSV of per-channel inbound / outbound (sat)
+   in <sat> [--provider <name>] [--yes]   acquire inbound capacity
+   out <sat> [--provider <name>]          acquire outbound capacity
+   loop in|out <sat>                   Lightning Loop wrapper
+   boltz in|out <sat>                  Boltz submarine-swap wrapper
+   lsp <name> buy <sat> [--yes]        LSPS1 channel purchase (FEAT-198)
+                                       requires the cln-lsps plugin;
+                                       install via 'daemon install --lsps'
+   provider default <name>             set the default for liquidity in
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

@@ -1,0 +1,27 @@
+.TH "LIGHTNING-SCB" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-scb \- Static Channel Backup emit + restore
+.SH SYNOPSIS
+.B lightning scb
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning scb — Static Channel Backup emit + restore.
+
+Implements FEAT-185 §SCB. clightning calls these
+`staticbackup` (emit) and `emergencyrecover` (restore).
+
+Subcommands:
+  emit [--out <file>]     write an SCB blob. Default location:
+                          <active-wallet>/scb-<utc>.bin
+  restore <file>          initiate SCB recovery (force-closes)
+.fi
+.SH USAGE
+.nf
+usage: lightning scb emit [--out <file>]
+       lightning scb restore <file>
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

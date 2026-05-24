@@ -1,0 +1,41 @@
+.TH "LIGHTNING-WALLET" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet \- multi-account git-backed wallet store
+.SH SYNOPSIS
+.B lightning wallet
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning wallet — multi-account git-backed wallet store.
+
+Implements FEAT-174 + FEAT-193 (SQLite store) + FEAT-174's
+git push/pull round-trip.
+
+Subcommands:
+  new <name>           initialise a new wallet repo
+  use <name>           set the active wallet (writes ~/.lightning/active)
+  list                 list wallets
+  active               print active wallet name
+  push [<remote>]      git push the wallet repo
+  pull [<remote>]      git pull, then rebuild state.db
+  sync [<remote>]      pull + push
+  path                 print the active wallet's filesystem path
+.fi
+.SH USAGE
+.nf
+usage: lightning wallet <subcommand> [args]
+
+subcommands:
+   new <name>           initialise a new wallet repo
+   use <name>           set the active wallet
+   list                 list wallets
+   active               print the active wallet name
+   path                 print the active wallet's filesystem path
+   push [<remote>]      git push the wallet repo
+   pull [<remote>]      git pull + rebuild state.db
+   sync [<remote>]      pull + push
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

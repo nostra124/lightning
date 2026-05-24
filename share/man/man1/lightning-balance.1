@@ -1,0 +1,25 @@
+.TH "LIGHTNING-BALANCE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-balance \- on-chain + LN balance, recfile
+.SH SYNOPSIS
+.B lightning balance
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning balance — on-chain + LN balance, recfile.
+
+Implements: clightning listfunds reshape per FEAT-171.
+
+Default output (three-line recfile):
+  onchain_confirmed_sat: <sat>
+  onchain_unconfirmed_sat: <sat>
+  channels_sat: <sat>
+
+Flags:
+  --on-chain   print the on-chain receive address from clightning's
+               `newaddr` instead. Useful when funding the LN node.
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

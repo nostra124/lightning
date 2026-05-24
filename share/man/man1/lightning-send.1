@@ -1,0 +1,22 @@
+.TH "LIGHTNING-SEND" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-send \- keysend a payment to a raw node id (no invoice)
+.SH SYNOPSIS
+.B lightning send
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning send — keysend a payment to a raw node id (no invoice).
+
+Implements: keysend (BOLT-4 + TLV records) per FEAT-173.
+  share/doc/lightning/standards/bolts/04-onion-routing.md
+
+Usage:
+  lightning send <node-id> <sat> [--message <text>]
+                                 [--account <name>]
+                                 [--note <text>]
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

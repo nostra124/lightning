@@ -105,3 +105,13 @@ FEAT-190 (obsolete).
 ## 8. Versioning
 
 Semver. `tests/unit/lightning.bats` is the contract.
+
+## 9. Man pages (FEAT-221)
+
+One man page per top-level verb under `share/man/man1/lightning-<verb>.1`;
+`lightning.1` stays a high-level overview that cross-references them.
+When a verb's CLI surface changes, update the matching
+`share/man/man1/lightning-<verb>.1` page **in the same PR**. A bats test
+asserts every dispatchable verb (excluding `_*` helpers and the `api-*`
+HTTP-bridge verbs, which are documented via the FEAT-209 inline docs) has
+a page whose `.SH NAME` carries the verb.

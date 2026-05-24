@@ -1,0 +1,54 @@
+.TH "LIGHTNING-REBALANCE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-rebalance \- circular self-payment + swap fallback (FEAT-201)
+.SH SYNOPSIS
+.B lightning rebalance
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning rebalance — circular self-payment + swap fallback (FEAT-201).
+
+Top-level one-shot verb (not an object dispatcher). Wraps the
+`rebalance` plugin's JSON-RPC when present; falls back to a
+`liquidity loop|boltz` swap when no LN route exists and
+--fallback swap is set.
+
+Pairs with `lightning fee` (FEAT-200, passive layer) and the
+`feeadjuster` plugin (continuous). Tier-3 of the operational
+guide (FEAT-202): expensive enough that you don't run it from
+cron — operator's explicit decision when a channel is stuck.
+.fi
+.SH USAGE
+.nf
+usage: lightning rebalance <amount-sat> [--from <chan>] [--to <chan>]
+                                        [--max-fee-ppm N] [--max-fee-sat N]
+                                        [--dry-run]
+                                        [--fallback swap|none]
+
+   Move <amount-sat> from one channel to another via a circular
+   self-payment (LN-internal) or a submarine swap (on-chain
+   fallback). Wraps the `rebalance` plugin's JSON-RPC; install
+   first via:
+
+       lightning plugin install rebalance
+
+Channel selection:
+   --from <chan>   source (where the sats leave). Optional.
+   --to <chan>     destination (where they arrive). Optional.
+                   With neither, the rebalance plugin picks the
+                   most asymmetric pair automatically.
+
+Fee caps (whichever is lower wins):
+   --max-fee-ppm N    default 500 (=0.05%)
+   --max-fee-sat N    absolute cap
+
+Other:
+   --dry-run          print the chosen route + estimated cost,
+                      don't pay
+   --fallback swap    if LN circular fails, try \e`liquidity loop\e`
+                      or \e`liquidity boltz\e` (default: none)
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

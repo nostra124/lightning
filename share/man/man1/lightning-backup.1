@@ -1,0 +1,21 @@
+.TH "LIGHTNING-BACKUP" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-backup \- composer over FEAT-174 + FEAT-185
+.SH SYNOPSIS
+.B lightning backup
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning backup — composer over FEAT-174 + FEAT-185.
+
+Implements FEAT-187.
+
+By default: emits a fresh SCB, auto-commits the snapshot,
+pushes the wallet repo. `--seed` ALSO writes an encrypted
+seed export into the wallet repo (default off; seed lives
+in the operator's head normally).
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

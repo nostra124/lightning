@@ -1,0 +1,22 @@
+.TH "LIGHTNING-PAY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-pay \- pay a BOLT-11 invoice
+.SH SYNOPSIS
+.B lightning pay
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning pay — pay a BOLT-11 invoice.
+
+Implements: BOLT-11 payment per FEAT-173.
+  share/doc/lightning/standards/bolts/11-payment-encoding.md
+
+Usage:
+  lightning pay <bolt11>
+                [--max-fee-sat N]    # cap routing fee
+                [--timeout S]        # give up after S seconds
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

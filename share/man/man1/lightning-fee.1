@@ -1,0 +1,35 @@
+.TH "LIGHTNING-FEE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-fee \- per-channel fee policy (FEAT-188)
+.SH SYNOPSIS
+.B lightning fee
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning fee — per-channel fee policy (FEAT-188).
+
+Wraps clightning's `setchannel` + `listchannels`. Fees are
+what makes a routing node profitable; see BOLT-7
+§channel_update for the wire format.
+
+Subcommands:
+  get [<channel-id>]                    show base+ppm
+  set <channel-id> <base-msat> <ppm>    update
+  policy <name>                         apply named policy
+                                         (flat | lsp-style | match-peer)
+.fi
+.SH USAGE
+.nf
+usage: lightning fee <subcommand>
+
+   get [<channel-id>]                    TSV of base / ppm per channel
+   set <channel-id> <base-msat> <ppm>    update one channel
+   policy <name>                         apply a named policy across all:
+                                          - flat       (1000 msat + 1 ppm)
+                                          - lsp-style  (0   msat + 250 ppm)
+                                          - match-peer (copy peer's fees)
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

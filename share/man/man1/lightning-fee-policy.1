@@ -1,0 +1,42 @@
+.TH "LIGHTNING-FEE-POLICY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-fee-policy \- operator-fee visibility (FEAT-214)
+.SH SYNOPSIS
+.B lightning fee-policy
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning fee-policy — operator-fee visibility (FEAT-214).
+
+Subcommands:
+  status [--since YYYY-MM-DD]    revenue summary, broken down by
+                                 operation and time window
+  show-rates                     dump the current fees.recfile
+                                 (canonical operator-readable
+                                 view, no parsing surprises)
+
+Reads $wallet/state.db (house account's ledger) and
+$wallet/fees.recfile.  Runs as the operator user; no HTTP
+involvement at this layer — that lands in a future PR if/when
+the PWA admin view actually needs it.
+
+The house account is populated by FEAT-213's skim verbs.
+Operation tagging is via `message` field prefixes
+(`fee:pay`, `fee:withdraw`, `fee:topup-onchain`); ledger
+entries without a `fee:` prefix are aggregated as "other"
+— useful for spotting if a new operation grew skim logic
+without updating its message tag.
+.fi
+.SH USAGE
+.nf
+usage: lightning fee-policy <subcommand>
+
+   status [--since YYYY-MM-DD]   revenue + breakdown + top accounts
+   show-rates                    current fees.recfile (formatted)
+   autotune {run|dry-run|status} nudge rate_ppm based on observed
+                                 revenue vs. operator target
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

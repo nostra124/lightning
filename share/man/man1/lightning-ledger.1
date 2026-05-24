@@ -1,0 +1,40 @@
+.TH "LIGHTNING-LEDGER" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-ledger \- TSV-default view of the SQLite ledger
+.SH SYNOPSIS
+.B lightning ledger
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning ledger — TSV-default view of the SQLite ledger.
+
+Implements FEAT-193 verbs.
+
+Subcommands:
+  list [--account <n>] [--since <date>] [--limit <N>]
+  sum  [--by account|day|month|year] [--account <n>]
+  balance [<account>]
+  annotate <payment_hash> <note>
+  add <direction> <amount_msat> [--account <n>] [--peer <p>]
+                                 [--payment-hash <h>] [--message <m>]
+                                 [--note <n>]
+                                      — used by pay/invoice/forward
+                                        hooks once they're wired
+  export csv|jsonl|tsv
+.fi
+.SH USAGE
+.nf
+usage: lightning ledger <subcommand>
+
+   list [--account <n>] [--since <date>] [--limit <N>]
+   sum  [--by account|day|month|year] [--account <n>]
+   balance [<account>]
+   annotate <payment_hash> <note>
+   add <direction> <amount_msat> [--account <n>] [--peer <p>]
+       [--payment-hash <h>] [--message <m>] [--note <n>]
+   export csv|jsonl|tsv
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

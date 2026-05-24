@@ -1,0 +1,29 @@
+.TH "LIGHTNING-SEED" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-seed \- clightning hsm_secret export / import / verify
+.SH SYNOPSIS
+.B lightning seed
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning seed — clightning hsm_secret export / import / verify.
+
+Implements FEAT-185 §Seed.
+
+Subcommands:
+  export                  print the seed-derived mnemonic (read once)
+  import                  initialise a fresh hsm_secret from a mnemonic
+  verify                  prompt for 2 random words; pass/fail
+.fi
+.SH USAGE
+.nf
+usage: lightning seed <subcommand>
+
+   export                 print the seed-derived mnemonic
+   import                 initialise hsm_secret from a mnemonic
+   verify                 prompt for 2 random words
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

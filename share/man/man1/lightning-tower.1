@@ -1,0 +1,43 @@
+.TH "LIGHTNING-TOWER" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-tower \- watchtower client + server (FEAT-186)
+.SH SYNOPSIS
+.B lightning tower
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning tower — watchtower client + server (FEAT-186).
+
+Wraps clightning's `altruistwatchtower` (client) and
+`watchtower` (server) plugins. BOLT-13 is still draft;
+see share/doc/lightning/standards/README-drafts.md.
+
+Subcommands:
+  client-add <pubkey@host:port>     register a remote tower
+  client-list                       registered towers
+  client-stats                      sessions / breaches witnessed
+  server-on                         enable watchtower role
+  server-off                        disable
+  server-status                     peers + breaches witnessed
+.fi
+.SH USAGE
+.nf
+usage: lightning tower <subcommand>
+
+   client-add <pubkey@host:port>   register a remote tower
+   client-list                     show registered towers
+   client-stats                    sessions / breaches witnessed
+   server-on                       enable watchtower-server role
+   server-off                      disable
+   server-status                   peers + breaches witnessed
+
+The justice scenario: if your channel peer publishes a stale
+commitment while you're offline, a registered tower watches
+the chain on your behalf and broadcasts the penalty
+transaction. See BOLT-3 \exc2\exa7revocation-keys and the
+BOLT-13 draft for details.
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

@@ -1,0 +1,58 @@
+.TH "LIGHTNING-DAEMON" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-daemon \- lightningd lifecycle management
+.SH SYNOPSIS
+.B lightning daemon
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning daemon — lightningd lifecycle management.
+
+Implements FEAT-183. Subcommands:
+  start    — bring up lightningd (background; --daemon or via supervisor)
+  run      — bring up lightningd in foreground (for launchd/systemd Type=simple)
+  stop     — graceful shutdown via `lightning-cli stop`
+  restart  — stop + start
+  status   — health check (process / RPC / sync / unlock)
+  logs     — tail the live log
+  install  — generate a service unit
+             Linux: systemd (~/.config/systemd/user/lightning.service)
+                    or system-mode (/etc/systemd/system/clightningd.service)
+             Alpine: OpenRC (/etc/init.d/clightningd) — system-only
+             macOS: launchd (~/Library/LaunchAgents/<label>.plist)
+.fi
+.SH USAGE
+.nf
+usage: lightning daemon <subcommand> [args]
+
+   Lifecycle of the underlying clightningd process. Detects the
+   right supervisor for the platform:
+     • macOS — launchd (~/Library/LaunchAgents/...)
+     • Linux — systemd --user, or system-mode (FEAT-183 three-user
+       layout: dedicated \e`clightning\e` user owns the daemon, the
+       operator owns the wallet repo, www-data runs the CGI).
+   Each sub-command also accepts --help.
+
+subcommands:
+   start                  bring up lightningd (background)
+   run                    bring up lightningd in foreground
+                          (for launchd / systemd Type=simple)
+   stop                   graceful shutdown
+   restart                stop + start
+   status                 health check
+   logs [-f]              tail the daemon log
+   install [--system] [--migrate]
+                          generate a service unit (systemd on Linux,
+                          launchd on macOS). --system writes a
+                          system-wide unit (Linux three-user layout).
+   install-core [--rpk|--brew|--apk|--source|--podman]
+                [--version <tag>] [--system] [--yes]
+                [--force] [--dry-run]
+                          install Core Lightning itself (FEAT-207).
+                          With no backend flag, auto-detects per
+                          platform.  All five backends are implemented.
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.
