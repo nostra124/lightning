@@ -1,15 +1,15 @@
-# Operator fee policy (FEAT-213).
+# Operator fee policy (FEAT-213, extended FEAT-216).
 #
 # This file is the source of truth for what the operator's node
 # charges for each value-moving operation in the FEAT-212 account
 # API.  It's plain text + git-tracked alongside the wallet state.
 #
-# Format: blank-line-separated records, one per operation.  Three
-# fields per record:
-#   operation:  pay | withdraw | topup-onchain | topup-ln | recv
-#   base_sat:   flat fee added on top of the rate, in satoshis
-#   rate_ppm:   parts-per-million of the transaction amount
-#               (1000 ppm = 0.1%; 10000 ppm = 1%)
+# Format: blank-line-separated records, one per operation.  Fields:
+#   operation:      pay | withdraw | topup-onchain | topup-ln | recv
+#   base_sat:       flat fee added on top of the rate, in satoshis
+#   rate_ppm:       parts-per-million of the transaction amount
+#                   (1000 ppm = 0.1%; 10000 ppm = 1%)
+#   interest_mode:  on | off  (FEAT-216) — see the CAUTION below
 #
 # A 1000-sat transaction at base_sat=1, rate_ppm=5000 = 1 + 5 sat.
 #
@@ -17,33 +17,49 @@
 # operation (good back-compat path for operators who don't want
 # to charge yet).
 #
-# Negative rates are only allowed when FEAT-216 (interest mode)
-# is enabled — see that ticket for the legal context first.
+# FEAT-216 — INTEREST MODE (paying users a yield).  A NEGATIVE
+# rate_ppm turns the skim into a CREDIT: the user receives
+# `amount + |fee|` and the subsidy is debited from the house
+# account's accumulated routing income.  This is OPT-IN per
+# operation: a negative rate is only honoured when that operation's
+# `interest_mode:` is `on`; otherwise the skim clamps it to 0 and the
+# auto-tuner refuses to run.
+#
+#   CAUTION: in many jurisdictions, paying yield on customer-deposited
+#   funds is regulated as deposit-taking.  Leave interest_mode off
+#   unless you have confirmed with your legal advisor that it is
+#   permitted where you operate.  This software ships it off by
+#   default and offers no legal advice.
 #
 # Defaults below are conservative starting points.  Tune via
-# `lightning fee-policy autotune` (FEAT-215) once that ships, or
-# edit by hand.
+# `lightning fee-policy autotune` (FEAT-215), or edit by hand.
 
 operation: pay
 base_sat:  1
 rate_ppm:  5000
+interest_mode: off
 
 operation: withdraw
 base_sat:  100
 rate_ppm:  3000
+interest_mode: off
 
 operation: topup-onchain
 base_sat:  0
 rate_ppm:  2000
+interest_mode: off
 
 operation: topup-ln
 base_sat:  0
 rate_ppm:  1000
+interest_mode: off
 
 operation: recv
 base_sat:  0
 rate_ppm:  0
+interest_mode: off
 
 operation: transfer
 base_sat:  0
 rate_ppm:  0
+interest_mode: off

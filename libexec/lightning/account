@@ -692,29 +692,41 @@ cmd_topup_watcher() {
 		# edit to the recfile takes effect on the next watcher pass.
 		operator_fee_msat=0
 		if [ -f "$WALLETS_ROOT/$(active_wallet_name)/fees.recfile" ]; then
-			read -r fee_base_sat fee_rate_ppm < <(awk -v op="topup-onchain" '
-				BEGIN { RS=""; FS="\n"; b=0; r=0 }
+			read -r fee_base_sat fee_rate_ppm fee_interest < <(awk -v op="topup-onchain" '
+				BEGIN { RS=""; FS="\n"; b=0; r=0; im=0 }
 				{
-					in_op=0; bb=0; rr=0
+					in_op=0; bb=0; rr=0; ii=0
 					for (i=1; i<=NF; i++) {
 						if ($i == "operation: " op) in_op=1
-						if ($i ~ /^base_sat: *[0-9-]/) { bb=$i; sub(/^base_sat: */, "", bb) }
-						if ($i ~ /^rate_ppm: *[0-9-]/) { rr=$i; sub(/^rate_ppm: */, "", rr) }
+						if ($i ~ /^base_sat: *-?[0-9]/) { bb=$i; sub(/^base_sat: */, "", bb) }
+						if ($i ~ /^rate_ppm: *-?[0-9]/) { rr=$i; sub(/^rate_ppm: */, "", rr) }
+						if ($i ~ /^interest_mode: */)   { mm=$i; sub(/^interest_mode: */, "", mm); ii=(mm=="on")?1:0 }
 					}
-					if (in_op) { b=bb; r=rr }
+					if (in_op) { b=bb; r=rr; im=ii }
 				}
-				END { printf "%d %d\n", b+0, r+0 }
+				END { printf "%d %d %d\n", b+0, r+0, im+0 }
 			' "$WALLETS_ROOT/$(active_wallet_name)/fees.recfile")
 			operator_fee_msat=$(( fee_base_sat * 1000 + amount_msat * fee_rate_ppm / 1000000 ))
+			# FEAT-216 — a negative (subsidy) fee is only honoured when
+			# interest mode is on for this op; otherwise clamp to >= 0.
+			if [ "$operator_fee_msat" -lt 0 ] && [ "${fee_interest:-0}" != "1" ]; then
+				operator_fee_msat=0
+			fi
 		fi
+		# FEAT-216 — interest subsidy (negative fee): the user is credited
+		# |fee| extra and the house is debited the same.
+		tw_subsidy_msat=0
+		[ "$operator_fee_msat" -lt 0 ] && tw_subsidy_msat=$(( -operator_fee_msat ))
 		if [ $dry -eq 1 ]; then
 			if [ "$operator_fee_msat" -gt 0 ]; then
 				printf 'would-credit\t%s\t%s\t+%s msat (skim %s msat)\t%s\n' "$name" "$addr" "$amount_msat" "$operator_fee_msat" "$pmt_hash"
+			elif [ "$tw_subsidy_msat" -gt 0 ]; then
+				printf 'would-credit\t%s\t%s\t+%s msat (interest +%s msat)\t%s\n' "$name" "$addr" "$amount_msat" "$tw_subsidy_msat" "$pmt_hash"
 			else
 				printf 'would-credit\t%s\t%s\t+%s msat\t%s\n' "$name" "$addr" "$amount_msat" "$pmt_hash"
 			fi
 		else
-			if [ "$operator_fee_msat" -gt 0 ]; then
+			if [ "$operator_fee_msat" -gt 0 ] || [ "$tw_subsidy_msat" -gt 0 ]; then
 				sqlite3 "$db" "INSERT OR IGNORE INTO accounts(name, description, overdraft) \
 					VALUES('house', 'operator fee revenue', 'allow');" 2>/dev/null || true
 			fi
@@ -764,6 +776,14 @@ cmd_topup_watcher() {
 					sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
 					sql+=" VALUES(datetime('now'), $(sql_quote "$tw_referrer"), 'in', $tw_referral_msat, $(sql_quote "referee:$name"), $(sql_quote "$pmt_hash"), $(sql_quote "fee:referral from $name"));"
 				fi
+			fi
+			# FEAT-216 — interest subsidy: extra credit to the user, debit
+			# the house (out of accumulated routing income).
+			if [ "$tw_subsidy_msat" -gt 0 ]; then
+				sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+				sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'in', $tw_subsidy_msat, 'on-chain', $(sql_quote "$pmt_hash"), 'interest:topup-onchain');"
+				sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+				sql+=" VALUES(datetime('now'), 'house', 'out', -$tw_subsidy_msat, $(sql_quote "subsidy:$name"), $(sql_quote "$pmt_hash"), $(sql_quote "interest:topup-onchain to $name"));"
 			fi
 			sql+=" COMMIT;"
 			sqlite3 "$db" "$sql"

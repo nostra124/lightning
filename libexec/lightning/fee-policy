@@ -74,6 +74,29 @@ cmd_status() {
 	local ts_pred="1=1"
 	[ -n "$since" ] && ts_pred="ts >= '$since 00:00:00'"
 
+	# FEAT-216 — interest-mode summary: which ops pay a yield + the
+	# cumulative subsidy debited from house (interest:* tagged 'out's).
+	local fees_file; fees_file="$WALLETS_ROOT/$(active_wallet_name)/fees.recfile"
+	local interest_ops=""
+	if [ -f "$fees_file" ]; then
+		interest_ops=$(awk '
+			BEGIN { RS=""; FS="\n" }
+			{
+				op=""; m="off"
+				for (i=1; i<=NF; i++) {
+					if ($i ~ /^operation: /)     { op=$i; sub(/^operation: */, "", op) }
+					if ($i ~ /^interest_mode: */) { m=$i;  sub(/^interest_mode: */, "", m) }
+				}
+				if (m == "on" && op != "") printf "%s ", op
+			}' "$fees_file")
+	fi
+	local subsidy_msat
+	subsidy_msat=$(sqlite3 "$db" "SELECT COALESCE(-SUM(amount_msat),0) FROM ledger \
+		WHERE account = 'house' AND direction = 'out' AND message LIKE 'interest:%' AND $ts_pred;")
+	echo "interest_mode_ops:         ${interest_ops:-(none)}"
+	echo "interest_subsidy_paid_sat: $(( subsidy_msat / 1000 ))"
+	echo ""
+
 	# Empty-state check — house is pre-seeded by FEAT-218's schema
 	# (so the referrer FK has a target from wallet new onward).  We
 	# detect "no skim has fired" via the absence of in-credit rows
@@ -248,6 +271,32 @@ cmd_autotune() {
 	local state_file="$lightning_dir/fee-autotune.state.recfile"
 	mkdir -p "$lightning_dir"
 
+	# FEAT-216 — interest mode.  An op with interest_mode: on may be
+	# tuned to a NEGATIVE rate (a yield paid to users) down to the
+	# interest floor; an op with interest_mode off must stay >= the
+	# normal floor.  Validate up front: a negative rate with interest
+	# mode off is a misconfiguration the tuner refuses to run against.
+	local interest_floor="${LIGHTNING_FEE_AUTOTUNE_INTEREST_FLOOR_PPM:--2000}"
+	local _vop _vrate _vim
+	while read -r _vop _vrate _vim; do
+		[ -n "$_vop" ] || continue
+		if [ "$_vrate" -lt 0 ] 2>/dev/null && [ "$_vim" != "on" ]; then
+			echo "lightning fee-policy autotune: '$_vop' has a negative rate_ppm ($_vrate) but interest_mode is off" >&2
+			echo "  enable 'interest_mode: on' for $_vop (see the legal CAUTION in fees.recfile) or set rate_ppm >= 0" >&2
+			exit 3
+		fi
+	done < <(awk '
+		BEGIN { RS=""; FS="\n" }
+		{
+			op=""; r=""; m="off"
+			for (i=1; i<=NF; i++) {
+				if ($i ~ /^operation: /)     { op=$i; sub(/^operation: */, "", op) }
+				if ($i ~ /^rate_ppm: */)     { r=$i;  sub(/^rate_ppm: */, "", r) }
+				if ($i ~ /^interest_mode: */) { m=$i;  sub(/^interest_mode: */, "", m) }
+			}
+			if (op != "" && r != "") print op, r, m
+		}' "$fees_file")
+
 	# --- read 30-day skim revenue ---
 	local skim_msat
 	skim_msat=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger \
@@ -295,22 +344,27 @@ cmd_autotune() {
 	local ops=("pay" "withdraw" "topup-onchain" "topup-ln" "recv")
 	local changes=""
 	for o in "${ops[@]}"; do
-		local cur
-		cur=$(awk -v op="$o" '
+		local cur im
+		read -r cur im < <(awk -v op="$o" '
 			BEGIN { RS=""; FS="\n" }
 			{
-				in_op=0; r=""
+				in_op=0; r=""; m="off"
 				for (i=1; i<=NF; i++) {
 					if ($i == "operation: " op) in_op=1
-					if ($i ~ /^rate_ppm: */) { r=$i; sub(/^rate_ppm: */, "", r) }
+					if ($i ~ /^rate_ppm: */)     { r=$i; sub(/^rate_ppm: */, "", r) }
+					if ($i ~ /^interest_mode: */) { m=$i; sub(/^interest_mode: */, "", m) }
 				}
-				if (in_op && r != "") { print r; exit }
+				if (in_op && r != "") { print r, m; exit }
 			}
 		' "$fees_file")
 		[ -n "$cur" ] || continue
+		# FEAT-216 — interest-mode ops floor at the (negative) interest
+		# floor; everything else at the normal floor.
+		local op_floor="$floor"
+		[ "$im" = "on" ] && op_floor="$interest_floor"
 		local new=$(( cur + delta_ppm ))
-		[ "$new" -lt "$floor" ]   && new="$floor"
-		[ "$new" -gt "$ceiling" ] && new="$ceiling"
+		[ "$new" -lt "$op_floor" ] && new="$op_floor"
+		[ "$new" -gt "$ceiling" ]  && new="$ceiling"
 		if [ "$new" != "$cur" ]; then
 			changes+="$o $cur->$new "
 			if [ $dry -eq 0 ]; then
