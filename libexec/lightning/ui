@@ -1,0 +1,160 @@
+#!/bin/bash
+# lightning ui — install/uninstall/upgrade the wallet PWA (FEAT-209).
+#
+# The PWA is a thin, static, same-origin client for the FEAT-212
+# account HTTP API: open the URL, create an account, see your top-up
+# address, pay BOLT-11s, mint receive invoices.  All the heavy lifting
+# (crediting on-chain deposits, GC, rebalancing) is the node's cron
+# sidecars; the PWA just talks to /.well-known/lightning/v1.
+#
+# Subcommands:
+#   install [<docroot>] [--apache-vhost <name>] [--no-vhost]
+#       Copy share/lightning/ui/ -> docroot (default
+#       /var/www/html/lightning) and write an Apache vhost fragment
+#       (share/lightning/apache/ui.conf) the operator Includes from
+#       their main <VirtualHost>.  Defence-in-depth: -ExecCGI -Indexes.
+#   uninstall [<docroot>]
+#       Remove the docroot tree + the vhost fragment.
+#   upgrade [<docroot>]
+#       Reinstall the static files, preserving an operator-edited
+#       config.json.
+
+set -e
+
+SELF_LIBEXEC="${SELF_LIBEXEC:-$(cd "$(dirname "$0")/.." && pwd)}"
+SHARE_DIR="$(cd "$SELF_LIBEXEC/../share/lightning" 2>/dev/null && pwd || true)"
+UI_SRC="$SHARE_DIR/ui"
+VHOST_FRAGMENT="$SHARE_DIR/apache/ui.conf"
+DEFAULT_DOCROOT="/var/www/html/lightning"
+
+err() { echo "lightning ui: $*" >&2; }
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning ui <subcommand>
+
+   install [<docroot>] [--apache-vhost <name>] [--no-vhost]
+                        copy the PWA to <docroot> (default
+                        $DEFAULT_DOCROOT) + write an Apache vhost
+                        fragment.  Same-origin; no backend switch.
+   uninstall [<docroot>]
+                        remove the docroot tree + vhost fragment
+   upgrade [<docroot>]  reinstall static files, keep config.json
+
+The PWA is a thin client for the FEAT-212 account API under
+/.well-known/lightning/v1.  Inline docs ship under <docroot>/docs/.
+EOF
+}
+
+write_vhost() {
+	local docroot="$1"
+	cat > "$VHOST_FRAGMENT" <<EOF
+# Apache vhost fragment for the lightning wallet PWA (FEAT-209).
+#
+# Include this from inside your <VirtualHost> block (the same one that
+# already serves /.well-known/lightning/v1 via lnurlp.conf):
+#
+#   Include /usr/share/lightning/apache/ui.conf
+#
+# The PWA is static + same-origin; it calls the account API under
+# /.well-known/lightning/v1 on this very host.  No backend switch.
+Alias /lightning $docroot
+
+<Directory "$docroot">
+    # Defence in depth: this tree is plain static assets — never CGI,
+    # never a browsable index.
+    Options -ExecCGI -Indexes -FollowSymLinks
+    AllowOverride None
+    Require all granted
+
+    # SPA-ish: unknown sub-paths fall back to index.html so deep links
+    # (/lightning/account/<id>) load the app shell.
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
+        RewriteBase /lightning
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule . /lightning/index.html [L]
+    </IfModule>
+</Directory>
+
+# The single-file LLM map + the manifest want correct content types.
+<Directory "$docroot/docs">
+    Options -ExecCGI -Indexes
+    Require all granted
+</Directory>
+AddType text/plain .txt
+AddType application/manifest+json .webmanifest
+EOF
+	echo "wrote vhost fragment: $VHOST_FRAGMENT"
+	echo "  Include it from your <VirtualHost>: Include /usr/share/lightning/apache/ui.conf"
+}
+
+cmd_install() {
+	local docroot="" vhost=1
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--apache-vhost) shift 2 ;;   # reserved; the fragment is vhost-agnostic
+			--no-vhost) vhost=0; shift ;;
+			-*) err "unknown flag '$1'"; exit 1 ;;
+			*) docroot="$1"; shift ;;
+		esac
+	done
+	[ -n "$docroot" ] || docroot="$DEFAULT_DOCROOT"
+	[ -d "$UI_SRC" ] || { err "PWA source not found at $UI_SRC"; exit 2; }
+
+	mkdir -p "$docroot"
+	# Copy the static tree.  Use cp -R of the contents so docroot itself
+	# can pre-exist (operator may have set perms/owner already).
+	cp -R "$UI_SRC"/. "$docroot"/
+	echo "installed PWA -> $docroot"
+	echo "  open it at:  https://<your-host>/lightning"
+	echo "  inline docs: https://<your-host>/lightning/docs/"
+
+	[ "$vhost" -eq 1 ] && write_vhost "$docroot"
+	return 0
+}
+
+cmd_uninstall() {
+	local docroot="${1:-$DEFAULT_DOCROOT}"
+	if [ -d "$docroot" ]; then
+		# Only remove files we know we ship — never rm -rf a docroot we
+		# didn't populate.  Marker file confirms it's ours.
+		if [ -f "$docroot/.lightning-ui" ] || [ -f "$docroot/index.html" ]; then
+			rm -rf "$docroot"
+			echo "removed PWA docroot: $docroot"
+		else
+			err "$docroot does not look like a lightning UI install (no marker); refusing"
+			exit 3
+		fi
+	fi
+	[ -f "$VHOST_FRAGMENT" ] && { rm -f "$VHOST_FRAGMENT"; echo "removed vhost fragment: $VHOST_FRAGMENT"; }
+	return 0
+}
+
+cmd_upgrade() {
+	local docroot="${1:-$DEFAULT_DOCROOT}"
+	[ -d "$UI_SRC" ] || { err "PWA source not found at $UI_SRC"; exit 2; }
+	local saved=""
+	if [ -f "$docroot/config.json" ]; then
+		saved=$(mktemp)
+		cp "$docroot/config.json" "$saved"
+	fi
+	mkdir -p "$docroot"
+	cp -R "$UI_SRC"/. "$docroot"/
+	if [ -n "$saved" ]; then
+		cp "$saved" "$docroot/config.json"
+		rm -f "$saved"
+		echo "preserved operator config.json"
+	fi
+	echo "upgraded PWA -> $docroot"
+	return 0
+}
+
+case "${1:-}" in
+	install)   shift; cmd_install "$@" ;;
+	uninstall) shift; cmd_uninstall "$@" ;;
+	upgrade)   shift; cmd_upgrade "$@" ;;
+	""|-h|--help) usage; [ "${1:-}" = "" ] && exit 1 || exit 0 ;;
+	*) err "unknown subcommand '$1'"; usage; exit 1 ;;
+esac
