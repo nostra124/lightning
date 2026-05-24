@@ -53,10 +53,15 @@ EOF
 		echo '{"peers": []}'
 		;;
 	listpeerchannels)
-		echo '{"channels": []}'
+		# Tests drive our direct channels via MOCK_LISTPEERCHANNELS.
+		printf '{"channels": %s}\n' "${MOCK_LISTPEERCHANNELS:-[]}"
 		;;
 	listchannels)
 		echo '{"channels": []}'
+		;;
+	listpays)
+		# FEAT-217 — tests drive pay history via MOCK_LISTPAYS.
+		printf '{"pays": %s}\n' "${MOCK_LISTPAYS:-[]}"
 		;;
 	listfunds)
 		# Tests drive the UTXO set via MOCK_LISTFUNDS_OUTPUTS — a
