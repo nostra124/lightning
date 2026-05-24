@@ -6938,3 +6938,100 @@ _deposit_100k() {
 	grep -qi "CAUTION" "$f"
 	grep -qi "deposit-taking" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-217: autopilot pay-target intelligence.
+# ---------------------------------------------------------------------------
+
+_paytarget_history() {
+	# Build a MOCK_LISTPAYS JSON: $1=node, recent completed pays.
+	local now; now=$(date -u +%s)
+	export PT_A=02aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+	export PT_B=03bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+	export PT_C=02cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+	MOCK_LISTPAYS=$(jq -nc --arg a "$PT_A" --arg b "$PT_B" --arg c "$PT_C" --argjson now "$now" '[
+		{status:"complete",destination:$a,amount_msat:"10000000msat",created_at:($now-100)},
+		{status:"complete",destination:$a,amount_msat:10000000,created_at:($now-200)},
+		{status:"complete",destination:$a,amount_msat:10000000,created_at:($now-300)},
+		{status:"complete",destination:$b,amount_msat:5000000,created_at:($now-400)},
+		{status:"complete",destination:$c,amount_msat:50000000,created_at:($now-500)},
+		{status:"failed",  destination:$b,amount_msat:99000000,created_at:($now-50)},
+		{status:"complete",destination:$a,amount_msat:9999000000,created_at:($now-99999999)}
+	]')
+	export MOCK_LISTPAYS
+}
+
+@test "FEAT-217: paytarget-intel suggests the top paid destination" {
+	_paytarget_history
+	MOCK_LISTPEERCHANNELS='[]' run "$LIGHTNING_BIN" channel paytarget-intel
+	[ "$status" -eq 0 ]
+	local f="$HOME/.lightning/autopilot/paytarget.suggest.recfile"
+	[ -f "$f" ]
+	grep -q "kind: pay-target-channels" "$f"
+	grep -q "node_id: $PT_A" "$f"
+	# A (30000 sat) is the top entry, before B.
+	[ "$(grep -n "node_id: $PT_A" "$f" | cut -d: -f1)" -lt "$(grep -n "node_id: $PT_B" "$f" | cut -d: -f1)" ]
+}
+
+@test "FEAT-217: a directly-connected destination is excluded" {
+	_paytarget_history
+	# We already have a channel to C.
+	local peers; peers=$(jq -nc --arg c "$PT_C" '[{peer_id:$c}]')
+	MOCK_LISTPEERCHANNELS="$peers" run "$LIGHTNING_BIN" channel paytarget-intel
+	[ "$status" -eq 0 ]
+	local f="$HOME/.lightning/autopilot/paytarget.suggest.recfile"
+	! grep -q "node_id: $PT_C" "$f"
+	grep -q "node_id: $PT_A" "$f"
+}
+
+@test "FEAT-217: empty pay history is a no-op (no file written)" {
+	MOCK_LISTPAYS='[]' MOCK_LISTPEERCHANNELS='[]' run "$LIGHTNING_BIN" channel paytarget-intel
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"no pay-target suggestions"* ]]
+	[ ! -f "$HOME/.lightning/autopilot/paytarget.suggest.recfile" ]
+}
+
+@test "FEAT-217: pays outside the window are excluded" {
+	local now; now=$(date -u +%s)
+	local node=02dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+	# A single completed pay, but ~2 years ago.
+	MOCK_LISTPAYS=$(jq -nc --arg d "$node" --argjson now "$now" \
+		'[{status:"complete",destination:$d,amount_msat:10000000,created_at:($now-60000000)}]')
+	MOCK_LISTPAYS="$MOCK_LISTPAYS" MOCK_LISTPEERCHANNELS='[]' run "$LIGHTNING_BIN" channel paytarget-intel
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"no pay-target suggestions"* ]]
+}
+
+@test "FEAT-217: --dry-run prints but writes nothing" {
+	_paytarget_history
+	MOCK_LISTPEERCHANNELS='[]' run "$LIGHTNING_BIN" channel paytarget-intel --dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"dry-run"* ]]
+	[[ "$output" == *"$PT_A"* ]]
+	[ ! -f "$HOME/.lightning/autopilot/paytarget.suggest.recfile" ]
+}
+
+@test "FEAT-217: --top caps the number of suggestions" {
+	_paytarget_history
+	# Exclude C (highest volume) so A is the top remaining target.
+	local peers; peers=$(jq -nc --arg c "$PT_C" '[{peer_id:$c}]')
+	MOCK_LISTPEERCHANNELS="$peers" run "$LIGHTNING_BIN" channel paytarget-intel --top 1
+	[ "$status" -eq 0 ]
+	local f="$HOME/.lightning/autopilot/paytarget.suggest.recfile"
+	[ "$(grep -c '^node_id:' "$f")" = "1" ]
+	grep -q "node_id: $PT_A" "$f"
+}
+
+@test "FEAT-217: autopilot run feeds the pay-target suggest queue" {
+	_paytarget_history
+	MOCK_LISTPEERCHANNELS='[]' run "$LIGHTNING_BIN" channel autopilot run --dry-run
+	[ "$status" -eq 0 ]
+	# autopilot run invokes paytarget-intel as a real write (not dry).
+	[ -f "$HOME/.lightning/autopilot/paytarget.suggest.recfile" ]
+	grep -q "node_id: $PT_A" "$HOME/.lightning/autopilot/paytarget.suggest.recfile"
+}
+
+@test "FEAT-217: channel usage lists paytarget-intel" {
+	run "$LIGHTNING_BIN" channel
+	[[ "$output" == *"paytarget-intel"* ]]
+}

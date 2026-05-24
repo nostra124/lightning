@@ -44,6 +44,10 @@ subcommands:
                                         suggest daemon (FEAT-205);
                                         opt-in sidecar via
                                         'daemon install --autopilot'
+   paytarget-intel [--days N] [--top N] [--dry-run]
+                                        suggest channels to the
+                                        destinations users pay most
+                                        (FEAT-217); fed by the autopilot
 EOF
 }
 
@@ -269,6 +273,8 @@ AUTOPILOT_DIR="$LIGHTNING_DIR/autopilot"
 AUTOPILOT_CONF="$LIGHTNING_DIR/autopilot.conf"
 AUTOPILOT_STATE="$AUTOPILOT_DIR/state.recfile"
 AUTOPILOT_SUGGESTIONS_TMPL="$AUTOPILOT_DIR/suggestions"
+# FEAT-217 — pay-target open suggestions feed the autopilot suggest queue.
+PAYTARGET_SUGGEST="$AUTOPILOT_DIR/paytarget.suggest.recfile"
 
 # Default config values — used when autopilot.conf is missing or
 # doesn't specify the key.  Matches the spec table.
@@ -475,6 +481,9 @@ cmd_autopilot_run() {
 
 	# 3. Suggestions phase (informational only).
 	cmd_autopilot_suggest >/dev/null
+	# FEAT-217 — pay-target intel feeds the suggest queue (best-effort;
+	# a missing listpays / no history is a no-op).
+	cmd_paytarget_intel >/dev/null 2>&1 || true
 
 	# 4. Write state.
 	{
@@ -505,6 +514,78 @@ cmd_autopilot_status() {
 		echo "---"
 		echo "latest suggestions: $last"
 	fi
+}
+
+# FEAT-217 — pay-target intelligence.  Aggregates the destinations our
+# users actually pay (over the last N days) and writes the top targets
+# we have NO direct channel to as autopilot open-suggestions.  A direct
+# channel to a frequently-paid destination skips hops, saving routing
+# fees + improving reliability.  Aggregate-only (no per-account / per-
+# payment detail leaks into the autopilot logs).
+cmd_paytarget_intel() {
+	local days=30 top=10 dry=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--days)    days="$2"; shift 2 ;;
+			--top)     top="$2"; shift 2 ;;
+			--dry-run) dry=1; shift ;;
+			*) error "channel paytarget-intel: unknown flag '$1'"; exit 1 ;;
+		esac
+	done
+	case "$days" in ''|*[!0-9]*) error "channel paytarget-intel: --days must be a positive integer"; exit 1 ;; esac
+	case "$top" in  ''|*[!0-9]*) error "channel paytarget-intel: --top must be a positive integer"; exit 1 ;; esac
+	command -v jq >/dev/null || { error "channel paytarget-intel: jq not installed"; exit 127; }
+
+	local cutoff; cutoff=$(( $(date -u +%s) - days * 86400 ))
+
+	# Peers we already have a direct channel with (any state).
+	local connected
+	connected=$(cli listpeerchannels 2>/dev/null | jq -c '[.channels[]?.peer_id] | unique' 2>/dev/null)
+	[ -n "$connected" ] || connected="[]"
+
+	# Aggregate completed pays by destination, drop the ones we're
+	# already connected to, keep the top N by sat volume.  amount_msat
+	# normalises the legacy "Nmsat" string form.
+	local agg
+	agg=$(cli listpays 2>/dev/null | jq -c \
+		--argjson cutoff "$cutoff" --argjson top "$top" --argjson connected "$connected" '
+		[ .pays[]?
+		  | select(.status == "complete")
+		  | select((.created_at // 0) >= $cutoff)
+		  | { dest: .destination,
+		      msat: ( .amount_msat // 0
+		              | if type == "string" then (sub("msat$"; "") | tonumber) else . end ) } ]
+		| map(select(.dest != null))
+		| group_by(.dest)
+		| map({ dest: .[0].dest, count: length, msat: (map(.msat) | add) })
+		| map(select(.dest as $d | ($connected | index($d)) == null))
+		| sort_by(-.msat)
+		| .[0:$top]' 2>/dev/null) || agg=""
+	[ -n "$agg" ] || agg="[]"
+
+	local n; n=$(jq 'length' <<<"$agg" 2>/dev/null); n="${n:-0}"
+	if [ "$n" -eq 0 ]; then
+		echo "channel paytarget-intel: no pay-target suggestions (no qualifying payment history)"
+		return 0
+	fi
+
+	if [ "$dry" -eq 1 ]; then
+		echo "channel paytarget-intel (dry-run): top $n pay-target(s) over ${days}d"
+		jq -r '.[] | "  \(.dest)  \(.count) pays  \((.msat / 1000) | floor) sat"' <<<"$agg"
+		return 0
+	fi
+
+	mkdir -p "$AUTOPILOT_DIR"
+	local ts; ts=$(date -u +%Y%m%dT%H%M%SZ)
+	{
+		printf 'kind: pay-target-channels\n'
+		printf 'generated_at: %s\n' "$ts"
+		printf 'window_days: %s\n' "$days"
+		printf 'description: destinations your users pay most that you have no direct channel to; consider opening\n'
+		printf '%%\n'
+		jq -r '.[] | "node_id: \(.dest)\npay_count: \(.count)\npay_volume_sat: \((.msat / 1000) | floor)\n%"' <<<"$agg"
+	} > "$PAYTARGET_SUGGEST"
+	echo "wrote $PAYTARGET_SUGGEST ($n pay-target suggestion(s))"
 }
 
 subhelp() {
@@ -634,5 +715,6 @@ case "$SUB" in
 	pending)     cmd_pending "$@" ;;
 	scb)         cmd_scb "$@" ;;
 	autopilot)   cmd_autopilot "$@" ;;
+	paytarget-intel) cmd_paytarget_intel "$@" ;;
 	*) usage; exit 1 ;;
 esac
