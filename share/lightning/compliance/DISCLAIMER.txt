@@ -1,0 +1,5 @@
+These compliance tools were implemented with AI assistance.  They
+provide *technical capabilities*, not legal advice and not a guarantee
+of regulatory compliance.  Whether they satisfy any obligation in your
+jurisdiction is your responsibility -- consult a qualified local lawyer
+before operating a custodial service.

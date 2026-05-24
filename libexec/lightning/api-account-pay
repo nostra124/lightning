@@ -35,6 +35,20 @@ name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$ad
 now=$(date -u +%s)
 sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
 
+# FEAT-233 — compliance hook dispatch.  Fast no-op unless the operator
+# has opted in via a compliance.recfile; a pre-hook may deny (fail
+# closed).  Cheap file check short-circuits before any verb spawn.
+cc_self=$(cd "$(dirname "$0")" && pwd)
+compliance_hook() {
+	[ -s "$WALLETS_ROOT/$wname/compliance.recfile" ] || return 0
+	local out rc
+	out=$("$cc_self/compliance" hook "$1" "$2" "$3" 2>/dev/null); rc=$?
+	[ "$rc" -eq 0 ] || { [ -n "$out" ] && echo "$out"; }
+	return "$rc"
+}
+cc_ctx="{\"account\":\"$name\",\"op\":\"pay\"}"
+compliance_hook pre pay "$cc_ctx" || exit 6
+
 # Only BOLT-11 path is wired in PR-2 (it's the common case for the
 # external-caller use case).  BOLT-12 / LNURL / keysend live behind
 # the existing CLI verbs and will be projected into the same JSON
@@ -172,6 +186,9 @@ if [ "$operator_fee_msat" -gt 0 ]; then
 fi
 sql+=" COMMIT;"
 sqlite3 "$db" "$sql" 2>/dev/null || true
+
+# FEAT-233 — post-hook: observe + record (never blocks).
+compliance_hook post pay "$cc_ctx" || true
 
 jq -nc \
 	--arg hash "$payment_hash" \

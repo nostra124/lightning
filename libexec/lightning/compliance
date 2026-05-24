@@ -1,0 +1,248 @@
+#!/bin/bash
+# lightning compliance — toggleable, jurisdiction-agnostic compliance
+# framework (FEAT-233).
+#
+#   THESE TOOLS PROVIDE TECHNICAL CAPABILITIES, NOT LEGAL ADVICE.
+#   See share/lightning/compliance/DISCLAIMER.txt — consult a qualified
+#   local lawyer before operating a custodial service.
+#
+# The framework is OFF until the operator opts in by writing a
+# compliance.recfile (via `compliance preset <name>` or by hand).  It
+# only earns its keep on a hosted, custodial, system-mode deployment;
+# a personal / own-funds node leaves every module off.
+#
+# Subcommands:
+#   status                       which modules are on (+ disclaimer)
+#   preset <name>                write a jurisdiction bundle of toggles
+#   hook <when> <op> [<ctx>]     dispatch the compliance hooks for a
+#                                value-moving / lifecycle point.
+#                                <when> = pre | post | lifecycle.
+#                                A pre-hook may DENY (exit 6 + JSON
+#                                error); post/lifecycle observe + record.
+#
+# Modules (logic ships per sub-ticket FEAT-234..242; this framework
+# lands them all as no-ops + a self-test module):
+#   kyc screening monitoring travel_rule retention reporting
+#   data_subject_rights proof_of_reserves disclosures test
+
+set -e
+
+command -v sqlite3 >/dev/null || { echo "lightning: sqlite3 not installed" >&2; exit 127; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+SHARE_DIR="${LIGHTNING_SHARE_DIR:-$(cd "$(dirname "$0")/../../share/lightning" 2>/dev/null && pwd)}"
+DISCLAIMER_FILE="$SHARE_DIR/compliance/DISCLAIMER.txt"
+
+ALL_MODULES="kyc screening monitoring travel_rule retention reporting data_subject_rights proof_of_reserves disclosures"
+
+active_wallet_name() { local n="default"; [ -f "$ACTIVE_LINK" ] && n=$(cat "$ACTIVE_LINK"); echo "$n"; }
+compliance_recfile() { echo "$WALLETS_ROOT/$(active_wallet_name)/compliance.recfile"; }
+
+active_db() {
+	local db; db="$WALLETS_ROOT/$(active_wallet_name)/state.db"
+	[ -f "$db" ] || { echo "lightning compliance: no active wallet (try \`lightning wallet new\`)" >&2; exit 2; }
+	# Idempotent — the audit log exists even on a wallet that predates
+	# the framework (mirrors the price verb's lazy table create).
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS compliance_events ( \
+		id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, hook TEXT NOT NULL, \
+		op TEXT NOT NULL, module TEXT NOT NULL DEFAULT '-', decision TEXT NOT NULL, \
+		account TEXT, detail TEXT);" 2>/dev/null || true
+	echo "$db"
+}
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+print_disclaimer() {
+	if [ -f "$DISCLAIMER_FILE" ]; then
+		cat "$DISCLAIMER_FILE"
+	else
+		echo "These compliance tools provide technical capabilities, not legal advice." \
+		     "Consult a qualified local lawyer before operating a custodial service."
+	fi
+}
+
+# Read a module's `enabled` value (on/off) from the recfile; empty if
+# the module record is absent.
+module_enabled() {
+	local mod="$1" f; f=$(compliance_recfile)
+	[ -f "$f" ] || return 0
+	awk -v m="$mod" '
+		BEGIN { RS=""; FS="\n" }
+		{
+			in_mod=0; en=""
+			for (i=1; i<=NF; i++) {
+				if ($i == "module: " m) in_mod=1
+				if ($i ~ /^enabled: */) { en=$i; sub(/^enabled: */, "", en) }
+			}
+			if (in_mod) { print en; exit }
+		}' "$f"
+}
+
+# Read an arbitrary field from a module's record.
+module_field() {
+	local mod="$1" key="$2" f; f=$(compliance_recfile)
+	[ -f "$f" ] || return 0
+	awk -v m="$mod" -v k="$key" '
+		BEGIN { RS=""; FS="\n" }
+		{
+			in_mod=0; v=""
+			for (i=1; i<=NF; i++) {
+				if ($i == "module: " m) in_mod=1
+				if ($i ~ "^"k": *") { v=$i; sub("^"k": *", "", v) }
+			}
+			if (in_mod) { print v; exit }
+		}' "$f"
+}
+
+any_module_on() {
+	local f; f=$(compliance_recfile)
+	[ -f "$f" ] || return 1
+	local m
+	for m in $ALL_MODULES test; do
+		[ "$(module_enabled "$m")" = "on" ] && return 0
+	done
+	return 1
+}
+
+record_event() {
+	# hook op module decision account detail
+	local db; db=$(active_db)
+	sqlite3 "$db" "INSERT INTO compliance_events(ts, hook, op, module, decision, account, detail) \
+		VALUES($(date -u +%s), $(sql_quote "$1"), $(sql_quote "$2"), $(sql_quote "$3"), \
+		       $(sql_quote "$4"), $([ -n "$5" ] && sql_quote "$5" || echo NULL), \
+		       $([ -n "$6" ] && sql_quote "$6" || echo NULL));" 2>/dev/null || true
+}
+
+cmd_status() {
+	local f; f=$(compliance_recfile)
+	if [ ! -f "$f" ]; then
+		echo "compliance: framework OFF (no compliance.recfile)"
+		echo "  non-custodial / personal nodes need nothing here."
+		echo "  enable with: lightning compliance preset <jurisdiction>"
+	else
+		echo "compliance: framework configured ($f)"
+		local m en
+		for m in $ALL_MODULES test; do
+			en=$(module_enabled "$m"); [ -n "$en" ] || en="off"
+			printf "  %-22s %s\n" "$m" "$en"
+		done
+	fi
+	echo ""
+	echo "--- DISCLAIMER ---------------------------------------------------"
+	print_disclaimer
+}
+
+# Preset bundles.  No jurisdiction LOGIC — just which capabilities each
+# regime tends to want (illustrative; the operator confirms with a
+# lawyer).  Unknown preset -> error.
+preset_modules() {
+	case "$1" in
+		off|minimal)   echo "" ;;
+		de-private)    echo "retention data_subject_rights" ;;
+		de-custodial)  echo "kyc screening monitoring travel_rule reporting retention data_subject_rights" ;;
+		us-msb)        echo "kyc screening monitoring travel_rule reporting retention proof_of_reserves" ;;
+		uk-fca)        echo "kyc screening monitoring travel_rule disclosures retention" ;;
+		fr-psan)       echo "kyc screening monitoring travel_rule data_subject_rights retention" ;;
+		ru)            echo "kyc screening monitoring reporting retention" ;;
+		br-bcb)        echo "kyc monitoring reporting data_subject_rights retention" ;;
+		za-fic)        echo "kyc monitoring reporting data_subject_rights retention" ;;
+		*) return 1 ;;
+	esac
+}
+
+cmd_preset() {
+	local name="${1:-}"
+	[ -n "$name" ] || { echo "usage: lightning compliance preset <name>" >&2;
+		echo "  presets: off minimal de-private de-custodial us-msb uk-fca fr-psan ru br-bcb za-fic" >&2; exit 1; }
+	local on_set
+	on_set=$(preset_modules "$name") || { echo "lightning compliance: unknown preset '$name'" >&2; exit 1; }
+
+	local f; f=$(compliance_recfile)
+	mkdir -p "$(dirname "$f")"
+	{
+		echo "# Compliance configuration (FEAT-233) — preset: $name"
+		echo "# Generated $(date -u +%Y-%m-%dT%H:%M:%SZ).  Edit by hand to tune."
+		echo "#"
+		echo "# THESE TOOLS PROVIDE TECHNICAL CAPABILITIES, NOT LEGAL ADVICE."
+		echo "# Consult a qualified local lawyer before operating a custodial"
+		echo "# service.  See share/lightning/compliance/DISCLAIMER.txt."
+		echo ""
+		local m on
+		for m in $ALL_MODULES; do
+			on="off"
+			case " $on_set " in *" $m "*) on="on" ;; esac
+			echo "module: $m"
+			echo "enabled: $on"
+			case "$m" in
+				kyc)         echo "tier_anonymous_max_sat: 100000" ;;
+				screening)   echo "list: ofac,eu" ;;
+				travel_rule) echo "threshold_sat: 1500000" ;;
+				retention)   echo "years: 5" ;;
+			esac
+			echo ""
+		done
+	} > "$f"
+	echo "wrote $f (preset: $name)"
+	echo ""
+	echo "--- DISCLAIMER ---------------------------------------------------"
+	print_disclaimer
+}
+
+cmd_hook() {
+	local when="${1:-}" op="${2:-}" ctx="${3:-}"
+	case "$when" in pre|post|lifecycle) ;; *) echo "usage: lightning compliance hook <pre|post|lifecycle> <op> [<ctx>]" >&2; exit 1 ;; esac
+	[ -n "$op" ] || { echo "lightning compliance hook: <op> required" >&2; exit 1; }
+
+	local f; f=$(compliance_recfile)
+	# Fast path: no config => framework off => no-op (also guarded by
+	# the caller, but cheap to re-check here).
+	[ -f "$f" ] || return 0
+	any_module_on || return 0
+
+	# Extract a couple of common ctx fields for the audit row.
+	local acct=""
+	if [ -n "$ctx" ] && command -v jq >/dev/null 2>&1; then
+		acct=$(jq -r '.account // empty' <<<"$ctx" 2>/dev/null || true)
+	fi
+
+	# Built-in self-test module: lets an operator verify the hook wiring
+	# end-to-end before any real module ships.  It can deny a `pre`
+	# (block a tx) or a `lifecycle` (a retention-style veto on GC
+	# delete); `post` never blocks.  Real modules (FEAT-234..242) plug
+	# their own decision logic in here.
+	if [ "$when" != "post" ] \
+	   && [ "$(module_enabled test)" = "on" ] \
+	   && [ "$(module_field test decision)" = "deny" ]; then
+		record_event "$when" "$op" test deny "$acct" "self-test deny"
+		printf '{"error":"compliance_denied","module":"test","op":"%s"}\n' "$op"
+		return 6
+	fi
+
+	# Pre-allow is not recorded (keeps the audit log to actionable
+	# events); post + lifecycle observations are.
+	if [ "$when" != "pre" ]; then
+		record_event "$when" "$op" - observe "$acct" "${ctx:0:200}"
+	fi
+	return 0
+}
+
+case "${1:-}" in
+	status)  shift; cmd_status "$@" ;;
+	preset)  shift; cmd_preset "$@" ;;
+	hook)    shift; cmd_hook "$@" ;;
+	""|-h|--help)
+		cat >&2 <<EOF
+usage: lightning compliance <subcommand>
+
+   status              which compliance modules are enabled (+ disclaimer)
+   preset <name>       apply a jurisdiction bundle of module toggles
+                       (off minimal de-private de-custodial us-msb
+                        uk-fca fr-psan ru br-bcb za-fic)
+   hook <when> <op>    internal: dispatch pre/post/lifecycle hooks
+
+These tools provide technical capabilities, NOT legal advice.  Consult
+a qualified local lawyer before operating a custodial service.
+EOF
+		[ "${1:-}" = "" ] && exit 1 || exit 0 ;;
+	*) echo "lightning compliance: unknown subcommand '$1'" >&2; exit 1 ;;
+esac

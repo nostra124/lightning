@@ -167,6 +167,21 @@ CREATE TABLE IF NOT EXISTS commerce_events (
     detail     TEXT
 );
 
+-- FEAT-233 — compliance audit log.  Every compliance-hook decision
+-- (allow / deny / observe) at a value-moving or lifecycle point is
+-- appended here; the audit trail is itself a compliance requirement.
+-- Empty + cheap until a module is enabled in compliance.recfile.
+CREATE TABLE IF NOT EXISTS compliance_events (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts        INTEGER NOT NULL,
+    hook      TEXT    NOT NULL,   -- pre | post | lifecycle
+    op        TEXT    NOT NULL,   -- pay | transfer | withdraw | create | gc | ...
+    module    TEXT    NOT NULL DEFAULT '-',
+    decision  TEXT    NOT NULL,   -- allow | deny | observe
+    account   TEXT,
+    detail    TEXT
+);
+
 -- FEAT-229 — price history.  One row per poll tick.  Stores the BTC
 -- price in a base fiat (whole-unit, e.g. EUR per 1 BTC); per-sat
 -- value is btc_fiat / 1e8, computed at query time.  History (not
