@@ -1,0 +1,31 @@
+.TH "LIGHTNING-TOR" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-tor \- Tor / network privacy for clightning
+.SH SYNOPSIS
+.B lightning tor
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning tor — Tor / network privacy for clightning.
+
+Implements FEAT-189. Edits lightningd's config in-place to
+turn the v3 hidden-service flow on / off, restarts the
+daemon (FEAT-183), and verifies the resulting node address.
+
+Subcommands:
+  on       enable Tor (proxy + statictor) in lightningd.conf
+  off      disable
+  status   tor running locally? onion advertised? leak?
+.fi
+.SH USAGE
+.nf
+usage: lightning tor <subcommand>
+
+   on       enable Tor (proxy + v3 hidden service) and restart lightningd
+   off      disable Tor
+   status   tor running locally?  onion advertised?  clearnet leak?
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

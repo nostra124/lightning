@@ -1,0 +1,51 @@
+.TH "LIGHTNING-COMPLIANCE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-compliance \- toggleable, jurisdiction-agnostic compliance
+.SH SYNOPSIS
+.B lightning compliance
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning compliance — toggleable, jurisdiction-agnostic compliance
+framework (FEAT-233).
+
+  THESE TOOLS PROVIDE TECHNICAL CAPABILITIES, NOT LEGAL ADVICE.
+  See share/lightning/compliance/DISCLAIMER.txt — consult a qualified
+  local lawyer before operating a custodial service.
+
+The framework is OFF until the operator opts in by writing a
+compliance.recfile (via `compliance preset <name>` or by hand).  It
+only earns its keep on a hosted, custodial, system-mode deployment;
+a personal / own-funds node leaves every module off.
+
+Subcommands:
+  status                       which modules are on (+ disclaimer)
+  preset <name>                write a jurisdiction bundle of toggles
+  hook <when> <op> [<ctx>]     dispatch the compliance hooks for a
+                               value-moving / lifecycle point.
+                               <when> = pre | post | lifecycle.
+                               A pre-hook may DENY (exit 6 + JSON
+                               error); post/lifecycle observe + record.
+
+Modules (logic ships per sub-ticket FEAT-234..242; this framework
+lands them all as no-ops + a self-test module):
+  kyc screening monitoring travel_rule retention reporting
+  data_subject_rights proof_of_reserves disclosures test
+.fi
+.SH USAGE
+.nf
+usage: lightning compliance <subcommand>
+
+   status              which compliance modules are enabled (+ disclaimer)
+   preset <name>       apply a jurisdiction bundle of module toggles
+                       (off minimal de-private de-custodial us-msb
+                        uk-fca fr-psan ru br-bcb za-fic)
+   hook <when> <op>    internal: dispatch pre/post/lifecycle hooks
+
+These tools provide technical capabilities, NOT legal advice.  Consult
+a qualified local lawyer before operating a custodial service.
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

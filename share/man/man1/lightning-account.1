@@ -1,0 +1,73 @@
+.TH "LIGHTNING-ACCOUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-account \- virtual-account management
+.SH SYNOPSIS
+.B lightning account
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning account — virtual-account management.
+
+Implements FEAT-174 (account concept) + FEAT-195 (bank-mode
+overdraft + limits) + FEAT-211 (account-centric verb facade) +
+FEAT-212 PR-1 (bitcoin-address ID + API key + nickname store).
+
+Subcommands:
+  list                                       all accounts
+  create <name> [<description>]              now also mints a
+         [--limit <sat>] [--overdraft deny|warn|allow]   bc1q… ID + API key
+  delete <name>
+  show <handle>                              looks up by address,
+                                             nickname, or name
+  close <handle>                             FEAT-212 — revoke key,
+                                             mark closed
+  nickname add|list|remove                   FEAT-212 — operator-local
+                                             aliases for addresses
+.fi
+.SH USAGE
+.nf
+usage: lightning account <subcommand>
+
+   list [--balances]                             TSV of accounts
+   create <name> [<desc>] [--limit <sat>]
+                          [--overdraft deny|warn|allow]
+                          [--host <domain>]      auto-create user@<domain>
+                                                 also mints a bc1q... ID
+                                                 + lt_... API key (FEAT-212)
+   delete <name>
+   show <handle>                                 balance + recent ledger
+                                                 (handle: address, nickname,
+                                                 or legacy name)
+   close <handle>                                revoke API key + mark closed
+   nickname add <bc1q...> <name>                 operator-local alias
+   nickname list                                 TSV of aliases
+   nickname remove <name>
+   apikey create <name> --scope read|write       issue an API key
+   apikey list <name>                            which scopes exist
+   apikey revoke <name> --scope read|write
+   topup-watcher run|dry-run|status              credit new on-chain
+                                                 deposits to known
+                                                 account-addresses
+   gc run|dry-run|status                         close stale + delete
+                                                 long-closed accounts
+   invite-code create <handle> [--code <s>]      mint a referral code
+   invite-code list [<handle>]                   TSV: code, account, uses
+   invite-code revoke <code>
+   topup <name> <sat> [--via lightning]          QR for on-chain top-up
+   withdraw <name> <sat> <onchain-addr>          submarine swap out
+   pay <name> <bolt11|bolt12|lnurl|addr|node-id>
+                                                 dispatch by string shape
+        [--sat <sat>]                             (keysend needs amount)
+   receive <name> <sat> [--desc <text>]
+                          [--reusable]            BOLT-12 + QR; default BOLT-11
+   transfer <from> <to> <sat> [--note <text>]    intra-node move between
+                                                 two local accounts
+   standing-order create <handle> <target> <sat> <daily|weekly|monthly>
+                          list [<handle>] | pause|resume|cancel <id>
+                          run | dry-run         scheduled recurring push
+                                                 payment (Dauerauftrag)
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

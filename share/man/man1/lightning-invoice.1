@@ -1,0 +1,39 @@
+.TH "LIGHTNING-INVOICE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-invoice \- BOLT-11 invoices (create + pay)
+.SH SYNOPSIS
+.B lightning invoice
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning invoice — BOLT-11 invoices (create + pay).
+
+Implements: BOLT-11 per FEAT-173.
+  share/doc/lightning/standards/bolts/11-payment-encoding.md
+
+Subcommands:
+  create <sat> <label> [--description <text>] [--expiry <sec>]
+                                             [--qr] [--account <name>]
+  pay <bolt11> [--max-fee-sat N] [--timeout S]
+               [--account <name>] [--note <text>]
+.fi
+.SH USAGE
+.nf
+usage: lightning invoice <subcommand> [args]
+
+   BOLT-11 invoices — single-use, addressed payment requests.
+   Mint one to receive a payment; pay one to send. Each invoice
+   has a unique payment_hash and amount. See
+   share/doc/lightning/standards/bolts/11-payment-encoding.md
+   for the encoding spec. Each sub-command also accepts --help.
+
+subcommands:
+   create <sat> <label> [--description <text>] [--expiry <sec>]
+                        [--qr] [--account <name>]
+   pay <bolt11> [--max-fee-sat N] [--timeout S]
+                [--account <name>] [--note <text>]
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

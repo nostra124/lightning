@@ -1,0 +1,30 @@
+.TH "LIGHTNING-ADDRESS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-address \- Lightning Address (LUD-16) management
+.SH SYNOPSIS
+.B lightning address
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning address — Lightning Address (LUD-16) management.
+
+Implements FEAT-176. Apache is the single supported host:
+`address create` detects apache2, drops the Python CGI
+handler under .well-known/lnurlp/, and registers the
+<user>->account binding in the SQLite users table.
+.fi
+.SH USAGE
+.nf
+usage: lightning address <subcommand>
+
+   resolve <addr>                          fetch LUD-06 metadata
+   pay <addr> <sat> [--comment <text>]     send a LUD-06 payment
+   create <user@domain> [--account <n>]    publish your own address
+   list                                    your published addresses
+   remove <user@domain>
+   apache-snippet                          emit a drop-in vhost snippet
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

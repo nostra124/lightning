@@ -1,0 +1,22 @@
+.TH "LIGHTNING-RESTORE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-restore \- companion to backup; recovers from a remote
+.SH SYNOPSIS
+.B lightning restore
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning restore — companion to backup; recovers from a remote.
+
+Implements FEAT-187 §restore.
+
+Usage:
+  lightning restore <wallet-remote-url> [<wallet-name>]
+
+Clones the wallet repo, prompts for the seed (FEAT-185
+`seed import`), unlocks the daemon, runs the latest SCB.
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

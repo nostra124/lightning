@@ -1,0 +1,39 @@
+.TH "LIGHTNING-PRICE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-price \- sat/fiat price oracle (FEAT-229)
+.SH SYNOPSIS
+.B lightning price
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning price — sat/fiat price oracle (FEAT-229).
+
+Fetches the BTC price in a base fiat from an operator-configured
+feed and STORES it (history, not just the latest tick) so any
+ledger entry can be valued at the price for its timestamp — the
+basis for the FEAT-230 tax-data export + PWA fiat display.
+
+Subcommands:
+  poll [--base <CUR>]            fetch the latest tick + store it
+  now  [--base <CUR>]            latest stored tick (JSON)
+  at   <unix-ts> [--base <CUR>]  nearest stored tick to <ts> (JSON)
+  value <sat> [--base <CUR>] [--at <ts>]
+                                 value <sat> in the base fiat,
+                                 using the now/at tick
+
+Config: $wallet/price.recfile (base, source, url, price_jq).
+Driven by `daemon install --price-oracle` (a poll timer).
+.fi
+.SH USAGE
+.nf
+usage: lightning price <subcommand>
+
+   poll [--base <CUR>]                       fetch + store the latest tick
+   now  [--base <CUR>]                       latest stored tick (JSON)
+   at   <unix-ts> [--base <CUR>]             nearest stored tick (JSON)
+   value <sat> [--base <CUR>] [--at <ts>]    value <sat> in base fiat
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

@@ -1,0 +1,35 @@
+.TH "LIGHTNING-QR" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-qr \- render a string as a QR code
+.SH SYNOPSIS
+.B lightning qr
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning qr — render a string as a QR code.
+
+Implements FEAT-192. Default output is a terminal-friendly
+QR (utf-8 half-block via qrencode -t UTF8); --png / --svg
+write to a file.
+
+Usage:
+  lightning qr <text>            # ANSI to stdout
+  lightning qr <text> --png FILE
+  lightning qr <text> --svg FILE
+  echo <text> | lightning qr -   # read from stdin
+
+Most BOLT-11 / BOLT-12 / LNURL strings carry a `lightning:`
+URI prefix when scanned (BIP-21 §amend); we honour caller-
+supplied prefixes and don't auto-add one.
+.fi
+.SH USAGE
+.nf
+usage: lightning qr <text>           ANSI QR to stdout
+       lightning qr <text> --png F   write PNG to F
+       lightning qr <text> --svg F   write SVG to F
+       lightning qr -                read text from stdin
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

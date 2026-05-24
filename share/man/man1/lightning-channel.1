@@ -1,0 +1,60 @@
+.TH "LIGHTNING-CHANNEL" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel \- channel management
+.SH SYNOPSIS
+.B lightning channel
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning channel — channel management.
+
+Implements: BOLT-2 (peer protocol) + BOLT-5 (on-chain close) per
+FEAT-172, plus Static Channel Backup (SCB) per FEAT-185.
+  share/doc/lightning/standards/bolts/02-peer-protocol.md
+  share/doc/lightning/standards/bolts/05-onchain.md
+
+Subcommands:
+  list                                — TSV of channels
+  open  <node-uri> <sats> [--push <sats>]
+                                       — fund a new channel
+  close <channel-id>                   — cooperative close
+  force-close <channel-id> --confirm   — unilateral; loud warning
+  balance [<channel-id>]               — local / remote msat
+  info <channel-id>
+  pending                              — opening / closing
+  scb emit [--out <file>]              — static channel backup
+  scb restore <file>                   — restore from SCB
+.fi
+.SH USAGE
+.nf
+usage: lightning channel <subcommand> [args]
+
+   Manage Lightning channels — the peer-to-peer payment funnels
+   that move sats between nodes. Implements BOLT-2 (peer protocol)
+   and BOLT-5 (on-chain close), plus Static Channel Backup for
+   disaster recovery. Each sub-command also accepts --help.
+
+subcommands:
+   list                                 TSV of all channels
+   open <node-uri> <sats> [--push <sats>]
+                                        open a channel
+   close <channel-id>                   cooperative close
+   force-close <channel-id> --confirm   unilateral close (costly!)
+   balance [<channel-id>]               local / remote msat
+   info <channel-id>
+   pending                              opening / closing channels
+   scb emit [--out <file>]              static channel backup
+   scb restore <file>                   restore from SCB
+   autopilot run|status|suggest         combined fee + rebalance +
+                                        suggest daemon (FEAT-205);
+                                        opt-in sidecar via
+                                        'daemon install --autopilot'
+   paytarget-intel [--days N] [--top N] [--dry-run]
+                                        suggest channels to the
+                                        destinations users pay most
+                                        (FEAT-217); fed by the autopilot
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

@@ -1,0 +1,46 @@
+.TH "LIGHTNING-PLUGIN" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-plugin \- manage clightning plugins (FEAT-197)
+.SH SYNOPSIS
+.B lightning plugin
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning plugin — manage clightning plugins (FEAT-197).
+
+Wraps the `reckless` plugin manager that ships with CLN where
+helpful; falls back to direct filesystem inspection where reckless
+is missing or overkill.
+
+Subcommands:
+  list                       installed plugins (files in plugins/)
+  install <name> [<source>]  install via reckless, optionally
+                             registering a fresh source repo first
+  remove <name>              uninstall via reckless, or rm fallback
+  search <query>             search source repos (reckless required)
+  enable <name>              dynamically activate
+  disable <name>             dynamically deactivate
+.fi
+.SH USAGE
+.nf
+usage: lightning plugin <subcommand> [args]
+
+   Manage clightning plugins. Wraps \e`reckless\e` (the plugin
+   manager shipped with CLN) where it helps, and falls back to
+   filesystem inspection where it doesn't. Each sub-command
+   also accepts --help.
+
+subcommands:
+   list                          installed plugins (\e$LIGHTNING_DIR/plugins/)
+   install <name> [<source>]     install via reckless; optional source
+                                 is a GitHub owner/repo or a full URL
+                                 to register before installing
+   remove <name>                 uninstall (reckless, or rm fallback)
+   search <query>                search reckless source repos
+   enable <name>                 activate a plugin without re-installing
+   disable <name>                deactivate without removing
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

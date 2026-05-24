@@ -1,0 +1,42 @@
+.TH "LIGHTNING-WALLET-USER" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-user \- the wallet-user layer above accounts (FEAT-222)
+.SH SYNOPSIS
+.B lightning wallet-user
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning wallet-user — the wallet-user layer above accounts (FEAT-222).
+
+A wallet-user is the human identity (passkey-authed in the PWA)
+that owns one or more accounts.  This verb is the CLI / operator
+bootstrap surface; the HTTP + passkey endpoints land in later
+FEAT-222 PRs.  Note: stored in `wallet_users`, NOT the FEAT-176
+`users` table (Lightning-Address localparts — a different concept).
+
+Subcommands:
+  create [--label <text>] [--referrer <user-id>]
+        Mint a new wallet-user.  Bootstrap path — no invite needed
+        (the operator's first user comes from here; HTTP
+        registration is invite-gated, this is not).
+  list
+        TSV of users + owned-account counts.
+  show <id>
+        Profile + the accounts this user owns.
+  delete <id>
+        Remove the user.  Owned accounts are orphaned
+        (accounts.owner_user → NULL via the FK), not deleted.
+.fi
+.SH USAGE
+.nf
+usage: lightning wallet-user <subcommand>
+
+   create [--label <text>] [--referrer <user-id>]   mint a wallet-user
+   list                                              TSV: id, label, accounts
+   show <id>                                         profile + owned accounts
+   delete <id>                                       remove (orphans accounts)
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

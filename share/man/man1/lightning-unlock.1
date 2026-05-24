@@ -1,0 +1,24 @@
+.TH "LIGHTNING-UNLOCK" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-unlock \- clightning HSM unlock + secret-store integration
+.SH SYNOPSIS
+.B lightning unlock
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning unlock — clightning HSM unlock + secret-store integration.
+
+Implements FEAT-184. Subcommands:
+  (default)    interactive: prompt password, unlock daemon, store in secret
+  --stored     non-interactive: pull from secret, unlock
+  rotate       change password (daemon + secret store atomic)
+  forget       drop the stored secret
+
+Storage:
+  secret get lightning.<wallet>.unlock
+  <wallet> defaults to 'default'; override with --wallet <name>
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

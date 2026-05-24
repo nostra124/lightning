@@ -1,0 +1,52 @@
+.TH "LIGHTNING-PEER" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peer \- Lightning network peering
+.SH SYNOPSIS
+.B lightning peer
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning peer — Lightning network peering.
+
+Peers in clightning are persistent TCP connections to other nodes.
+Channels are owned by `lightning channel`; this object covers the
+bare peering layer (connect, disconnect, list, bootstrap). Bare
+peering is the prerequisite for gossip graph sync, BOLT-12
+fetchinvoice, and LSPS1 / LSP channel-open requests.
+.fi
+.SH USAGE
+.nf
+usage: lightning peer <subcommand> [args]
+
+   Manage Lightning network peering — persistent TCP connections
+   to other nodes. Peers don't imply channels; they're the
+   prerequisite for gossip sync, BOLT-12 fetchinvoice, and any
+   LSP / LSPS1 inbound-liquidity request.
+
+subcommands:
+   list                       connected peers (TSV); --raw keeps the
+                              BOLT-9 feature hex instead of decoding
+   connect <node-uri>         open a bare TCP connection
+                              (pubkey@host:port)
+   disconnect <node-id>       tear down the connection
+   bootstrap [-n N]           connect to N well-known nodes AND
+                              persist them as important-peer= in
+                              \e$LIGHTNING_DIR/config (lightningd will
+                              auto-reconnect on next start)
+   reconnect [-n N]           alias for bootstrap — convenient name
+                              after a network outage / laptop sleep
+   keepalive [--threshold N]  top up peer count when below threshold;
+             [--target N]     designed for cron / launchd / systemd
+                              timer invocation. \e$LIGHTNING_NO_BOOTSTRAP
+                              skips both bootstrap and keepalive.
+   score <node-id>            pre-channel-open intelligence from
+        [--source mempool|1ml|amboss|auto]
+        [--json] [--no-cache]
+                              public Lightning network analytics;
+                              recfile output. 1h cache under
+                              \e$LIGHTNING_DIR/score-cache/.
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

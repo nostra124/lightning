@@ -7188,3 +7188,58 @@ _cc_test_module() {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/schema.sql"
 	grep -q "CREATE TABLE IF NOT EXISTS compliance_events" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-221: per-verb man-page tree.
+# ---------------------------------------------------------------------------
+
+@test "FEAT-221: every dispatchable verb has a man page naming it" {
+	local libexec="$BATS_TEST_DIRNAME/../../libexec/lightning"
+	local man="$BATS_TEST_DIRNAME/../../share/man/man1"
+	local missing=""
+	local v page
+	for path in "$libexec"/*; do
+		v=$(basename "$path")
+		# Skip internal helpers (_*) and the api-* HTTP-bridge verbs
+		# (documented via the FEAT-209 inline docs, not man pages).
+		case "$v" in _*|api-*) continue ;; esac
+		page="$man/lightning-$v.1"
+		if [ ! -f "$page" ]; then
+			missing="$missing $v(no-page)"
+			continue
+		fi
+		# The verb name must appear in the .SH NAME stanza.
+		awk '/^\.SH NAME/{f=1; next} /^\.SH /{f=0} f' "$page" | grep -q "lightning-$v" \
+			|| missing="$missing $v(no-name)"
+	done
+	[ -z "$missing" ] || { echo "missing/bad man pages:$missing"; false; }
+}
+
+@test "FEAT-221: lightning-account.1 covers the account subcommands" {
+	local page="$BATS_TEST_DIRNAME/../../share/man/man1/lightning-account.1"
+	[ -f "$page" ]
+	local s
+	for s in create show close nickname topup withdraw pay receive apikey topup-watcher gc; do
+		grep -q "$s" "$page" || { echo "account man page missing: $s"; false; }
+	done
+}
+
+@test "FEAT-221: every per-verb page has NAME + SYNOPSIS + DESCRIPTION + balanced nf/fi" {
+	local man="$BATS_TEST_DIRNAME/../../share/man/man1"
+	local f bad=""
+	for f in "$man"/lightning-*.1; do
+		grep -q '^\.TH ' "$f"        || bad="$bad $(basename "$f"):TH"
+		grep -q '^\.SH NAME'      "$f" || bad="$bad $(basename "$f"):NAME"
+		grep -q '^\.SH SYNOPSIS'  "$f" || bad="$bad $(basename "$f"):SYN"
+		grep -q '^\.SH DESCRIPTION' "$f" || bad="$bad $(basename "$f"):DESC"
+		[ "$(grep -c '^\.nf$' "$f")" = "$(grep -c '^\.fi$' "$f")" ] || bad="$bad $(basename "$f"):nf"
+	done
+	[ -z "$bad" ] || { echo "bad pages:$bad"; false; }
+}
+
+@test "FEAT-221: lightning.1 overview cross-references the per-verb pages" {
+	local f="$BATS_TEST_DIRNAME/../../share/man/man1/lightning.1"
+	grep -q "lightning-account (1)" "$f"
+	grep -q "lightning-channel (1)" "$f"
+	grep -q "lightning-compliance (1)" "$f"
+}

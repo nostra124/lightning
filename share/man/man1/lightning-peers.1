@@ -1,0 +1,17 @@
+.TH "LIGHTNING-PEERS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peers \- TSV list of connected peers
+.SH SYNOPSIS
+.B lightning peers
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning peers — TSV list of connected peers.
+
+Implements: clightning listpeers reshape per FEAT-171.
+Output columns: pubkey<TAB>connected<TAB>features<TAB>addr
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

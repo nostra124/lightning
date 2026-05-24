@@ -1,0 +1,28 @@
+.TH "LIGHTNING-FORWARD" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-forward \- forwarded-HTLC introspection (FEAT-188)
+.SH SYNOPSIS
+.B lightning forward
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning forward — forwarded-HTLC introspection (FEAT-188).
+
+Wraps clightning's `listforwards`. Routing nodes use this
+to see what went through them and what they earned.
+
+Subcommands:
+  list [--since <date>] [--status settled|failed|local_failed|offered]
+  stats                                  totals: msats / fees / success rate
+.fi
+.SH USAGE
+.nf
+usage: lightning forward <subcommand>
+
+   list [--since <date>] [--status settled|failed|local_failed|offered]
+   stats                              totals: msat / fees / success rate
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

@@ -1,0 +1,41 @@
+.TH "LIGHTNING-EXPORT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-export \- tax-relevant transaction DATA export (FEAT-230)
+.SH SYNOPSIS
+.B lightning export
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning export — tax-relevant transaction DATA export (FEAT-230).
+
+This produces SOURCE DATA for tax preparation — NOT a tax report, not
+a declaration, and not tax advice.  Every movement is valued in a base
+fiat at the FEAT-229 price for its timestamp; disposals are FIFO
+lot-matched against acquisitions so the filer (or their advisor) can
+compute gains.  German private-sale (§23 EStG) is the reference for
+WHICH fields to include; simpler regimes use a subset.
+
+Subcommand:
+  tax-data <account|--operator> --year YYYY [--base EUR] [--format csv|json]
+
+    account     a user account (handle: name or bech32 address) — walks
+                its ledger, classifies in=acquisition / out=disposal,
+                FIFO-matches, emits per-disposal rows + an annual summary.
+    --operator  the house account's fee-revenue rows valued at receipt
+                (the operator's business-income inputs).
+
+Missing price for a timestamp is surfaced as an explicit gap marker —
+never silently valued at 0.
+.fi
+.SH USAGE
+.nf
+usage: lightning export tax-data <account|--operator> --year YYYY [--base EUR] [--format csv|json]
+
+   Source data for tax preparation (NOT a report / not advice).
+   Disposals are FIFO-matched against acquisitions and fiat-valued at
+   the price for each timestamp; missing prices show as gaps.
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.
