@@ -1,0 +1,36 @@
+#!/bin/bash
+
+function die() { echo "$@"; exit 100; }
+
+PACKAGE=$(rpk identity)
+VERSION=$1
+
+test -z "$VERSION" && VERSION=$(rpk versions | tail -1)
+
+COMMIT=$(rpk commit "$PACKAGE" "$VERSION")
+test -z "$COMMIT" && die "version $VERSION has no commit hash"
+
+TARGET=${2:-$(rpk bundle "$(rpk type)")/$PACKAGE-$VERSION}
+
+BRANCH=$(git branch --show-current)
+trap 'git checkout "$BRANCH" --force' EXIT
+
+git config advice.detachedHead false
+git checkout "$COMMIT" || die "failed to checkout $COMMIT"
+
+mkdir -p "$TARGET/bin" \
+         "$TARGET/libexec/$PACKAGE" \
+         "$TARGET/etc/bash_completion.d" \
+         "$TARGET/share/man/man1" \
+         "$TARGET/share/doc/$PACKAGE" \
+         "$TARGET/share/$PACKAGE"
+
+cp -a bin/* "$TARGET/bin/"
+[ -d "libexec/$PACKAGE" ] && cp -a "libexec/$PACKAGE/"* "$TARGET/libexec/$PACKAGE/"
+[ -d etc/bash_completion.d ] && cp -a etc/bash_completion.d/* "$TARGET/etc/bash_completion.d/"
+[ -d share/man/man1 ] && cp -a share/man/man1/* "$TARGET/share/man/man1/"
+[ -d "share/doc/$PACKAGE" ] && cp -a "share/doc/$PACKAGE/"* "$TARGET/share/doc/$PACKAGE/"
+[ -d "share/$PACKAGE" ] && cp -a "share/$PACKAGE/"* "$TARGET/share/$PACKAGE/"
+[ -f .rpk/version ] && install -m 644 .rpk/version "$TARGET/share/$PACKAGE/version"
+
+git checkout "$BRANCH" --force

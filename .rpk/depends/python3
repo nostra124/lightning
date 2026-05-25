@@ -1,0 +1,42 @@
+#!/bin/bash
+
+has_binary() {
+	command -v "$1" >/dev/null 2>&1 && return 0
+	[ -x "/opt/homebrew/bin/$1" ] && return 0
+	[ -x "/usr/local/bin/$1" ] && return 0
+	[ -x "/opt/local/bin/$1" ] && return 0
+	return 1
+}
+
+BIN="python3"
+has_binary "$BIN" && exit 0
+
+case "$(rpk platform)" in
+	alpine)
+		rpk action sudo apk add python3
+		;;
+	debian|ubuntu|pureos|linuxmint)
+		rpk action sudo apt-get --yes install python3
+		;;
+	fedora|rhel|centos|rocky|almalinux)
+		rpk action sudo dnf install -y python3
+		;;
+	arch|manjaro|endeavouros)
+		rpk action sudo pacman -S --noconfirm python
+		;;
+	opensuse|opensuse-leap|opensuse-tumbleweed|sles)
+		rpk action sudo zypper install -y python3
+		;;
+	freebsd)
+		rpk action sudo pkg install -y python3
+		;;
+	macos-ports)
+		rpk action sudo /opt/local/bin/port install python3 >/dev/null
+		;;
+	macos-brew)
+		rpk action /opt/homebrew/bin/brew install python@3 >/dev/null
+		;;
+	*)
+		rpk fatal "no packager for platform '$(rpk platform)' — install $BIN manually"
+		;;
+esac
