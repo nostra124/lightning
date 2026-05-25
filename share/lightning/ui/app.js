@@ -17,6 +17,17 @@ async function loadConfig() {
   } catch (_) { /* defaults are fine */ }
 }
 
+// FEAT-220 — honour ?invite=<code> from the moment the PWA loads: stash
+// it for the create flow, then drop it from the address bar so it
+// doesn't linger across navigation.
+function consumeInviteParam() {
+  const code = new URLSearchParams(location.search).get("invite");
+  if (code) {
+    sessionStorage.setItem("lightning.invite", code);
+    history.replaceState(null, "", location.pathname + location.hash);
+  }
+}
+
 // --- account store (localStorage) ----------------------------------------
 
 function accounts() {
@@ -105,7 +116,12 @@ async function screenCreate() {
     document.getElementById("go").disabled = true;
     try {
       const label = document.getElementById("label").value.trim();
-      const res = await api("/accounts", { method: "POST", body: label ? { hint: label } : {} });
+      const body = {};
+      if (label) body.hint = label;
+      const invite = sessionStorage.getItem("lightning.invite");
+      if (invite) body.invite_code = invite;
+      const res = await api("/accounts", { method: "POST", body });
+      sessionStorage.removeItem("lightning.invite");
       const acct = { id: res.account_id, label: label || "account", key: res.api_key };
       upsertAccount(acct);
       screenBackup(acct, res);
@@ -223,16 +239,71 @@ function screenRecv(id) {
   };
 }
 
+// FEAT-220 — invite a friend + my referrals.
+async function screenReferrals(id) {
+  const acct = getAccount(id);
+  if (!acct) return go("picker");
+  h(`<h2>Invite &amp; referrals</h2>
+     <h3>Invite a friend</h3>
+     <div id="invite" class="card"><p class="muted">Loading…</p></div>
+     <h3>My referrals</h3>
+     <div id="refs" class="card"><p class="muted">Loading…</p></div>
+     <a href="#settings/${esc(id)}">Back</a>`);
+
+  try {
+    const r = await api(`/accounts/${id}/invite-codes`, { key: acct.key });
+    const code = (r.invite_codes && r.invite_codes[0] && r.invite_codes[0].code) || "";
+    const base = location.origin + location.pathname.replace(/index\.html$/, "");
+    const link = base + "?invite=" + encodeURIComponent(code);
+    const box = document.getElementById("invite");
+    if (!code) { box.innerHTML = '<p class="muted">No invite code available.</p>'; }
+    else {
+      box.innerHTML = `<p>Your code: <strong>${esc(code)}</strong></p>
+        <p class="muted">Share this link — anyone who creates an account from
+           it is referred to you, and you earn a slice of their fees.</p>
+        <pre class="key">${esc(link)}</pre>
+        <button id="copy">Copy link</button>
+        <button id="share" hidden>Share…</button>`;
+      document.getElementById("copy").onclick = async () => {
+        try { await navigator.clipboard.writeText(link); toast("Copied"); }
+        catch (_) { toast("Copy failed — select + copy manually", "error"); }
+      };
+      const sh = document.getElementById("share");
+      if (navigator.share) {
+        sh.hidden = false;
+        sh.onclick = () => navigator.share({ url: link, title: "Join me on Lightning" }).catch(() => {});
+      }
+    }
+  } catch (e) {
+    document.getElementById("invite").innerHTML = `<p class="error">${esc(e.message)}</p>`;
+  }
+
+  try {
+    const r = await api(`/accounts/${id}/referrals`, { key: acct.key });
+    const list = r.referrals || [];
+    document.getElementById("refs").innerHTML = list.length
+      ? `<ul class="cards">${list.map(x => `<li>
+          <code>${esc(String(x.account_id || "").slice(0, 8))}…</code>
+          <span class="muted">joined ${esc(new Date((x.joined_at || 0) * 1000).toISOString().slice(0, 10))}
+          · ${esc((x.accrued_credits_sat ?? 0).toLocaleString())} sat</span></li>`).join("")}</ul>`
+      : '<p class="muted">No referrals yet — share your link above.</p>';
+  } catch (e) {
+    document.getElementById("refs").innerHTML = `<p class="error">${esc(e.message)}</p>`;
+  }
+}
+
 function screenSettings(id) {
   const acct = getAccount(id);
   if (!acct) return go("picker");
   h(`<h2>Settings — ${esc(acct.label)}</h2>
+     <button id="referrals">Invite &amp; referrals</button>
      <button id="showkey">Show API key (for LLM agents / CLI)</button>
      <pre id="key" class="key" hidden>${esc(acct.key)}</pre>
      <button id="remove" class="danger">Remove from this device</button>
      <p class="muted">Removing only forgets the account locally; the account
         and its funds stay on the node. Re-add it with its API key.</p>
      <a href="#account/${esc(id)}">Back</a>`);
+  document.getElementById("referrals").onclick = () => go("referrals/" + id);
   document.getElementById("showkey").onclick = () =>
     document.getElementById("key").hidden = !document.getElementById("key").hidden;
   document.getElementById("remove").onclick = () => {
@@ -253,6 +324,7 @@ function route() {
     case "send": return screenSend(arg);
     case "recv": return screenRecv(arg);
     case "settings": return screenSettings(arg);
+    case "referrals": return screenReferrals(arg);
     default: return screenPicker();
   }
 }
@@ -261,6 +333,7 @@ window.addEventListener("hashchange", route);
 
 (async function main() {
   await loadConfig();
+  consumeInviteParam();
   document.getElementById("apibase").textContent = "API: " + CONFIG.api_base;
   route();
 })();

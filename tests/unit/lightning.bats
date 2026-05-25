@@ -7344,3 +7344,73 @@ _cc_test_module() {
 	[ -f "$f" ]
 	! grep -qi "<script" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-220: referral UX in the PWA (invite-codes endpoint + PWA wiring).
+# ---------------------------------------------------------------------------
+
+_acct220_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create bob >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_ADDR=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='bob';")
+}
+
+_acct220_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-220: invite-codes lazy-mints a code on first call" {
+	_acct220_setup
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM invite_codes WHERE account='bob';")" = "0" ]
+	run "$LIGHTNING_BIN" api-account-invite-codes "$BATS_ADDR"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.invite_codes | length == 1' >/dev/null
+	# Persisted.
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM invite_codes WHERE account='bob';")" = "1" ]
+	_acct220_teardown
+}
+
+@test "FEAT-220: invite-codes is idempotent (no new mint on repeat)" {
+	_acct220_setup
+	"$LIGHTNING_BIN" api-account-invite-codes "$BATS_ADDR" >/dev/null
+	"$LIGHTNING_BIN" api-account-invite-codes "$BATS_ADDR" >/dev/null
+	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM invite_codes WHERE account='bob';")" = "1" ]
+	_acct220_teardown
+}
+
+@test "FEAT-220: invite-codes lists an operator-minted code too" {
+	_acct220_setup
+	"$LIGHTNING_BIN" account invite-code create bob --code vanity1 >/dev/null
+	run "$LIGHTNING_BIN" api-account-invite-codes "$BATS_ADDR"
+	[[ "$output" == *"vanity1"* ]]
+	_acct220_teardown
+}
+
+@test "FEAT-220: invite-codes rejects an unknown account" {
+	_acct220_setup
+	run "$LIGHTNING_BIN" api-account-invite-codes "bcrt1qzzz00000000000000000000000000000000000000"
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown account"* ]]
+	_acct220_teardown
+}
+
+@test "FEAT-220: sudoers fragment lists api-account-invite-codes" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+	grep -q "api-account-invite-codes" "$f"
+}
+
+@test "FEAT-220: PWA consumes ?invite, sends invite_code, and has a referrals screen" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "consumeInviteParam" "$f"
+	grep -q 'URLSearchParams' "$f"
+	grep -q 'sessionStorage' "$f"
+	grep -q 'body.invite_code' "$f"
+	grep -q 'screenReferrals' "$f"
+	grep -q '/invite-codes' "$f"
+	# The invite param is dropped from the address bar after consumption.
+	grep -q 'history.replaceState' "$f"
+}
