@@ -160,8 +160,6 @@ EOF
 	[[ "$output" == *"backup"* ]]
 	[[ "$output" == *"address"* ]]
 	[[ "$output" == *"liquidity"* ]]
-	[[ "$output" == *"apikey"* ]]
-	[[ "$output" == *"statement"* ]]
 	[[ "$output" == *"tor"* ]]
 }
 
@@ -1774,15 +1772,17 @@ EOF
 	[[ "$output" == *"NOT IMPLEMENTED"* ]]
 }
 
-@test "1.1.1: help tags each verb group with the milestone it shipped in" {
+@test "1.1.1: help lists commands alphabetically with one-line descriptions" {
 	run "$LIGHTNING_BIN" help
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"(0.2.0)"* ]]
-	[[ "$output" == *"(0.3.0"* ]]
-	[[ "$output" == *"(0.4.0"* ]]
-	[[ "$output" == *"(0.5.0"* ]]
-	[[ "$output" == *"(0.6.0)"* ]]
-	[[ "$output" == *"(1.1.0)"* ]]
+	[[ "$output" == *"commands:"* ]]
+	[[ "$output" == *"help <command>"* ]]
+	[[ "$output" == *"wallet-user"* ]]
+	[[ "$output" == *"account"* ]]
+	[[ "$output" == *"channel"* ]]
+	# No subcommand details in top-level help
+	[[ "$output" != *"channel open"* ]]
+	[[ "$output" != *"account create"* ]]
 }
 
 @test "1.1.1: CI workflow explicitly installs sqlite3 + jq + python3" {

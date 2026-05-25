@@ -126,145 +126,72 @@ command:help() {
 usage: $SELF <options> <command> [<args>]
 
    options:
-   -d                      debug mode — bash xtrace + everything -v shows
-   -v                      verbose mode — show debug lines, override -q for warn/info
-   -q                      quiet mode — suppress info and warn (errors still print)
-   -f                      force mode — overwrite / bypass safety checks
+   -d    debug mode — bash xtrace + everything -v shows
+   -v    verbose mode — show debug lines, override -q for warn/info
+   -q    quiet mode — suppress info and warn (errors still print)
+   -f    force mode — overwrite / bypass safety checks
 
    $SELF is the educational Lightning Network frontend on
    clightning (Core Lightning). Each command is an object —
    run \`$SELF <command>\` for its sub-commands, or
-   \`$SELF help <command>\` for a richer description. The four
-   design principles (educational, functional, decentralized,
-   simple) apply: each verb is a thin wrapper over
-   lightning-cli that cites the BOLT it implements.
+   \`$SELF help <command>\` for details. The four design
+   principles (educational, functional, decentralized, simple)
+   apply: each verb is a thin wrapper over lightning-cli that
+   cites the BOLT it implements.
 
    Vendored standards (BOLT 1..12, LNURL LUDs, Lightning
    Address) live under share/doc/lightning/standards/.
 
-generic:
-   help [<command>]        print this help (or help for <command>)
-   version                 print the version of $SELF
+commands:
+   account       Virtual-account management
+   address       Lightning Address (LUD-16) management
+   alert         Threshold-driven webhooks
+   backup        Wallet backup (SCB + git push)
+   balance       On-chain + LN balance
+   channel       Channel management (BOLT-2)
+   channels      TSV list of channels
+   compliance    Jurisdiction-agnostic compliance
+   daemon        lightningd lifecycle (start, stop, logs, install)
+   decode        Detect + decode Lightning strings
+   export        Tax-relevant data export
+   fee           Per-channel fee policy
+   fee-policy    Operator-fee revenue + rates
+   forward       Forwarded-HTLC introspection
+   help          Print this help (or help for <command>)
+   history       Alias for \`ledger list\`
+   info          Node info summary
+   invoice       BOLT-11 invoices
+   ledger        TSV-default ledger view
+   liquidity     Channel-liquidity management
+   lnurl         LNURL flows (LUD-01, 06, 12)
+   node-id       Print this node's pubkey
+   offer         BOLT-12 offers
+   offer-pay     Fetch + pay a BOLT-12 offer
+   pay           Pay a BOLT-11 invoice
+   peer          Network peering (list, connect, bootstrap)
+   peers         TSV list of connected peers
+   plugin        Manage clightning plugins
+   price         sat/fiat price oracle
+   qr            Render QR codes
+   rebalance     Circular self-payment rebalancing
+   restore       Recover wallet from a remote URL
+   scb           Static Channel Backup (emit + restore)
+   seed          hsm_secret export / import / verify
+   send          Keysend payment (BOLT-4 TLV)
+   tor           Tor / network privacy
+   tower         Watchtower client + server
+   unlock        HSM unlock + secret-store integration
+   version       Print the $SELF version
+   wallet        Multi-account git-backed wallet store
+   wallet-user   User layer above accounts (FEAT-222)
 
-objects:
-   wallet                  your Lightning identity (info, balance, seed,
-                           unlock, push/pull, backup/restore)
-   peer                    network peering (list, connect, bootstrap)
-   account                 logical accounts and api keys
-   wallet-user             user identities that own accounts (FEAT-222)
-   channel                 Lightning channels (open, close, balance, scb)
-   fee                     per-channel fees (get, set, policy)
-   fee-policy              operator-fee revenue + rates (FEAT-213/214)
-   price                   sat/fiat price oracle (poll, now, at, value)
-   alert                   threshold-driven webhooks (create, list, run)
-   daemon                  lightningd lifecycle (start, stop, logs, install)
-   plugin                  CLN plugins via reckless (list, install, remove)
-   invoice                 BOLT-11 invoices (create, pay)
-   offer                   BOLT-12 offers (create, pay)
-   address                 Lightning Addresses (resolve, pay, create)
-   lnurl                   LNURL (decode, pay; LSPS1)
-   liquidity               inbound / outbound (totals, loop, boltz, lsp)
-   ledger                  derived ledger (list, sum, balance, export)
-
-clightning node (0.2.0):
-   info                     summary of \`lightning-cli getinfo\`
-   node-id                  this node's pubkey
-   peers                    connected peers (TSV)
-   channels                 channels (TSV)
-   balance                  on-chain + LN balance (recfile)
-
-channels (0.3.0 — BOLT-2 / BOLT-5):
-   channel list             TSV of all channels
-   channel open <uri> <sats> open a channel
-   channel close <id>       cooperative close
-   channel force-close <id> --confirm   unilateral close
-   channel balance [<id>]   local / remote msat
-   channel info <id>
-   channel pending          opening / closing channels
-
-payments (0.3.0 — BOLT-11 / BOLT-12 / LNURL):
-   invoice <sat> <label>    mint a BOLT-11; --qr renders one
-   pay <bolt11>             pay a BOLT-11 invoice
-   send <node-id> <sat>     keysend (BOLT-4 TLV)
-   offer <sat>|any <desc>   create a BOLT-12 offer
-   offer-pay <bolt12>       fetch + pay a BOLT-12 offer
-   lnurl decode <lnurl>
-   lnurl pay <addr> <sat>   LNURL-pay (LUD-06 + LUD-12)
-   decode <string>          detect + decode any of the above
-
-qr codes (0.3.0):
-   qr <text>                ANSI / PNG / SVG; honours \`--png\` / \`--svg\`
-
-wallet & accounts (0.4.0 — git-backed SQLite store):
-   wallet new <name>        initialise a wallet repo
-   wallet use <name>        set active wallet
-   wallet list              list wallets
-   wallet push/pull/sync    git round-trip + state.db rebuild
-   account list             accounts in the active wallet
-   account create <name>    --limit <sat> --overdraft <policy>
-   account show <name>      balance + recent ledger
-   ledger list              TSV rows from the ledger
-   ledger sum --by month    aggregate
-   ledger annotate <hash> <note>
-   history                  alias for \`ledger list\`
-
-seed & backups (0.4.0):
-   seed export              print mnemonic (read once)
-   seed import              initialise hsm_secret from mnemonic
-   scb emit                 write a Static Channel Backup
-   scb restore <file>       force-close recovery
-   backup [--seed]          SCB + state.sql + git push
-   restore <url> [<name>]   clone wallet + seed import + scb restore
-
-ecosystem (0.5.0 — addresses, liquidity, bank mode):
-   address create <addr>    register a LUD-16 endpoint
-                            (Apache + Python CGI)
-   address pay <addr> <sat> [--comment <text>]
-   address resolve <addr>
-   address list / remove
-   liquidity status         per-channel inbound/outbound (TSV)
-   liquidity in <sat>       LSPS1 channel purchase (default)
-   liquidity out <sat>      Loop / Boltz outbound
-   account create <n> --host <domain>
-                            auto-issues <n>@<domain>
-   account apikey create <n> --scope read|write
-                            issue a key for the well-known API
-   ledger statement --account <n> --period <YYYY-MM|YYYY-Q1..Q4|YYYY>
-
-daemon control (0.2.0):
-   daemon start             start lightningd
-   daemon stop              graceful shutdown
-   daemon restart           stop + start
-   daemon status            health check
-   daemon logs              tail the daemon log
-   daemon install [--system] generate a systemd unit
-
-wallet unlock (0.2.0):
-   unlock                   release the HSM (interactive)
-   unlock --stored          non-interactive (from \`secret\`)
-   unlock rotate            change password
-   unlock forget            drop the stored secret
-
-tor (0.6.0):
-   tor on                   enable v3 hidden service
-   tor off                  disable
-   tor status               tor running? onion advertised? leak?
-
-routing node (1.1.0):
-   tower client-add <pk@host:port>   register a watchtower
-   tower client-list / -stats        sessions / backups
-   tower server-on / -off / -status  run a watchtower
-   fee get [<channel-id>]            base + ppm per channel
-   fee set <channel-id> <base> <ppm>
-   fee policy <name>                 flat | lsp-style | match-peer
-   forward list [--since D] [--status S]
-   forward stats                     totals + success rate
+Run \`$SELF help <command>\` or \`$SELF <command> --help\` for details.
 
 environment:
-   LIGHTNING_DIR           path to lightningd's data dir
-                           (default: \$HOME/.lightning)
-   LIGHTNING_NETWORK       bitcoin / testnet / regtest / signet
-                           (default: bitcoin)
+   LIGHTNING_DIR         path to lightningd's data dir
+                         (default: \$HOME/.lightning)
+   LIGHTNING_NETWORK     bitcoin / testnet / regtest / signet
+                         (default: bitcoin)
 ENDHELP
 }
 
