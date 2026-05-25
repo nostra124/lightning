@@ -123,75 +123,69 @@ command:help() {
 	fi
 
 	cat >&2 <<ENDHELP
-usage: $SELF <options> <command> [<args>]
+$SELF version $(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.3.0')
 
-   options:
-   -d    debug mode — bash xtrace + everything -v shows
-   -v    verbose mode — show debug lines, override -q for warn/info
-   -q    quiet mode — suppress info and warn (errors still print)
-   -f    force mode — overwrite / bypass safety checks
+A Lightning Network command-line interface for clightning (Core Lightning).
 
-   $SELF is the educational Lightning Network frontend on
-   clightning (Core Lightning). Each command is an object —
-   run \`$SELF <command>\` for its sub-commands, or
-   \`$SELF help <command>\` for details. The four design
-   principles (educational, functional, decentralized, simple)
-   apply: each verb is a thin wrapper over lightning-cli that
-   cites the BOLT it implements.
+Usage:
+  $SELF [options] <command> [args]
+  $SELF help <command>
 
-   Vendored standards (BOLT 1..12, LNURL LUDs, Lightning
-   Address) live under share/doc/lightning/standards/.
+Options:
+  -d                Debug mode (bash xtrace + verbose)
+  -v                Verbose mode
+  -q                Quiet mode (warnings suppressed)
+  -f                Force mode (bypass safety checks)
 
-commands:
-   account       Virtual-account management
-   address       Lightning Address (LUD-16) management
-   alert         Threshold-driven webhooks
-   backup        Wallet backup (SCB + git push)
-   balance       On-chain + LN balance
-   channel       Channel management (BOLT-2)
-   channels      TSV list of channels
-   compliance    Jurisdiction-agnostic compliance
-   daemon        lightningd lifecycle (start, stop, logs, install)
-   decode        Detect + decode Lightning strings
-   export        Tax-relevant data export
-   fee           Per-channel fee policy
-   fee-policy    Operator-fee revenue + rates
-   forward       Forwarded-HTLC introspection
-   help          Print this help (or help for <command>)
-   history       Alias for \`ledger list\`
-   info          Node info summary
-   invoice       BOLT-11 invoices
-   ledger        TSV-default ledger view
-   liquidity     Channel-liquidity management
-   lnurl         LNURL flows (LUD-01, 06, 12)
-   node-id       Print this node's pubkey
-   offer         BOLT-12 offers
-   offer-pay     Fetch + pay a BOLT-12 offer
-   pay           Pay a BOLT-11 invoice
-   peer          Network peering (list, connect, bootstrap)
-   peers         TSV list of connected peers
-   plugin        Manage clightning plugins
-   price         sat/fiat price oracle
-   qr            Render QR codes
-   rebalance     Circular self-payment rebalancing
-   restore       Recover wallet from a remote URL
-   scb           Static Channel Backup (emit + restore)
-   seed          hsm_secret export / import / verify
-   send          Keysend payment (BOLT-4 TLV)
-   tor           Tor / network privacy
-   tower         Watchtower client + server
-   unlock        HSM unlock + secret-store integration
-   version       Print the $SELF version
-   wallet        Multi-account git-backed wallet store
-   wallet-user   User layer above accounts (FEAT-222)
+Commands:
+  account           Manage virtual accounts
+  address           Manage Lightning Addresses (LUD-16)
+  alert             Configure threshold webhooks
+  backup            Backup wallet (SCB + git push)
+  balance           Show on-chain + Lightning balance
+  channel           Manage channels (open, close, balance)
+  channels          List channels (TSV)
+  compliance        Export compliance data
+  daemon            Start/stop lightningd
+  decode            Decode Lightning strings
+  export            Export tax-relevant data
+  fee               Get/set channel fees
+  fee-policy        Manage operator fee rates
+  forward           Inspect forwarded HTLCs
+  help              Show this help
+  history           Show transaction history
+  info              Show node info
+  invoice           Create BOLT-11 invoices
+  ledger            View the transaction ledger
+  liquidity         Manage channel liquidity
+  lnurl             Handle LNURL flows
+  node-id           Show node public key
+  offer             Create BOLT-12 offers
+  offer-pay         Pay a BOLT-12 offer
+  pay               Pay a BOLT-11 invoice
+  peer              Manage peers
+  peers             List peers (TSV)
+  plugin            Manage clightning plugins
+  price             Query sat/fiat price oracle
+  qr                Generate QR codes
+  rebalance         Rebalance channels
+  restore           Restore wallet from backup
+  scb               Manage static channel backups
+  seed              Export/import hsm_secret
+  send              Send keysend payments
+  tor               Configure Tor
+  tower             Manage watchtowers
+  unlock            Unlock the HSM
+  wallet            Manage wallet store
+  wallet-user       Manage user identities
 
-Run \`$SELF help <command>\` or \`$SELF <command> --help\` for details.
+Environment:
+  LIGHTNING_DIR       Lightning data directory (default: \$HOME/.lightning)
+  LIGHTNING_NETWORK   Network: bitcoin, testnet, regtest, signet
 
-environment:
-   LIGHTNING_DIR         path to lightningd's data dir
-                         (default: \$HOME/.lightning)
-   LIGHTNING_NETWORK     bitcoin / testnet / regtest / signet
-                         (default: bitcoin)
+See also:
+  share/doc/lightning/standards/  BOLT specs and LNURL LUDs
+  \$ $SELF <command> --help         Command-specific help
 ENDHELP
 }
 

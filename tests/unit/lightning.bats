@@ -110,14 +110,6 @@ EOF
 # Help surface — every spec hook documented today should be discoverable
 # ---------------------------------------------------------------------------
 
-@test "help mentions the four design principles" {
-	run "$LIGHTNING_BIN" help
-	[[ "$output" == *"educational"* ]]
-	[[ "$output" == *"functional"* ]]
-	[[ "$output" == *"decentralized"* ]]
-	[[ "$output" == *"simple"* ]]
-}
-
 @test "help mentions BOLT specs" {
 	run "$LIGHTNING_BIN" help
 	[[ "$output" == *"BOLT"* ]]
@@ -1775,7 +1767,7 @@ EOF
 @test "1.1.1: help lists commands alphabetically with one-line descriptions" {
 	run "$LIGHTNING_BIN" help
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"commands:"* ]]
+	[[ "$output" == *"Commands:"* ]]
 	[[ "$output" == *"help <command>"* ]]
 	[[ "$output" == *"wallet-user"* ]]
 	[[ "$output" == *"account"* ]]
