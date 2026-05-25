@@ -1,0 +1,18 @@
+{
+  "name": "Lightning Wallet",
+  "short_name": "Lightning",
+  "description": "A thin, self-custodial-by-default Lightning wallet client.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#14161a",
+  "theme_color": "#f7931a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

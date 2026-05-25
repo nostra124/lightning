@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lightning Wallet — Help &amp; API docs</title>
+  <style>
+    body { font: 16px/1.6 system-ui, sans-serif; max-width: 46rem; margin: 2rem auto;
+           padding: 0 1rem; color: #1d2026; background: #fafafa; }
+    h1, h2, h3 { line-height: 1.25; }
+    h2 { margin-top: 2rem; border-bottom: 1px solid #ddd; padding-bottom: .25rem; }
+    code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    pre { background: #f0f0f2; padding: .75rem; border-radius: .5rem; overflow-x: auto; }
+    code { background: #f0f0f2; padding: .1rem .3rem; border-radius: .25rem; }
+    a { color: #c46a10; }
+    .muted { color: #666; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <p><a href="../">&larr; Back to the wallet</a> &middot;
+     <a href="llms.txt">llms.txt</a> (single-file map for LLM agents)</p>
+  <h1>⚡ Lightning Wallet — Help &amp; API docs</h1>
+  <p class="muted">Covers the PWA, the REST API, and the MCP surface. CLI
+     and node operation are documented in the man pages
+     (<code>man lightning</code>) and <code>share/doc/lightning/</code>.</p>
+
+  <h2>Using the wallet</h2>
+  <ol>
+    <li>Open the wallet URL and tap <strong>Create my first account</strong>.
+        The node returns an <code>account_id</code> and a one-time
+        <code>api_key</code>.</li>
+    <li><strong>Save the API key</strong> — it is shown once and is your
+        backup credential.</li>
+    <li><strong>Top up</strong> shows your on-chain address; the node
+        credits deposits within ~1 minute.</li>
+    <li><strong>Send</strong> pays a pasted BOLT-11; <strong>Receive</strong>
+        mints one to share.</li>
+  </ol>
+  <p>Credentials: the <code>lt_…</code> API key is the bearer (also used by
+     LLM agents / CLI). Passkey login is a follow-up backend.</p>
+
+  <h2>REST API</h2>
+  <p>Base path <code>/.well-known/lightning/v1</code>. Authenticated
+     endpoints take <code>Authorization: Bearer &lt;api_key&gt;</code>.
+     Business-rule failures return <code>402</code>, auth <code>401</code>,
+     bad input <code>400</code>.</p>
+  <pre>POST   /accounts                      create (anonymous)
+GET    /accounts/&lt;id&gt;/balance         { balance_sat, limit_sat, overdraft }
+GET    /accounts/&lt;id&gt;/topup[?sat=N]   { address, uri }  (BIP-21)
+POST   /accounts/&lt;id&gt;/withdraw        { sat, address }
+POST   /accounts/&lt;id&gt;/pay             { target, sat? }
+POST   /accounts/&lt;id&gt;/recv            { sat, description }  -&gt; { bolt11 }
+POST   /accounts/&lt;id&gt;/recv-reusable   BOLT-12 offer (sat may be "any")
+POST   /accounts/&lt;id&gt;/transfer        { to, sat, note }   intra-node
+GET    /accounts/&lt;id&gt;/referrals
+POST   /accounts/&lt;id&gt;/close
+POST   /accounts/&lt;id&gt;/invoice         commercial invoice + terms (FEAT-225)
+.../standing-orders                  recurring push payment   (FEAT-226)
+.../mandates                         direct debit             (FEAT-227)
+.../charges                          charge lifecycle         (FEAT-228)
+GET    /accounts/&lt;id&gt;/export/tax-data?year=YYYY&amp;format=csv|json (FEAT-230)
+GET    /price?base=EUR               public sat/fiat tick     (FEAT-229)</pre>
+  <p>Example:</p>
+  <pre>curl -X POST https://HOST/.well-known/lightning/v1/accounts -d '{"hint":"pocket"}'
+curl https://HOST/.well-known/lightning/v1/accounts/&lt;id&gt;/balance \
+  -H "Authorization: Bearer lt_…"</pre>
+
+  <h2>MCP (for LLM agents)</h2>
+  <p>Endpoint <code>POST /.well-known/lightning/v1/mcp</code>; descriptor
+     <code>GET /.well-known/lightning/mcp.json</code>; bearer-authed with an
+     account API key. JSON-RPC 2.0:</p>
+  <pre>{ "jsonrpc":"2.0","id":1,"method":"tools/call",
+  "params":{"name":"balance","arguments":{"account_id":"bc1…"}} }</pre>
+  <p><code>tools/list</code> enumerates the tools (balance, topup, pay,
+     recv, transfer, …), mirroring the REST endpoints. To brief an agent,
+     hand it the base URL, an API key, and <a href="llms.txt">llms.txt</a>.</p>
+</body>
+</html>

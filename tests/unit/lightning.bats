@@ -7235,3 +7235,105 @@ _cc_test_module() {
 	grep -q "lightning-channel (1)" "$f"
 	grep -q "lightning-compliance (1)" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-209: wallet PWA + `lightning ui` installer.
+# ---------------------------------------------------------------------------
+
+@test "FEAT-209: ui install copies the PWA + docs into a docroot" {
+	local dr="$BATS_TMPDIR/docroot.$$"
+	rm -rf "$dr"
+	run "$LIGHTNING_BIN" ui install "$dr" --no-vhost
+	[ "$status" -eq 0 ]
+	[ -f "$dr/index.html" ]
+	[ -f "$dr/app.js" ]
+	[ -f "$dr/style.css" ]
+	[ -f "$dr/manifest.webmanifest" ]
+	[ -f "$dr/config.json" ]
+	[ -f "$dr/docs/index.html" ]
+	[ -f "$dr/docs/llms.txt" ]
+	rm -rf "$dr"
+}
+
+@test "FEAT-209: ui install writes a hardened Apache vhost fragment" {
+	local dr="$BATS_TMPDIR/docroot.$$"
+	local frag="$BATS_TEST_DIRNAME/../../share/lightning/apache/ui.conf"
+	rm -rf "$dr" "$frag"
+	run "$LIGHTNING_BIN" ui install "$dr"
+	[ "$status" -eq 0 ]
+	[ -f "$frag" ]
+	grep -q "Alias /lightning $dr" "$frag"
+	grep -q -- "-ExecCGI" "$frag"
+	grep -q -- "-Indexes" "$frag"
+	rm -rf "$dr" "$frag"
+}
+
+@test "FEAT-209: ui --no-vhost skips the fragment" {
+	local dr="$BATS_TMPDIR/docroot.$$"
+	local frag="$BATS_TEST_DIRNAME/../../share/lightning/apache/ui.conf"
+	rm -rf "$dr" "$frag"
+	"$LIGHTNING_BIN" ui install "$dr" --no-vhost >/dev/null
+	[ ! -f "$frag" ]
+	rm -rf "$dr"
+}
+
+@test "FEAT-209: ui upgrade preserves an operator-edited config.json" {
+	local dr="$BATS_TMPDIR/docroot.$$"
+	rm -rf "$dr"
+	"$LIGHTNING_BIN" ui install "$dr" --no-vhost >/dev/null
+	echo '{"api_base":"/custom","name":"Mine"}' > "$dr/config.json"
+	run "$LIGHTNING_BIN" ui upgrade "$dr"
+	[ "$status" -eq 0 ]
+	grep -q '/custom' "$dr/config.json"
+	# Other files were refreshed.
+	[ -f "$dr/app.js" ]
+	rm -rf "$dr"
+}
+
+@test "FEAT-209: ui uninstall removes our docroot but refuses a foreign one" {
+	local dr="$BATS_TMPDIR/docroot.$$"
+	rm -rf "$dr"
+	"$LIGHTNING_BIN" ui install "$dr" --no-vhost >/dev/null
+	run "$LIGHTNING_BIN" ui uninstall "$dr"
+	[ "$status" -eq 0 ]
+	[ ! -d "$dr" ]
+	# A directory we didn't populate is refused.
+	local foreign="$BATS_TMPDIR/foreign.$$"
+	mkdir -p "$foreign"; echo x > "$foreign/random.txt"
+	run "$LIGHTNING_BIN" ui uninstall "$foreign"
+	[ "$status" -ne 0 ]
+	[ -d "$foreign" ]
+	rm -rf "$foreign"
+}
+
+@test "FEAT-209: ui (no args) prints usage" {
+	run "$LIGHTNING_BIN" ui
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"install"* ]]
+	[[ "$output" == *"uninstall"* ]]
+}
+
+@test "FEAT-209: PWA config.json + manifest are valid JSON; app.js is hardwired same-origin" {
+	local ui="$BATS_TEST_DIRNAME/../../share/lightning/ui"
+	jq -e . "$ui/config.json" >/dev/null
+	jq -e . "$ui/manifest.webmanifest" >/dev/null
+	# Default API base is the real FEAT-212 versioned path.
+	[ "$(jq -r '.api_base' "$ui/config.json")" = "/.well-known/lightning/v1" ]
+	# No absolute cross-origin URLs baked into the client.
+	! grep -qE 'https?://' "$ui/app.js"
+}
+
+@test "FEAT-209: llms.txt covers the PWA, REST, and MCP surfaces" {
+	local f="$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+	[ -f "$f" ]
+	grep -q "REST API" "$f"
+	grep -q "/accounts" "$f"
+	grep -qi "MCP" "$f"
+	grep -q "/.well-known/lightning/v1/mcp" "$f"
+}
+
+@test "FEAT-209: inline docs index.html is plain HTML (no script)" {
+	local f="$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/index.html"
+	[ -f "$f" ]
+	! grep -qi "<script" "$f"
+}

@@ -1,0 +1,47 @@
+.TH "LIGHTNING-UI" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-ui \- install/uninstall/upgrade the wallet PWA (FEAT-209)
+.SH SYNOPSIS
+.B lightning ui
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning ui — install/uninstall/upgrade the wallet PWA (FEAT-209).
+
+The PWA is a thin, static, same-origin client for the FEAT-212
+account HTTP API: open the URL, create an account, see your top-up
+address, pay BOLT-11s, mint receive invoices.  All the heavy lifting
+(crediting on-chain deposits, GC, rebalancing) is the node's cron
+sidecars; the PWA just talks to /.well-known/lightning/v1.
+
+Subcommands:
+  install [<docroot>] [--apache-vhost <name>] [--no-vhost]
+      Copy share/lightning/ui/ -> docroot (default
+      /var/www/html/lightning) and write an Apache vhost fragment
+      (share/lightning/apache/ui.conf) the operator Includes from
+      their main <VirtualHost>.  Defence-in-depth: -ExecCGI -Indexes.
+  uninstall [<docroot>]
+      Remove the docroot tree + the vhost fragment.
+  upgrade [<docroot>]
+      Reinstall the static files, preserving an operator-edited
+      config.json.
+.fi
+.SH USAGE
+.nf
+usage: lightning ui <subcommand>
+
+   install [<docroot>] [--apache-vhost <name>] [--no-vhost]
+                        copy the PWA to <docroot> (default
+                        $DEFAULT_DOCROOT) + write an Apache vhost
+                        fragment.  Same-origin; no backend switch.
+   uninstall [<docroot>]
+                        remove the docroot tree + vhost fragment
+   upgrade [<docroot>]  reinstall static files, keep config.json
+
+The PWA is a thin client for the FEAT-212 account API under
+/.well-known/lightning/v1.  Inline docs ship under <docroot>/docs/.
+.fi
+.SH "SEE ALSO"
+.BR lightning (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.
