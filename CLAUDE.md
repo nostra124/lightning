@@ -100,7 +100,30 @@ FEAT-190 (obsolete).
 
 ## 7. Build / install
 
-`./configure && make install`. Stow-based.
+`./configure && make install`. Rpk-based install uses `.rpk/package`.
+
+The Makefile installs directly into `$PREFIX` (passed by `./configure`
+or set by rpk during packaging). Rpk handles stow-based versioning —
+the Makefile does NOT run stow itself.
+
+Key files:
+- `.rpk/type` — "user" or "system"
+- `.rpk/identity` — package name (optional, defaults to repo basename)
+- `.rpk/spec` — spec number (e.g., "1")
+- `.rpk/version` — current version string (e.g., `1.3.0`)
+- `.rpk/versions` — version ledger (commit SHAs)
+- `.rpk/package` — build script that runs `./configure && make install`
+- `.rpk/depends/*` — prerequisite scripts
+
+Install workflow:
+1. `rpk stage lightning` — creates worktree from bare repo
+2. `rpk package lightning 1.3.0` — builds bundle
+3. `rpk install lightning` — symlinks bundle into `~/.local/`
+
+Development workflow:
+1. Edit in dev clone (`~/Projekte/lightning/` or similar)
+2. Commit + `git push local master`
+3. `rpk update lightning` — pulls worktree, rebuilds, installs
 
 ## 8. Versioning
 
