@@ -1037,6 +1037,23 @@ _invite_code_create() {
 	}
 	local name="$RESOLVED_NAME"
 
+	# FEAT-222 PR-6 — invite whitelist.  When access.recfile lists a
+	# non-empty invite_whitelist, only those accounts may mint codes.
+	local access_file; access_file="$WALLETS_ROOT/$(active_wallet_name)/access.recfile"
+	if [ -f "$access_file" ]; then
+		local whitelist; whitelist=$(sed -n 's/^invite_whitelist:[[:space:]]*//p' "$access_file" | head -1)
+		if [ -n "$(printf '%s' "$whitelist" | tr -d '[:space:]')" ]; then
+			local ok=0 w
+			for w in $(printf '%s' "$whitelist" | tr ',' ' '); do
+				if [ "$w" = "$name" ] || [ "$w" = "$RESOLVED_ADDRESS" ]; then ok=1; break; fi
+			done
+			[ "$ok" = "1" ] || {
+				echo "lightning account invite-code: '$name' is not on the invite whitelist (access.recfile)" >&2
+				exit 4
+			}
+		fi
+	fi
+
 	if [ -z "$code" ]; then
 		code=$(_invite_code_mint)
 	else

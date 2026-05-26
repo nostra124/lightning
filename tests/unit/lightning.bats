@@ -7479,3 +7479,100 @@ _acct231_teardown() {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
 	grep -qi "point of sale" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-222 PR-6: access control — require_referral + invite whitelist.
+# ---------------------------------------------------------------------------
+
+_acct222pr6_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create sponsor >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_ACCESS="$LIGHTNING_WALLETS_ROOT/alice/access.recfile"
+}
+
+_acct222pr6_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-222 PR-6: wallet new seeds access.recfile (open by default)" {
+	_acct222pr6_setup
+	[ -f "$BATS_ACCESS" ]
+	grep -q "^require_referral: off" "$BATS_ACCESS"
+	grep -q "^invite_whitelist:" "$BATS_ACCESS"
+	_acct222pr6_teardown
+}
+
+@test "FEAT-222 PR-6: default (open) — anonymous create succeeds" {
+	_acct222pr6_setup
+	REMOTE_ADDR=10.1.0.1 run "$LIGHTNING_BIN" api-accounts-create
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"account_id":"bcrt1q'* ]]
+	_acct222pr6_teardown
+}
+
+@test "FEAT-222 PR-6: require_referral on — create without an invite is refused" {
+	_acct222pr6_setup
+	sed -i 's/^require_referral: off/require_referral: on/' "$BATS_ACCESS"
+	REMOTE_ADDR=10.1.0.2 run "$LIGHTNING_BIN" api-accounts-create
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"invite_required"* ]]
+	_acct222pr6_teardown
+}
+
+@test "FEAT-222 PR-6: require_referral on — a valid invite lets create through + stamps referrer" {
+	_acct222pr6_setup
+	local code
+	code=$("$LIGHTNING_BIN" account invite-code create sponsor | awk '/^code:/{print $2}')
+	sed -i 's/^require_referral: off/require_referral: on/' "$BATS_ACCESS"
+	REMOTE_ADDR=10.1.0.3 run "$LIGHTNING_BIN" api-accounts-create --invite-code "$code"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"referrer":"sponsor"'* ]]
+	_acct222pr6_teardown
+}
+
+@test "FEAT-222 PR-6: require_referral on — a bogus invite is still refused" {
+	_acct222pr6_setup
+	sed -i 's/^require_referral: off/require_referral: on/' "$BATS_ACCESS"
+	REMOTE_ADDR=10.1.0.4 run "$LIGHTNING_BIN" api-accounts-create --invite-code nosuchcode
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"invite_required"* ]]
+	_acct222pr6_teardown
+}
+
+@test "FEAT-222 PR-6: invite whitelist — only listed accounts may mint (CLI)" {
+	_acct222pr6_setup
+	"$LIGHTNING_BIN" account create other >/dev/null
+	sed -i 's/^invite_whitelist:.*/invite_whitelist: sponsor/' "$BATS_ACCESS"
+	run "$LIGHTNING_BIN" account invite-code create sponsor
+	[ "$status" -eq 0 ]
+	run "$LIGHTNING_BIN" account invite-code create other
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"whitelist"* ]]
+	_acct222pr6_teardown
+}
+
+@test "FEAT-222 PR-6: invite whitelist — non-listed account's HTTP lazy-mint stays empty" {
+	_acct222pr6_setup
+	"$LIGHTNING_BIN" account create other >/dev/null
+	sed -i 's/^invite_whitelist:.*/invite_whitelist: sponsor/' "$BATS_ACCESS"
+	local other_addr; other_addr=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='other';")
+	run "$LIGHTNING_BIN" api-account-invite-codes "$other_addr"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.invite_codes | length == 0' >/dev/null
+	# A whitelisted account still lazy-mints.
+	local sp_addr; sp_addr=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='sponsor';")
+	run "$LIGHTNING_BIN" api-account-invite-codes "$sp_addr"
+	echo "$output" | jq -e '.invite_codes | length >= 1' >/dev/null
+	_acct222pr6_teardown
+}
+
+@test "FEAT-222 PR-6: default access.recfile ships under defaults/" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/defaults/access.recfile"
+	[ -f "$f" ]
+	grep -q "require_referral" "$f"
+	grep -q "invite_whitelist" "$f"
+}

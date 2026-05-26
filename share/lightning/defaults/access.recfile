@@ -1,0 +1,20 @@
+# Access control (FEAT-222 PR-6).
+#
+# Admission control for account / invite creation on a hosted instance.
+# Plain text, git-tracked, operator-edited.  All knobs default to the
+# most permissive (open) setting so a fresh wallet behaves exactly as
+# before this file existed.
+#
+# Format: `key: value` lines (blank lines + #-comments ignored).
+
+# require_referral — when `on`, account creation is refused unless it
+# carries a valid invite code.  Turns the soft fee-tier nudge into a
+# fully-closed, invite-only instance.  Default: off (anyone may create
+# an anonymous account).
+require_referral: off
+
+# invite_whitelist — which accounts may MINT invite codes.  Empty
+# (default) = anyone with an account may invite.  Non-empty = only the
+# listed identities (space- or comma-separated account names and/or
+# bech32 addresses); everyone else is refused.
+invite_whitelist:
