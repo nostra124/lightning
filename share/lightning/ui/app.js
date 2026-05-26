@@ -156,6 +156,26 @@ function screenBackup(acct, res) {
   document.getElementById("done").onclick = () => go("account/" + acct.id);
 }
 
+// FEAT-231 — fiat display.  Fetch the public price tick once and cache
+// the fiat-per-sat rate for the session.
+let FIAT = null;  // { base, per_sat } or null if unavailable
+async function fiatPerSat() {
+  if (FIAT !== null) return FIAT;
+  const base = CONFIG.base_fiat || "EUR";
+  try {
+    const r = await fetch(CONFIG.api_base + "/price?base=" + encodeURIComponent(base));
+    const d = await r.json();
+    if (d && d.btc_fiat) { FIAT = { base, per_sat: d.btc_fiat / 1e8 }; return FIAT; }
+  } catch (_) { /* price feed optional */ }
+  FIAT = { base, per_sat: 0 };
+  return FIAT;
+}
+async function fiatTag(sat) {
+  const f = await fiatPerSat();
+  if (!f.per_sat) return "";
+  return " ≈ " + (sat * f.per_sat).toFixed(2) + " " + f.base;
+}
+
 async function screenAccount(id) {
   const acct = getAccount(id);
   if (!acct) return go("picker");
@@ -165,16 +185,19 @@ async function screenAccount(id) {
        <button id="send">Send</button>
        <button id="recv">Receive</button>
        <button id="topup">Top up</button>
+       <button id="commerce">Commerce</button>
        <button id="settings">⚙</button>
      </div>
      <div id="topupbox"></div>`);
   document.getElementById("send").onclick = () => go("send/" + id);
   document.getElementById("recv").onclick = () => go("recv/" + id);
   document.getElementById("settings").onclick = () => go("settings/" + id);
+  document.getElementById("commerce").onclick = () => go("commerce/" + id);
   document.getElementById("topup").onclick = () => showTopup(id, acct.key);
   try {
     const b = await api(`/accounts/${id}/balance`, { key: acct.key });
-    document.getElementById("bal").textContent = (b.balance_sat ?? 0).toLocaleString() + " sat";
+    const sat = b.balance_sat ?? 0;
+    document.getElementById("bal").textContent = sat.toLocaleString() + " sat" + (await fiatTag(sat));
   } catch (e) {
     document.getElementById("bal").textContent = "—";
     toast("Balance: " + e.message, "error");
@@ -295,8 +318,11 @@ async function screenReferrals(id) {
 function screenSettings(id) {
   const acct = getAccount(id);
   if (!acct) return go("picker");
+  const year = new Date().getUTCFullYear();
   h(`<h2>Settings — ${esc(acct.label)}</h2>
      <button id="referrals">Invite &amp; referrals</button>
+     <button id="taxdata">Export transaction data (for tax)</button>
+     <p class="muted">${year} — source data for tax preparation, not a report.</p>
      <button id="showkey">Show API key (for LLM agents / CLI)</button>
      <pre id="key" class="key" hidden>${esc(acct.key)}</pre>
      <button id="remove" class="danger">Remove from this device</button>
@@ -304,6 +330,20 @@ function screenSettings(id) {
         and its funds stay on the node. Re-add it with its API key.</p>
      <a href="#account/${esc(id)}">Back</a>`);
   document.getElementById("referrals").onclick = () => go("referrals/" + id);
+  document.getElementById("taxdata").onclick = async () => {
+    // Bearer-authed download → fetch + blob (a plain link can't set the header).
+    try {
+      const base = CONFIG.base_fiat || "EUR";
+      const r = await fetch(`${CONFIG.api_base}/accounts/${id}/export/tax-data?year=${year}&base=${base}&format=csv`,
+        { headers: { "Authorization": "Bearer " + acct.key } });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const blob = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `lightning-tax-data-${year}.csv`;
+      a.click();
+    } catch (e) { toast("Export failed: " + e.message, "error"); }
+  };
   document.getElementById("showkey").onclick = () =>
     document.getElementById("key").hidden = !document.getElementById("key").hidden;
   document.getElementById("remove").onclick = () => {
@@ -313,7 +353,219 @@ function screenSettings(id) {
 
 // --- router ---------------------------------------------------------------
 
+// --- FEAT-231 commerce + POS ----------------------------------------------
+
+let POLL = null;  // POS settle poller; cleared on navigation.
+
+function screenCommerce(id) {
+  if (!getAccount(id)) return go("picker");
+  h(`<h2>Commerce</h2>
+     <div class="cards">
+       <button id="pos">🧾 Point of sale</button>
+       <button id="transfer">↗ Transfer to an account</button>
+       <button id="so">🔁 Standing orders</button>
+       <button id="mandates">📥 Direct-debit mandates</button>
+     </div>
+     <a href="#account/${esc(id)}">Back</a>`);
+  document.getElementById("pos").onclick = () => go("pos/" + id);
+  document.getElementById("transfer").onclick = () => go("transfer/" + id);
+  document.getElementById("so").onclick = () => go("so/" + id);
+  document.getElementById("mandates").onclick = () => go("mandates/" + id);
+}
+
+async function screenPOS(id) {
+  const acct = getAccount(id);
+  if (!acct) return go("picker");
+  h(`<h2>Point of sale</h2>
+     <label>Amount (sat)<input id="sat" type="number" min="1" placeholder="1000"></label>
+     <p class="muted" id="fiat"></p>
+     <label>Order reference (optional)<input id="ref" maxlength="64" placeholder="order #"></label>
+     <button id="charge" class="primary">Charge</button>
+     <div id="out"></div>
+     <a href="#commerce/${esc(id)}">Back</a>`);
+  const satEl = document.getElementById("sat");
+  satEl.oninput = async () => {
+    const s = parseInt(satEl.value, 10);
+    document.getElementById("fiat").textContent =
+      Number.isInteger(s) && s > 0 ? (await fiatTag(s)).replace(/^ ≈ /, "≈ ") : "";
+  };
+  document.getElementById("charge").onclick = async () => {
+    const sat = parseInt(satEl.value, 10);
+    if (!Number.isInteger(sat) || sat <= 0) return toast("Enter a positive amount", "error");
+    const ref = document.getElementById("ref").value.trim();
+    const body = { sat };
+    if (ref) body.reference = { order_id: ref };
+    try {
+      const inv = await api(`/accounts/${id}/invoice`, { method: "POST", key: acct.key, body });
+      const out = document.getElementById("out");
+      out.innerHTML = `<div class="card">
+        <p>Show this invoice to the payer:</p>
+        <pre class="key">${esc(inv.bolt11 || "")}</pre>
+        <p id="status" class="warn">Waiting for payment…</p></div>`;
+      // Poll the invoice lookup until paid.
+      const hash = inv.payment_hash;
+      if (POLL) clearInterval(POLL);
+      POLL = setInterval(async () => {
+        try {
+          const st = await api(`/accounts/${id}/invoice/${hash}`, { key: acct.key });
+          if (st.paid) {
+            clearInterval(POLL); POLL = null;
+            document.getElementById("status").className = "ok";
+            document.getElementById("status").textContent =
+              "✓ PAID — " + (st.effective_sat ?? sat).toLocaleString() + " sat";
+          }
+        } catch (_) { /* keep polling */ }
+      }, 3000);
+    } catch (e) { toast("Charge failed: " + e.message, "error"); }
+  };
+}
+
+async function screenTransfer(id) {
+  const acct = getAccount(id);
+  if (!acct) return go("picker");
+  h(`<h2>Transfer</h2>
+     <label>To (account name or address)<input id="to" placeholder="bcrt1… or name"></label>
+     <label>Amount (sat)<input id="sat" type="number" min="1"></label>
+     <label>Note<input id="note" maxlength="128" placeholder="optional"></label>
+     <button id="go" class="primary">Send</button>
+     <a href="#commerce/${esc(id)}">Back</a>`);
+  document.getElementById("go").onclick = async () => {
+    const to = document.getElementById("to").value.trim();
+    const sat = parseInt(document.getElementById("sat").value, 10);
+    const note = document.getElementById("note").value.trim();
+    if (!to) return toast("Enter a recipient", "error");
+    if (!Number.isInteger(sat) || sat <= 0) return toast("Enter a positive amount", "error");
+    const body = { to, sat };
+    if (note) body.note = note;
+    try {
+      await api(`/accounts/${id}/transfer`, { method: "POST", key: acct.key, body });
+      toast("Transferred " + sat + " sat", "ok");
+      go("account/" + id);
+    } catch (e) { toast("Transfer failed: " + e.message, "error"); }
+  };
+}
+
+async function screenStandingOrders(id) {
+  const acct = getAccount(id);
+  if (!acct) return go("picker");
+  h(`<h2>Standing orders</h2>
+     <div id="list"><p class="muted">Loading…</p></div>
+     <h3>New</h3>
+     <label>Target (account / LN address / offer)<input id="target"></label>
+     <label>Amount (sat)<input id="sat" type="number" min="1"></label>
+     <label>Cadence<select id="cadence">
+       <option value="daily">daily</option><option value="weekly">weekly</option>
+       <option value="monthly" selected>monthly</option></select></label>
+     <button id="create" class="primary">Create</button>
+     <a href="#commerce/${esc(id)}">Back</a>`);
+  const refresh = async () => {
+    try {
+      const r = await api(`/accounts/${id}/standing-orders`, { key: acct.key });
+      const list = r.standing_orders || [];
+      document.getElementById("list").innerHTML = list.length
+        ? `<ul class="cards">${list.map(o => `<li>
+            <span><strong>${esc(o.target)}</strong> ${esc((o.sat ?? 0).toLocaleString())} sat / ${esc(o.cadence)}
+            <span class="muted">(${esc(o.status)})</span></span>
+            <span>
+              ${o.status === "active" ? `<button data-act="pause" data-id="${esc(o.id)}">Pause</button>`
+                : `<button data-act="resume" data-id="${esc(o.id)}">Resume</button>`}
+              <button class="danger" data-act="cancel" data-id="${esc(o.id)}">Cancel</button>
+            </span></li>`).join("")}</ul>`
+        : '<p class="muted">No standing orders.</p>';
+      document.querySelectorAll("#list button[data-act]").forEach(b => b.onclick = async () => {
+        const soid = b.getAttribute("data-id"), act = b.getAttribute("data-act");
+        try {
+          if (act === "cancel") await api(`/accounts/${id}/standing-orders/${soid}`, { method: "DELETE", key: acct.key });
+          else await api(`/accounts/${id}/standing-orders/${soid}`, { method: "POST", key: acct.key, body: { action: act } });
+          refresh();
+        } catch (e) { toast(e.message, "error"); }
+      });
+    } catch (e) { document.getElementById("list").innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+  };
+  document.getElementById("create").onclick = async () => {
+    const target = document.getElementById("target").value.trim();
+    const sat = parseInt(document.getElementById("sat").value, 10);
+    const cadence = document.getElementById("cadence").value;
+    if (!target) return toast("Enter a target", "error");
+    if (!Number.isInteger(sat) || sat <= 0) return toast("Enter a positive amount", "error");
+    try {
+      await api(`/accounts/${id}/standing-orders`, { method: "POST", key: acct.key, body: { target, sat, cadence } });
+      toast("Created", "ok"); refresh();
+    } catch (e) { toast("Create failed: " + e.message, "error"); }
+  };
+  refresh();
+}
+
+async function screenMandates(id) {
+  const acct = getAccount(id);
+  if (!acct) return go("picker");
+  h(`<h2>Direct-debit mandates</h2>
+     <div id="list"><p class="muted">Loading…</p></div>
+     <h3>Authorize a merchant</h3>
+     <label>Merchant (account / LN address)<input id="merchant"></label>
+     <label>Max per period (sat)<input id="max" type="number" min="1"></label>
+     <label>Period<select id="period">
+       <option value="daily">daily</option><option value="weekly">weekly</option>
+       <option value="monthly" selected>monthly</option></select></label>
+     <label>Mode<select id="mode">
+       <option value="auto">auto (pulls execute immediately)</option>
+       <option value="approval">approval (I approve each pull)</option></select></label>
+     <button id="create" class="primary">Authorize</button>
+     <a href="#commerce/${esc(id)}">Back</a>`);
+  const refresh = async () => {
+    try {
+      const r = await api(`/accounts/${id}/mandates`, { key: acct.key });
+      const list = r.mandates || [];
+      const rows = await Promise.all(list.map(async m => {
+        // Best-effort: pending pulls only exist for mandates we're the
+        // customer of; the endpoint is customer-scoped.
+        let pulls = [];
+        try { pulls = (await api(`/accounts/${id}/mandates/${m.id}/pulls`, { key: acct.key })).pulls || []; }
+        catch (_) { /* not our customer mandate, or none */ }
+        const pullHtml = pulls.map(p => `<div class="card">
+          Pending charge: <strong>${esc((p.sat ?? 0).toLocaleString())} sat</strong>
+          <button data-act="approve" data-m="${esc(m.id)}" data-p="${esc(p.pull_id)}">Approve</button>
+          <button class="danger" data-act="deny" data-m="${esc(m.id)}" data-p="${esc(p.pull_id)}">Deny</button>
+        </div>`).join("");
+        return `<li><span><strong>${esc(m.merchant)}</strong>
+          ${esc((m.max_per_period ?? 0).toLocaleString())} sat / ${esc(m.period)}
+          <span class="muted">(${esc(m.mode)}, ${esc(m.status)})</span></span>
+          <span>
+            ${m.status !== "revoked" ? `<button class="danger" data-act="revoke" data-m="${esc(m.id)}">Revoke</button>` : ""}
+          </span>${pullHtml}</li>`;
+      }));
+      document.getElementById("list").innerHTML = list.length
+        ? `<ul class="cards">${rows.join("")}</ul>` : '<p class="muted">No mandates.</p>';
+      document.querySelectorAll("#list button[data-act]").forEach(b => b.onclick = async () => {
+        const act = b.getAttribute("data-act"), mid = b.getAttribute("data-m"), pid = b.getAttribute("data-p");
+        try {
+          if (act === "revoke") await api(`/accounts/${id}/mandates/${mid}`, { method: "DELETE", key: acct.key });
+          else await api(`/accounts/${id}/mandates/${mid}/pulls/${pid}/${act}`, { method: "POST", key: acct.key });
+          toast(act + "d", "ok"); refresh();
+        } catch (e) { toast(e.message, "error"); }
+      });
+    } catch (e) { document.getElementById("list").innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+  };
+  document.getElementById("create").onclick = async () => {
+    const merchant = document.getElementById("merchant").value.trim();
+    const max_per_period = parseInt(document.getElementById("max").value, 10);
+    const period = document.getElementById("period").value;
+    const mode = document.getElementById("mode").value;
+    if (!merchant) return toast("Enter a merchant", "error");
+    if (!Number.isInteger(max_per_period) || max_per_period <= 0) return toast("Enter a positive cap", "error");
+    try {
+      const m = await api(`/accounts/${id}/mandates`, { method: "POST", key: acct.key, body: { merchant, max_per_period, period, mode } });
+      toast("Authorized — give the merchant this secret", "ok");
+      // The secret is shown once (the merchant needs it for charges).
+      if (m.secret) alert("Mandate secret (share with the merchant once):\n\n" + m.secret);
+      refresh();
+    } catch (e) { toast("Authorize failed: " + e.message, "error"); }
+  };
+  refresh();
+}
+
 function route() {
+  if (POLL) { clearInterval(POLL); POLL = null; }
   renderNav();
   const hash = location.hash.replace(/^#/, "");
   const [screen, arg] = hash.split("/");
@@ -325,6 +577,11 @@ function route() {
     case "recv": return screenRecv(arg);
     case "settings": return screenSettings(arg);
     case "referrals": return screenReferrals(arg);
+    case "commerce": return screenCommerce(arg);
+    case "pos": return screenPOS(arg);
+    case "transfer": return screenTransfer(arg);
+    case "so": return screenStandingOrders(arg);
+    case "mandates": return screenMandates(arg);
     default: return screenPicker();
   }
 }

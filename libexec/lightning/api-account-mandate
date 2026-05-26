@@ -87,6 +87,19 @@ case "$op" in
 				     period:.[4], mode:.[5], status:.[6], created_at:(.[7]|tonumber)} ]
 				| {mandates: .}'
 		;;
+	pulls)
+		# FEAT-231 — the customer's approval inbox: pending pulls for a
+		# mandate the customer owns.  Scoped so only the mandate's
+		# customer can see them.
+		mid="${1:-}"; [ -n "$mid" ] || { echo '{"error":"missing_id"}'; exit 2; }
+		[ "$(sqlite3 "$db" "SELECT 1 FROM mandates WHERE id = $(sql_quote "$mid") AND customer = $(sql_quote "$name") LIMIT 1;")" = "1" ] \
+			|| { echo '{"error":"unknown_mandate"}'; exit 4; }
+		sqlite3 -separator $'\t' "$db" "SELECT id, sat, state, created_at FROM mandate_pulls \
+			WHERE mandate = $(sql_quote "$mid") AND state = 'pending' ORDER BY created_at;" \
+			| jq -R -n '[ inputs | split("\t")
+				| {pull_id:.[0], sat:(.[1]|tonumber), state:.[2], created_at:(.[3]|tonumber)} ]
+				| {pulls: .}'
+		;;
 	patch)
 		mid="${1:-}"; [ -n "$mid" ] || { echo '{"error":"missing_id"}'; exit 2; }
 		shift

@@ -302,6 +302,13 @@ def _mandates(account_id, tail):
     if len(tail) == 3 and tail[2] == "charge":
         _mandate_charge(account_id, mid)
 
+    if len(tail) == 3 and tail[2] == "pulls":
+        # FEAT-231 — the customer's approval inbox: pending pulls.
+        _lib.auth_account(account_id)
+        if _method() != "GET":
+            _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+        _lib.respond("200 OK", _lib.call_verb("api-account-mandate", account_id, "pulls", mid))
+
     if len(tail) == 5 and tail[2] == "pulls" and tail[4] in ("approve", "deny"):
         _lib.auth_account(account_id)
         if _method() != "POST":
