@@ -91,6 +91,13 @@ EOF
 	[ "$output" = "1.3.1" ]
 }
 
+@test "lightning version comes from the root VERSION file" {
+	local vf="$BATS_TEST_DIRNAME/../../VERSION"
+	[ -f "$vf" ]
+	run "$LIGHTNING_BIN" version
+	[ "$output" = "$(tr -d '[:space:]' < "$vf")" ]
+}
+
 @test "lightning help prints usage" {
 	run "$LIGHTNING_BIN" help
 	[ -n "$output" ]

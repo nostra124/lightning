@@ -7,13 +7,17 @@
 # This should always be the first line of code to facilitate debugging.
 [ -n "$SELF_DEBUG" ] && set -vx
 
-# Per FEAT-194: VERSION read at runtime from .rpk/version (dev tree)
-# or $PREFIX/share/lightning/version (installed). The hardcoded fallback
-# is used only if both files are missing.
+# VERSION source of truth: the root VERSION file (dev tree) or
+# $PREFIX/share/lightning/version (installed).  `.rpk/version` is a
+# deprecated fallback for older trees; the hardcoded value is the last
+# resort if every file is missing.
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
 # FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
 __s="${__s%.sh}"
-VERSION=$(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.3.0')
+VERSION=$(cat "$__d/../VERSION" 2>/dev/null \
+	|| cat "$__d/../share/$__s/version" 2>/dev/null \
+	|| cat "$__d/../.rpk/version" 2>/dev/null \
+	|| echo '1.3.1')
 unset __d
 SELF=$__s
 export SELF
@@ -123,7 +127,7 @@ command:help() {
 	fi
 
 	cat >&2 <<ENDHELP
-$SELF version $(cat "$__d/../.rpk/version" 2>/dev/null || cat "$__d/../share/$__s/version" 2>/dev/null || echo '1.3.0')
+$SELF version $VERSION
 
 A Lightning Network command-line interface for clightning (Core Lightning).
 
@@ -207,7 +211,7 @@ help:version() {
 	cat >&2 <<ENDHELP
 usage: $SELF version
 
-Print the $SELF version string. Source of truth: .rpk/version
+Print the $SELF version string. Source of truth: the root VERSION file
 in the dev tree, or share/$SELF/version in an installed bundle.
 ENDHELP
 }
