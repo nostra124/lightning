@@ -7414,3 +7414,68 @@ _acct220_teardown() {
 	# The invite param is dropped from the address bar after consumption.
 	grep -q 'history.replaceState' "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-231: PWA commerce + POS (mandate pulls listing + PWA wiring).
+# ---------------------------------------------------------------------------
+
+_acct231_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create cust >/dev/null
+	"$LIGHTNING_BIN" account create shop >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_CUST=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='cust';")
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES(datetime('now'),'cust','in',100000000,'seed');"
+}
+
+_acct231_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-231: mandate pulls lists pending charges (the approval inbox)" {
+	_acct231_setup
+	local out mid sec
+	out=$("$LIGHTNING_BIN" api-account-mandate "$BATS_CUST" create shop 50000 monthly --mode approval)
+	mid=$(echo "$out" | jq -r '.id'); sec=$(echo "$out" | jq -r '.secret')
+	"$LIGHTNING_BIN" api-account-mandate-pull "$BATS_CUST" charge "$mid" "$sec" 5000 >/dev/null
+	run "$LIGHTNING_BIN" api-account-mandate "$BATS_CUST" pulls "$mid"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.pulls | length == 1' >/dev/null
+	echo "$output" | jq -e '.pulls[0].state == "pending"' >/dev/null
+	echo "$output" | jq -e '.pulls[0].sat == 5000' >/dev/null
+	_acct231_teardown
+}
+
+@test "FEAT-231: mandate pulls is scoped to the mandate's customer" {
+	_acct231_setup
+	run "$LIGHTNING_BIN" api-account-mandate "$BATS_CUST" pulls mdt_nonexistent
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"unknown_mandate"* ]]
+	_acct231_teardown
+}
+
+@test "FEAT-231: PWA app.js surfaces POS + transfer + standing orders + mandates + fiat + tax export" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "screenPOS" "$f"
+	grep -q "screenTransfer" "$f"
+	grep -q "screenStandingOrders" "$f"
+	grep -q "screenMandates" "$f"
+	grep -q "screenCommerce" "$f"
+	# POS mints a commercial invoice and polls until paid.
+	grep -q "/invoice" "$f"
+	grep -q "setInterval" "$f"
+	grep -q '\.paid' "$f"
+	# Fiat display + tax-data export.
+	grep -q "fiatPerSat" "$f"
+	grep -q "/export/tax-data" "$f"
+	# Mandate approval inbox.
+	grep -q "/pulls" "$f"
+}
+
+@test "FEAT-231: inline docs mention the commerce / POS surface" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+	grep -qi "point of sale" "$f"
+}

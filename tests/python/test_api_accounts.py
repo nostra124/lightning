@@ -1087,3 +1087,34 @@ def test_invite_codes_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, pa
                env=env(bin_shim, PATH_INFO=f"/{ID}/invite-codes"))
     status, _, _ = parse(proc)
     assert "401" in status
+
+
+# --- FEAT-231 mandate pulls listing (approval inbox) ----------------------
+
+
+def test_mandate_pulls_list_returns_200(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"pulls":[{"pull_id":"' + MPL + '","sat":5000,"state":"pending"}]}'
+    lightning_stub({"api-account-verify": (0, ""), "api-account-mandate": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/mandates/{MDT}/pulls")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "pending" in body_out
+
+
+def test_mandate_pulls_post_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-mandate": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/mandates/{MDT}/pulls",
+                                   REQUEST_METHOD="POST")))
+    status, _, _ = parse(proc)
+    assert "405" in status
+
+
+def test_mandate_pulls_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-mandate": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim, PATH_INFO=f"/{ID}/mandates/{MDT}/pulls"))
+    status, _, _ = parse(proc)
+    assert "401" in status
