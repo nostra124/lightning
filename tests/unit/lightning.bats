@@ -85,10 +85,17 @@ EOF
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 1.3.0" {
+@test "lightning version returns 1.3.1" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.3.0" ]
+	[ "$output" = "1.3.1" ]
+}
+
+@test "lightning version comes from the root VERSION file" {
+	local vf="$BATS_TEST_DIRNAME/../../VERSION"
+	[ -f "$vf" ]
+	run "$LIGHTNING_BIN" version
+	[ "$output" = "$(tr -d '[:space:]' < "$vf")" ]
 }
 
 @test "lightning help prints usage" {
@@ -1796,7 +1803,7 @@ EOF
 @test "1.2.0: -q flag parses + version still prints" {
 	run "$LIGHTNING_BIN" -q version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.3.0" ]
+	[ "$output" = "1.3.1" ]
 }
 
 @test "1.2.0: -q -d flags compose (getopts handles both)" {
@@ -1806,7 +1813,7 @@ EOF
 	# second flag was lost or the verb was treated as a flag.
 	run "$LIGHTNING_BIN" -q -d version
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"1.3.0"* ]]
+	[[ "$output" == *"1.3.1"* ]]
 }
 
 @test "1.2.0: unknown flag exits non-zero" {
