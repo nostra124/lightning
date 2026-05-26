@@ -1053,3 +1053,37 @@ def test_export_unknown_subpath_returns_404(api_dir, bin_shim, lightning_stub, c
                env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/export/everything")))
     status, _, _ = parse(proc)
     assert "404" in status
+
+
+# --- FEAT-220 invite codes ------------------------------------------------
+
+
+def test_invite_codes_returns_200(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"invite_codes":[{"code":"abc1234","uses":0,"created_at":1}]}'
+    lightning_stub({
+        "api-account-verify":          (0, ""),
+        "api-account-invite-codes":    (0, body),
+    })
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO=f"/{ID}/invite-codes")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "abc1234" in body_out
+
+
+def test_invite_codes_post_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-invite-codes": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/invite-codes",
+                                   REQUEST_METHOD="POST")))
+    status, _, _ = parse(proc)
+    assert "405" in status
+
+
+def test_invite_codes_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""), "api-account-invite-codes": (0, "{}")})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim, PATH_INFO=f"/{ID}/invite-codes"))
+    status, _, _ = parse(proc)
+    assert "401" in status

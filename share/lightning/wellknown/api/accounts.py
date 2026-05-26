@@ -17,6 +17,7 @@ and routes:
   POST .../v1/accounts/<id>/recv-reusable  -> recv-reusable (BOLT-12)
   POST .../v1/accounts/<id>/transfer       -> transfer (FEAT-223)
   GET  .../v1/accounts/<id>/referrals      -> referrals (FEAT-218)
+  GET  .../v1/accounts/<id>/invite-codes   -> invite codes (FEAT-220)
   POST .../v1/accounts/<id>/invoice        -> commercial invoice (FEAT-225)
   GET  .../v1/accounts/<id>/invoice/<hash> -> invoice lookup    (FEAT-225)
   GET  .../v1/accounts/<id>/standing-orders          -> list    (FEAT-226)
@@ -433,6 +434,16 @@ def _referrals(account_id):
     _lib.respond("200 OK", result)
 
 
+def _invite_codes(account_id):
+    # FEAT-220 — the account's invite codes for the PWA "Invite a friend"
+    # screen (lazy-mints one if none exist).
+    if _method() != "GET":
+        _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+    _lib.auth_account(account_id)
+    result = _lib.call_verb("api-account-invite-codes", account_id)
+    _lib.respond("200 OK", result)
+
+
 def _invoice(account_id, payment_hash=None):
     # FEAT-225 — commercial invoice.  POST .../invoice mints a new one;
     # GET .../invoice/<payment_hash> looks one up + recomputes the
@@ -509,6 +520,7 @@ def main():
         "recv-reusable": lambda: _recv(account_id, reusable=True),
         "transfer": lambda: _transfer(account_id),
         "referrals": lambda: _referrals(account_id),
+        "invite-codes": lambda: _invite_codes(account_id),
         "close": lambda: _close(account_id),
     }
     handler = routes.get(verb)
