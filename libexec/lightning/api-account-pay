@@ -49,6 +49,11 @@ compliance_hook() {
 cc_ctx="{\"account\":\"$name\",\"op\":\"pay\"}"
 compliance_hook pre pay "$cc_ctx" || exit 6
 
+# FEAT-243 — capability gate: paying an external node is a banking op
+# the account's profile may forbid.
+"$cc_self/account" capability "$address" pay_external 2>/dev/null \
+	|| { echo '{"error":"capability_disabled","capability":"pay_external"}'; exit 6; }
+
 # Only BOLT-11 path is wired in PR-2 (it's the common case for the
 # external-caller use case).  BOLT-12 / LNURL / keysend live behind
 # the existing CLI verbs and will be projected into the same JSON
