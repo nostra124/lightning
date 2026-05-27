@@ -30,8 +30,24 @@ name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$ad
 now=$(date -u +%s)
 sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
 
+# FEAT-222 PR-6 — invite whitelist.  When set, only listed accounts may
+# MINT codes; the lazy-mint below is skipped for everyone else (listing
+# any codes they already hold still works — we just don't create new
+# ones).  Empty whitelist (default) = anyone may invite.
+may_invite=1
+access_file="$WALLETS_ROOT/$wname/access.recfile"
+if [ -f "$access_file" ]; then
+	whitelist=$(sed -n 's/^invite_whitelist:[[:space:]]*//p' "$access_file" | head -1)
+	if [ -n "$(printf '%s' "$whitelist" | tr -d '[:space:]')" ]; then
+		may_invite=0
+		for w in $(printf '%s' "$whitelist" | tr ',' ' '); do
+			if [ "$w" = "$name" ] || [ "$w" = "$address" ]; then may_invite=1; break; fi
+		done
+	fi
+fi
+
 count=$(sqlite3 "$db" "SELECT COUNT(*) FROM invite_codes WHERE account = $(sql_quote "$name");")
-if [ "${count:-0}" -eq 0 ]; then
+if [ "${count:-0}" -eq 0 ] && [ "$may_invite" = "1" ]; then
 	# Lazy mint: 7 chars from [a-z0-9] (same alphabet as the CLI).
 	code=$(head -c 8 /dev/urandom | base32 | tr 'A-Z' 'a-z' | tr -d '=\n' | head -c 7)
 	sqlite3 "$db" "INSERT OR IGNORE INTO invite_codes(code, account, created_at) \

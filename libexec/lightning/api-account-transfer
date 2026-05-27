@@ -62,6 +62,19 @@ compliance_hook() {
 cc_ctx="{\"account\":\"$from_name\",\"op\":\"transfer\",\"amount_sat\":$sat}"
 compliance_hook pre transfer "$cc_ctx" || exit 6
 
+# FEAT-243 — capability gate.  A transfer between two accounts of the
+# SAME owner is intra-user (own money, not banking); to a different
+# owner (or an anonymous/ownerless account) it's inter-user (banking).
+from_owner=$(sqlite3 "$db" "SELECT COALESCE(owner_user,'') FROM accounts WHERE name = $(sql_quote "$from_name");")
+to_owner=$(sqlite3 "$db" "SELECT COALESCE(owner_user,'') FROM accounts WHERE name = $(sql_quote "$to_name");")
+if [ -n "$from_owner" ] && [ "$from_owner" = "$to_owner" ]; then
+	xfer_cap="transfer_intra_user"
+else
+	xfer_cap="transfer_inter_user"
+fi
+"$cc_self/account" capability "$from_addr" "$xfer_cap" 2>/dev/null \
+	|| { echo "{\"error\":\"capability_disabled\",\"capability\":\"$xfer_cap\"}"; exit 6; }
+
 amount_msat=$(( sat * 1000 ))
 
 # FEAT-213/219 — operator-fee skim on the transfer (op `transfer`,

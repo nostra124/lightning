@@ -133,11 +133,13 @@ EOF
 	if defaults=$(defaults_dir 2>/dev/null); then
 		[ -f "$defaults/fees.recfile" ]  && cp "$defaults/fees.recfile"  fees.recfile
 		[ -f "$defaults/price.recfile" ] && cp "$defaults/price.recfile" price.recfile
+		[ -f "$defaults/access.recfile" ] && cp "$defaults/access.recfile" access.recfile
 	fi
 
 	git add lightning-dir .gitignore state.sql
 	[ -f fees.recfile ]  && git add fees.recfile
 	[ -f price.recfile ] && git add price.recfile
+	[ -f access.recfile ] && git add access.recfile
 	git -c user.email=lightning@localhost -c user.name=lightning \
 		commit --quiet -m "init wallet $name"
 

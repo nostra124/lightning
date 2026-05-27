@@ -1,0 +1,32 @@
+# Access control (FEAT-222 PR-6).
+#
+# Admission control for account / invite creation on a hosted instance.
+# Plain text, git-tracked, operator-edited.  All knobs default to the
+# most permissive (open) setting so a fresh wallet behaves exactly as
+# before this file existed.
+#
+# Format: `key: value` lines (blank lines + #-comments ignored).
+
+# require_referral — when `on`, account creation is refused unless it
+# carries a valid invite code.  Turns the soft fee-tier nudge into a
+# fully-closed, invite-only instance.  Default: off (anyone may create
+# an anonymous account).
+require_referral: off
+
+# invite_whitelist — which accounts may MINT invite codes.  Empty
+# (default) = anyone with an account may invite.  Non-empty = only the
+# listed identities (space- or comma-separated account names and/or
+# bech32 addresses); everyone else is refused.
+invite_whitelist:
+
+# default_profile (FEAT-243) — the capability profile applied to any
+# account that has none set explicitly.  Profiles bundle which
+# money-movements are allowed + a default fund classification:
+#   treasury   own funds, everything on        (DEFAULT; = pre-FEAT-243)
+#   family     own funds, no inter-user transfer
+#   prepaid    own funds, no withdrawal / inter-user (customer credit)
+#   custodial  foreign funds, everything on  (a real money service —
+#              pair with the FEAT-233 compliance modules)
+# `treasury` keeps a fresh node fully open; restrict per account with
+# `lightning account set-profile <handle> <profile>`.
+default_profile: treasury

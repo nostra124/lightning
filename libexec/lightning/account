@@ -51,7 +51,7 @@ migrate_accounts_schema() {
 	local cols
 	cols=$(sqlite3 "$db" "PRAGMA table_info(accounts);" 2>/dev/null | awk -F'|' '{print $2}')
 	local col
-	for col in address created_at closed_at last_api_call_at referrer owner_user; do
+	for col in address created_at closed_at last_api_call_at referrer owner_user profile fund_class; do
 		echo "$cols" | grep -qx "$col" || {
 			local type=TEXT
 			case "$col" in created_at|closed_at|last_api_call_at) type=INTEGER ;; esac
@@ -337,6 +337,12 @@ usage: lightning account <subcommand>
                           list [<handle>] | pause|resume|cancel <id>
                           run | dry-run         scheduled recurring push
                                                  payment (Dauerauftrag)
+   profiles                                      list capability profiles
+   capability <handle> <cap>                     exit 0 if allowed (FEAT-243)
+   set-profile <handle> <treasury|family|prepaid|custodial>
+                                                 gate which money-moves
+                                                 an account may do
+   set-fund-class <handle> own|foreign           balance-sheet label
 EOF
 }
 
@@ -1037,6 +1043,23 @@ _invite_code_create() {
 	}
 	local name="$RESOLVED_NAME"
 
+	# FEAT-222 PR-6 — invite whitelist.  When access.recfile lists a
+	# non-empty invite_whitelist, only those accounts may mint codes.
+	local access_file; access_file="$WALLETS_ROOT/$(active_wallet_name)/access.recfile"
+	if [ -f "$access_file" ]; then
+		local whitelist; whitelist=$(sed -n 's/^invite_whitelist:[[:space:]]*//p' "$access_file" | head -1)
+		if [ -n "$(printf '%s' "$whitelist" | tr -d '[:space:]')" ]; then
+			local ok=0 w
+			for w in $(printf '%s' "$whitelist" | tr ',' ' '); do
+				if [ "$w" = "$name" ] || [ "$w" = "$RESOLVED_ADDRESS" ]; then ok=1; break; fi
+			done
+			[ "$ok" = "1" ] || {
+				echo "lightning account invite-code: '$name' is not on the invite whitelist (access.recfile)" >&2
+				exit 4
+			}
+		fi
+	fi
+
 	if [ -z "$code" ]; then
 		code=$(_invite_code_mint)
 	else
@@ -1511,6 +1534,86 @@ _so_run() {
 	printf '{"paid":%d,"failed":%d,"paused":%d}\n' "$paid" "$failed" "$paused"
 }
 
+# FEAT-243 — capability profiles.  Hard-coded table mapping a profile to
+# its default fund_class + the six gated money-movements.  Fields:
+#   fund_class recv topup transfer_intra transfer_inter pay_external withdraw
+_profile_caps() {
+	case "$1" in
+		treasury)  echo "own on on on on on on" ;;
+		family)    echo "own on on on off on on" ;;
+		prepaid)   echo "own on on on off on off" ;;
+		custodial) echo "foreign on on on on on on" ;;
+		*) return 1 ;;
+	esac
+}
+
+_default_profile() {
+	local af p=""
+	af="$WALLETS_ROOT/$(active_wallet_name)/access.recfile"
+	[ -f "$af" ] && p=$(sed -n 's/^default_profile:[[:space:]]*//p' "$af" | head -1 | tr -d '[:space:]')
+	echo "${p:-treasury}"
+}
+
+# Effective profile / fund_class for an account NAME (column override,
+# else the node default / profile default).
+_account_profile() {
+	local p
+	p=$(sqlite3 "$(active_db)" "SELECT COALESCE(profile,'') FROM accounts WHERE name = $(sql_quote "$1");" 2>/dev/null)
+	[ -n "$p" ] || p=$(_default_profile)
+	echo "$p"
+}
+
+cmd_capability() {
+	# capability <handle> <cap> — exit 0 if allowed, 1 if denied.
+	[ $# -ge 2 ] || { echo "usage: lightning account capability <handle> <cap>" >&2; exit 2; }
+	local handle="$1" cap="$2"
+	resolve_account "$handle" || { echo "lightning account capability: no such account '$handle'" >&2; exit 2; }
+	local prof caps
+	prof=$(_account_profile "$RESOLVED_NAME")
+	caps=$(_profile_caps "$prof") || { echo "lightning account capability: unknown profile '$prof'" >&2; exit 2; }
+	local _fc r_recv r_topup r_intra r_inter r_pay r_wd
+	read -r _fc r_recv r_topup r_intra r_inter r_pay r_wd <<<"$caps"
+	local v=""
+	case "$cap" in
+		recv)                                v="$r_recv" ;;
+		topup)                               v="$r_topup" ;;
+		transfer_intra_user|transfer_intra)  v="$r_intra" ;;
+		transfer_inter_user|transfer_inter)  v="$r_inter" ;;
+		pay_external|pay)                    v="$r_pay" ;;
+		withdraw)                            v="$r_wd" ;;
+		*) echo "lightning account capability: unknown capability '$cap'" >&2; exit 2 ;;
+	esac
+	[ "$v" = "on" ]
+}
+
+cmd_profiles() {
+	printf "profile\tfund_class\trecv\ttopup\tintra\tinter\tpay_ext\twithdraw\n"
+	local p
+	for p in treasury family prepaid custodial; do
+		printf "%s\t%s\n" "$p" "$(_profile_caps "$p" | tr ' ' '\t')"
+	done
+}
+
+cmd_set_profile() {
+	[ $# -ge 2 ] || { echo "usage: lightning account set-profile <handle> <treasury|family|prepaid|custodial>" >&2; exit 1; }
+	local handle="$1" prof="$2"
+	_profile_caps "$prof" >/dev/null || { echo "lightning account set-profile: unknown profile '$prof'" >&2; exit 1; }
+	resolve_account "$handle" || { echo "lightning account set-profile: no such account '$handle'" >&2; exit 2; }
+	sqlite3 "$(active_db)" "UPDATE accounts SET profile = $(sql_quote "$prof") WHERE name = $(sql_quote "$RESOLVED_NAME");"
+	echo "account: $RESOLVED_NAME"
+	echo "profile: $prof"
+}
+
+cmd_set_fund_class() {
+	[ $# -ge 2 ] || { echo "usage: lightning account set-fund-class <handle> own|foreign" >&2; exit 1; }
+	local handle="$1" fc="$2"
+	case "$fc" in own|foreign) ;; *) echo "lightning account set-fund-class: must be own|foreign" >&2; exit 1 ;; esac
+	resolve_account "$handle" || { echo "lightning account set-fund-class: no such account '$handle'" >&2; exit 2; }
+	sqlite3 "$(active_db)" "UPDATE accounts SET fund_class = $(sql_quote "$fc") WHERE name = $(sql_quote "$RESOLVED_NAME");"
+	echo "account: $RESOLVED_NAME"
+	echo "fund_class: $fc"
+}
+
 case "${1:-}" in
 	list)     shift; cmd_list "$@" ;;
 	create)   shift; cmd_create "$@" ;;
@@ -1528,6 +1631,10 @@ case "${1:-}" in
 	receive)  shift; cmd_receive "$@" ;;
 	transfer) shift; cmd_transfer "$@" ;;
 	standing-order) shift; cmd_standing_order "$@" ;;
+	profiles)       shift; cmd_profiles "$@" ;;
+	capability)     shift; cmd_capability "$@" ;;
+	set-profile)    shift; cmd_set_profile "$@" ;;
+	set-fund-class) shift; cmd_set_fund_class "$@" ;;
 	"")       usage; exit 1 ;;
 	*)        echo "lightning account: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac

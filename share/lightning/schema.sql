@@ -34,7 +34,15 @@ CREATE TABLE IF NOT EXISTS accounts (
     -- wallet_users (NOT the FEAT-176 `users` lnaddr table, which is a
     -- different concept).  ON DELETE SET NULL orphans the account if
     -- its owner is removed; the GC later reaps idle orphans.
-    owner_user       TEXT    REFERENCES wallet_users(id) ON DELETE SET NULL
+    owner_user       TEXT    REFERENCES wallet_users(id) ON DELETE SET NULL,
+    -- FEAT-243 — capability profile (treasury|family|prepaid|custodial)
+    -- and balance-sheet fund classification (own|foreign).  Both NULL
+    -- resolve to the access.recfile default_profile (→ treasury), so a
+    -- fresh node keeps every capability on until the operator restricts
+    -- it.  `profile` drives which money-movements are allowed; the
+    -- separately-settable `fund_class` is the own-vs-foreign label.
+    profile          TEXT,
+    fund_class       TEXT
 );
 
 -- FEAT-218 — invite codes minted by accounts that want to refer

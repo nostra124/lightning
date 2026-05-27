@@ -71,6 +71,23 @@ compliance_hook() {
 }
 compliance_hook pre create '{"op":"create"}' || exit 6
 
+# FEAT-222 PR-6 — require_referral gate.  When the operator has set
+# require_referral: on in access.recfile, an anonymous create must carry
+# a valid invite code; otherwise the instance is fully open (default).
+access_file="$WALLETS_ROOT/$wname/access.recfile"
+if [ -f "$access_file" ]; then
+	require_referral=$(sed -n 's/^require_referral:[[:space:]]*//p' "$access_file" | head -1 | tr -d '[:space:]')
+	if [ "$require_referral" = "on" ]; then
+		db="$WALLETS_ROOT/$wname/state.db"
+		acc_valid=0
+		if [ -n "$invite_code" ] && [ -f "$db" ]; then
+			acc_q="'${invite_code//\'/\'\'}'"
+			[ "$(sqlite3 "$db" "SELECT 1 FROM invite_codes WHERE code = $acc_q LIMIT 1;" 2>/dev/null)" = "1" ] && acc_valid=1
+		fi
+		[ "$acc_valid" = "1" ] || { echo '{"error":"invite_required"}'; exit 6; }
+	fi
+fi
+
 # Synthesize a stable local `name` for the SQLite primary key.  The
 # user-facing handle is the bitcoin address; this is just a unique
 # internal label.  Random 8 hex chars is plenty (collision after
