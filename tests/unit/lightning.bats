@@ -7576,3 +7576,126 @@ _acct222pr6_teardown() {
 	grep -q "require_referral" "$f"
 	grep -q "invite_whitelist" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-243: capability profiles + fund classification.
+# ---------------------------------------------------------------------------
+
+_acct243_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create cust >/dev/null
+	"$LIGHTNING_BIN" account create shop >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	BATS_CUST=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='cust';")
+	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES(datetime('now'),'cust','in',100000000,'seed');"
+}
+
+_acct243_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-243: migration adds profile + fund_class columns" {
+	_acct243_setup
+	local cols
+	cols=$(sqlite3 "$BATS_DB" "PRAGMA table_info(accounts);" | awk -F'|' '{print $2}')
+	echo "$cols" | grep -qx "profile"
+	echo "$cols" | grep -qx "fund_class"
+	_acct243_teardown
+}
+
+@test "FEAT-243: profiles table lists the four profiles" {
+	_acct243_setup
+	run "$LIGHTNING_BIN" account profiles
+	[ "$status" -eq 0 ]
+	for p in treasury family prepaid custodial; do [[ "$output" == *"$p"* ]]; done
+	_acct243_teardown
+}
+
+@test "FEAT-243: default profile (treasury) allows every capability" {
+	_acct243_setup
+	for c in recv topup transfer_intra_user transfer_inter_user pay_external withdraw; do
+		run "$LIGHTNING_BIN" account capability cust "$c"
+		[ "$status" -eq 0 ]
+	done
+	_acct243_teardown
+}
+
+@test "FEAT-243: set-profile prepaid denies withdraw + inter-user, keeps recv/topup/pay" {
+	_acct243_setup
+	"$LIGHTNING_BIN" account set-profile cust prepaid >/dev/null
+	run "$LIGHTNING_BIN" account capability cust withdraw
+	[ "$status" -ne 0 ]
+	run "$LIGHTNING_BIN" account capability cust transfer_inter_user
+	[ "$status" -ne 0 ]
+	for c in recv topup pay_external transfer_intra_user; do
+		run "$LIGHTNING_BIN" account capability cust "$c"
+		[ "$status" -eq 0 ]
+	done
+	_acct243_teardown
+}
+
+@test "FEAT-243: set-profile rejects an unknown profile" {
+	_acct243_setup
+	run "$LIGHTNING_BIN" account set-profile cust megabank
+	[ "$status" -ne 0 ]
+	_acct243_teardown
+}
+
+@test "FEAT-243: HTTP withdraw is gated by the prepaid profile" {
+	_acct243_setup
+	"$LIGHTNING_BIN" account set-profile cust prepaid >/dev/null
+	run "$LIGHTNING_BIN" api-account-withdraw "$BATS_CUST" 1000 bc1qdestxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"capability_disabled"* ]]
+	[[ "$output" == *"withdraw"* ]]
+	_acct243_teardown
+}
+
+@test "FEAT-243: HTTP recv still works under the prepaid profile" {
+	_acct243_setup
+	"$LIGHTNING_BIN" account set-profile cust prepaid >/dev/null
+	run "$LIGHTNING_BIN" api-account-recv "$BATS_CUST" 1000
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"bolt11"* ]]
+	_acct243_teardown
+}
+
+@test "FEAT-243: transfer intra-user allowed but inter-user gated (family profile)" {
+	_acct243_setup
+	# Same owner on both -> intra-user; family allows intra, forbids inter.
+	sqlite3 "$BATS_DB" "UPDATE accounts SET owner_user='usr_alice' WHERE name IN ('cust','shop');"
+	"$LIGHTNING_BIN" account set-profile cust family >/dev/null
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_CUST" shop 1000
+	[ "$status" -eq 0 ]
+	# Now give shop a different owner -> inter-user -> denied.
+	sqlite3 "$BATS_DB" "UPDATE accounts SET owner_user='usr_bob' WHERE name='shop';"
+	run "$LIGHTNING_BIN" api-account-transfer "$BATS_CUST" shop 1000
+	[ "$status" -eq 6 ]
+	[[ "$output" == *"transfer_inter_user"* ]]
+	_acct243_teardown
+}
+
+@test "FEAT-243: compliance status rates LOW for own funds, HIGH for foreign" {
+	_acct243_setup
+	run "$LIGHTNING_BIN" compliance status
+	[[ "$output" == *"rating: LOW"* ]]
+	"$LIGHTNING_BIN" account set-fund-class cust foreign >/dev/null
+	run "$LIGHTNING_BIN" compliance status
+	[[ "$output" == *"rating: HIGH"* ]]
+	[[ "$output" == *"custodial"* ]]
+	_acct243_teardown
+}
+
+@test "FEAT-243: default access.recfile carries default_profile" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/defaults/access.recfile"
+	grep -q "default_profile: treasury" "$f"
+}
+
+@test "FEAT-243: schema declares accounts.profile + fund_class" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/schema.sql"
+	grep -q "profile" "$f"
+	grep -q "fund_class" "$f"
+}

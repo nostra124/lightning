@@ -18,3 +18,15 @@ require_referral: off
 # listed identities (space- or comma-separated account names and/or
 # bech32 addresses); everyone else is refused.
 invite_whitelist:
+
+# default_profile (FEAT-243) — the capability profile applied to any
+# account that has none set explicitly.  Profiles bundle which
+# money-movements are allowed + a default fund classification:
+#   treasury   own funds, everything on        (DEFAULT; = pre-FEAT-243)
+#   family     own funds, no inter-user transfer
+#   prepaid    own funds, no withdrawal / inter-user (customer credit)
+#   custodial  foreign funds, everything on  (a real money service —
+#              pair with the FEAT-233 compliance modules)
+# `treasury` keeps a fresh node fully open; restrict per account with
+# `lightning account set-profile <handle> <profile>`.
+default_profile: treasury

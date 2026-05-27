@@ -47,6 +47,10 @@ compliance_hook() {
 cc_ctx="{\"account\":\"$name\",\"op\":\"withdraw\",\"amount_sat\":$sat}"
 compliance_hook pre withdraw "$cc_ctx" || exit 6
 
+# FEAT-243 — capability gate (on-chain pay-out is a banking op).
+"$cc_self/account" capability "$address" withdraw 2>/dev/null \
+	|| { echo '{"error":"capability_disabled","capability":"withdraw"}'; exit 6; }
+
 if ! command -v boltzcli >/dev/null 2>&1; then
 	echo '{"error":"boltzcli_not_installed","hint":"submarine-swap dependency"}'
 	exit 127

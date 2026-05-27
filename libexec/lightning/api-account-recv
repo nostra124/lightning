@@ -30,6 +30,10 @@ sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
 name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
 [ -n "$name" ] || { echo '{"error":"unknown account"}'; exit 4; }
 
+# FEAT-243 — capability gate.
+"$(cd "$(dirname "$0")" && pwd)/account" capability "$address" recv 2>/dev/null \
+	|| { echo '{"error":"capability_disabled","capability":"recv"}'; exit 6; }
+
 now=$(date -u +%s)
 sqlite3 "$db" "UPDATE accounts SET last_api_call_at = $now WHERE address = $(sql_quote "$address");" 2>/dev/null || true
 
