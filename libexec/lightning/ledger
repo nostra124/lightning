@@ -22,6 +22,13 @@ command -v sqlite3 >/dev/null || { echo "lightning: sqlite3 not installed" >&2; 
 WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
 ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
 
+# Only `reconcile` talks to lightningd; the other subcommands are
+# pure-SQLite, so the cli() helper + deps are checked lazily inside
+# cmd_reconcile rather than at top level.
+LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
+cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
 active_db() {
 	local name="default"
 	[ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
@@ -42,6 +49,8 @@ usage: lightning ledger <subcommand>
    annotate <payment_hash> <note>
    add <direction> <amount_msat> [--account <n>] [--peer <p>]
        [--payment-hash <h>] [--message <m>] [--note <n>]
+   statement --account <n> --period <YYYY-MM|YYYY-Q[1-4]|YYYY> [--tsv]
+   reconcile [run|dry-run|status]
    export csv|jsonl|tsv
 EOF
 }
@@ -199,6 +208,164 @@ cmd_statement() {
 	printf "Net for period:  %+15d sat\n" "$(( (closing - opening) / 1000 ))"
 }
 
+# FEAT-244 — node-balance reconciliation.
+#
+# Our verbs book a ledger row when THEY move money, but anything that
+# drives the same lightningd directly (another wallet app, a raw
+# `lightning-cli pay`, or a received invoice that settled with no
+# settle-watcher) never lands in the ledger — so SUM(ledger) drifts
+# from the node's real channel liquidity.  This is the off-chain analog
+# of `account topup-watcher` (which covers on-chain deposits): it scans
+# clightning's settled off-chain history, skips anything already booked
+# (deduped by payment_hash, regardless of which verb booked it), and
+# books the residue:
+#   * completed pays  -> `others`, as an `out` (+ a `fee` row for the
+#                        routing fee when the destination amount is known)
+#   * paid invoices   -> the owning account from the `invoices` table
+#                        when known, else `others`, as an `in`
+# On-chain deposits stay with topup-watcher (disjoint payment_hash
+# space — txid:vout vs the off-chain payment hash — so no double-count).
+#
+# Subcommands:
+#   run            book any new external off-chain flows (default)
+#   dry-run        list what would be booked; don't write
+#   status         reconcile activity + current `others` balance
+cmd_reconcile() {
+	local op="${1:-run}"
+	local dry=0
+	case "$op" in
+		run)               dry=0 ;;
+		dry-run|--dry-run) dry=1 ;;
+		status)            _reconcile_status; return ;;
+		*) echo "usage: lightning ledger reconcile {run|dry-run|status}" >&2; exit 1 ;;
+	esac
+
+	command -v lightning-cli >/dev/null || {
+		echo "lightning ledger reconcile: lightning-cli not found" >&2; exit 127; }
+	command -v jq >/dev/null || {
+		echo "lightning ledger reconcile: jq not installed" >&2; exit 127; }
+
+	local db; db=$(active_db)
+
+	# Existing wallets predate the schema seed — create the catch-all
+	# lazily (same pattern as topup-watcher's house bootstrap).  Skip in
+	# dry-run, which must not write.
+	[ $dry -eq 0 ] && sqlite3 "$db" \
+		"INSERT OR IGNORE INTO accounts(name, description, overdraft) VALUES('others', 'external / other-client flows', 'allow');"
+
+	# Normalise an msat field across clightning versions: a bare number,
+	# the post-23.02 "<n>msat" string, or null -> 0.
+	local jq_num='def num: (if . == null then 0 elif type=="string" then (gsub("msat$";"")|tonumber) else . end);'
+
+	local raw pays invs
+	raw=$(cli listpays 2>/dev/null) || {
+		echo "lightning ledger reconcile: listpays failed (is lightningd running?)" >&2; exit 4; }
+	pays=$(jq -r "$jq_num"'
+		.pays[]?
+		| select(.status == "complete")
+		| [ (.payment_hash // "-"),
+		    ((.amount_sent_msat // .msatoshi_sent) | num),
+		    ((.amount_msat // .msatoshi) | num)
+		  ] | @tsv' <<<"$raw")
+
+	raw=$(cli listinvoices 2>/dev/null) || {
+		echo "lightning ledger reconcile: listinvoices failed (is lightningd running?)" >&2; exit 4; }
+	invs=$(jq -r "$jq_num"'
+		.invoices[]?
+		| select(.status == "paid")
+		| [ (.payment_hash // "-"),
+		    ((.amount_received_msat // .msatoshi_received // .amount_msat // .msatoshi) | num)
+		  ] | @tsv' <<<"$raw")
+
+	local booked_pay=0 booked_recv=0 dupe=0
+	local sql="BEGIN;"
+	local hash sent dest recv owner out_msat fee_msat
+
+	# Outgoing — completed pays not already in the ledger.
+	while IFS=$'\t' read -r hash sent dest; do
+		[ -n "$hash" ] && [ "$hash" != "-" ] || continue
+		if _already_booked "$db" "$hash"; then dupe=$((dupe+1)); continue; fi
+		sent=${sent:-0}; dest=${dest:-0}
+		[ "$sent" -gt 0 ] 2>/dev/null || continue
+		# Total outflow = amount_sent (incl routing fee).  Split into the
+		# destination amount (out) + routing fee (fee) when the
+		# destination amount is known; otherwise book the lot as `out`.
+		if [ "$dest" -gt 0 ] 2>/dev/null && [ "$sent" -ge "$dest" ]; then
+			out_msat=$dest; fee_msat=$(( sent - dest ))
+		else
+			out_msat=$sent; fee_msat=0
+		fi
+		if [ $dry -eq 1 ]; then
+			printf 'would-book\tothers\tout\t-%s msat\t%s\n' "$out_msat" "$hash"
+			[ "$fee_msat" -gt 0 ] && printf 'would-book\tothers\tfee\t-%s msat\t%s\n' "$fee_msat" "$hash"
+		else
+			sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+			sql+=" VALUES(datetime('now'), 'others', 'out', -$out_msat, '-', $(sql_quote "$hash"), 'reconcile:pay');"
+			if [ "$fee_msat" -gt 0 ]; then
+				sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+				sql+=" VALUES(datetime('now'), 'others', 'fee', -$fee_msat, '-', $(sql_quote "$hash"), 'reconcile:pay-fee');"
+			fi
+		fi
+		booked_pay=$((booked_pay+1))
+	done <<<"$pays"
+
+	# Incoming — paid invoices not already in the ledger.  Attribute to
+	# the owning account from the `invoices` table when we know it (a
+	# receive our verb minted but never had its settlement booked), else
+	# to `others`.
+	while IFS=$'\t' read -r hash recv; do
+		[ -n "$hash" ] && [ "$hash" != "-" ] || continue
+		if _already_booked "$db" "$hash"; then dupe=$((dupe+1)); continue; fi
+		recv=${recv:-0}
+		[ "$recv" -gt 0 ] 2>/dev/null || continue
+		owner=$(sqlite3 "$db" "SELECT account FROM invoices WHERE payment_hash = $(sql_quote "$hash") LIMIT 1;" 2>/dev/null)
+		case "$owner" in ""|"-") owner="others" ;; esac
+		if [ $dry -eq 1 ]; then
+			printf 'would-book\t%s\tin\t+%s msat\t%s\n' "$owner" "$recv" "$hash"
+		else
+			sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, peer, payment_hash, message)"
+			sql+=" VALUES(datetime('now'), $(sql_quote "$owner"), 'in', $recv, '-', $(sql_quote "$hash"), 'reconcile:recv');"
+			# Keep the invoices table truthful now that we've seen it settle.
+			sql+=" UPDATE invoices SET state='paid' WHERE payment_hash = $(sql_quote "$hash");"
+		fi
+		booked_recv=$((booked_recv+1))
+	done <<<"$invs"
+
+	if [ $dry -eq 0 ]; then
+		sql+=" COMMIT;"
+		sqlite3 "$db" "$sql"
+		echo "reconcile: booked $booked_pay pay(s) + $booked_recv receipt(s) (already-booked $dupe)" >&2
+	else
+		echo "reconcile dry-run: would book $booked_pay pay(s) + $booked_recv receipt(s) (already-booked $dupe)" >&2
+	fi
+}
+
+# True (exit 0) when any ledger row already carries this payment_hash —
+# i.e. one of our verbs (or a prior reconcile pass) already booked it.
+_already_booked() {
+	local hit
+	hit=$(sqlite3 "$1" "SELECT 1 FROM ledger WHERE payment_hash = $(sql_quote "$2") LIMIT 1;" 2>/dev/null)
+	[ -n "$hit" ]
+}
+
+_reconcile_status() {
+	local db; db=$(active_db)
+	local n_pay n_recv others last
+	n_pay=$(sqlite3 "$db" "SELECT COUNT(*) FROM ledger WHERE message LIKE 'reconcile:pay%';")
+	n_recv=$(sqlite3 "$db" "SELECT COUNT(*) FROM ledger WHERE message = 'reconcile:recv';")
+	others=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount_msat),0) FROM ledger WHERE account = 'others';")
+	last=$(sqlite3 -separator $'\t' "$db" \
+		"SELECT ts, account, direction, amount_msat, payment_hash FROM ledger WHERE message LIKE 'reconcile:%' ORDER BY id DESC LIMIT 1;")
+	printf "reconciled_pays:     %s\n" "$n_pay"
+	printf "reconciled_receipts: %s\n" "$n_recv"
+	printf "others_balance_sat:  %s\n" "$(( others / 1000 ))"
+	if [ -n "$last" ]; then
+		printf "last_reconcile:      %s\n" "$last"
+	else
+		printf "last_reconcile:      (none yet)\n"
+	fi
+}
+
 cmd_export() {
 	local fmt="${1:-tsv}"
 	case "$fmt" in
@@ -223,6 +390,7 @@ case "${1:-}" in
 	add)       shift; cmd_add "$@" ;;
 	export)    shift; cmd_export "$@" ;;
 	statement) shift; cmd_statement "$@" ;;
+	reconcile) shift; cmd_reconcile "$@" ;;
 	"")        usage; exit 1 ;;
 	*)         echo "lightning ledger: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac

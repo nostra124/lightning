@@ -374,12 +374,12 @@ cmd_list() {
 			       a.overdraft
 			FROM accounts a
 			LEFT JOIN ledger l ON l.account = a.name
-			WHERE a.name NOT IN ('-', 'house', 'escrow')
+			WHERE a.name NOT IN ('-', 'house', 'escrow', 'others')
 			GROUP BY a.name
 			ORDER BY a.name;"
 	else
 		sqlite3 -header -separator $'\t' "$(active_db)" \
-			"SELECT name, description, COALESCE(limit_sat, -1) AS limit_sat, overdraft FROM accounts WHERE name NOT IN ('-', 'house', 'escrow') ORDER BY name;"
+			"SELECT name, description, COALESCE(limit_sat, -1) AS limit_sat, overdraft FROM accounts WHERE name NOT IN ('-', 'house', 'escrow', 'others') ORDER BY name;"
 	fi
 }
 
@@ -891,7 +891,7 @@ cmd_gc() {
 		FROM accounts a
 		WHERE a.address IS NOT NULL
 		  AND a.closed_at IS NULL
-		  AND a.name NOT IN ('-', 'house', 'escrow')
+		  AND a.name NOT IN ('-', 'house', 'escrow', 'others')
 		  AND COALESCE(a.last_api_call_at, a.created_at, 0) < $idle_cutoff
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0
 		  AND NOT EXISTS (SELECT 1 FROM invoices WHERE account = a.name AND state = 'pending');")
@@ -903,7 +903,7 @@ cmd_gc() {
 		FROM accounts a
 		WHERE a.closed_at IS NOT NULL
 		  AND a.closed_at < $closed_cutoff
-		  AND a.name NOT IN ('-', 'house', 'escrow')
+		  AND a.name NOT IN ('-', 'house', 'escrow', 'others')
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0;")
 
 	local closed=0 deleted=0 name addr
@@ -977,12 +977,12 @@ _gc_status() {
 	local closed_cutoff=$(( now - closed_days * 86400 ))
 
 	local n_idle n_closed n_total
-	n_total=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-', 'house', 'escrow');")
+	n_total=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-', 'house', 'escrow', 'others');")
 	n_idle=$(sqlite3 "$db" "
 		SELECT COUNT(*) FROM accounts a
 		WHERE a.address IS NOT NULL
 		  AND a.closed_at IS NULL
-		  AND a.name NOT IN ('-', 'house', 'escrow')
+		  AND a.name NOT IN ('-', 'house', 'escrow', 'others')
 		  AND COALESCE(a.last_api_call_at, a.created_at, 0) < $idle_cutoff
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0
 		  AND NOT EXISTS (SELECT 1 FROM invoices WHERE account = a.name AND state = 'pending');")
@@ -990,7 +990,7 @@ _gc_status() {
 		SELECT COUNT(*) FROM accounts a
 		WHERE a.closed_at IS NOT NULL
 		  AND a.closed_at < $closed_cutoff
-		  AND a.name NOT IN ('-', 'house', 'escrow')
+		  AND a.name NOT IN ('-', 'house', 'escrow', 'others')
 		  AND COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE account = a.name), 0) = 0;")
 	printf "total_accounts:    %s\n" "$n_total"
 	printf "idle_days:         %s\n" "$idle_days"

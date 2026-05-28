@@ -20,7 +20,18 @@ Subcommands:
                                  [--note <n>]
                                       — used by pay/invoice/forward
                                         hooks once they're wired
+  statement --account <n> --period <YYYY-MM|YYYY-Q[1-4]|YYYY> [--tsv]
+  reconcile [run|dry-run|status]
   export csv|jsonl|tsv
+
+reconcile (FEAT-244) is the off-chain counterpart to
+\fBaccount topup-watcher\fR: it scans clightning's settled pays and
+paid invoices, skips anything already in the ledger (deduped by
+payment_hash), and books the residue so SUM(ledger) tracks the node's
+real liquidity.  Payments made or received outside the lightning verbs
+(another client driving the same lightningd) land in the catch-all
+\fBothers\fR account; a paid invoice whose owning account is known is
+credited to that account instead.
 .fi
 .SH USAGE
 .nf
@@ -32,6 +43,8 @@ usage: lightning ledger <subcommand>
    annotate <payment_hash> <note>
    add <direction> <amount_msat> [--account <n>] [--peer <p>]
        [--payment-hash <h>] [--message <m>] [--note <n>]
+   statement --account <n> --period <YYYY-MM|YYYY-Q[1-4]|YYYY> [--tsv]
+   reconcile [run|dry-run|status]
    export csv|jsonl|tsv
 .fi
 .SH "SEE ALSO"

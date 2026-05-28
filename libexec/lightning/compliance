@@ -143,9 +143,9 @@ cmd_status() {
 		# Effective fund_class per account: explicit column, else the
 		# profile default (only `custodial` defaults to foreign).
 		local n_foreign n_own
-		n_foreign=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-','house','escrow') AND \
+		n_foreign=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-','house','escrow','others') AND \
 			COALESCE(fund_class, CASE COALESCE(profile,'$dp') WHEN 'custodial' THEN 'foreign' ELSE 'own' END) = 'foreign';" 2>/dev/null)
-		n_own=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-','house','escrow') AND \
+		n_own=$(sqlite3 "$db" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-','house','escrow','others') AND \
 			COALESCE(fund_class, CASE COALESCE(profile,'$dp') WHEN 'custodial' THEN 'foreign' ELSE 'own' END) != 'foreign';" 2>/dev/null)
 		printf "  default_profile:       %s\n" "$dp"
 		printf "  own-funds accounts:    %s\n" "${n_own:-0}"
