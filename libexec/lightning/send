@@ -22,9 +22,16 @@ LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 
+# Resolve the active wallet's DB the same way wallet/ledger/account do —
+# the active pointer is at $WALLETS_ROOT-parent/active, not inside the
+# wallet dir.  Must match those verbs or the ledger row lands in a
+# different DB than `ledger`/`account` read.
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
 wallet_db() {
-	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
-	echo "$LIGHTNING_DIR/wallet/$active/state.db"
+	local active="default"
+	[ -f "$ACTIVE_LINK" ] && active=$(cat "$ACTIVE_LINK")
+	echo "$WALLETS_ROOT/$active/state.db"
 }
 
 node="$1"; sat="$2"; shift 2

@@ -1120,6 +1120,29 @@ EOF
 	rm -rf "$HOME/.lightning"
 }
 
+@test "FEAT-244: invoice pay + send book to the active (non-default) wallet DB" {
+	# Regression for the wallet_db() path divergence: invoice/send must
+	# resolve the active pointer the same way wallet/ledger/account do, so
+	# bookings land in the active wallet's DB even when it isn't named
+	# 'default'.  Before the fix these silently booked to a phantom
+	# $LIGHTNING_DIR/wallet/default DB and the balance never moved.
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create spend >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000000 --account spend >/dev/null
+
+	run "$LIGHTNING_BIN" invoice pay lnbcrt10n1pmocktest --account spend
+	[ "$status" -eq 0 ]
+	run "$LIGHTNING_BIN" ledger balance spend
+	[ "$output" = "998999" ]   # 1000000 - 1000 - 1, booked in alice's DB
+
+	run "$LIGHTNING_BIN" send 020000000000000000000000000000000000000000000000000000000000000002 100 --account spend
+	[ "$status" -eq 0 ]
+	run "$LIGHTNING_BIN" ledger balance spend
+	[ "$output" = "898999" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
 # ---------------------------------------------------------------------------
 # FEAT-185: seed + SCB
 # ---------------------------------------------------------------------------
