@@ -1096,6 +1096,30 @@ EOF
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
 
+@test "FEAT-244: CLI invoice pay + send debit the account (out booked negative)" {
+	# Regression: invoice pay / send previously booked `out` rows with a
+	# positive amount, so a CLI payment *raised* the balance.  Name the
+	# wallet `default` and leave LIGHTNING_WALLETS_ROOT unset so the
+	# invoice/send (LIGHTNING_DIR) and ledger (WALLETS_ROOT) paths resolve
+	# to the same $HOME/.lightning/wallet/default DB.
+	"$LIGHTNING_BIN" wallet new default >/dev/null
+	"$LIGHTNING_BIN" account create spend >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000000 --account spend >/dev/null
+
+	# mock pay: amount_msat 1000 + amount_sent_msat 1001 => out -1000, fee -1.
+	run "$LIGHTNING_BIN" invoice pay lnbcrt10n1pmocktest --account spend
+	[ "$status" -eq 0 ]
+	run "$LIGHTNING_BIN" ledger balance spend
+	[ "$output" = "998999" ]
+
+	# keysend 100 sat => out -100000 msat.
+	run "$LIGHTNING_BIN" send 020000000000000000000000000000000000000000000000000000000000000002 100 --account spend
+	[ "$status" -eq 0 ]
+	run "$LIGHTNING_BIN" ledger balance spend
+	[ "$output" = "898999" ]
+	rm -rf "$HOME/.lightning"
+}
+
 # ---------------------------------------------------------------------------
 # FEAT-185: seed + SCB
 # ---------------------------------------------------------------------------
@@ -4553,6 +4577,25 @@ _acct212pr4_teardown() {
 	grep -q "\-\-topup-watcher" "$f"
 	grep -q "install_topup_watcher_sidecar" "$f"
 	grep -q "TOPUP_WATCHER_LABEL" "$f"
+}
+
+@test "FEAT-244: daemon install --reconcile writes a sidecar (Linux)" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "Linux-only — checks the systemd timer files"
+	fi
+	run "$LIGHTNING_BIN" daemon install --reconcile --no-keepalive --no-alert
+	[ "$status" -eq 0 ]
+	[ -f "$HOME/.config/systemd/user/lightning-reconcile.service" ]
+	[ -f "$HOME/.config/systemd/user/lightning-reconcile.timer" ]
+	grep -q "ledger reconcile run" "$HOME/.config/systemd/user/lightning-reconcile.service"
+	grep -q "OnUnitActiveSec=5min" "$HOME/.config/systemd/user/lightning-reconcile.timer"
+}
+
+@test "FEAT-244: daemon install (no --reconcile) does NOT write the sidecar" {
+	# Opt-in, like the other watcher sidecars.
+	run "$LIGHTNING_BIN" daemon install --no-keepalive --no-alert
+	[ "$status" -eq 0 ]
+	[ ! -e "$HOME/.config/systemd/user/lightning-reconcile.timer" ]
 }
 
 # ---------------------------------------------------------------------------

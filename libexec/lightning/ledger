@@ -187,7 +187,7 @@ cmd_statement() {
 		echo "field	value"
 		printf "opening_msat\t%s\n" "$opening"
 		printf "closing_msat\t%s\n" "$closing"
-		printf "fees_msat\t%s\n"    "$fee_msat"
+		printf "fees_msat\t%s\n"    "$(( -fee_msat ))"
 		printf "net_msat\t%s\n"     "$(( closing - opening ))"
 		echo
 		echo "ts	direction	amount_msat	peer	message"
@@ -204,7 +204,7 @@ cmd_statement() {
 		| awk -F'\t' '{ printf "  %s  %+8d  %s\n", substr($1,1,10), $2, $3 }'
 	echo   "--------------------------------"
 	printf "Closing balance: %15s sat\n" "$(( closing / 1000 ))"
-	printf "Fees paid:       %15s sat\n" "$(( fee_msat / 1000 ))"
+	printf "Fees paid:       %15s sat\n" "$(( -fee_msat / 1000 ))"
 	printf "Net for period:  %+15d sat\n" "$(( (closing - opening) / 1000 ))"
 }
 

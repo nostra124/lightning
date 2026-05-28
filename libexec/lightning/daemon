@@ -29,6 +29,7 @@ ACCOUNT_GC_LABEL="network.lightning.account-gc"
 FEE_AUTOTUNE_LABEL="network.lightning.fee-autotune"
 PRICE_ORACLE_LABEL="network.lightning.price-oracle"
 STANDING_ORDER_LABEL="network.lightning.standing-orders"
+RECONCILE_LABEL="network.lightning.reconcile"
 LIGHTNING_CONF="$LIGHTNING_DIR/config"
 BACKEND_BLOCK_BEGIN="# >>> lightning backend — managed by 'daemon install'"
 BACKEND_BLOCK_END="# <<< lightning backend"
@@ -665,7 +666,7 @@ cmd_install() {
 	#   -1  leave backend config alone
 	#    1  enable trustedcoin (multi-explorer fallback)
 	#    0  disable any managed backend block (back to bitcoind/bcli)
-	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0 autopilot=0 topup_watcher=0 account_gc=0 fee_autotune=0 price_oracle=0 standing_orders=0
+	local system=0 migrate=0 backend=-1 keepalive=1 alert=1 lsps=0 autopilot=0 topup_watcher=0 account_gc=0 fee_autotune=0 price_oracle=0 standing_orders=0 reconcile=0
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			--system)      system=1; shift ;;
@@ -682,6 +683,7 @@ cmd_install() {
 			--fee-autotune) fee_autotune=1; shift ;;
 			--price-oracle) price_oracle=1; shift ;;
 			--standing-orders) standing_orders=1; shift ;;
+			--reconcile)   reconcile=1; shift ;;
 			*) error "daemon install: unknown flag $1"; exit 1 ;;
 		esac
 	done
@@ -766,6 +768,15 @@ cmd_install() {
 	# than daily so a freshly-due order fires within the hour).  Same gate.
 	if [ "$standing_orders" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
 		install_standing_orders_sidecar
+	fi
+
+	# FEAT-244 sidecar — node-balance reconciliation.  Books the
+	# off-chain pays/receipts our verbs never recorded (another client
+	# driving the same lightningd) into the ledger.  The off-chain analog
+	# of the topup-watcher; coarser cadence because listpays/listinvoices
+	# scans are heavier than listfunds.  Same OPT-IN gate.
+	if [ "$reconcile" -eq 1 ] && [ "$system" -eq 0 ] && [ "$(init_system)" != "openrc" ]; then
+		install_reconcile_sidecar
 	fi
 }
 
@@ -1163,6 +1174,91 @@ EOF
 	systemctl --user daemon-reload 2>/dev/null || true
 	info "wrote $dir/lightning-topup-watcher.{service,timer}"
 	info "  enable + start with: systemctl --user enable --now lightning-topup-watcher.timer"
+}
+
+# FEAT-244 — reconciliation sidecar.  Off-chain analog of the
+# topup-watcher: books pays/receipts that reached lightningd outside our
+# verbs.  5-min cadence — frequent enough to keep a personal node's
+# books current, but lighter than the 1-min topup-watcher since the
+# listpays/listinvoices scans cost more than listfunds.
+install_reconcile_sidecar() {
+	local self_bin="$SELF_LIBEXEC/../bin/lightning"
+	self_bin=$(cd "$(dirname "$self_bin")" && pwd)/$(basename "$self_bin")
+
+	if is_macos; then
+		local plist="$HOME/Library/LaunchAgents/${RECONCILE_LABEL}.plist"
+		mkdir -p "$(dirname "$plist")"
+		cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${RECONCILE_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${self_bin}</string>
+        <string>ledger</string>
+        <string>reconcile</string>
+        <string>run</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LIGHTNING_DIR</key>
+        <string>${LIGHTNING_DIR}</string>
+        <key>LIGHTNING_NETWORK</key>
+        <string>${LIGHTNING_NETWORK}</string>
+        <key>PATH</key>
+        <string>${PATH}</string>
+        <key>SELF_QUIET</key>
+        <string>1</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>300</integer>
+    <key>StandardOutPath</key>
+    <string>${LIGHTNING_DIR}/reconcile.log</string>
+    <key>StandardErrorPath</key>
+    <string>${LIGHTNING_DIR}/reconcile.log</string>
+</dict>
+</plist>
+EOF
+		info "wrote $plist (reconcile sidecar)"
+		info "  triggers: every 5min"
+		info "  log:      $LIGHTNING_DIR/reconcile.log"
+		return 0
+	fi
+
+	local dir="$HOME/.config/systemd/user"
+	mkdir -p "$dir"
+	cat > "$dir/lightning-reconcile.service" <<EOF
+[Unit]
+Description=Lightning node-balance reconciliation (FEAT-244)
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=SELF_QUIET=1
+Environment=LIGHTNING_DIR=$LIGHTNING_DIR
+Environment=LIGHTNING_NETWORK=$LIGHTNING_NETWORK
+ExecStart=$self_bin ledger reconcile run
+EOF
+	cat > "$dir/lightning-reconcile.timer" <<EOF
+[Unit]
+Description=Lightning reconcile timer (every 5min)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=lightning-reconcile.service
+
+[Install]
+WantedBy=timers.target
+EOF
+	systemctl --user daemon-reload 2>/dev/null || true
+	info "wrote $dir/lightning-reconcile.{service,timer}"
+	info "  enable + start with: systemctl --user enable --now lightning-reconcile.timer"
 }
 
 # FEAT-212 PR-5 — account-GC sidecar.  Daily cadence — there's no

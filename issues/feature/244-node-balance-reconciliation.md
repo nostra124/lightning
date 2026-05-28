@@ -35,6 +35,10 @@ already booked, and books the residue so the books reconcile.
 * A seeded, reserved **`others`** account (alongside `house` / `escrow`
   / `-`), `overdraft=allow`, `fund_class` left NULL so it inherits the
   node's `access.recfile` `default_profile` (FEAT-243).
+* A **`daemon install --reconcile`** sidecar (opt-in, user-mode, same
+  gate as `--topup-watcher`): a systemd-user timer / launchd agent that
+  runs `ledger reconcile run` on a 5-min cadence so a personal node's
+  books stay current without manual runs.
 * **`lightning ledger reconcile [run|dry-run|status]`** (lives on the
   `ledger` verb — the ledger source-of-truth):
   * `run` — scan `listpays` (completed) + `listinvoices` (paid); for
@@ -68,21 +72,27 @@ already booked, and books the residue so the books reconcile.
   deployment classify it via the node default rather than baking a
   guess into the schema.
 
+## Also fixed here (related bug)
+
+* **Sign-convention bug:** `invoice pay` and `send` booked `out` (and,
+  for `invoice`, `fee`) rows with a **positive** amount, whereas
+  `api-account-pay` / `topup-watcher` (and the `ledger balance` SUM)
+  expect outflows negative — so a CLI payment *raised* the account
+  balance.  Fixed to book negative, consistent with every other verb;
+  `ledger statement` now shows fees-paid as a positive magnitude.  This
+  is a prerequisite for the books reconciling at all, so it ships with
+  the feature.
+
 ## Out of scope (follow-ups)
 
 * Routing-forward fee booking (→ `house` or a dedicated `routing`
   account).
-* A timer/cron to run reconcile automatically (compose from the same
-  one-shot pattern as `daemon install --topup-watcher`).
 * A true balance-audit (`SUM(ledger)` vs live channel+on-chain funds)
-  surfaced as a drift figure — blocked on the sign-convention cleanup
-  below.
-* **Sign-convention bug (separate):** `invoice pay` and `send` book
-  `out` rows with a **positive** amount, whereas `api-account-pay` /
-  `topup-watcher` (and the `ledger balance` SUM) expect `out` negative.
-  CLI-paid accounts therefore mis-total.  Reconcile uses the correct
-  (negative-for-out) convention; fixing the two offenders is a small,
-  separate bug.
+  surfaced as a drift figure.
+* The divergent wallet-DB path resolution between `invoice`/`send`
+  (`$LIGHTNING_DIR/wallet/.active`) and `ledger`/`account`
+  (`$LIGHTNING_WALLETS_ROOT` + `/active`) — they only coincide for a
+  `default`-named wallet.  Pre-existing; worth unifying separately.
 
 ## Acceptance criteria
 
