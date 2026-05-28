@@ -989,6 +989,138 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# FEAT-244: node-balance reconciliation
+# ---------------------------------------------------------------------------
+
+@test "FEAT-244: ledger reconcile books an external pay into others (idempotently)" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	# A completed pay our verbs never booked: out 50000 + fee 500 msat.
+	export MOCK_LISTPAYS='[{"payment_hash":"aaa111","status":"complete","amount_msat":50000,"amount_sent_msat":50500}]'
+
+	run "$LIGHTNING_BIN" ledger reconcile run
+	[ "$status" -eq 0 ]
+
+	# others = -(out 50000) + -(fee 500) = -50500 msat.
+	run "$LIGHTNING_BIN" ledger balance others
+	[ "$status" -eq 0 ]
+	[ "$output" = "-50500" ]
+
+	# Second pass is a no-op (deduped by payment_hash).
+	run "$LIGHTNING_BIN" ledger reconcile run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"already-booked 1"* ]]
+	run "$LIGHTNING_BIN" ledger balance others
+	[ "$output" = "-50500" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-244: ledger reconcile credits a known paid invoice to its owner" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	# A receive we minted (invoices row) but whose settlement was never booked.
+	db="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	sqlite3 "$db" "INSERT INTO invoices(bolt11, payment_hash, account, amount_msat, expiry, message, state) VALUES('lnbcrttest','bbb222','rent',30000,'2030-01-01T00:00:00Z','rent','pending');"
+	export MOCK_LISTINVOICES='[{"payment_hash":"bbb222","status":"paid","amount_received_msat":30000}]'
+
+	run "$LIGHTNING_BIN" ledger reconcile run
+	[ "$status" -eq 0 ]
+
+	# Credited to rent, not others.
+	run "$LIGHTNING_BIN" ledger balance rent
+	[ "$output" = "30000" ]
+	run "$LIGHTNING_BIN" ledger balance others
+	[ "$output" = "0" ]
+	# Invoice marked settled.
+	state=$(sqlite3 "$db" "SELECT state FROM invoices WHERE payment_hash='bbb222';")
+	[ "$state" = "paid" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-244: ledger reconcile routes an unknown paid invoice to others" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	export MOCK_LISTINVOICES='[{"payment_hash":"ccc333","status":"paid","amount_received_msat":20000}]'
+
+	run "$LIGHTNING_BIN" ledger reconcile run
+	[ "$status" -eq 0 ]
+	run "$LIGHTNING_BIN" ledger balance others
+	[ "$output" = "20000" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-244: ledger reconcile leaves already-booked payments untouched" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create rent >/dev/null
+	# Our verb already booked this payment_hash.
+	"$LIGHTNING_BIN" ledger add out -12345 --account rent --payment-hash ddd444 >/dev/null
+	export MOCK_LISTPAYS='[{"payment_hash":"ddd444","status":"complete","amount_msat":12000,"amount_sent_msat":12345}]'
+
+	run "$LIGHTNING_BIN" ledger reconcile run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"already-booked 1"* ]]
+	# others untouched; rent unchanged.
+	run "$LIGHTNING_BIN" ledger balance others
+	[ "$output" = "0" ]
+	run "$LIGHTNING_BIN" ledger balance rent
+	[ "$output" = "-12345" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-244: ledger reconcile dry-run writes nothing" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	export MOCK_LISTPAYS='[{"payment_hash":"eee555","status":"complete","amount_msat":9000,"amount_sent_msat":9000}]'
+
+	run "$LIGHTNING_BIN" ledger reconcile dry-run
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"would-book"* ]]
+	# Nothing committed.
+	run "$LIGHTNING_BIN" ledger balance others
+	[ "$output" = "0" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-244: ledger reconcile status reports counts and others balance" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	export MOCK_LISTPAYS='[{"payment_hash":"fff666","status":"complete","amount_msat":7000,"amount_sent_msat":7000}]'
+	"$LIGHTNING_BIN" ledger reconcile run >/dev/null 2>&1
+
+	run "$LIGHTNING_BIN" ledger reconcile status
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"reconciled_pays:"* ]]
+	[[ "$output" == *"others_balance_sat:"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-244: CLI invoice pay + send debit the account (out booked negative)" {
+	# Regression: invoice pay / send previously booked `out` rows with a
+	# positive amount, so a CLI payment *raised* the balance.  Name the
+	# wallet `default` and leave LIGHTNING_WALLETS_ROOT unset so the
+	# invoice/send (LIGHTNING_DIR) and ledger (WALLETS_ROOT) paths resolve
+	# to the same $HOME/.lightning/wallet/default DB.
+	"$LIGHTNING_BIN" wallet new default >/dev/null
+	"$LIGHTNING_BIN" account create spend >/dev/null
+	"$LIGHTNING_BIN" ledger add in 1000000 --account spend >/dev/null
+
+	# mock pay: amount_msat 1000 + amount_sent_msat 1001 => out -1000, fee -1.
+	run "$LIGHTNING_BIN" invoice pay lnbcrt10n1pmocktest --account spend
+	[ "$status" -eq 0 ]
+	run "$LIGHTNING_BIN" ledger balance spend
+	[ "$output" = "998999" ]
+
+	# keysend 100 sat => out -100000 msat.
+	run "$LIGHTNING_BIN" send 020000000000000000000000000000000000000000000000000000000000000002 100 --account spend
+	[ "$status" -eq 0 ]
+	run "$LIGHTNING_BIN" ledger balance spend
+	[ "$output" = "898999" ]
+	rm -rf "$HOME/.lightning"
+}
+
+# ---------------------------------------------------------------------------
 # FEAT-185: seed + SCB
 # ---------------------------------------------------------------------------
 
@@ -4209,9 +4341,9 @@ _acct212pr2_teardown() {
 	# Description was persisted in the DB.
 	local db="$LIGHTNING_WALLETS_ROOT/alice/state.db"
 	local got
-	# Exclude house (FEAT-218 pre-seeds it with 'operator fee revenue')
-	# and escrow (FEAT-228 holding account).
-	got=$(sqlite3 "$db" "SELECT description FROM accounts WHERE description != '' AND name NOT IN ('-', 'house', 'escrow') LIMIT 1;")
+	# Exclude the reserved system accounts: house (FEAT-218 fee revenue),
+	# escrow (FEAT-228 holding), others (FEAT-244 reconciliation catch-all).
+	got=$(sqlite3 "$db" "SELECT description FROM accounts WHERE description != '' AND name NOT IN ('-', 'house', 'escrow', 'others') LIMIT 1;")
 	[ "$got" = "personal pocket" ]
 	_acct212pr2_teardown
 }
@@ -4447,6 +4579,25 @@ _acct212pr4_teardown() {
 	grep -q "TOPUP_WATCHER_LABEL" "$f"
 }
 
+@test "FEAT-244: daemon install --reconcile writes a sidecar (Linux)" {
+	if [ "$(uname -s)" = "Darwin" ]; then
+		skip "Linux-only — checks the systemd timer files"
+	fi
+	run "$LIGHTNING_BIN" daemon install --reconcile --no-keepalive --no-alert
+	[ "$status" -eq 0 ]
+	[ -f "$HOME/.config/systemd/user/lightning-reconcile.service" ]
+	[ -f "$HOME/.config/systemd/user/lightning-reconcile.timer" ]
+	grep -q "ledger reconcile run" "$HOME/.config/systemd/user/lightning-reconcile.service"
+	grep -q "OnUnitActiveSec=5min" "$HOME/.config/systemd/user/lightning-reconcile.timer"
+}
+
+@test "FEAT-244: daemon install (no --reconcile) does NOT write the sidecar" {
+	# Opt-in, like the other watcher sidecars.
+	run "$LIGHTNING_BIN" daemon install --no-keepalive --no-alert
+	[ "$status" -eq 0 ]
+	[ ! -e "$HOME/.config/systemd/user/lightning-reconcile.timer" ]
+}
+
 # ---------------------------------------------------------------------------
 # FEAT-212 PR-5: account garbage collector.
 # ---------------------------------------------------------------------------
@@ -4488,7 +4639,7 @@ _acct212pr5_teardown() {
 	[[ "$output" == *"would-delete	closer"* ]]
 	# State unchanged.
 	local n_closed n_total
-	n_total=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-', 'house', 'escrow');")
+	n_total=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name NOT IN ('-', 'house', 'escrow', 'others');")
 	n_closed=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE closed_at IS NOT NULL;")
 	[ "$n_total" = "3" ]
 	[ "$n_closed" = "1" ]   # only the pre-existing 'closer'

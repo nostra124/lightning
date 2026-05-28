@@ -80,5 +80,5 @@ DB=$(wallet_db)
 if [ -f "$DB" ] && command -v sqlite3 >/dev/null; then
 	note_esc=$(echo "$note" | sed "s/'/''/g")
 	acct="${account:--}"
-	sqlite3 "$DB" "INSERT INTO ledger (ts, account, direction, amount_msat, peer, payment_hash, message, note) VALUES (datetime('now'), '$(echo "$acct" | sed "s/'/''/g")', 'out', $msat, '$(echo "$node" | sed "s/'/''/g")', '$(echo "$hash" | sed "s/'/''/g")', '$(echo "$message" | sed "s/'/''/g")', '$note_esc')" 2>/dev/null || true
+	sqlite3 "$DB" "INSERT INTO ledger (ts, account, direction, amount_msat, peer, payment_hash, message, note) VALUES (datetime('now'), '$(echo "$acct" | sed "s/'/''/g")', 'out', -$msat, '$(echo "$node" | sed "s/'/''/g")', '$(echo "$hash" | sed "s/'/''/g")', '$(echo "$message" | sed "s/'/''/g")', '$note_esc')" 2>/dev/null || true
 fi

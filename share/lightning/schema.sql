@@ -254,3 +254,14 @@ INSERT OR IGNORE INTO accounts(name, description) VALUES('-', 'unassigned');
 -- FEAT-228 — escrow holding account (funds in flight customer↔merchant).
 INSERT OR IGNORE INTO accounts(name, description, overdraft)
     VALUES('escrow', 'commerce escrow holding', 'allow');
+
+-- FEAT-244 — catch-all for externally-initiated flows: off-chain
+-- payments the node made or received outside our verbs (e.g. another
+-- client driving the same lightningd, or a receive that settled with no
+-- owning account).  `lightning ledger reconcile` books unattributed
+-- pays/receipts here so SUM(ledger) tracks the node's real liquidity.
+-- overdraft=allow: as a residual account it routinely runs negative
+-- (external sends) or positive (external receipts).  fund_class is left
+-- NULL so it inherits the node's access.recfile default_profile.
+INSERT OR IGNORE INTO accounts(name, description, overdraft)
+    VALUES('others', 'external / other-client flows', 'allow');
