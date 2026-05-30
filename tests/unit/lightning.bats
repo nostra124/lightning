@@ -29441,3 +29441,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2630: channel-capacity-top5 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-top5.1" ]
 }
+
+@test "FEAT-2631: node-listforwards-in-msat-max reports error or max_in_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_in_msat"
+}
+@test "FEAT-2631: node-listforwards-in-msat-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-max.1" ]
+}
+
+@test "FEAT-2632: channel-local-balance-median reports error or median_local_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_local_msat"
+}
+@test "FEAT-2632: channel-local-balance-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-median.1" ]
+}
+
+@test "FEAT-2633: peer-remote-balance-total reports error or total_remote_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_remote_msat"
+}
+@test "FEAT-2633: peer-remote-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-total.1" ]
+}
+
+@test "FEAT-2634: node-pay-failed-count-7d reports error or failed_pay_count_7d gracefully" {
+    out=$(./libexec/lightning/node-pay-failed-count-7d 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_pay_count_7d"
+}
+@test "FEAT-2634: node-pay-failed-count-7d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-failed-count-7d.1" ]
+}
+
+@test "FEAT-2635: channel-remote-balance-median reports error or median_remote_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_remote_msat"
+}
+@test "FEAT-2635: channel-remote-balance-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-median.1" ]
+}
+
+@test "FEAT-2636: node-listforwards-in-msat-min reports error or min_in_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_in_msat"
+}
+@test "FEAT-2636: node-listforwards-in-msat-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-min.1" ]
+}
+
+@test "FEAT-2637: channel-spendable-median reports error or median_spendable_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_spendable_msat"
+}
+@test "FEAT-2637: channel-spendable-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-median.1" ]
+}
+
+@test "FEAT-2638: peer-spendable-total reports error or total_spendable_msat gracefully" {
+    out=$(./libexec/lightning/peer-spendable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_spendable_msat"
+}
+@test "FEAT-2638: peer-spendable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-total.1" ]
+}
+
+@test "FEAT-2639: node-invoice-paid-count-today reports error or paid_today_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_today_count"
+}
+@test "FEAT-2639: node-invoice-paid-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-today.1" ]
+}
+
+@test "FEAT-2640: channel-receivable-median reports error or median_receivable_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_receivable_msat"
+}
+@test "FEAT-2640: channel-receivable-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-median.1" ]
+}
