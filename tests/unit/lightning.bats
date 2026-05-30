@@ -20424,3 +20424,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1470: channel-htlc-in-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-in-count.1" ]
 }
+@test "FEAT-1471: node-listpays-amount-total reports error or complete_count gracefully" {
+    out=$(./libexec/lightning/node-listpays-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|complete_count"
+}
+@test "FEAT-1471: node-listpays-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-amount-total.1" ]
+}
+@test "FEAT-1472: channel-htlc-out-count reports error gracefully" {
+    out=$(./libexec/lightning/channel-htlc-out-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1472: channel-htlc-out-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-out-count.1" ]
+}
+@test "FEAT-1473: wallet-notes-export-csv reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-export-csv 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1473: wallet-notes-export-csv man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-export-csv.1" ]
+}
+@test "FEAT-1474: node-listchannels-active reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listchannels-active 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1474: node-listchannels-active man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-active.1" ]
+}
+@test "FEAT-1475: invoice-list-by-status reports error gracefully" {
+    out=$(./libexec/lightning/invoice-list-by-status 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1475: invoice-list-by-status man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-status.1" ]
+}
+@test "FEAT-1476: channel-our-htlc-minimum reports error gracefully" {
+    out=$(./libexec/lightning/channel-our-htlc-minimum 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1476: channel-our-htlc-minimum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-htlc-minimum.1" ]
+}
+@test "FEAT-1477: peer-alias reports error gracefully" {
+    out=$(./libexec/lightning/peer-alias 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1477: peer-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-alias.1" ]
+}
+@test "FEAT-1478: wallet-notes-by-tag reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-by-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1478: wallet-notes-by-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-by-tag.1" ]
+}
+@test "FEAT-1479: node-onchain-outputs reports error or output_count gracefully" {
+    out=$(./libexec/lightning/node-onchain-outputs 2>/dev/null)
+    echo "$out" | grep -q "error\|output_count"
+}
+@test "FEAT-1479: node-onchain-outputs man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-outputs.1" ]
+}
+@test "FEAT-1480: channel-our-reserve reports error gracefully" {
+    out=$(./libexec/lightning/channel-our-reserve 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1480: channel-our-reserve man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve.1" ]
+}

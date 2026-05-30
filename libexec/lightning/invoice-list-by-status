@@ -1,12 +1,11 @@
 #!/bin/bash
-# lightning invoice-list-by-status <status>   (FEAT-1155)
+# lightning invoice-list-by-status <status>   (FEAT-1475)
 if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-list-by-status <status>"}'; exit 0; fi
 status="$1"
 result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-st = sys.argv[2]
-matched = [i for i in data.get('invoices', []) if i.get('status') == st]
-print(json.dumps({'status': st, 'count': len(matched), 'invoices': [i.get('label') for i in matched]}))
+invs = [{'label': i.get('label'), 'amount_msat': i.get('amount_msat')} for i in data.get('invoices', []) if i.get('status') == sys.argv[2]]
+print(json.dumps({'status': sys.argv[2], 'count': len(invs), 'invoices': invs}))
 " "$result" "$status"

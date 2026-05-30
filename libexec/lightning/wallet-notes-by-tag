@@ -1,15 +1,16 @@
 #!/bin/bash
-# lightning wallet-notes-by-tag <wallet_name> <tag>   (FEAT-1103)
-if [ $# -lt 2 ]; then
-    echo '{"error":"usage: wallet-notes-by-tag <wallet_name> <tag>"}'
-    exit 0
-fi
+# lightning wallet-notes-by-tag <wallet> <tag>   (FEAT-1478)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-by-tag <wallet> <tag>"}'; exit 0; fi
 wname="$1"; tag="$2"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"wallet_not_found"}'
-    exit 0
-fi
-notes=$(sqlite3 "$db" "SELECT id,body FROM notes WHERE tag='$tag';" 2>/dev/null | python3 -c "import sys,json; rows=[l.strip().split('|',1) for l in sys.stdin if '|' in l]; print(json.dumps([{'id':r[0],'body':r[1]} for r in rows]))" 2>/dev/null || echo '[]')
-echo "{\"wallet\":\"$wname\",\"tag\":\"$tag\",\"notes\":$notes}"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+rows=$(sqlite3 "$db" "SELECT key||'='||value FROM notes WHERE tag='$tag' ORDER BY key;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+python3 -c "
+import sys, json
+pairs = {}
+for r in sys.argv[1].split('\n'):
+    if '=' in r:
+        k, v = r.split('=', 1)
+        pairs[k] = v
+print(json.dumps({'wallet': sys.argv[2], 'tag': sys.argv[3], 'notes': pairs}))
+" "$rows" "$wname" "$tag"
