@@ -43,6 +43,7 @@ install:
 	          $(BUILD_DIR)$(DATADIR)/doc/$(PACKAGE) \
 	          $(BUILD_DIR)$(DATADIR)/$(PACKAGE)
 	@cp -a bin/* $(BUILD_DIR)$(BINDIR)/
+	@ln -sf $(PACKAGE) $(BUILD_DIR)$(BINDIR)/$(PACKAGE).sh
 	@if [ -d libexec/$(PACKAGE) ]; then \
 		cp -a libexec/$(PACKAGE)/* $(BUILD_DIR)$(LIBEXECDIR)/$(PACKAGE)/; \
 	fi
@@ -61,12 +62,32 @@ install:
 	@if [ -d share/$(PACKAGE) ]; then \
 		cp -a share/$(PACKAGE)/* $(BUILD_DIR)$(DATADIR)/$(PACKAGE)/; \
 	fi
-	# .rpk/version → $DATADIR/<pkg>/version : the runtime version
-	# string the binary reads (FEAT-194). The binary's two-path
-	# fallback resolves to this file when invoked as the installed
-	# entry, and to .rpk/version when invoked from a dev tree.
-	@if [ -f .rpk/version ]; then \
-		install -m 644 .rpk/version $(BUILD_DIR)$(DATADIR)/$(PACKAGE)/version; \
+	# Agent skills — each skills/$(PACKAGE)-<name>/ ships its SKILL.md
+	# to share/claude/skills/<name>/ and share/raven/skills/<name>/,
+	# and its opencode.md to share/opencode/commands/<name>.md.
+	# install-skills-user symlinks these into the user's per-agent dirs.
+	@if ls -d skills/$(PACKAGE)-* >/dev/null 2>&1; then \
+		for skill in skills/$(PACKAGE)-*; do \
+			name=$$(basename $$skill); \
+			if [ -f "$$skill/SKILL.md" ]; then \
+				mkdir -p $(BUILD_DIR)$(DATADIR)/claude/skills/$$name; \
+				install -m 644 "$$skill/SKILL.md" \
+				    $(BUILD_DIR)$(DATADIR)/claude/skills/$$name/SKILL.md; \
+				mkdir -p $(BUILD_DIR)$(DATADIR)/raven/skills/$$name; \
+				install -m 644 "$$skill/SKILL.md" \
+				    $(BUILD_DIR)$(DATADIR)/raven/skills/$$name/SKILL.md; \
+			fi; \
+			if [ -f "$$skill/opencode.md" ]; then \
+				mkdir -p $(BUILD_DIR)$(DATADIR)/opencode/commands; \
+				install -m 644 "$$skill/opencode.md" \
+				    $(BUILD_DIR)$(DATADIR)/opencode/commands/$$name.md; \
+			fi; \
+		done; \
+	fi
+	# VERSION → $DATADIR/<pkg>/version : the runtime version string
+	# the binary reads (FEAT-194). Falls back to ./VERSION in dev trees.
+	@if [ -f VERSION ]; then \
+		install -m 644 VERSION $(BUILD_DIR)$(DATADIR)/$(PACKAGE)/version; \
 	fi
 	@stow -d build -t $(PREFIX) $(PACKAGE)
 
@@ -138,26 +159,43 @@ lint:
 
 test: check
 
-# Skills installation (FEAT-192)
+# Skills installation (FEAT-192).
+#
+# Opt-in symlinks into the user's per-agent dirs, iff each dir
+# already exists. Three agents, two layouts (per the rpk skill
+# convention):
+#   - Claude  : dir  ~/.claude/skills/<name>          -> share/claude/skills/<name>
+#   - Raven   : dir  ~/.raven/workspace/skills/<name> -> share/raven/skills/<name>
+#   - opencode: file ~/.config/opencode/commands/<name>.md
+#                                                     -> share/opencode/commands/<name>.md
+# Claude and Raven point at the SKILL.md dir; opencode points at
+# the single .md command file. `ln -sf` makes this idempotent.
 install-skills-user:
-	@for agent_dir in \
-		$$HOME/.claude/skills:claude \
-		$$HOME/.config/opencode/commands:opencode; do \
-		dest=$$(echo $$agent_dir | cut -d: -f1); \
-		kind=$$(echo $$agent_dir | cut -d: -f2); \
-		if [ -d "$$dest" ] && [ -d skills/$(PACKAGE)-* ]; then \
-			for skill in skills/$(PACKAGE)-*; do \
-				name=$$(basename $$skill); \
-				ln -sf $(PREFIX)/share/$$kind/skills/$$name "$$dest/$$name" || true; \
-			done; \
+	@for skill in skills/$(PACKAGE)-*; do \
+		[ -d "$$skill" ] || continue; \
+		name=$$(basename $$skill); \
+		if [ -d "$$HOME/.claude/skills" ] && [ -f "$$skill/SKILL.md" ]; then \
+			ln -sf $(PREFIX)/share/claude/skills/$$name \
+			    "$$HOME/.claude/skills/$$name"; \
+		fi; \
+		if [ -d "$$HOME/.raven/workspace/skills" ] && [ -f "$$skill/SKILL.md" ]; then \
+			ln -sf $(PREFIX)/share/raven/skills/$$name \
+			    "$$HOME/.raven/workspace/skills/$$name"; \
+		fi; \
+		if [ -d "$$HOME/.config/opencode/commands" ] && [ -f "$$skill/opencode.md" ]; then \
+			ln -sf $(PREFIX)/share/opencode/commands/$$name.md \
+			    "$$HOME/.config/opencode/commands/$$name.md"; \
 		fi; \
 	done
 
 uninstall-skills-user:
 	@for skill in skills/$(PACKAGE)-*; do \
+		[ -d "$$skill" ] || continue; \
 		name=$$(basename $$skill); \
-		find $$HOME/.claude/skills $$HOME/.config/opencode/commands \
-		  -maxdepth 1 -name $$name -type l -delete 2>/dev/null || true; \
+		find $$HOME/.claude/skills $$HOME/.raven/workspace/skills \
+		  -maxdepth 1 -name "$$name" -type l -delete 2>/dev/null || true; \
+		find $$HOME/.config/opencode/commands \
+		  -maxdepth 1 -name "$$name.md" -type l -delete 2>/dev/null || true; \
 	done
 
 # FEAT-196: drop the sudoers fragment that lets Apache (www-data) cross
@@ -186,6 +224,11 @@ uninstall-apache-bridge:
 	@echo "uninstall-apache-bridge: removed /etc/sudoers.d/lightning"
 
 # Versioning (FEAT-194)
+#
+# VERSION (project root) is the source of truth read by bin/lightning
+# and installed to $DATADIR/<pkg>/version. .rpk/versions is the
+# per-release SHA ledger appended below. To bump, see
+# skills/version.md.
 package:
 	@if [ -z "$(VERSION)" ]; then \
 		echo "Usage: make package VERSION=x.y.z"; exit 1; \
@@ -194,8 +237,8 @@ package:
 		echo "Invalid semver: $(VERSION)"; exit 1; }
 	@printf '%s\t%s\n' "$(VERSION)" "$$(git rev-parse HEAD)" \
 		>> .rpk/versions
-	@echo "$(VERSION)" > .rpk/version
-	@git add .rpk/version .rpk/versions
+	@echo "$(VERSION)" > VERSION
+	@git add VERSION .rpk/versions
 	@git commit -m "package $(VERSION)"
 	@git tag "v$(VERSION)"
 

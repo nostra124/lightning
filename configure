@@ -69,6 +69,21 @@ for tool in bash stow git; do
 	fi
 done
 
+# VERSION is the source of truth read by bin/lightning and installed
+# by `make install`. To bump it, see skills/version.md.
+if [ ! -f VERSION ]; then
+	echo "configure: VERSION file missing at repo root" >&2
+	exit 1
+fi
+VERSION=$(cat VERSION)
+case "$VERSION" in
+	[0-9]*.[0-9]*.[0-9]*) ;;
+	*)
+		echo "configure: VERSION must be semver (got '$VERSION')" >&2
+		exit 1
+		;;
+esac
+
 # Render Makefile from Makefile.in by substituting the variables.
 sed \
 	-e "s|@PACKAGE@|$PACKAGE|g" \
@@ -80,4 +95,17 @@ sed \
 	-e "s|@MANDIR@|$MANDIR|g" \
 	Makefile.in > Makefile
 
-echo "configured $PACKAGE for prefix=$PREFIX"
+echo "configured $PACKAGE $VERSION for prefix=$PREFIX"
+
+# Wire up the pre-push test gate when we are inside a git checkout
+# and the user has not already configured a hooks path. See
+# skills/testing.md for the selection matrix.
+if [ -d .git ] && [ -d .githooks ]; then
+	current_hooks_path="$(git config --get core.hooksPath || true)"
+	if [ -z "$current_hooks_path" ]; then
+		echo
+		echo "To run tests before every push:"
+		echo "    git config core.hooksPath .githooks"
+		echo "See skills/testing.md for the full matrix."
+	fi
+fi
