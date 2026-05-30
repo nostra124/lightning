@@ -1,11 +1,12 @@
 .TH "LIGHTNING-CHANNEL_PENDING_HTLCS" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-channel-pending-htlcs \- list channels with pending HTLCs
+lightning-channel-pending-htlcs \- FEAT-1170 channel-pending-htlcs
 .SH SYNOPSIS
 .B lightning channel-pending-htlcs
-.RI [ channel_id ]
 .SH DESCRIPTION
-Returns channels that have one or more in-flight HTLCs.
+channel-pending-htlcs for lightning CLI (FEAT-1170).
+.PP
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0

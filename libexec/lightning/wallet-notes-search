@@ -1,12 +1,16 @@
 #!/bin/bash
-# lightning wallet-notes-search <wallet_name> <query>   (FEAT-888)
+# lightning wallet-notes-search <wallet_name> <query>   (FEAT-1163)
 if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-search <wallet_name> <query>"}'; exit 0; fi
-wname="$1"; query="$2"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-notes_file="$root/$wname/notes"
-if [ ! -f "$notes_file" ]; then echo '{"wallet":"'"$wname"'","matches":[]}'; exit 0; fi
-matches=$(grep -n "$query" "$notes_file" 2>/dev/null | head -20)
-python3 -c "
+wname="$1"; query="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+sqlite3 "$db" "SELECT key, value FROM notes WHERE value LIKE '%${query}%';" 2>/dev/null | python3 -c "
 import sys, json
-lines = sys.argv[1].strip().split('\n') if sys.argv[1].strip() else []
-print(json.dumps({'wallet': sys.argv[2], 'query': sys.argv[3], 'match_count': len(lines), 'matches': lines}))
-" "$matches" "$wname" "$query"
+rows = []
+for line in sys.stdin:
+    parts = line.rstrip('\n').split('|', 1)
+    if len(parts) == 2:
+        rows.append({'key': parts[0], 'value': parts[1]})
+print(json.dumps({'results': rows, 'count': len(rows)}))
+"

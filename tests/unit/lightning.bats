@@ -17974,3 +17974,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1160: channel-reserve-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-msat.1" ]
 }
+
+@test "FEAT-1161: node-invoice-unpaid-total reports error or count gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-total 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1161: node-invoice-unpaid-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-total.1" ]
+}
+
+@test "FEAT-1162: channel-update-fee requires args" {
+    out=$(./libexec/lightning/channel-update-fee 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1162: channel-update-fee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-update-fee.1" ]
+}
+
+@test "FEAT-1163: wallet-notes-search requires args" {
+    out=$(./libexec/lightning/wallet-notes-search 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1163: wallet-notes-search man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-search.1" ]
+}
+
+@test "FEAT-1164: node-graph-channel-count reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/node-graph-channel-count 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1164: node-graph-channel-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channel-count.1" ]
+}
+
+@test "FEAT-1165: invoice-amount-msat requires arg" {
+    out=$(./libexec/lightning/invoice-amount-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1165: invoice-amount-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-amount-msat.1" ]
+}
+
+@test "FEAT-1166: channel-local-reserve requires arg" {
+    out=$(./libexec/lightning/channel-local-reserve 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1166: channel-local-reserve man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve.1" ]
+}
+
+@test "FEAT-1167: peer-pay-history requires arg" {
+    out=$(./libexec/lightning/peer-pay-history 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1167: peer-pay-history man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-pay-history.1" ]
+}
+
+@test "FEAT-1168: wallet-receive-address requires arg" {
+    out=$(./libexec/lightning/wallet-receive-address 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1168: wallet-receive-address man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-receive-address.1" ]
+}
+
+@test "FEAT-1169: node-listpeers-count reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listpeers-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1169: node-listpeers-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-count.1" ]
+}
+
+@test "FEAT-1170: channel-pending-htlcs requires arg" {
+    out=$(./libexec/lightning/channel-pending-htlcs 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1170: channel-pending-htlcs man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-pending-htlcs.1" ]
+}

@@ -1,20 +1,16 @@
 #!/bin/bash
-# lightning channel-pending-htlcs [<channel_id>]   (FEAT-490)
-if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
+# lightning channel-pending-htlcs <channel_id>   (FEAT-1170)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-pending-htlcs <channel_id>"}'; exit 0; fi
+channel_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
-channels = json.loads(sys.argv[1]).get('channels', [])
-filter_id = sys.argv[2] if len(sys.argv) > 2 else None
-out = []
-for c in channels:
-    if filter_id and c.get('channel_id') != filter_id:
-        continue
-    htlcs = c.get('htlcs', [])
-    if htlcs:
-        out.append({'channel_id': c.get('channel_id',''), 'peer_id': c.get('peer_id',''),
-            'htlc_count': len(htlcs)})
-print(json.dumps(out, separators=(',', ':')))
-" "$result" "${1:-}"
+data = json.loads(sys.argv[1])
+cid = sys.argv[2]
+for ch in data.get('channels', []):
+    if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
+        htlcs = ch.get('htlcs', [])
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'pending_htlcs': len(htlcs), 'htlcs': htlcs}))
+        sys.exit(0)
+print(json.dumps({'error': 'channel not found'}))
+" "$result" "$channel_id"
