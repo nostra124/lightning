@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning channel-htlc-min <channel_id>   (FEAT-666)
+# lightning channel-htlc-min <channel_id>   (FEAT-1152)
 if [ $# -lt 1 ]; then echo '{"error":"usage: channel-htlc-min <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }

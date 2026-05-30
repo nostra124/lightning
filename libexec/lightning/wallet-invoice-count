@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning wallet-invoice-count <wallet_name>   (FEAT-1158)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-invoice-count <wallet_name>"}'; exit 0; fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+count=$(sqlite3 "$db" "SELECT COUNT(*) FROM invoices;" 2>/dev/null) || count=0
+echo "{\"wallet\":\"$wname\",\"invoice_count\":$count}"
