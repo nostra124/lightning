@@ -18534,3 +18534,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1230: channel-capacity-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-msat.1" ]
 }
+
+@test "FEAT-1231: node-pay-complete-count reports error or complete_count gracefully" {
+    out=$(./libexec/lightning/node-pay-complete-count 2>/dev/null)
+    echo "$out" | grep -q "error\|complete_count"
+}
+@test "FEAT-1231: node-pay-complete-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-complete-count.1" ]
+}
+
+@test "FEAT-1232: channel-feerate-perkw requires arg" {
+    out=$(./libexec/lightning/channel-feerate-perkw 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1232: channel-feerate-perkw man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate-perkw.1" ]
+}
+
+@test "FEAT-1233: wallet-balance-msat requires arg" {
+    out=$(./libexec/lightning/wallet-balance-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1233: wallet-balance-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-msat.1" ]
+}
+
+@test "FEAT-1234: node-listforwards-amount reports error or settled_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-amount 2>/dev/null)
+    echo "$out" | grep -q "error\|settled_count"
+}
+@test "FEAT-1234: node-listforwards-amount man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-amount.1" ]
+}
+
+@test "FEAT-1235: invoice-list-by-amount requires arg" {
+    out=$(./libexec/lightning/invoice-list-by-amount 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1235: invoice-list-by-amount man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-amount.1" ]
+}
+
+@test "FEAT-1236: channel-max-inflight-htlc requires arg" {
+    out=$(./libexec/lightning/channel-max-inflight-htlc 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1236: channel-max-inflight-htlc man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-inflight-htlc.1" ]
+}
+
+@test "FEAT-1237: peer-channel-state requires arg" {
+    out=$(./libexec/lightning/peer-channel-state 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1237: peer-channel-state man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-state.1" ]
+}
+
+@test "FEAT-1238: wallet-address-count requires arg" {
+    out=$(./libexec/lightning/wallet-address-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1238: wallet-address-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-address-count.1" ]
+}
+
+@test "FEAT-1239: node-channel-normal-count reports error or normal_count gracefully" {
+    out=$(./libexec/lightning/node-channel-normal-count 2>/dev/null)
+    echo "$out" | grep -q "error\|normal_count"
+}
+@test "FEAT-1239: node-channel-normal-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-normal-count.1" ]
+}
+
+@test "FEAT-1240: channel-open-alias requires arg" {
+    out=$(./libexec/lightning/channel-open-alias 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1240: channel-open-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-alias.1" ]
+}

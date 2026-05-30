@@ -1,11 +1,12 @@
 #!/bin/bash
-# lightning invoice-list-by-amount <min_msat>   (FEAT-915)
-if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-list-by-amount <min_msat>"}'; exit 0; fi
-min_msat="$1"
-result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
+# lightning invoice-list-by-amount <amount_msat>   (FEAT-1235)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-list-by-amount <amount_msat>"}'; exit 0; fi
+amount="$1"
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
-data = json.loads(sys.argv[1]); min_m = int(sys.argv[2])
-filtered = [i for i in data.get('invoices', []) if (i.get('amount_msat', 0)) >= min_m]
-print(json.dumps(filtered))
-" "$result" "$min_msat"
+data = json.loads(sys.argv[1])
+amt = int(sys.argv[2])
+matched = [i for i in data.get('invoices', []) if i.get('amount_msat') == amt]
+print(json.dumps({'amount_msat': amt, 'count': len(matched), 'invoices': [i.get('label') for i in matched]}))
+" "$result" "$amount"
