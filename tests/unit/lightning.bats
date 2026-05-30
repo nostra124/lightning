@@ -30521,3 +30521,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2770: channel-fee-ppm-bottom10 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-bottom10.1" ]
 }
+@test "FEAT-2771: node-listforwards-out-msat-min reports error or min_out_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_out_msat"
+}
+@test "FEAT-2771: node-listforwards-out-msat-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-min.1" ]
+}
+@test "FEAT-2772: channel-htlc-timeout-avg reports error or htlc_cltv_expiry_avg gracefully" {
+    out=$(./libexec/lightning/channel-htlc-timeout-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_cltv_expiry_avg"
+}
+@test "FEAT-2772: channel-htlc-timeout-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout-avg.1" ]
+}
+@test "FEAT-2773: peer-local-pct-avg reports error or local_pct_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_avg_peer"
+}
+@test "FEAT-2773: peer-local-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-avg.1" ]
+}
+@test "FEAT-2774: node-pay-count-week reports error or pay_count_week gracefully" {
+    out=$(./libexec/lightning/node-pay-count-week 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_week"
+}
+@test "FEAT-2774: node-pay-count-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-week.1" ]
+}
+@test "FEAT-2775: channel-htlc-timeout-stddev reports error or htlc_cltv_expiry_stddev gracefully" {
+    out=$(./libexec/lightning/channel-htlc-timeout-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_cltv_expiry_stddev"
+}
+@test "FEAT-2775: channel-htlc-timeout-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout-stddev.1" ]
+}
+@test "FEAT-2776: node-invoice-paid-newest reports error or newest_paid_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|newest_paid_invoice"
+}
+@test "FEAT-2776: node-invoice-paid-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-newest.1" ]
+}
+@test "FEAT-2777: channel-spendable-pct-min reports error or spendable_pct_min gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-min 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_min"
+}
+@test "FEAT-2777: channel-spendable-pct-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-min.1" ]
+}
+@test "FEAT-2778: peer-remote-pct-avg reports error or remote_pct_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_avg_peer"
+}
+@test "FEAT-2778: peer-remote-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-pct-avg.1" ]
+}
+@test "FEAT-2779: node-listforwards-out-msat-stddev reports error or out_msat_stddev gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_stddev"
+}
+@test "FEAT-2779: node-listforwards-out-msat-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-stddev.1" ]
+}
+@test "FEAT-2780: channel-receivable-pct-avg reports error or receivable_pct_avg gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_avg"
+}
+@test "FEAT-2780: channel-receivable-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-avg.1" ]
+}
