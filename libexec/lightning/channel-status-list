@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning channel-status-list   (FEAT-1046)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+out = [{'channel_id': ch.get('channel_id'), 'state': ch.get('state')} for ch in data.get('channels', [])]
+print(json.dumps({'count': len(out), 'channels': out}))
+" "$result"

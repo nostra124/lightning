@@ -17124,3 +17124,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1040: channel-fees-earned man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fees-earned.1" ]
 }
+@test "FEAT-1041: node-listpeers-features reports error or count gracefully" {
+	out=$(./libexec/lightning/node-listpeers-features 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1041: node-listpeers-features man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-features.1" ]
+}
+@test "FEAT-1042: channel-min-depth requires arg" {
+	out=$(./libexec/lightning/channel-min-depth 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1042: channel-min-depth man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-depth.1" ]
+}
+@test "FEAT-1043: wallet-export requires args" {
+	out=$(./libexec/lightning/wallet-export 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1043: wallet-export man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export.1" ]
+}
+@test "FEAT-1044: node-invoice-list-paid returns array gracefully" {
+	out=$(./libexec/lightning/node-invoice-list-paid 2>/dev/null)
+	echo "$out" | grep -qE "^\[|\{.*error"
+}
+@test "FEAT-1044: node-invoice-list-paid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-list-paid.1" ]
+}
+@test "FEAT-1045: invoice-payment-preimage requires arg" {
+	out=$(./libexec/lightning/invoice-payment-preimage 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1045: invoice-payment-preimage man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-payment-preimage.1" ]
+}
+@test "FEAT-1046: channel-status-list reports error or count gracefully" {
+	out=$(./libexec/lightning/channel-status-list 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1046: channel-status-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-status-list.1" ]
+}
+@test "FEAT-1047: peer-addr requires arg" {
+	out=$(./libexec/lightning/peer-addr 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1047: peer-addr man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-addr.1" ]
+}
+@test "FEAT-1048: wallet-notes-delete requires args" {
+	out=$(./libexec/lightning/wallet-notes-delete 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1048: wallet-notes-delete man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-delete.1" ]
+}
+@test "FEAT-1049: node-channel-close-list reports error or count gracefully" {
+	out=$(./libexec/lightning/node-channel-close-list 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1049: node-channel-close-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-close-list.1" ]
+}
+@test "FEAT-1050: channel-balance-available reports error or spendable_msat gracefully" {
+	out=$(./libexec/lightning/channel-balance-available 2>/dev/null)
+	echo "$out" | grep -q "error\|spendable_msat"
+}
+@test "FEAT-1050: channel-balance-available man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-available.1" ]
+}

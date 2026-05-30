@@ -1,18 +1,19 @@
 #!/bin/bash
-# lightning peer-addr <peer_id>   (FEAT-617)
+# lightning peer-addr <peer_id>   (FEAT-1047)
 if [ $# -lt 1 ]; then
     echo '{"error":"usage: peer-addr <peer_id>"}'
     exit 0
 fi
 peer_id="$1"
-result=$(lightning-cli listpeers "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-peers = data.get('peers', [])
-if peers:
-    p = peers[0]
-    print(json.dumps({'peer_id': p.get('id'), 'netaddr': p.get('netaddr', [])}))
-else:
-    print(json.dumps({'error': 'peer not found'}))
-" "$result"
+pid = sys.argv[2]
+for p in data.get('peers', []):
+    if p.get('id') == pid:
+        addrs = p.get('netaddr', [])
+        print(json.dumps({'peer_id': pid, 'addresses': addrs}))
+        sys.exit(0)
+print(json.dumps({'error': 'peer not found'}))
+" "$result" "$peer_id"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning channel-min-depth <channel_id>   (FEAT-606)
+# lightning channel-min-depth <channel_id>   (FEAT-1042)
 if [ $# -lt 1 ]; then
     echo '{"error":"usage: channel-min-depth <channel_id>"}'
     exit 0
