@@ -8404,3 +8404,33 @@ _acct243_teardown() {
 @test "FEAT-248: Copy uses navigator.clipboard" {
 	grep -q "navigator.clipboard" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
 }
+
+# FEAT-249 — PWA Settings backup + api-key endpoint
+
+@test "FEAT-249: api-account-apikey verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-apikey" ]
+}
+
+@test "FEAT-249: accounts.py routes GET api-key" {
+	grep -q '"api-key"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
+}
+
+@test "FEAT-249: sudoers lists api-account-apikey" {
+	grep -q "api-account-apikey" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+@test "FEAT-249: PWA Settings has Download backup button" {
+	grep -q "dlbackup" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-249: PWA backup download uses account_id and api_key" {
+	grep -q "account_id.*api_key\|api_key.*account_id" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-249: backup filename includes short account id" {
+	grep -q 'lightning-backup-' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-249: llms.txt documents the api-key endpoint" {
+	grep -q "api-key" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+}

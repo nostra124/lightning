@@ -32,6 +32,7 @@ and routes:
   GET  .../v1/accounts/<id>/charges/<cid>            -> show
   POST .../v1/accounts/<id>/charges/<cid>/<action>   -> lifecycle transition
   GET  .../v1/accounts/<id>/export/tax-data          -> tax-data export (FEAT-230)
+  GET  .../v1/accounts/<id>/api-key         -> api-key (FEAT-249)
   POST .../v1/accounts/<id>/close          -> close
 
 All authenticated endpoints require Authorization: Bearer <key>.
@@ -425,6 +426,15 @@ def _export(account_id):
     sys.exit(0)
 
 
+def _apikey(account_id):
+    # FEAT-249 — return the account's API key so the owner can copy it.
+    if _method() != "GET":
+        _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+    _lib.auth_account(account_id)
+    result = _lib.call_verb("api-account-apikey", account_id)
+    _lib.respond("200 OK", result)
+
+
 def _close(account_id):
     if _method() != "POST":
         _lib.respond("405 Method Not Allowed", {"error": "use_post"})
@@ -544,6 +554,7 @@ def main():
         "history": lambda: _history(account_id),
         "referrals": lambda: _referrals(account_id),
         "invite-codes": lambda: _invite_codes(account_id),
+        "api-key": lambda: _apikey(account_id),
         "close": lambda: _close(account_id),
     }
     handler = routes.get(verb)

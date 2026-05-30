@@ -1154,3 +1154,39 @@ def test_history_post_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
                                    REQUEST_METHOD="POST")))
     status, _, _ = parse(proc)
     assert "405" in status
+
+
+# --- FEAT-249: api-key endpoint -------------------------------------------
+
+
+def test_apikey_returns_key(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-apikey": (0, '{"api_key":"lt_abc123"}')})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/api-key",
+                                   REQUEST_METHOD="GET")))
+    status, _, body = parse(proc)
+    assert "200" in status
+    j = json.loads(body)
+    assert j["api_key"] == "lt_abc123"
+
+
+def test_apikey_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, "")})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim,
+                       PATH_INFO=f"/{ID}/api-key",
+                       REQUEST_METHOD="GET"))
+    status, _, body = parse(proc)
+    assert "401" in status
+
+
+def test_apikey_post_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, "")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/api-key",
+                                   REQUEST_METHOD="POST")))
+    status, _, _ = parse(proc)
+    assert "405" in status

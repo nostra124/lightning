@@ -583,6 +583,8 @@ function screenSettings(id) {
      <p class="muted">${year} — source data for tax preparation, not a report.</p>
      <button id="showkey">Show API key (for LLM agents / CLI)</button>
      <pre id="key" class="key" hidden>${esc(acct.key)}</pre>
+     <button id="dlbackup">Download backup</button>
+     <p class="muted">Saves account_id + API key as a JSON file for recovery.</p>
      <button id="remove" class="danger">Remove from this device</button>
      <p class="muted">Removing only forgets the account locally; the account
         and its funds stay on the node. Re-add it with its API key.</p>
@@ -604,6 +606,16 @@ function screenSettings(id) {
   };
   document.getElementById("showkey").onclick = () =>
     document.getElementById("key").hidden = !document.getElementById("key").hidden;
+  document.getElementById("dlbackup").onclick = () => {
+    const blob = new Blob(
+      [JSON.stringify({ account_id: id, api_key: acct.key }, null, 2)],
+      { type: "application/json" }
+    );
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `lightning-backup-${id.slice(0, 12)}.json`;
+    a.click();
+  };
   document.getElementById("remove").onclick = () => {
     if (confirm("Forget this account on this device?")) { removeAccount(id); go("picker"); }
   };

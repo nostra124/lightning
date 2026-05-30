@@ -141,6 +141,11 @@ Body `{ "to": "<id|name>", "sat": N, "note": "…" }` — intra-node move.
 ### GET /accounts/<id>/referrals
 The accounts this one referred + accrued credit.
 
+### GET /accounts/<id>/api-key
+Returns `{ api_key }` for the account. Requires the bearer to match the
+account. Useful for LLM agents that need to retrieve the key they already
+hold, or for PWA backup flows. (FEAT-249)
+
 ### POST /accounts/<id>/close
 Revoke the key + mark the account closed.
 
