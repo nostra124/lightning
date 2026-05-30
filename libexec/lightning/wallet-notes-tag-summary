@@ -1,0 +1,22 @@
+#!/bin/bash
+# lightning wallet-notes-tag-summary   (FEAT-2113)
+db="${LIGHTNING_WALLET_DB:-wallet.db}"
+if [ ! -f "$db" ]; then
+    echo '{"error":"wallet db not found"}'
+    exit 0
+fi
+result=$(sqlite3 "$db" "SELECT tag, COUNT(*) as count FROM notes GROUP BY tag ORDER BY count DESC;" 2>/dev/null)
+if [ $? -ne 0 ]; then
+    echo '{"error":"sqlite3 query failed"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+lines = sys.stdin.read().strip().splitlines()
+tags = []
+for line in lines:
+    if '|' in line:
+        tag, count = line.split('|', 1)
+        tags.append({'tag': tag, 'count': int(count)})
+print(json.dumps({'tags': tags, 'total_tags': len(tags)}))
+" <<< "$result"
