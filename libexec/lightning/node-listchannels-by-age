@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-listchannels-by-age   (FEAT-1369)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = sorted(data.get('channels', []), key=lambda c: c.get('funding_block', 0))
+out = [{'channel_id': c.get('channel_id'), 'funding_block': c.get('funding_block')} for c in channels]
+print(json.dumps({'count': len(out), 'channels': out}))
+" "$result"

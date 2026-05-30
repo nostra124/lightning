@@ -1,11 +1,15 @@
 #!/bin/bash
-# lightning wallet-backup-verify <backup_path>   (FEAT-903)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-backup-verify <backup_path>"}'; exit 0; fi
-backup_path="$1"
-if [ ! -f "$backup_path" ]; then echo '{"error":"backup_not_found"}'; exit 0; fi
-result=$(sqlite3 "$backup_path" "PRAGMA integrity_check;" 2>/dev/null) || { echo '{"error":"not a valid sqlite3 database"}'; exit 0; }
-if [ "$result" = "ok" ]; then
-    echo "{\"backup\":\"$backup_path\",\"integrity\":\"ok\"}"
+# lightning wallet-backup-verify <wallet_name> <backup_path>   (FEAT-1368)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-backup-verify <wallet_name> <backup_path>"}'; exit 0; fi
+wname="$1"; bpath="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+if [ ! -f "$bpath" ]; then echo '{"error":"backup_not_found"}'; exit 0; fi
+orig_sum=$(sha256sum "$db" 2>/dev/null | awk '{print $1}')
+bak_sum=$(sha256sum "$bpath" 2>/dev/null | awk '{print $1}')
+if [ "$orig_sum" = "$bak_sum" ]; then
+    echo "{\"wallet\":\"$wname\",\"match\":true}"
 else
-    echo "{\"backup\":\"$backup_path\",\"integrity\":\"error\"}"
+    echo "{\"wallet\":\"$wname\",\"match\":false}"
 fi

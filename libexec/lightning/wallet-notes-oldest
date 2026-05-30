@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning wallet-notes-oldest <wallet_name>   (FEAT-1363)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-oldest <wallet_name>"}'; exit 0; fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+python3 -c "
+import sys, sqlite3, json
+db = sys.argv[1]; wname = sys.argv[2]
+conn = sqlite3.connect(db)
+row = conn.execute('SELECT key, value FROM notes ORDER BY rowid ASC LIMIT 1').fetchone()
+conn.close()
+if row:
+    print(json.dumps({'wallet': wname, 'key': row[0], 'value': row[1]}))
+else:
+    print(json.dumps({'wallet': wname, 'error': 'no_notes'}))
+" "$db" "$wname" 2>/dev/null || echo '{"error":"db_error"}'

@@ -19574,3 +19574,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1360: channel-capacity-sat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-sat.1" ]
 }
+
+@test "FEAT-1361: node-listpays-by-destination requires arg" {
+    out=$(./libexec/lightning/node-listpays-by-destination 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1361: node-listpays-by-destination man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-by-destination.1" ]
+}
+
+@test "FEAT-1362: channel-local-base-fee-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-local-base-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1362: channel-local-base-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-base-fee-total.1" ]
+}
+
+@test "FEAT-1363: wallet-notes-oldest requires arg" {
+    out=$(./libexec/lightning/wallet-notes-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1363: wallet-notes-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-oldest.1" ]
+}
+
+@test "FEAT-1364: node-listpeers-ping requires arg" {
+    out=$(./libexec/lightning/node-listpeers-ping 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1364: node-listpeers-ping man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-ping.1" ]
+}
+
+@test "FEAT-1365: invoice-msatoshi requires arg" {
+    out=$(./libexec/lightning/invoice-msatoshi 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1365: invoice-msatoshi man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-msatoshi.1" ]
+}
+
+@test "FEAT-1366: channel-remote-cltv-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-remote-cltv-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1366: channel-remote-cltv-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-cltv-total.1" ]
+}
+
+@test "FEAT-1367: peer-channel-spendable requires arg" {
+    out=$(./libexec/lightning/peer-channel-spendable 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1367: peer-channel-spendable man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-spendable.1" ]
+}
+
+@test "FEAT-1368: wallet-backup-verify requires args" {
+    out=$(./libexec/lightning/wallet-backup-verify 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1368: wallet-backup-verify man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup-verify.1" ]
+}
+
+@test "FEAT-1369: node-listchannels-by-age reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-by-age 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1369: node-listchannels-by-age man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-age.1" ]
+}
+
+@test "FEAT-1370: channel-in-payments-msat requires arg" {
+    out=$(./libexec/lightning/channel-in-payments-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1370: channel-in-payments-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-in-payments-msat.1" ]
+}
