@@ -203,9 +203,34 @@ JSON-RPC 2.0 envelope:
   "params": { "name": "balance", "arguments": { "account_id": "bc1…" } } }
 ```
 
-`tools/list` enumerates the available tools (balance, topup, pay, recv,
-transfer, history, …), each mirroring the REST endpoint above with the
-same inputs, outputs, and error codes.
+## Available tools
+
+| Tool | Auth | Description |
+|---|---|---|
+| `account_create` | none | Open a new account, returns `account_id` + `api_key`. |
+| `account_balance` | account | Balance, limit, overdraft policy. |
+| `account_topup` | account | BIP-21 on-chain top-up URI. |
+| `account_withdraw` | account | Submarine-swap out to on-chain address. |
+| `account_pay` | account | Pay a BOLT-11 invoice. |
+| `account_recv` | account | Mint a single-use BOLT-11 invoice. |
+| `account_recv_reusable` | account | Mint a reusable BOLT-12 offer. |
+| `account_history` | account | Paginated ledger entries; paginate backwards with `before_id`. |
+| `account_transfer` | account | Intra-node transfer to another account by ID or label. |
+| `account_close` | account | Close account and revoke API key. |
+| `invoice_decode` | none | Decode a BOLT-11 invoice without paying it. |
+| `price` | none | Latest sat/fiat price tick (`base` defaults to EUR). |
+| `node_info` | none | Node pubkey, alias, channel count, local capacity. |
+| `channel_list` | none | List all active channels with capacity/state. |
+| `node_funds` | none | On-chain + off-chain fund totals. |
+
+## Resources
+
+| URI | Auth | Description |
+|---|---|---|
+| `account://{id}` | account | Balance + limit + overdraft for the account. |
+| `account://{id}/ledger` | account | Recent ledger entries. |
+| `account://{id}/topup` | account | BIP-21 top-up URI. |
+| `node://info` | none | Node pubkey, alias, channel count, local capacity. |
 
 The `account_history` tool returns paginated ledger entries; paginate
 backwards with `before_id`. The `account://id/ledger` MCP resource
