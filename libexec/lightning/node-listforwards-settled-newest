@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning node-listforwards-settled-newest   (FEAT-2401)
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+settled = [f for f in forwards if f.get('status') == 'settled']
+if not settled:
+    print(json.dumps({'newest_settled_forward': None}))
+    sys.exit(0)
+newest = max(settled, key=lambda f: f.get('received_time', 0))
+print(json.dumps({'newest_settled_forward': newest}))
+" "$result"

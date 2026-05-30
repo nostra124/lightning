@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning peer-local-balance-min   (FEAT-2403)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peer_totals = {}
+for ch in channels:
+    pid = ch.get('peer_id', '')
+    peer_totals[pid] = peer_totals.get(pid, 0) + ch.get('to_us_msat', ch.get('local_msat', 0))
+if not peer_totals:
+    print(json.dumps({'peer_local_balance_min': None}))
+    sys.exit(0)
+min_peer = min(peer_totals, key=lambda p: peer_totals[p])
+print(json.dumps({'peer_id': min_peer, 'local_msat': peer_totals[min_peer]}))
+" "$result"

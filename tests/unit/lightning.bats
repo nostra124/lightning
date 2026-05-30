@@ -27531,3 +27531,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2390: channel-capacity-top10 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-top10.1" ]
 }
+
+@test "FEAT-2391: node-listforwards-settled-oldest reports error or oldest_settled_forward gracefully" {
+    out=$(./libexec/lightning/node-listforwards-settled-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|oldest_settled_forward"
+}
+@test "FEAT-2391: node-listforwards-settled-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-settled-oldest.1" ]
+}
+
+@test "FEAT-2392: channel-htlc-count-total reports error or htlc_count_total gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_total"
+}
+@test "FEAT-2392: channel-htlc-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-total.1" ]
+}
+
+@test "FEAT-2393: peer-capacity-rank reports error or peers_by_capacity gracefully" {
+    out=$(./libexec/lightning/peer-capacity-rank 2>/dev/null)
+    echo "$out" | grep -q "error\|peers_by_capacity"
+}
+@test "FEAT-2393: peer-capacity-rank man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-rank.1" ]
+}
+
+@test "FEAT-2394: node-invoice-expiry-max reports error or invoice_expiry_max gracefully" {
+    out=$(./libexec/lightning/node-invoice-expiry-max 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_expiry_max"
+}
+@test "FEAT-2394: node-invoice-expiry-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expiry-max.1" ]
+}
+
+@test "FEAT-2395: channel-fee-base-min reports error or channel_fee_base_min gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-min 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_fee_base_min"
+}
+@test "FEAT-2395: channel-fee-base-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-min.1" ]
+}
+
+@test "FEAT-2396: node-pay-volume-30d reports error or pay_volume_30d_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-volume-30d 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_volume_30d_msat"
+}
+@test "FEAT-2396: node-pay-volume-30d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-volume-30d.1" ]
+}
+
+@test "FEAT-2397: channel-both-reserves-max reports error or channel_both_reserves_max gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-max 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_both_reserves_max"
+}
+@test "FEAT-2397: channel-both-reserves-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-max.1" ]
+}
+
+@test "FEAT-2398: peer-remote-balance-min reports error or peer_remote_balance_min gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-min 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_remote_balance_min"
+}
+@test "FEAT-2398: peer-remote-balance-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-min.1" ]
+}
+
+@test "FEAT-2399: node-listinvoices-expired-list reports error or expired_invoices gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-expired-list 2>/dev/null)
+    echo "$out" | grep -q "error\|expired_invoices"
+}
+@test "FEAT-2399: node-listinvoices-expired-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-expired-list.1" ]
+}
+
+@test "FEAT-2400: channel-local-balance-avg reports error or local_balance_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_avg_msat"
+}
+@test "FEAT-2400: channel-local-balance-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-avg.1" ]
+}
