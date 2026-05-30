@@ -604,6 +604,9 @@ function screenSettings(id) {
   if (!acct) return go("picker");
   const year = new Date().getUTCFullYear();
   h(`<h2>Settings — ${esc(acct.label)}</h2>
+     <label>Account label (this device only)
+       <input id="label-input" value="${esc(acct.label)}" maxlength="40"></label>
+     <button id="save-label">Save label</button>
      <button id="referrals">Invite &amp; referrals</button>
      <button id="taxdata">Export transaction data (for tax)</button>
      <p class="muted">${year} — source data for tax preparation, not a report.</p>
@@ -615,6 +618,11 @@ function screenSettings(id) {
      <p class="muted">Removing only forgets the account locally; the account
         and its funds stay on the node. Re-add it with its API key.</p>
      <a href="#account/${esc(id)}">Back</a>`);
+  document.getElementById("save-label").onclick = () => {
+    const newLabel = document.getElementById("label-input").value.trim() || "account";
+    upsertAccount({ ...acct, label: newLabel });
+    toast("Label saved", "ok");
+  };
   document.getElementById("referrals").onclick = () => go("referrals/" + id);
   document.getElementById("taxdata").onclick = async () => {
     // Bearer-authed download → fetch + blob (a plain link can't set the header).

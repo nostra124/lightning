@@ -8452,3 +8452,18 @@ _acct243_teardown() {
 @test "FEAT-250: successful import navigates to account view" {
 	grep -q 'go("account/' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
 }
+
+# FEAT-251 — PWA rename account label
+
+@test "FEAT-251: Settings screen has label input" {
+	grep -q "label-input" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-251: Settings screen has Save label button" {
+	grep -q "save-label" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-251: save-label handler calls upsertAccount" {
+	grep -A5 "save-label.*onclick" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js" \
+		| grep -q "upsertAccount"
+}
