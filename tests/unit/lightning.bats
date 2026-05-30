@@ -29131,3 +29131,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2590: channel-both-reserves-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-total.1" ]
 }
+
+@test "FEAT-2591: node-listforwards-in-msat-max reports error or max_in_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_in_msat"
+}
+@test "FEAT-2591: node-listforwards-in-msat-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-max.1" ]
+}
+
+@test "FEAT-2592: channel-remote-balance-top10 reports error or top10_channels_by_remote gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_channels_by_remote"
+}
+@test "FEAT-2592: channel-remote-balance-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-top10.1" ]
+}
+
+@test "FEAT-2593: peer-spendable-min reports error or spendable_msat gracefully" {
+    out=$(./libexec/lightning/peer-spendable-min 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_msat"
+}
+@test "FEAT-2593: peer-spendable-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-min.1" ]
+}
+
+@test "FEAT-2594: node-invoice-unpaid-newest reports error or newest_unpaid_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|newest_unpaid_invoice"
+}
+@test "FEAT-2594: node-invoice-unpaid-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-newest.1" ]
+}
+
+@test "FEAT-2595: channel-capacity-top3 reports error or top3_channels_by_capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-top3 2>/dev/null)
+    echo "$out" | grep -q "error\|top3_channels_by_capacity"
+}
+@test "FEAT-2595: channel-capacity-top3 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-top3.1" ]
+}
+
+@test "FEAT-2596: node-pay-amount-stddev reports error or amount_stddev_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_stddev_msat"
+}
+@test "FEAT-2596: node-pay-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-stddev.1" ]
+}
+
+@test "FEAT-2597: channel-local-balance-bottom10 reports error or bottom10_channels_by_local gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_channels_by_local"
+}
+@test "FEAT-2597: channel-local-balance-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-bottom10.1" ]
+}
+
+@test "FEAT-2598: peer-receivable-max reports error or receivable_msat gracefully" {
+    out=$(./libexec/lightning/peer-receivable-max 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_msat"
+}
+@test "FEAT-2598: peer-receivable-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-max.1" ]
+}
+
+@test "FEAT-2599: node-listinvoices-label-newest reports error or newest_label gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-label-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|newest_label"
+}
+@test "FEAT-2599: node-listinvoices-label-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-label-newest.1" ]
+}
+
+@test "FEAT-2600: channel-both-reserves-avg reports error or both_reserves_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_avg_msat"
+}
+@test "FEAT-2600: channel-both-reserves-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-avg.1" ]
+}
