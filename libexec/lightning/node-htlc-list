@@ -1,0 +1,30 @@
+#!/bin/bash
+# lightning node-htlc-list   (FEAT-297)
+#
+# Lists all pending HTLCs across channels.
+# Returns [{channel_id, direction, amount_msat, expiry, payment_hash}]
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || { echo '[]'; exit 0; }
+
+raw=$(lightning-cli $LD $NET listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+
+python3 -c "
+import sys, json
+chans = json.loads(sys.argv[1]).get('channels', [])
+result = []
+for c in chans:
+    cid = c.get('channel_id') or c.get('short_channel_id', '')
+    for h in c.get('htlcs', []):
+        result.append({
+            'channel_id': cid,
+            'direction': h.get('direction', ''),
+            'amount_msat': h.get('amount_msat', 0),
+            'expiry': h.get('expiry', 0),
+            'payment_hash': h.get('payment_hash', ''),
+        })
+print(json.dumps(result, separators=(',', ':')))
+" "$raw"

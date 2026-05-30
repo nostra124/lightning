@@ -1,0 +1,32 @@
+#!/bin/bash
+# lightning channel-balance   (FEAT-298)
+#
+# Returns per-channel balance: local_sat, remote_sat, capacity_sat, local_ratio.
+# Returns [{channel_id, peer_id, local_sat, remote_sat, capacity_sat, local_ratio, state}]
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || { echo '[]'; exit 0; }
+
+raw=$(lightning-cli $LD $NET listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+
+python3 -c "
+import sys, json
+chans = json.loads(sys.argv[1]).get('channels', [])
+result = []
+for c in chans:
+    local  = c.get('to_us_msat', 0)
+    total  = c.get('total_msat', 1)
+    result.append({
+        'channel_id': c.get('channel_id') or c.get('short_channel_id', ''),
+        'peer_id': c.get('peer_id', ''),
+        'local_sat': local // 1000,
+        'remote_sat': (total - local) // 1000,
+        'capacity_sat': total // 1000,
+        'local_ratio': round(local / total, 3) if total else 0,
+        'state': c.get('state', ''),
+    })
+print(json.dumps(result, separators=(',', ':')))
+" "$raw"

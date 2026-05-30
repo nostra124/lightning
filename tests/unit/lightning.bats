@@ -9243,3 +9243,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	grep -q 'api-node-peers-score' \
 		"$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
 }
+
+# FEAT-297 — node-htlc-list verb
+
+@test "FEAT-297: node-htlc-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-list" ]
+}
+
+@test "FEAT-297: node-htlc-list returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-297: node-htlc-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-list.1" ]
+}
+
+# FEAT-298 — channel-balance verb
+
+@test "FEAT-298: channel-balance verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-balance" ]
+}
+
+@test "FEAT-298: channel-balance returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-balance" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-298: channel-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance.1" ]
+}
