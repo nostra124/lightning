@@ -14854,3 +14854,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-760: channel-peer-alias man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-alias.1" ]
 }
+
+@test "FEAT-761: node-total-capacity reports error or total_capacity_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-total-capacity" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_capacity_msat"
+}
+
+@test "FEAT-761: node-total-capacity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-total-capacity.1" ]
+}
+
+@test "FEAT-762: channel-rebalance-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-rebalance-check" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-762: channel-rebalance-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-rebalance-check.1" ]
+}
+
+@test "FEAT-763: wallet-address-new reports error or address gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-address-new" 2>/dev/null)
+	echo "$out" | grep -q "error\|address"
+}
+
+@test "FEAT-763: wallet-address-new man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-address-new.1" ]
+}
+
+@test "FEAT-764: node-pays-summary reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-pays-summary" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-764: node-pays-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pays-summary.1" ]
+}
+
+@test "FEAT-765: invoice-check-paid requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-check-paid" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-765: invoice-check-paid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-check-paid.1" ]
+}
+
+@test "FEAT-766: channel-private-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-private-check" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-766: channel-private-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-private-check.1" ]
+}
+
+@test "FEAT-767: peer-reachability requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-reachability" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-767: peer-reachability man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-reachability.1" ]
+}
+
+@test "FEAT-768: wallet-encrypt requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-encrypt" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-768: wallet-encrypt man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-encrypt.1" ]
+}
+
+@test "FEAT-769: node-uptime-hours reports error or uptime_seconds gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-uptime-hours" 2>/dev/null)
+	echo "$out" | grep -q "error\|uptime_seconds"
+}
+
+@test "FEAT-769: node-uptime-hours man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-uptime-hours.1" ]
+}
+
+@test "FEAT-770: channel-funding-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-funding-status" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-770: channel-funding-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-status.1" ]
+}

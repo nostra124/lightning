@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning peer-reachability <node_id>   (FEAT-767)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-reachability <node_id>"}'; exit 0; fi
+node_id="$1"
+result=$(lightning-cli listpeers "$node_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+peers = data.get('peers', [])
+if peers:
+    p = peers[0]
+    print(json.dumps({'id': p.get('id'), 'connected': p.get('connected'), 'netaddr': p.get('netaddr', [])}))
+else:
+    print(json.dumps({'error': 'peer not found', 'id': sys.argv[2]}))
+" "$result" "$node_id"

@@ -1,27 +1,18 @@
 #!/bin/bash
-# lightning channel-rebalance-check [--threshold 0.3]   (FEAT-438)
-threshold="0.3"
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --threshold) threshold="$2"; shift 2 ;;
-        *) shift ;;
-    esac
-done
-result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+# lightning channel-rebalance-check <channel_id>   (FEAT-762)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-rebalance-check <channel_id>"}'; exit 0; fi
+channel_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
-channels = json.loads(sys.argv[1]).get('channels', [])
-threshold = float(sys.argv[2])
-unbalanced = []
-for c in channels:
-    if c.get('state') != 'CHANNELD_NORMAL':
-        continue
-    total = c.get('total_msat', 0)
-    local = c.get('to_us_msat', 0)
-    ratio = local / total if total else 0
-    if ratio < threshold or ratio > (1 - threshold):
-        unbalanced.append({'channel_id': c.get('channel_id',''), 'peer_id': c.get('peer_id',''),
-            'balance_ratio': round(ratio, 3), 'local_msat': local, 'total_msat': total,
-            'direction': 'send' if ratio > 0.5 else 'receive'})
-print(json.dumps(unbalanced, separators=(',', ':')))
-" "$result" "$threshold"
+data = json.loads(sys.argv[1])
+cid = sys.argv[2]
+for ch in data.get('channels', []):
+    if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
+        total = ch.get('total_msat', 0)
+        to_us = ch.get('to_us_msat', 0)
+        ratio = round(to_us / total, 3) if isinstance(total, int) and total > 0 else None
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'ratio': ratio, 'balanced': ratio is not None and 0.4 <= ratio <= 0.6}))
+        sys.exit(0)
+print(json.dumps({'error': 'channel not found'}))
+" "$result" "$channel_id"
