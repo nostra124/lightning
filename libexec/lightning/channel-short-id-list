@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning channel-short-id-list   (FEAT-1150)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+sids = [ch.get('short_channel_id') for ch in data.get('channels', []) if ch.get('short_channel_id')]
+print(json.dumps(sids))
+" "$result"

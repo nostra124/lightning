@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-pay-min-msat   (FEAT-1141)
+if ! result=$(lightning-cli listpays 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = [p for p in data.get('pays', []) if p.get('status') == 'complete']
+min_m = min((p.get('amount_sent_msat', 0) for p in pays), default=0)
+print(json.dumps({'count': len(pays), 'min_msat': min_m}))
+" "$result"

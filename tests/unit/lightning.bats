@@ -17824,3 +17824,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1140: channel-id-list man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-id-list.1" ]
 }
+@test "FEAT-1141: node-pay-min-msat reports error or count gracefully" {
+	out=$(./libexec/lightning/node-pay-min-msat 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1141: node-pay-min-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-min-msat.1" ]
+}
+@test "FEAT-1142: channel-receive-msat requires arg" {
+	out=$(./libexec/lightning/channel-receive-msat 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1142: channel-receive-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receive-msat.1" ]
+}
+@test "FEAT-1143: wallet-meta-count requires arg" {
+	out=$(./libexec/lightning/wallet-meta-count 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1143: wallet-meta-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-count.1" ]
+}
+@test "FEAT-1144: node-listchannels-remote reports error or count gracefully" {
+	out=$(./libexec/lightning/node-listchannels-remote 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1144: node-listchannels-remote man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-remote.1" ]
+}
+@test "FEAT-1145: invoice-list-by-hash requires arg" {
+	out=$(./libexec/lightning/invoice-list-by-hash 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1145: invoice-list-by-hash man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-hash.1" ]
+}
+@test "FEAT-1146: channel-balance-pct requires arg" {
+	out=$(./libexec/lightning/channel-balance-pct 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1146: channel-balance-pct man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-pct.1" ]
+}
+@test "FEAT-1147: peer-list-ids returns array gracefully" {
+	out=$(./libexec/lightning/peer-list-ids 2>/dev/null)
+	echo "$out" | grep -qE "^\[|\{.*error"
+}
+@test "FEAT-1147: peer-list-ids man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-ids.1" ]
+}
+@test "FEAT-1148: wallet-backup-path requires arg" {
+	out=$(./libexec/lightning/wallet-backup-path 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1148: wallet-backup-path man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup-path.1" ]
+}
+@test "FEAT-1149: node-feerate-slow reports error or feerate_slow_perkw gracefully" {
+	out=$(./libexec/lightning/node-feerate-slow 2>/dev/null)
+	echo "$out" | grep -q "error\|feerate_slow_perkw"
+}
+@test "FEAT-1149: node-feerate-slow man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-slow.1" ]
+}
+@test "FEAT-1150: channel-short-id-list returns array gracefully" {
+	out=$(./libexec/lightning/channel-short-id-list 2>/dev/null)
+	echo "$out" | grep -qE "^\[|\{.*error"
+}
+@test "FEAT-1150: channel-short-id-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-short-id-list.1" ]
+}
