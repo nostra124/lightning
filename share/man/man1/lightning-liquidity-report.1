@@ -1,0 +1,27 @@
+.TH "LIGHTNING-LIQUIDITY-REPORT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-liquidity-report \- summarise total Lightning liquidity
+.SH SYNOPSIS
+.B lightning liquidity-report
+.SH DESCRIPTION
+Aggregates local and remote satoshis across all channels and reports
+liquidity health.
+A channel is
+.I balanced
+when the local ratio is 20%\(en80%;
+.I depleted
+when local ratio is below 10%.
+.PP
+Output:
+.nf
+{"total_local_sat":N,"total_remote_sat":N,"total_capacity_sat":N,
+ "local_ratio":F,"num_channels":N,
+ "balanced_channels":N,"depleted_channels":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-balance (1),
+.BR lightning-node-health (1)

@@ -1,0 +1,47 @@
+#!/bin/bash
+# lightning liquidity-report   (FEAT-313)
+#
+# Summarises total Lightning liquidity across all channels.
+# Returns {total_local_sat, total_remote_sat, total_capacity_sat,
+#          local_ratio, num_channels, balanced_channels, depleted_channels}
+# "balanced" = local_ratio 20%..80%, "depleted" = <10%
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+raw=$(lightning-cli $LD $NET listpeerchannels 2>/dev/null) || {
+    echo '{"error":"listpeerchannels_failed"}'; exit 0; }
+
+python3 -c "
+import sys, json
+chans = json.loads(sys.argv[1]).get('channels', [])
+total_local = 0; total_remote = 0; total_cap = 0
+balanced = 0; depleted = 0
+for c in chans:
+    local = c.get('to_us_msat', 0)
+    total = c.get('total_msat', 0)
+    if not total:
+        continue
+    remote = total - local
+    ratio = local / total
+    total_local += local
+    total_remote += remote
+    total_cap += total
+    if 0.2 <= ratio <= 0.8:
+        balanced += 1
+    if ratio < 0.1:
+        depleted += 1
+print(json.dumps({
+    'total_local_sat': total_local // 1000,
+    'total_remote_sat': total_remote // 1000,
+    'total_capacity_sat': total_cap // 1000,
+    'local_ratio': round(total_local / total_cap, 3) if total_cap else 0,
+    'num_channels': len(chans),
+    'balanced_channels': balanced,
+    'depleted_channels': depleted,
+}, separators=(',', ':')))
+" "$raw"

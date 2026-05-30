@@ -9483,3 +9483,18 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-312: node-close-all man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-close-all.1" ]
 }
+
+# FEAT-313 — liquidity-report verb
+
+@test "FEAT-313: liquidity-report verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/liquidity-report" ]
+}
+
+@test "FEAT-313: liquidity-report reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/liquidity-report" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-313: liquidity-report man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-liquidity-report.1" ]
+}
