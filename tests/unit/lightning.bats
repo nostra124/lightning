@@ -21744,3 +21744,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1650: channel-local-balance-pct man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-pct.1" ]
 }
+
+@test "FEAT-1651: node-pay-amount-avg reports error or avg_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_amount_msat"
+}
+@test "FEAT-1651: node-pay-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-avg.1" ]
+}
+
+@test "FEAT-1652: channel-their-reserve-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-their-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1652: channel-their-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-total.1" ]
+}
+
+@test "FEAT-1653: wallet-notes-count-value requires args" {
+    out=$(./libexec/lightning/wallet-notes-count-value 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1653: wallet-notes-count-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-value.1" ]
+}
+
+@test "FEAT-1654: node-listpeers-by-capacity requires arg" {
+    out=$(./libexec/lightning/node-listpeers-by-capacity 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1654: node-listpeers-by-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-by-capacity.1" ]
+}
+
+@test "FEAT-1655: invoice-bolt11-amount-msat requires arg" {
+    out=$(./libexec/lightning/invoice-bolt11-amount-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1655: invoice-bolt11-amount-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-amount-msat.1" ]
+}
+
+@test "FEAT-1656: channel-normal-count reports error or normal gracefully" {
+    out=$(./libexec/lightning/channel-normal-count 2>/dev/null)
+    echo "$out" | grep -q "error\|normal"
+}
+@test "FEAT-1656: channel-normal-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-normal-count.1" ]
+}
+
+@test "FEAT-1657: peer-total-received-msat requires arg" {
+    out=$(./libexec/lightning/peer-total-received-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1657: peer-total-received-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-received-msat.1" ]
+}
+
+@test "FEAT-1658: wallet-meta-delete requires args" {
+    out=$(./libexec/lightning/wallet-meta-delete 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1658: wallet-meta-delete man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-delete.1" ]
+}
+
+@test "FEAT-1659: node-graph-node-count reports error or node_count gracefully" {
+    out=$(./libexec/lightning/node-graph-node-count 2>/dev/null)
+    echo "$out" | grep -q "error\|node_count"
+}
+@test "FEAT-1659: node-graph-node-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-node-count.1" ]
+}
+
+@test "FEAT-1660: channel-awaiting-unilateral reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-awaiting-unilateral 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1660: channel-awaiting-unilateral man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-awaiting-unilateral.1" ]
+}

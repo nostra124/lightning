@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning node-graph-node-count   (FEAT-1344)
+# lightning node-graph-node-count   (FEAT-1659)
 result=$(lightning-cli listnodes 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
