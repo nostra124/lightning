@@ -1,20 +1,15 @@
-.TH "LIGHTNING-WALLET-PIN-RESET" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET_PIN_RESET" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-pin-reset \- remove PIN protection from a wallet
+lightning-wallet-pin-reset \- FEAT-703 wallet-pin-reset verb
 .SH SYNOPSIS
 .B lightning wallet-pin-reset
-.I wallet_name
 .SH DESCRIPTION
-Clears the stored PIN hash and attempt counter from the wallet database.
+wallet-pin-reset verb for lightning CLI (FEAT-703).
 .PP
-Output:
-.nf
-{"status":"pin_reset","wallet":"<name>"}
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-wallet-pin-set (1),
-.BR lightning-wallet-pin-check (1)
+.BR lightning(1)

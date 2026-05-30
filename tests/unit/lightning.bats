@@ -14314,3 +14314,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-700: channel-opener-remote man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-remote.1" ]
 }
+
+@test "FEAT-701: node-max-htlc reports error or max-concurrent-htlcs gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-max-htlc" 2>/dev/null)
+	echo "$out" | grep -q "error\|max-concurrent-htlcs"
+}
+
+@test "FEAT-701: node-max-htlc man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-max-htlc.1" ]
+}
+
+@test "FEAT-702: channel-received-total requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-received-total" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-702: channel-received-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-received-total.1" ]
+}
+
+@test "FEAT-703: wallet-pin-reset requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-reset" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-703: wallet-pin-reset man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-reset.1" ]
+}
+
+@test "FEAT-704: node-listfunds-onchain reports error or outputs gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listfunds-onchain" 2>/dev/null)
+	echo "$out" | grep -q "error\|outputs"
+}
+
+@test "FEAT-704: node-listfunds-onchain man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listfunds-onchain.1" ]
+}
+
+@test "FEAT-705: invoice-cancel requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-cancel" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-705: invoice-cancel man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-cancel.1" ]
+}
+
+@test "FEAT-706: channel-htlc-in-count requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-in-count" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-706: channel-htlc-in-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-in-count.1" ]
+}
+
+@test "FEAT-707: peer-list-inactive returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list-inactive" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+
+@test "FEAT-707: peer-list-inactive man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-inactive.1" ]
+}
+
+@test "FEAT-708: wallet-history-export requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-history-export" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-708: wallet-history-export man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-history-export.1" ]
+}
+
+@test "FEAT-709: node-invoice-create-keysend requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-create-keysend" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-709: node-invoice-create-keysend man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-create-keysend.1" ]
+}
+
+@test "FEAT-710: channel-close-force requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-force" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-710: channel-close-force man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-force.1" ]
+}

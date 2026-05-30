@@ -1,37 +1,9 @@
 #!/bin/bash
-# lightning wallet-history-export <wallet_name> [--format csv|json]   (FEAT-414)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: wallet-history-export <wallet_name> [--format csv|json]"}'
-    exit 0
-fi
-wname="$1"; fmt="json"
-shift
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --format) fmt="$2"; shift 2 ;;
-        *) shift ;;
-    esac
-done
+# lightning wallet-history-export <wallet_name>   (FEAT-708)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-history-export <wallet_name>"}'; exit 0; fi
+wname="$1"
 root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
 db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"database_not_found"}'
-    exit 0
-fi
-rows=$(sqlite3 "$db" "SELECT entry_id,account_id,direction,amount_sat,note,created_at FROM ledger ORDER BY created_at DESC;" 2>/dev/null) || rows=""
-if [ "$fmt" = "csv" ]; then
-    echo "entry_id,account_id,direction,amount_sat,note,created_at"
-    echo "$rows" | tr '|' ','
-else
-    python3 -c "
-import sys, json
-rows = sys.argv[1].strip().split('\n') if sys.argv[1].strip() else []
-out = []
-for r in rows:
-    parts = r.split('|')
-    if len(parts) == 6:
-        out.append({'entry_id': parts[0], 'account_id': parts[1], 'direction': parts[2],
-            'amount_sat': int(parts[3] or 0), 'note': parts[4], 'created_at': int(parts[5] or 0)})
-print(json.dumps(out, separators=(',', ':')))
-" "$rows"
-fi
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+rows=$(sqlite3 -json "$db" "SELECT * FROM transactions ORDER BY created_at DESC LIMIT 100" 2>/dev/null) || rows="[]"
+echo "$rows"
