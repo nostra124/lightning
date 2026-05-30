@@ -32411,3 +32411,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3010: node-listforwards-fee-per-channel man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-per-channel.1" ]
 }
+
+@test "FEAT-3011: channel-htlc-count-max reports error or htlc_count_max gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_max"
+}
+@test "FEAT-3011: channel-htlc-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-max.1" ]
+}
+
+@test "FEAT-3012: node-listforwards-success-rate-day reports error or success_rate_day gracefully" {
+    out=$(./libexec/lightning/node-listforwards-success-rate-day 2>/dev/null)
+    echo "$out" | grep -q "error\|success_rate_day"
+}
+@test "FEAT-3012: node-listforwards-success-rate-day man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-success-rate-day.1" ]
+}
+
+@test "FEAT-3013: channel-htlc-count-min reports error or htlc_count_min gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_min"
+}
+@test "FEAT-3013: channel-htlc-count-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-min.1" ]
+}
+
+@test "FEAT-3014: peer-capacity-ratio-max reports error or capacity_ratio_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-ratio-max 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_ratio_max_peer"
+}
+@test "FEAT-3014: peer-capacity-ratio-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-ratio-max.1" ]
+}
+
+@test "FEAT-3015: channel-htlc-count-avg reports error or htlc_count_avg gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_avg"
+}
+@test "FEAT-3015: channel-htlc-count-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-avg.1" ]
+}
+
+@test "FEAT-3016: node-listforwards-success-rate-week reports error or success_rate_week gracefully" {
+    out=$(./libexec/lightning/node-listforwards-success-rate-week 2>/dev/null)
+    echo "$out" | grep -q "error\|success_rate_week"
+}
+@test "FEAT-3016: node-listforwards-success-rate-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-success-rate-week.1" ]
+}
+
+@test "FEAT-3017: channel-htlc-count-stddev reports error or htlc_count_stddev gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_stddev"
+}
+@test "FEAT-3017: channel-htlc-count-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-stddev.1" ]
+}
+
+@test "FEAT-3018: peer-capacity-ratio-min reports error or capacity_ratio_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-ratio-min 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_ratio_min_peer"
+}
+@test "FEAT-3018: peer-capacity-ratio-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-ratio-min.1" ]
+}
+
+@test "FEAT-3019: channel-htlc-count-median reports error or htlc_count_median gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-median 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_median"
+}
+@test "FEAT-3019: channel-htlc-count-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-median.1" ]
+}
+
+@test "FEAT-3020: node-listforwards-success-rate-month reports error or success_rate_month gracefully" {
+    out=$(./libexec/lightning/node-listforwards-success-rate-month 2>/dev/null)
+    echo "$out" | grep -q "error\|success_rate_month"
+}
+@test "FEAT-3020: node-listforwards-success-rate-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-success-rate-month.1" ]
+}
