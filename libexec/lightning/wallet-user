@@ -246,24 +246,36 @@ COMMIT;
 PRAGMA foreign_keys=ON;" 2>/dev/null || true
 	fi
 
-	# Cap enforcement: walk up the referrer_user chain.
-	local current_uid="$user_id"
-	while true; do
-		local row; row=$(sqlite3 -separator $'\t' "$db" \
-			"SELECT COALESCE(referrer_user,''), COALESCE(max_downline,-1) FROM wallet_users WHERE id = $(sql_quote "$current_uid") LIMIT 1;" 2>/dev/null)
-		[ -n "$row" ] || break
-		local parent cap_val
-		IFS=$'\t' read -r parent cap_val <<< "$row"
-		if [ "$cap_val" -ge 0 ] 2>/dev/null; then
-			local cur_size; cur_size=$(count_downstream "$db" "$current_uid")
-			if [ $(( cur_size + 1 )) -gt "$cap_val" ]; then
-				printf '{"error":"cap_exceeded","ancestor":"%s"}\n' "$current_uid" >&2
-				exit 6
-			fi
-		fi
-		[ -n "$parent" ] || break
-		current_uid="$parent"
-	done
+	# Cap enforcement: find any ancestor whose transitive-downstream
+	# count + 1 would exceed max_downline.  Flat CTEs; no nested
+	# WITH RECURSIVE, no bash string-splitting.
+	local cap_ancestor
+	cap_ancestor=$(sqlite3 "$db" "
+WITH RECURSIVE
+  anc(id, max_downline, parent) AS (
+    SELECT id, max_downline, referrer_user
+      FROM wallet_users WHERE id = $(sql_quote "$user_id")
+    UNION ALL
+    SELECT w.id, w.max_downline, w.referrer_user
+      FROM wallet_users w JOIN anc ON w.id = anc.parent
+  ),
+  all_ds(anc_id, ds_id) AS (
+    SELECT a.id, w.id
+      FROM anc a JOIN wallet_users w ON w.referrer_user = a.id
+      WHERE a.max_downline IS NOT NULL
+    UNION ALL
+    SELECT ad.anc_id, w.id
+      FROM all_ds ad JOIN wallet_users w ON w.referrer_user = ad.ds_id
+  )
+SELECT a.id
+  FROM anc a
+  WHERE a.max_downline IS NOT NULL
+    AND (SELECT COUNT(*) FROM all_ds WHERE anc_id = a.id) + 1 > a.max_downline
+  LIMIT 1;" 2>/dev/null)
+	if [ -n "$cap_ancestor" ]; then
+		printf '{"error":"cap_exceeded","ancestor":"%s"}\n' "$cap_ancestor" >&2
+		exit 6
+	fi
 
 	local code
 	if [ -n "$vanity_code" ]; then
