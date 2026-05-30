@@ -1,10 +1,10 @@
 #!/bin/bash
-# lightning channel-local-balance-sum   (FEAT-2857)
+# lightning channel-remote-balance-sum   (FEAT-2860)
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
 channels = data.get('channels', [])
-total = sum(ch.get('spendable_msat', 0) for ch in channels)
-print(json.dumps({'local_balance_sum_msat': total, 'n': len(channels)}))
+total = sum(ch.get('receivable_msat', 0) for ch in channels)
+print(json.dumps({'remote_balance_sum_msat': total, 'n': len(channels)}))
 " "$result"

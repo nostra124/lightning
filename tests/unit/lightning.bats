@@ -31151,3 +31151,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2850: channel-local-balance-kurtosis-weekly man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-kurtosis-weekly.1" ]
 }
+
+@test "FEAT-2851: node-listforwards-fee-total-weekly reports error or fee_total_weekly_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_weekly_msat"
+}
+@test "FEAT-2851: node-listforwards-fee-total-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-weekly.1" ]
+}
+
+@test "FEAT-2852: channel-fee-base-total reports error or fee_base_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_total_msat"
+}
+@test "FEAT-2852: channel-fee-base-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-total.1" ]
+}
+
+@test "FEAT-2853: peer-fee-base-total reports error or fee_base_total_peer_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_total_peer_msat"
+}
+@test "FEAT-2853: peer-fee-base-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-total.1" ]
+}
+
+@test "FEAT-2854: node-pay-amount-total-weekly reports error or amount_total_weekly_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-total-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_total_weekly_msat"
+}
+@test "FEAT-2854: node-pay-amount-total-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-total-weekly.1" ]
+}
+
+@test "FEAT-2855: channel-capacity-sum reports error or capacity_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_sum_msat"
+}
+@test "FEAT-2855: channel-capacity-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-sum.1" ]
+}
+
+@test "FEAT-2856: node-invoice-paid-amount-total-weekly reports error or paid_amount_total_weekly_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-total-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_total_weekly_msat"
+}
+@test "FEAT-2856: node-invoice-paid-amount-total-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-total-weekly.1" ]
+}
+
+@test "FEAT-2857: channel-local-balance-sum reports error or local_balance_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_sum_msat"
+}
+@test "FEAT-2857: channel-local-balance-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-sum.1" ]
+}
+
+@test "FEAT-2858: peer-capacity-sum reports error or capacity_sum_peer_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_sum_peer_msat"
+}
+@test "FEAT-2858: peer-capacity-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-sum.1" ]
+}
+
+@test "FEAT-2859: node-listforwards-out-msat-total reports error or out_msat_total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-total 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_total"
+}
+@test "FEAT-2859: node-listforwards-out-msat-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-total.1" ]
+}
+
+@test "FEAT-2860: channel-remote-balance-sum reports error or remote_balance_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_sum_msat"
+}
+@test "FEAT-2860: channel-remote-balance-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-sum.1" ]
+}
