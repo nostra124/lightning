@@ -31551,3 +31551,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2900: channel-both-reserves-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-max.1" ]
 }
+@test "FEAT-2901: channel-fee-base-total reports error or fee_base_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_total_msat"
+}
+@test "FEAT-2901: channel-fee-base-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-total.1" ]
+}
+@test "FEAT-2902: node-listforwards-count-failed reports error or failed_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-failed 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_count"
+}
+@test "FEAT-2902: node-listforwards-count-failed man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-failed.1" ]
+}
+@test "FEAT-2903: channel-fee-ppm-total reports error or fee_ppm_total gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_total"
+}
+@test "FEAT-2903: channel-fee-ppm-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-total.1" ]
+}
+@test "FEAT-2904: peer-channel-count-max reports error or channel_count_max gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count_max"
+}
+@test "FEAT-2904: peer-channel-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-max.1" ]
+}
+@test "FEAT-2905: channel-capacity-sum reports error or capacity_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_sum_msat"
+}
+@test "FEAT-2905: channel-capacity-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-sum.1" ]
+}
+@test "FEAT-2906: node-listforwards-count-local-failed reports error or local_failed_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-local-failed 2>/dev/null)
+    echo "$out" | grep -q "error\|local_failed_count"
+}
+@test "FEAT-2906: node-listforwards-count-local-failed man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-local-failed.1" ]
+}
+@test "FEAT-2907: channel-htlc-count-total reports error or htlc_count_total gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_total"
+}
+@test "FEAT-2907: channel-htlc-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-total.1" ]
+}
+@test "FEAT-2908: peer-channel-count-min reports error or channel_count_min gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-min 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count_min"
+}
+@test "FEAT-2908: peer-channel-count-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-min.1" ]
+}
+@test "FEAT-2909: channel-local-balance-sum reports error or local_balance_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_sum_msat"
+}
+@test "FEAT-2909: channel-local-balance-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-sum.1" ]
+}
+@test "FEAT-2910: node-listforwards-count-offered reports error or offered_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-offered 2>/dev/null)
+    echo "$out" | grep -q "error\|offered_count"
+}
+@test "FEAT-2910: node-listforwards-count-offered man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-offered.1" ]
+}
