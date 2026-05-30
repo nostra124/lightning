@@ -14494,3 +14494,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-720: channel-peer-connected man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-connected.1" ]
 }
+
+@test "FEAT-721: node-payment-stats reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-stats" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-721: node-payment-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-payment-stats.1" ]
+}
+
+@test "FEAT-722: channel-funding-output requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-funding-output" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-722: channel-funding-output man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-output.1" ]
+}
+
+@test "FEAT-723: wallet-notes-append requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-notes-append" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-723: wallet-notes-append man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-append.1" ]
+}
+
+@test "FEAT-724: node-invoice-count-paid reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-count-paid" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-724: node-invoice-count-paid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-paid.1" ]
+}
+
+@test "FEAT-725: invoice-list-paid returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-paid" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+
+@test "FEAT-725: invoice-list-paid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-paid.1" ]
+}
+
+@test "FEAT-726: channel-config requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-config" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-726: channel-config man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-config.1" ]
+}
+
+@test "FEAT-727: peer-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-727: peer-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-count.1" ]
+}
+
+@test "FEAT-728: wallet-stats requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-728: wallet-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-stats.1" ]
+}
+
+@test "FEAT-729: node-payment-success-rate reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-success-rate" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-729: node-payment-success-rate man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-payment-success-rate.1" ]
+}
+
+@test "FEAT-730: channel-flags requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-flags" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-730: channel-flags man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-flags.1" ]
+}

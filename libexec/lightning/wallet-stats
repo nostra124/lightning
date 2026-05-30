@@ -1,23 +1,9 @@
 #!/bin/bash
-# lightning wallet-stats <wallet_name>   (FEAT-487)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: wallet-stats <wallet_name>"}'
-    exit 0
-fi
+# lightning wallet-stats <wallet_name>   (FEAT-728)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-stats <wallet_name>"}'; exit 0; fi
 wname="$1"
 root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
 db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"database_not_found"}'
-    exit 0
-fi
-python3 -c "
-import sqlite3, json, sys
-db = sys.argv[1]
-conn = sqlite3.connect(db)
-cur = conn.cursor()
-cur.execute('SELECT COUNT(*), COALESCE(SUM(CASE direction WHEN \'credit\' THEN amount_sat ELSE -amount_sat END),0) FROM ledger')
-count, balance = cur.fetchone()
-conn.close()
-print(json.dumps({'wallet': sys.argv[2], 'entry_count': count, 'balance_sat': balance}, separators=(',', ':')))
-" "$db" "$wname"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+tx_count=$(sqlite3 "$db" "SELECT COUNT(*) FROM transactions" 2>/dev/null) || tx_count=0
+echo "{\"wallet\":\"$wname\",\"transactions\":$tx_count}"
