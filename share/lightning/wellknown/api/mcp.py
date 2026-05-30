@@ -260,6 +260,21 @@ TOOLS = [
         "verb": ["api-account-close"],
         "argmap": lambda a: [a["account_id"]],
     },
+    {
+        "name": "node_info",
+        "description": "Return the node's public identity: pubkey, alias, "
+                       "active channel count, and total local capacity in "
+                       "msat.  No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-node-info"],
+        "argmap": lambda a: [],
+    },
 ]
 
 TOOLS_BY_NAME = {t["name"]: t for t in TOOLS}

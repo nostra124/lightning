@@ -93,7 +93,7 @@ def test_notifications_initialized_returns_204(api_dir, bin_shim, lightning_stub
 # --- tools/list -----------------------------------------------------------
 
 
-def test_tools_list_returns_8_tools(api_dir, bin_shim, lightning_stub, cgi, parse):
+def test_tools_list_returns_tools(api_dir, bin_shim, lightning_stub, cgi, parse):
     lightning_stub({})
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, rpc("tools/list"))
     assert "200" in status
@@ -104,6 +104,7 @@ def test_tools_list_returns_8_tools(api_dir, bin_shim, lightning_stub, cgi, pars
         "account_create", "account_balance", "account_topup",
         "account_withdraw", "account_pay", "account_recv",
         "account_recv_reusable", "account_history", "account_close",
+        "node_info",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -266,6 +267,16 @@ def test_resources_read_ledger_returns_history(api_dir, bin_shim, lightning_stub
                                headers={"HTTP_AUTHORIZATION": "Bearer lt_x"})
     j = json.loads(body_out)
     assert "entries" in j["result"]["contents"][0]["text"]
+
+
+def test_tools_call_node_info(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"pubkey":"0266e4598d1d3c415f572a8488830b60f7e744ed9235eb0b1ba93283b315c03518","alias":"alice","num_channels":2,"local_msat":200000}'
+    lightning_stub({"api-node-info": (0, body)})
+    payload = rpc("tools/call", {"name": "node_info", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["alias"] == "alice"
 
 
 def test_tools_call_history(api_dir, bin_shim, lightning_stub, cgi, parse):

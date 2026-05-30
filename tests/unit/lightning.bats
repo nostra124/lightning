@@ -8542,3 +8542,18 @@ _acct243_teardown() {
 @test "FEAT-254: PWA history note change sends PATCH request" {
 	grep -q '"PATCH".*history\|PATCH.*history' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
 }
+
+# FEAT-255 — MCP node_info tool
+
+@test "FEAT-255: mcp.py lists node_info tool" {
+	grep -q "node_info" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+}
+
+@test "FEAT-255: node_info tool has no required auth" {
+	python3 -c "
+import sys; sys.path.insert(0,'$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api')
+import mcp
+t = mcp.TOOLS_BY_NAME['node_info']
+assert t['auth'] is None
+"
+}
