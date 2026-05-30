@@ -17614,3 +17614,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1110: channel-age man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age.1" ]
 }
+@test "FEAT-1111: node-pay-route requires args" {
+	out=$(./libexec/lightning/node-pay-route 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1111: node-pay-route man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-route.1" ]
+}
+@test "FEAT-1112: channel-enabled requires arg" {
+	out=$(./libexec/lightning/channel-enabled 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1112: channel-enabled man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-enabled.1" ]
+}
+@test "FEAT-1113: wallet-pin-hash requires arg" {
+	out=$(./libexec/lightning/wallet-pin-hash 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1113: wallet-pin-hash man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-hash.1" ]
+}
+@test "FEAT-1114: node-listpays-by-status requires arg" {
+	out=$(./libexec/lightning/node-listpays-by-status 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1114: node-listpays-by-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-by-status.1" ]
+}
+@test "FEAT-1115: invoice-list-by-label requires arg" {
+	out=$(./libexec/lightning/invoice-list-by-label 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1115: invoice-list-by-label man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-label.1" ]
+}
+@test "FEAT-1116: channel-force-close requires arg" {
+	out=$(./libexec/lightning/channel-force-close 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1116: channel-force-close man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-force-close.1" ]
+}
+@test "FEAT-1117: peer-first-channel requires arg" {
+	out=$(./libexec/lightning/peer-first-channel 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1117: peer-first-channel man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-first-channel.1" ]
+}
+@test "FEAT-1118: wallet-balance-confirmed requires arg" {
+	out=$(./libexec/lightning/wallet-balance-confirmed 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1118: wallet-balance-confirmed man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-confirmed.1" ]
+}
+@test "FEAT-1119: node-listforwards-pending reports error or count gracefully" {
+	out=$(./libexec/lightning/node-listforwards-pending 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1119: node-listforwards-pending man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-pending.1" ]
+}
+@test "FEAT-1120: channel-total-fees reports error or channel_count gracefully" {
+	out=$(./libexec/lightning/channel-total-fees 2>/dev/null)
+	echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1120: channel-total-fees man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-fees.1" ]
+}

@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning node-listpays-by-status <status>   (FEAT-1114)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: node-listpays-by-status <status>"}'
+    exit 0
+fi
+status="$1"
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+st = sys.argv[2]
+pays = [p for p in data.get('pays', []) if p.get('status') == st]
+print(json.dumps({'status': st, 'count': len(pays), 'pays': pays[:10]}))
+" "$result" "$status"

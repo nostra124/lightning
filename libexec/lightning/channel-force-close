@@ -1,9 +1,16 @@
 #!/bin/bash
-# lightning channel-force-close <channel_id>   (FEAT-469)
+# lightning channel-force-close <channel_id>   (FEAT-1116)
 if [ $# -lt 1 ]; then
     echo '{"error":"usage: channel-force-close <channel_id>"}'
     exit 0
 fi
 channel_id="$1"
-result=$(lightning-cli close "$channel_id" unilateraltimeout=1 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"
+result=$(lightning-cli close "$channel_id" 1 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+try:
+    data = json.loads(sys.argv[1])
+    print(json.dumps({'ok': True, 'channel_id': sys.argv[2], 'type': data.get('type')}))
+except Exception:
+    print(json.dumps({'error': 'close failed'}))
+" "$result" "$channel_id"

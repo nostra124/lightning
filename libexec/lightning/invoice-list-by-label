@@ -1,18 +1,15 @@
 #!/bin/bash
-# lightning invoice-list-by-label <label_prefix>   (FEAT-482)
+# lightning invoice-list-by-label <label_prefix>   (FEAT-1115)
 if [ $# -lt 1 ]; then
     echo '{"error":"usage: invoice-list-by-label <label_prefix>"}'
     exit 0
 fi
 prefix="$1"
-if ! result=$(lightning-cli listinvoices 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
 python3 -c "
 import sys, json
-invs = json.loads(sys.argv[1]).get('invoices', [])
+data = json.loads(sys.argv[1])
 prefix = sys.argv[2]
-matched = [i for i in invs if i.get('label', '').startswith(prefix)]
-print(json.dumps(matched, separators=(',', ':')))
+invs = [i for i in data.get('invoices', []) if i.get('label', '').startswith(prefix)]
+print(json.dumps(invs))
 " "$result" "$prefix"

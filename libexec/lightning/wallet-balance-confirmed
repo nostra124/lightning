@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning wallet-balance-confirmed <wallet_name>   (FEAT-1118)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-balance-confirmed <wallet_name>"}'
+    exit 0
+fi
+wname="$1"
+if ! result=$(lightning-cli listfunds 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+conf = sum(o.get('amount_msat', 0) for o in data.get('outputs', []) if o.get('status') == 'confirmed')
+print(json.dumps({'wallet': sys.argv[2], 'confirmed_msat': conf}))
+" "$result" "$wname"
