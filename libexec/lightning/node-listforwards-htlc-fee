@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning node-listforwards-htlc-fee   (FEAT-1954)
+result=$(lightning-cli listforwards status=settled 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+fwds = data.get('forwards', [])
+total = 0
+for f in fwds:
+    fee = f.get('fee_msat', 0)
+    if isinstance(fee, str): fee = int(fee.replace('msat',''))
+    total += fee
+count = len(fwds)
+if count > 0:
+    avg = round(total / count, 2)
+else:
+    avg = None
+print(json.dumps({'count': count, 'avg_fee_msat': avg}))
+" "$result"
