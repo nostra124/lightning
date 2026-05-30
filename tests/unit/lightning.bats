@@ -31391,3 +31391,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2880: channel-count-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-count-total.1" ]
 }
+
+@test "FEAT-2881: node-listforwards-count-weekly reports error or forwards_count_weekly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_count_weekly"
+}
+@test "FEAT-2881: node-listforwards-count-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-weekly.1" ]
+}
+
+@test "FEAT-2882: channel-peer-count reports error or peer_count gracefully" {
+    out=$(./libexec/lightning/channel-peer-count 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_count"
+}
+@test "FEAT-2882: channel-peer-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-count.1" ]
+}
+
+@test "FEAT-2883: peer-channel-count-total reports error or total_channels gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_channels"
+}
+@test "FEAT-2883: peer-channel-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-total.1" ]
+}
+
+@test "FEAT-2884: node-pay-count-daily reports error or pay_count_daily gracefully" {
+    out=$(./libexec/lightning/node-pay-count-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_daily"
+}
+@test "FEAT-2884: node-pay-count-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-daily.1" ]
+}
+
+@test "FEAT-2885: channel-htlc-count-active reports error or active_htlc_count gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-active 2>/dev/null)
+    echo "$out" | grep -q "error\|active_htlc_count"
+}
+@test "FEAT-2885: channel-htlc-count-active man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-active.1" ]
+}
+
+@test "FEAT-2886: node-invoice-count-total reports error or invoice_count_total gracefully" {
+    out=$(./libexec/lightning/node-invoice-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_count_total"
+}
+@test "FEAT-2886: node-invoice-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-total.1" ]
+}
+
+@test "FEAT-2887: channel-htlc-value-total reports error or htlc_value_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_total_msat"
+}
+@test "FEAT-2887: channel-htlc-value-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-total.1" ]
+}
+
+@test "FEAT-2888: peer-htlc-count-total reports error or htlc_count_total gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_total"
+}
+@test "FEAT-2888: peer-htlc-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-total.1" ]
+}
+
+@test "FEAT-2889: node-listforwards-count-monthly reports error or forwards_count_monthly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_count_monthly"
+}
+@test "FEAT-2889: node-listforwards-count-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-monthly.1" ]
+}
+
+@test "FEAT-2890: channel-local-reserve-total reports error or local_reserve_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_total_msat"
+}
+@test "FEAT-2890: channel-local-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-total.1" ]
+}
