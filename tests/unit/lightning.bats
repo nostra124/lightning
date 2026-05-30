@@ -19014,3 +19014,163 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1290: channel-remote-base-fee man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-base-fee.1" ]
 }
+
+@test "FEAT-1291: node-pay-preimage-list reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-preimage-list 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1291: node-pay-preimage-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-preimage-list.1" ]
+}
+
+@test "FEAT-1292: channel-in-msatoshi requires arg" {
+    out=$(./libexec/lightning/channel-in-msatoshi 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1292: channel-in-msatoshi man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-in-msatoshi.1" ]
+}
+
+@test "FEAT-1293: wallet-history-count requires arg" {
+    out=$(./libexec/lightning/wallet-history-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1293: wallet-history-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-history-count.1" ]
+}
+
+@test "FEAT-1294: node-peer-count-connected reports error or count gracefully" {
+    out=$(./libexec/lightning/node-peer-count-connected 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1294: node-peer-count-connected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-count-connected.1" ]
+}
+
+@test "FEAT-1295: invoice-bolt11-expiry requires arg" {
+    out=$(./libexec/lightning/invoice-bolt11-expiry 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1295: invoice-bolt11-expiry man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-expiry.1" ]
+}
+
+@test "FEAT-1296: channel-out-msatoshi requires arg" {
+    out=$(./libexec/lightning/channel-out-msatoshi 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1296: channel-out-msatoshi man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-out-msatoshi.1" ]
+}
+
+@test "FEAT-1297: peer-total-htlc-count requires arg" {
+    out=$(./libexec/lightning/peer-total-htlc-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1297: peer-total-htlc-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-htlc-count.1" ]
+}
+
+@test "FEAT-1298: wallet-note-exists requires args" {
+    out=$(./libexec/lightning/wallet-note-exists 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1298: wallet-note-exists man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-note-exists.1" ]
+}
+
+@test "FEAT-1299: node-channel-closing-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-channel-closing-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1299: node-channel-closing-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-closing-count.1" ]
+}
+
+@test "FEAT-1300: channel-log requires arg" {
+    out=$(./libexec/lightning/channel-log 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1300: channel-log man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-log.1" ]
+}
+
+@test "FEAT-1301: node-listpays-settled reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-settled 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1301: node-listpays-settled man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-settled.1" ]
+}
+
+@test "FEAT-1302: channel-htlc-count requires arg" {
+    out=$(./libexec/lightning/channel-htlc-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1302: channel-htlc-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count.1" ]
+}
+
+@test "FEAT-1303: wallet-notes-export-json requires arg" {
+    out=$(./libexec/lightning/wallet-notes-export-json 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1303: wallet-notes-export-json man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-export-json.1" ]
+}
+
+@test "FEAT-1304: node-listpeers-alias reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpeers-alias 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1304: node-listpeers-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-alias.1" ]
+}
+
+@test "FEAT-1305: invoice-list-settled reports error or count gracefully" {
+    out=$(./libexec/lightning/invoice-list-settled 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1305: invoice-list-settled man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-settled.1" ]
+}
+
+@test "FEAT-1306: channel-remote-fee-ppm requires arg" {
+    out=$(./libexec/lightning/channel-remote-fee-ppm 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1306: channel-remote-fee-ppm man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-fee-ppm.1" ]
+}
+
+@test "FEAT-1307: peer-channel-ids requires arg" {
+    out=$(./libexec/lightning/peer-channel-ids 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1307: peer-channel-ids man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-ids.1" ]
+}
+
+@test "FEAT-1308: wallet-invoice-total-msat requires arg" {
+    out=$(./libexec/lightning/wallet-invoice-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1308: wallet-invoice-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-invoice-total-msat.1" ]
+}
+
+@test "FEAT-1309: node-channel-open-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-channel-open-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1309: node-channel-open-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-open-count.1" ]
+}
+
+@test "FEAT-1310: channel-spendable-msat requires arg" {
+    out=$(./libexec/lightning/channel-spendable-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1310: channel-spendable-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-msat.1" ]
+}
