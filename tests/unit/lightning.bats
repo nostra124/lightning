@@ -33531,3 +33531,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3150: channel-htlc-timeout-range man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout-range.1" ]
 }
+
+@test "FEAT-3151: channel-htlc-density-max reports error or htlc_density_max gracefully" {
+    out=$(./libexec/lightning/channel-htlc-density-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_density_max"
+}
+@test "FEAT-3151: channel-htlc-density-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-density-max.1" ]
+}
+
+@test "FEAT-3152: node-pay-amount-total reports error or pay_amount_total_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_amount_total_msat"
+}
+@test "FEAT-3152: node-pay-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-total.1" ]
+}
+
+@test "FEAT-3153: peer-fee-base-stddev reports error or fee_base_stddev_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_stddev_msat_peer"
+}
+@test "FEAT-3153: peer-fee-base-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-stddev.1" ]
+}
+
+@test "FEAT-3154: channel-htlc-density-min reports error or htlc_density_min gracefully" {
+    out=$(./libexec/lightning/channel-htlc-density-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_density_min"
+}
+@test "FEAT-3154: channel-htlc-density-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-density-min.1" ]
+}
+
+@test "FEAT-3155: node-pay-amount-avg reports error or pay_amount_avg_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_amount_avg_msat"
+}
+@test "FEAT-3155: node-pay-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-avg.1" ]
+}
+
+@test "FEAT-3156: peer-fee-base-min reports error or fee_base_min_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_min_msat_peer"
+}
+@test "FEAT-3156: peer-fee-base-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-min.1" ]
+}
+
+@test "FEAT-3157: channel-htlc-density-stddev reports error or htlc_density_stddev gracefully" {
+    out=$(./libexec/lightning/channel-htlc-density-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_density_stddev"
+}
+@test "FEAT-3157: channel-htlc-density-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-density-stddev.1" ]
+}
+
+@test "FEAT-3158: node-pay-fee-range reports error or pay_fee_range_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-range 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_fee_range_msat"
+}
+@test "FEAT-3158: node-pay-fee-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-range.1" ]
+}
+
+@test "FEAT-3159: peer-fee-base-max reports error or fee_base_max_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_max_msat_peer"
+}
+@test "FEAT-3159: peer-fee-base-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-max.1" ]
+}
+
+@test "FEAT-3160: channel-htlc-density-median reports error or htlc_density_median gracefully" {
+    out=$(./libexec/lightning/channel-htlc-density-median 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_density_median"
+}
+@test "FEAT-3160: channel-htlc-density-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-density-median.1" ]
+}
