@@ -15034,3 +15034,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-780: channel-total-fees man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-fees.1" ]
 }
+
+@test "FEAT-781: node-invoice-paid-total reports error or paid_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-paid-total" 2>/dev/null)
+	echo "$out" | grep -q "error\|paid_count"
+}
+
+@test "FEAT-781: node-invoice-paid-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-total.1" ]
+}
+
+@test "FEAT-782: channel-reserve-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-reserve-check" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-782: channel-reserve-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-check.1" ]
+}
+
+@test "FEAT-783: wallet-balance-total requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-balance-total" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-783: wallet-balance-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-total.1" ]
+}
+
+@test "FEAT-784: node-listchannels-by-peer requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listchannels-by-peer" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-784: node-listchannels-by-peer man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-peer.1" ]
+}
+
+@test "FEAT-785: invoice-label-list returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-label-list" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+
+@test "FEAT-785: invoice-label-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-label-list.1" ]
+}
+
+@test "FEAT-786: channel-age requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-age" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-786: channel-age man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age.1" ]
+}
+
+@test "FEAT-787: peer-list-by-capacity returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list-by-capacity" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+
+@test "FEAT-787: peer-list-by-capacity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-by-capacity.1" ]
+}
+
+@test "FEAT-788: wallet-network-check reports error or network gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-network-check" 2>/dev/null)
+	echo "$out" | grep -q "error\|network"
+}
+
+@test "FEAT-788: wallet-network-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-network-check.1" ]
+}
+
+@test "FEAT-789: node-close-all-channels reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-close-all-channels" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-789: node-close-all-channels man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-close-all-channels.1" ]
+}
+
+@test "FEAT-790: channel-list-funded returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-list-funded" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+
+@test "FEAT-790: channel-list-funded man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-list-funded.1" ]
+}

@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning wallet-balance-total <wallet_name>   (FEAT-783)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-balance-total <wallet_name>"}'; exit 0; fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+balance=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type='receive'" 2>/dev/null) || balance=0
+echo "{\"wallet\":\"$wname\",\"balance\":$balance}"

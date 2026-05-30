@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning node-listchannels-by-peer <node_id>   (FEAT-784)
+if [ $# -lt 1 ]; then echo '{"error":"usage: node-listchannels-by-peer <node_id>"}'; exit 0; fi
+node_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+nid = sys.argv[2]
+channels = [c for c in data.get('channels', []) if c.get('peer_id') == nid]
+print(json.dumps(channels))
+" "$result" "$node_id"

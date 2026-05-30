@@ -1,24 +1,15 @@
-.TH "LIGHTNING-CHANNEL-AGE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-CHANNEL_AGE" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-channel-age \- show age of channels in days
+lightning-channel-age \- FEAT-786 channel-age verb
 .SH SYNOPSIS
 .B lightning channel-age
-.RI [ channel_id ]
 .SH DESCRIPTION
-Returns each channel's open timestamp and computed age in days.
-Without
-.IR channel_id ,
-returns all channels sorted oldest first.
-Returns an empty array if the daemon is unreachable.
+channel-age verb for lightning CLI (FEAT-786).
 .PP
-Output:
-.nf
-[{channel_id, peer_id, state, opened_at, age_days}]
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-channel-list (1),
-.BR lightning-channel-balance (1)
+.BR lightning(1)

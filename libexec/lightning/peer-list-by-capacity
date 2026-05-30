@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning peer-list-by-capacity   (FEAT-787)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peer_cap = {}
+for c in channels:
+    pid = c.get('peer_id', '')
+    cap = c.get('total_msat', 0)
+    if isinstance(cap, int):
+        peer_cap[pid] = peer_cap.get(pid, 0) + cap
+peers = [{'peer_id': k, 'total_msat': v} for k, v in sorted(peer_cap.items(), key=lambda x: -x[1])]
+print(json.dumps(peers))
+" "$result"
