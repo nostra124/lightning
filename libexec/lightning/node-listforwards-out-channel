@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning node-listforwards-out-channel <channel_id>   (FEAT-1359)
+if [ $# -lt 1 ]; then echo '{"error":"usage: node-listforwards-out-channel <channel_id>"}'; exit 0; fi
+channel_id="$1"
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+cid = sys.argv[2]
+fwds = [f for f in data.get('forwards', []) if f.get('out_channel') == cid]
+print(json.dumps({'channel_id': cid, 'count': len(fwds), 'forwards': fwds}))
+" "$result" "$channel_id"

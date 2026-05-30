@@ -19494,3 +19494,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1350: channel-funding-output man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-output.1" ]
 }
+
+@test "FEAT-1351: node-listpays-failed-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-failed-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1351: node-listpays-failed-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-failed-count.1" ]
+}
+
+@test "FEAT-1352: channel-state-changes requires arg" {
+    out=$(./libexec/lightning/channel-state-changes 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1352: channel-state-changes man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state-changes.1" ]
+}
+
+@test "FEAT-1353: wallet-notes-bulk-delete requires args" {
+    out=$(./libexec/lightning/wallet-notes-bulk-delete 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1353: wallet-notes-bulk-delete man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-bulk-delete.1" ]
+}
+
+@test "FEAT-1354: node-listchannels-by-feerate reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-by-feerate 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1354: node-listchannels-by-feerate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-feerate.1" ]
+}
+
+@test "FEAT-1355: invoice-bolt11-hash requires arg" {
+    out=$(./libexec/lightning/invoice-bolt11-hash 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1355: invoice-bolt11-hash man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-hash.1" ]
+}
+
+@test "FEAT-1356: channel-close-reason requires arg" {
+    out=$(./libexec/lightning/channel-close-reason 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1356: channel-close-reason man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-reason.1" ]
+}
+
+@test "FEAT-1357: peer-htlc-total-msat requires arg" {
+    out=$(./libexec/lightning/peer-htlc-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1357: peer-htlc-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-total-msat.1" ]
+}
+
+@test "FEAT-1358: wallet-meta-keys requires arg" {
+    out=$(./libexec/lightning/wallet-meta-keys 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1358: wallet-meta-keys man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-keys.1" ]
+}
+
+@test "FEAT-1359: node-listforwards-out-channel requires arg" {
+    out=$(./libexec/lightning/node-listforwards-out-channel 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1359: node-listforwards-out-channel man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-channel.1" ]
+}
+
+@test "FEAT-1360: channel-capacity-sat requires arg" {
+    out=$(./libexec/lightning/channel-capacity-sat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1360: channel-capacity-sat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-sat.1" ]
+}
