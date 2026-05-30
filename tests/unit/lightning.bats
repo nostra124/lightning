@@ -9103,3 +9103,18 @@ assert 'api-account-list' in src
 @test "FEAT-289: invoice-status man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-status.1" ]
 }
+
+# FEAT-290 — payment-status verb
+
+@test "FEAT-290: payment-status verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-status" ]
+}
+
+@test "FEAT-290: payment-status reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-status" "abc123" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-290: payment-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-status.1" ]
+}

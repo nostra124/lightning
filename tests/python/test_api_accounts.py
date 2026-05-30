@@ -43,12 +43,12 @@ def test_create_post_returns_201(api_dir, bin_shim, lightning_stub, cgi, parse):
     assert ID in body_out
 
 
-def test_create_get_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
-    lightning_stub({"api-accounts-create": (0, "{}")})
+def test_create_get_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-list": (0, "[]")})
     proc = cgi(api_dir / SCRIPT,
                env=env(bin_shim, REQUEST_METHOD="GET"))
     status, _, _ = parse(proc)
-    assert "405" in status
+    assert "401" in status
 
 
 def test_create_with_hint_passes_it_through(api_dir, bin_shim, lightning_stub, cgi, parse):
