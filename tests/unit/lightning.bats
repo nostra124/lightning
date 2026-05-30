@@ -23504,3 +23504,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1870: channel-funding-txid man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-txid.1" ]
 }
+
+@test "FEAT-1871: node-info-summary reports error or id gracefully" {
+    out=$(./libexec/lightning/node-info-summary 2>/dev/null)
+    echo "$out" | grep -q "error\|id"
+}
+@test "FEAT-1871: node-info-summary man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-info-summary.1" ]
+}
+
+@test "FEAT-1872: channel-local-pct reports error gracefully" {
+    out=$(./libexec/lightning/channel-local-pct 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1872: channel-local-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct.1" ]
+}
+
+@test "FEAT-1873: wallet-notes-flip reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-flip 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1873: wallet-notes-flip man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-flip.1" ]
+}
+
+@test "FEAT-1874: node-listchannels-ppm-sorted reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-ppm-sorted 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1874: node-listchannels-ppm-sorted man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-ppm-sorted.1" ]
+}
+
+@test "FEAT-1875: invoice-bolt11-min-final-cltv reports error gracefully" {
+    out=$(./libexec/lightning/invoice-bolt11-min-final-cltv 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1875: invoice-bolt11-min-final-cltv man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-min-final-cltv.1" ]
+}
+
+@test "FEAT-1876: channel-total-capacity reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-total-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1876: channel-total-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-capacity.1" ]
+}
+
+@test "FEAT-1877: peer-oldest-channel reports error gracefully" {
+    out=$(./libexec/lightning/peer-oldest-channel 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1877: peer-oldest-channel man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-oldest-channel.1" ]
+}
+
+@test "FEAT-1878: wallet-notes-filter-tag reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-filter-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1878: wallet-notes-filter-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-filter-tag.1" ]
+}
+
+@test "FEAT-1879: node-listforwards-by-outcome reports error gracefully" {
+    out=$(./libexec/lightning/node-listforwards-by-outcome 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1879: node-listforwards-by-outcome man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-by-outcome.1" ]
+}
+
+@test "FEAT-1880: channel-feerate-perkw reports error gracefully" {
+    out=$(./libexec/lightning/channel-feerate-perkw 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1880: channel-feerate-perkw man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate-perkw.1" ]
+}
