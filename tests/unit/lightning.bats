@@ -23104,3 +23104,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1820: channel-their-cltv-delta man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-cltv-delta.1" ]
 }
+
+@test "FEAT-1821: node-listpays-by-amount-range reports error gracefully" {
+    out=$(./libexec/lightning/node-listpays-by-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1821: node-listpays-by-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-by-amount-range.1" ]
+}
+
+@test "FEAT-1822: channel-our-base-fee-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-our-base-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1822: channel-our-base-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-base-fee-total.1" ]
+}
+
+@test "FEAT-1823: wallet-notes-has-value reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-has-value 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1823: wallet-notes-has-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-has-value.1" ]
+}
+
+@test "FEAT-1824: node-listchannels-htlc-max reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-htlc-max 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1824: node-listchannels-htlc-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-htlc-max.1" ]
+}
+
+@test "FEAT-1825: invoice-status reports error gracefully" {
+    out=$(./libexec/lightning/invoice-status 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1825: invoice-status man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-status.1" ]
+}
+
+@test "FEAT-1826: channel-uptime reports error gracefully" {
+    out=$(./libexec/lightning/channel-uptime 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1826: channel-uptime man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime.1" ]
+}
+
+@test "FEAT-1827: peer-remote-balance reports error gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1827: peer-remote-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance.1" ]
+}
+
+@test "FEAT-1828: wallet-notes-all reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-all 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1828: wallet-notes-all man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-all.1" ]
+}
+
+@test "FEAT-1829: node-listforwards-avg-fee reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-avg-fee 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1829: node-listforwards-avg-fee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-avg-fee.1" ]
+}
+
+@test "FEAT-1830: channel-next-htlc-id reports error gracefully" {
+    out=$(./libexec/lightning/channel-next-htlc-id 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1830: channel-next-htlc-id man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-next-htlc-id.1" ]
+}
