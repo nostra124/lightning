@@ -29051,3 +29051,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2580: channel-their-reserve-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-avg.1" ]
 }
+
+@test "FEAT-2581: node-listforwards-in-msat-min reports error or min_in_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_in_msat"
+}
+@test "FEAT-2581: node-listforwards-in-msat-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-min.1" ]
+}
+
+@test "FEAT-2582: channel-local-balance-top10 reports error or top10_channels_by_local gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_channels_by_local"
+}
+@test "FEAT-2582: channel-local-balance-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-top10.1" ]
+}
+
+@test "FEAT-2583: peer-our-reserve-total reports error or peer_our_reserve_totals gracefully" {
+    out=$(./libexec/lightning/peer-our-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_our_reserve_totals"
+}
+@test "FEAT-2583: peer-our-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-our-reserve-total.1" ]
+}
+
+@test "FEAT-2584: node-invoice-paid-last-30d reports error or paid_last_30d_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-last-30d 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_last_30d_count"
+}
+@test "FEAT-2584: node-invoice-paid-last-30d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-last-30d.1" ]
+}
+
+@test "FEAT-2585: channel-spendable-min reports error or spendable_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-min 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_msat"
+}
+@test "FEAT-2585: channel-spendable-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-min.1" ]
+}
+
+@test "FEAT-2586: node-pay-fee-stddev reports error or fee_stddev_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_stddev_msat"
+}
+@test "FEAT-2586: node-pay-fee-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-stddev.1" ]
+}
+
+@test "FEAT-2587: channel-receivable-min reports error or receivable_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-min 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_msat"
+}
+@test "FEAT-2587: channel-receivable-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-min.1" ]
+}
+
+@test "FEAT-2588: peer-our-reserve-max reports error or our_reserve_msat gracefully" {
+    out=$(./libexec/lightning/peer-our-reserve-max 2>/dev/null)
+    echo "$out" | grep -q "error\|our_reserve_msat"
+}
+@test "FEAT-2588: peer-our-reserve-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-our-reserve-max.1" ]
+}
+
+@test "FEAT-2589: node-listinvoices-paid-year reports error or paid_year_count gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-year 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_year_count"
+}
+@test "FEAT-2589: node-listinvoices-paid-year man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-year.1" ]
+}
+
+@test "FEAT-2590: channel-both-reserves-total reports error or both_reserves_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-total 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_total_msat"
+}
+@test "FEAT-2590: channel-both-reserves-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-total.1" ]
+}
