@@ -30451,3 +30451,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2760: channel-spendable-pct-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-avg.1" ]
 }
+@test "FEAT-2761: node-listforwards-out-msat-max reports error or max_out_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_out_msat"
+}
+@test "FEAT-2761: node-listforwards-out-msat-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-max.1" ]
+}
+@test "FEAT-2762: channel-spendable-bottom10 reports error or bottom10_by_spendable gracefully" {
+    out=$(./libexec/lightning/channel-spendable-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_by_spendable"
+}
+@test "FEAT-2762: channel-spendable-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-bottom10.1" ]
+}
+@test "FEAT-2763: peer-htlc-count-avg reports error or htlc_count_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_avg_peer"
+}
+@test "FEAT-2763: peer-htlc-count-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-avg.1" ]
+}
+@test "FEAT-2764: node-pay-count-today reports error or pay_count_today gracefully" {
+    out=$(./libexec/lightning/node-pay-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_today"
+}
+@test "FEAT-2764: node-pay-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-today.1" ]
+}
+@test "FEAT-2765: channel-receivable-bottom10 reports error or bottom10_by_receivable gracefully" {
+    out=$(./libexec/lightning/channel-receivable-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_by_receivable"
+}
+@test "FEAT-2765: channel-receivable-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-bottom10.1" ]
+}
+@test "FEAT-2766: node-invoice-expired-newest reports error or newest_expired_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-expired-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|newest_expired_invoice"
+}
+@test "FEAT-2766: node-invoice-expired-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expired-newest.1" ]
+}
+@test "FEAT-2767: channel-fee-base-bottom10 reports error or bottom10_by_fee_base gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_by_fee_base"
+}
+@test "FEAT-2767: channel-fee-base-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-bottom10.1" ]
+}
+@test "FEAT-2768: peer-capacity-stddev reports error or peer_capacity_stddev_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_capacity_stddev_msat"
+}
+@test "FEAT-2768: peer-capacity-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-stddev.1" ]
+}
+@test "FEAT-2769: node-listforwards-in-msat-avg reports error or avg_in_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_in_msat"
+}
+@test "FEAT-2769: node-listforwards-in-msat-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-avg.1" ]
+}
+@test "FEAT-2770: channel-fee-ppm-bottom10 reports error or bottom10_by_fee_ppm gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_by_fee_ppm"
+}
+@test "FEAT-2770: channel-fee-ppm-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-bottom10.1" ]
+}
