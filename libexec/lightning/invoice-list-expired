@@ -1,13 +1,9 @@
 #!/bin/bash
-# lightning invoice-list-expired   (FEAT-467)
-if ! result=$(lightning-cli listinvoices 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
+# lightning invoice-list-expired   (FEAT-665)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
 python3 -c "
 import sys, json
-invs = json.loads(sys.argv[1]).get('invoices', [])
-expired = [{'label': i.get('label',''), 'description': i.get('description',''),
-    'expires_at': i.get('expires_at', 0)} for i in invs if i.get('status') == 'expired']
-print(json.dumps(expired, separators=(',', ':')))
+data = json.loads(sys.argv[1])
+expired = [i for i in data.get('invoices', []) if i.get('status') == 'expired']
+print(json.dumps(expired))
 " "$result"

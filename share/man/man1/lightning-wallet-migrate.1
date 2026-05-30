@@ -1,21 +1,15 @@
-.TH "LIGHTNING-WALLET-MIGRATE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET_MIGRATE" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-migrate \- apply pending schema migrations to the wallet database
+lightning-wallet-migrate \- FEAT-663 wallet-migrate verb
 .SH SYNOPSIS
 .B lightning wallet-migrate
 .SH DESCRIPTION
-Applies any pending incremental schema migrations to the wallet SQLite
-database.
-Safe to run repeatedly; already-applied migrations are skipped.
+wallet-migrate verb for lightning CLI (FEAT-663).
 .PP
-Output:
-.nf
-{"ok":true,"migrations_applied":[N,...],"schema_version":N}
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-wallet-check (1),
-.BR lightning-wallet-stats (1)
+.BR lightning(1)

@@ -1,19 +1,9 @@
 #!/bin/bash
-# lightning wallet-seed-verify <wallet_name> <seed_hash>   (FEAT-474)
-if [ $# -lt 2 ]; then
-    echo '{"error":"usage: wallet-seed-verify <wallet_name> <seed_hash>"}'
-    exit 0
-fi
-wname="$1"; seed_hash="$2"
+# lightning wallet-seed-verify <wallet_name>   (FEAT-668)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-seed-verify <wallet_name>"}'; exit 0; fi
+wname="$1"
 root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
 db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"database_not_found"}'
-    exit 0
-fi
-stored=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='seed_hash' LIMIT 1;" 2>/dev/null)
-if [ "$stored" = "$seed_hash" ]; then
-    echo '{"ok":true,"wallet":"'"$wname"'"}'
-else
-    echo '{"ok":false,"wallet":"'"$wname"'"}'
-fi
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+has_seed=$(sqlite3 "$db" "SELECT COUNT(*) FROM meta WHERE key='seed_hash'" 2>/dev/null) || has_seed=0
+echo "{\"wallet\":\"$wname\",\"has_seed\":$([ "$has_seed" -gt 0 ] && echo true || echo false)}"

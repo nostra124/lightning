@@ -1,58 +1,12 @@
 #!/bin/bash
-# lightning wallet-migrate   (FEAT-317)
-#
-# Applies any pending schema migrations to the wallet database.
-# Safe to run repeatedly (idempotent).
-# Returns {ok, migrations_applied, schema_version}
-
-set -e
-WALLETS_ROOT="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-wname="${WALLET:-default}"
-db="$WALLETS_ROOT/$wname/state.db"
-
-[ -f "$db" ] || {
-    echo '{"error":"database_not_found"}'; exit 0; }
-
-python3 -c "
-import sqlite3, json, sys
-
-db = sys.argv[1]
-conn = sqlite3.connect(db)
-try:
-    # Ensure schema_version table exists
-    conn.execute('''CREATE TABLE IF NOT EXISTS schema_version
-                    (version INTEGER PRIMARY KEY)''')
-    row = conn.execute('SELECT MAX(version) FROM schema_version').fetchone()
-    current = row[0] or 0
-
-    migrations = []
-    # Migration 1: ensure description column on accounts
-    if current < 1:
-        try:
-            conn.execute('ALTER TABLE accounts ADD COLUMN description TEXT')
-            migrations.append(1)
-        except Exception:
-            pass
-        conn.execute('INSERT OR IGNORE INTO schema_version VALUES (1)')
-
-    # Migration 2: ensure fund_class column on accounts
-    if current < 2:
-        try:
-            conn.execute('ALTER TABLE accounts ADD COLUMN fund_class TEXT DEFAULT \"own\"')
-            migrations.append(2)
-        except Exception:
-            pass
-        conn.execute('INSERT OR IGNORE INTO schema_version VALUES (2)')
-
-    conn.commit()
-    final = conn.execute('SELECT MAX(version) FROM schema_version').fetchone()[0] or 0
-    print(json.dumps({
-        'ok': True,
-        'migrations_applied': migrations,
-        'schema_version': final,
-    }, separators=(',', ':')))
-except Exception as e:
-    print(json.dumps({'error': str(e)}))
-finally:
-    conn.close()
-" "$db"
+# lightning wallet-migrate <wallet_name> <new_root>   (FEAT-663)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-migrate <wallet_name> <new_root>"}'; exit 0; fi
+wname="$1"; new_root="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+src="$root/$wname"
+if [ ! -d "$src" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+if mv "$src" "$new_root/$wname" 2>/dev/null; then
+    echo "{\"ok\":true,\"wallet\":\"$wname\",\"new_path\":\"$new_root/$wname\"}"
+else
+    echo '{"error":"migration failed"}'
+fi

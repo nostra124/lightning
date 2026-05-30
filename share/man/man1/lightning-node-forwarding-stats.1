@@ -1,25 +1,15 @@
-.TH "LIGHTNING-NODE-FORWARDING-STATS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-NODE_FORWARDING_STATS" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node-forwarding-stats \- aggregate forwarding statistics over a time window
+lightning-node-forwarding-stats \- FEAT-664 node-forwarding-stats verb
 .SH SYNOPSIS
 .B lightning node-forwarding-stats
-.RB [ --days
-.IR N ]
 .SH DESCRIPTION
-Counts settled forwards and sums routed volume and fees earned within
-the last
-.I N
-days (default 30).
-Returns an error object if the daemon is unreachable.
+node-forwarding-stats verb for lightning CLI (FEAT-664).
 .PP
-Output:
-.nf
-{period_days, count, total_in_msat, total_fee_msat}
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-api-forward-stats (1),
-.BR lightning-node-fee-revenue (1)
+.BR lightning(1)
