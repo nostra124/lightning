@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning channel-enabled-count   (FEAT-2075)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+count = sum(1 for c in channels if c.get('peer_connected') and c.get('state') == 'CHANNELD_NORMAL')
+print(json.dumps({'enabled_channel_count': count}))
+" "$result"

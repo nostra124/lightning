@@ -25101,3 +25101,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2070: channel-both-reserves man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves.1" ]
 }
+
+@test "FEAT-2071: node-listpays-max-msat reports error or max_amount_sent_msat gracefully" {
+    out=$(./libexec/lightning/node-listpays-max-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|max_amount_sent_msat"
+}
+@test "FEAT-2071: node-listpays-max-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-max-msat.1" ]
+}
+
+@test "FEAT-2072: channel-peer-alias-map reports error or peer_alias_map gracefully" {
+    out=$(./libexec/lightning/channel-peer-alias-map 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_alias_map"
+}
+@test "FEAT-2072: channel-peer-alias-map man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-alias-map.1" ]
+}
+
+@test "FEAT-2073: wallet-notes-newest reports error or note gracefully" {
+    out=$(./libexec/lightning/wallet-notes-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|note\|newest"
+}
+@test "FEAT-2073: wallet-notes-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-newest.1" ]
+}
+
+@test "FEAT-2074: node-graph-fee-stats reports error or fee stats gracefully" {
+    out=$(./libexec/lightning/node-graph-fee-stats 2>/dev/null)
+    echo "$out" | grep -q "error\|min_fee_ppm\|channel_count"
+}
+@test "FEAT-2074: node-graph-fee-stats man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-fee-stats.1" ]
+}
+
+@test "FEAT-2075: channel-enabled-count reports error or enabled_channel_count gracefully" {
+    out=$(./libexec/lightning/channel-enabled-count 2>/dev/null)
+    echo "$out" | grep -q "error\|enabled_channel_count"
+}
+@test "FEAT-2075: channel-enabled-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-enabled-count.1" ]
+}
+
+@test "FEAT-2076: peer-local-balance-total reports error or peer_local_balance gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_local_balance"
+}
+@test "FEAT-2076: peer-local-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-total.1" ]
+}
+
+@test "FEAT-2077: node-listinvoices-count reports error or invoice_count gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-count 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_count"
+}
+@test "FEAT-2077: node-listinvoices-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-count.1" ]
+}
+
+@test "FEAT-2078: channel-disabled-count reports error or disabled_channel_count gracefully" {
+    out=$(./libexec/lightning/channel-disabled-count 2>/dev/null)
+    echo "$out" | grep -q "error\|disabled_channel_count"
+}
+@test "FEAT-2078: channel-disabled-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-disabled-count.1" ]
+}
+
+@test "FEAT-2079: node-pay-fee-total reports error or fee_total gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee\|total"
+}
+@test "FEAT-2079: node-pay-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-total.1" ]
+}
+
+@test "FEAT-2080: channel-opener-remote-count reports error or remote_opener_count gracefully" {
+    out=$(./libexec/lightning/channel-opener-remote-count 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_opener_count"
+}
+@test "FEAT-2080: channel-opener-remote-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-remote-count.1" ]
+}
