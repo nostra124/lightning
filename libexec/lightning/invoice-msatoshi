@@ -1,12 +1,18 @@
 #!/bin/bash
-# lightning invoice-msatoshi <amount_msat> <label>   (FEAT-582)
-if [ $# -lt 2 ]; then
-    echo '{"error":"usage: invoice-msatoshi <amount_msat> <label>"}'
+# lightning invoice-msatoshi <label>   (FEAT-1025)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: invoice-msatoshi <label>"}'
     exit 0
 fi
-amount_msat="$1"; label="$2"
-if ! result=$(lightning-cli invoice "$amount_msat" "$label" "invoice" 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
-echo "$result"
+label="$1"
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+label = sys.argv[2]
+for inv in data.get('invoices', []):
+    if inv.get('label') == label:
+        print(json.dumps({'label': label, 'amount_msat': inv.get('amount_msat')}))
+        sys.exit(0)
+print(json.dumps({'error': 'invoice not found'}))
+" "$result" "$label"

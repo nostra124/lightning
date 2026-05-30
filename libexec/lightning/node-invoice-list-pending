@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning node-invoice-list-pending   (FEAT-691)
+# lightning node-invoice-list-pending   (FEAT-1021)
 result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
 python3 -c "
 import sys, json

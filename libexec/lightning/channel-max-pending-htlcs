@@ -1,7 +1,7 @@
 #!/bin/bash
-# lightning channel-total-received <channel_id>   (FEAT-1030)
+# lightning channel-max-pending-htlcs <channel_id>   (FEAT-1022)
 if [ $# -lt 1 ]; then
-    echo '{"error":"usage: channel-total-received <channel_id>"}'
+    echo '{"error":"usage: channel-max-pending-htlcs <channel_id>"}'
     exit 0
 fi
 channel_id="$1"
@@ -12,7 +12,7 @@ data = json.loads(sys.argv[1])
 cid = sys.argv[2]
 for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'in_msatoshi_fulfilled': ch.get('in_msatoshi_fulfilled')}))
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'max_accepted_htlcs': ch.get('max_accepted_htlcs')}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"

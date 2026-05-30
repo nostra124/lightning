@@ -16984,3 +16984,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1020: channel-peer-state man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-state.1" ]
 }
+@test "FEAT-1021: node-invoice-list-pending returns array gracefully" {
+	out=$(./libexec/lightning/node-invoice-list-pending 2>/dev/null)
+	echo "$out" | grep -qE "^\[|\{.*error"
+}
+@test "FEAT-1021: node-invoice-list-pending man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-list-pending.1" ]
+}
+@test "FEAT-1022: channel-max-pending-htlcs requires arg" {
+	out=$(./libexec/lightning/channel-max-pending-htlcs 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1022: channel-max-pending-htlcs man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-pending-htlcs.1" ]
+}
+@test "FEAT-1023: wallet-restore requires args" {
+	out=$(./libexec/lightning/wallet-restore 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1023: wallet-restore man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-restore.1" ]
+}
+@test "FEAT-1024: node-listforwards-total reports error or total gracefully" {
+	out=$(./libexec/lightning/node-listforwards-total 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1024: node-listforwards-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-total.1" ]
+}
+@test "FEAT-1025: invoice-msatoshi requires arg" {
+	out=$(./libexec/lightning/invoice-msatoshi 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1025: invoice-msatoshi man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-msatoshi.1" ]
+}
+@test "FEAT-1026: channel-total-sent requires arg" {
+	out=$(./libexec/lightning/channel-total-sent 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1026: channel-total-sent man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-sent.1" ]
+}
+@test "FEAT-1027: peer-features requires arg" {
+	out=$(./libexec/lightning/peer-features 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1027: peer-features man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-features.1" ]
+}
+@test "FEAT-1028: wallet-pin-delete requires arg" {
+	out=$(./libexec/lightning/wallet-pin-delete 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1028: wallet-pin-delete man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-delete.1" ]
+}
+@test "FEAT-1029: node-graph-node-count reports error or node_count gracefully" {
+	out=$(./libexec/lightning/node-graph-node-count 2>/dev/null)
+	echo "$out" | grep -q "error\|node_count"
+}
+@test "FEAT-1029: node-graph-node-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-node-count.1" ]
+}
+@test "FEAT-1030: channel-total-received requires arg" {
+	out=$(./libexec/lightning/channel-total-received 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1030: channel-total-received man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-received.1" ]
+}
