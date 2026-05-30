@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning channel-their-reserve-min   (FEAT-2560)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+best = None
+for ch in channels:
+    if 'their_reserve_msat' in ch:
+        if best is None or ch['their_reserve_msat'] < best['their_reserve_msat']:
+            best = ch
+if best is None:
+    print(json.dumps({'error': 'no channels'}))
+else:
+    print(json.dumps({'channel_id': best.get('channel_id', ''), 'their_reserve_msat': best['their_reserve_msat']}))
+" "$result"
