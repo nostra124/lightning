@@ -21124,3 +21124,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1570: channel-funding-spent man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-spent.1" ]
 }
+@test "FEAT-1571: node-graph-peer-count reports error or node_count gracefully" {
+    out=$(./libexec/lightning/node-graph-peer-count 2>/dev/null)
+    echo "$out" | grep -q "error\|node_count"
+}
+@test "FEAT-1571: node-graph-peer-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-peer-count.1" ]
+}
+@test "FEAT-1572: channel-remote-htlc-min reports error gracefully" {
+    out=$(./libexec/lightning/channel-remote-htlc-min 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1572: channel-remote-htlc-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-htlc-min.1" ]
+}
+@test "FEAT-1573: wallet-meta-get reports error gracefully" {
+    out=$(./libexec/lightning/wallet-meta-get 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1573: wallet-meta-get man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-get.1" ]
+}
+@test "FEAT-1574: node-listpeers-connected-ids reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpeers-connected-ids 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1574: node-listpeers-connected-ids man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-connected-ids.1" ]
+}
+@test "FEAT-1575: invoice-amount-msat reports error gracefully" {
+    out=$(./libexec/lightning/invoice-amount-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1575: invoice-amount-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-amount-msat.1" ]
+}
+@test "FEAT-1576: channel-scid reports error gracefully" {
+    out=$(./libexec/lightning/channel-scid 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1576: channel-scid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-scid.1" ]
+}
+@test "FEAT-1577: peer-last-connected reports error gracefully" {
+    out=$(./libexec/lightning/peer-last-connected 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1577: peer-last-connected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-last-connected.1" ]
+}
+@test "FEAT-1578: wallet-notes-lock reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-lock 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1578: wallet-notes-lock man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-lock.1" ]
+}
+@test "FEAT-1579: node-listforwards-by-status reports error gracefully" {
+    out=$(./libexec/lightning/node-listforwards-by-status 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1579: node-listforwards-by-status man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-by-status.1" ]
+}
+@test "FEAT-1580: channel-locktime reports error gracefully" {
+    out=$(./libexec/lightning/channel-locktime 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1580: channel-locktime man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-locktime.1" ]
+}

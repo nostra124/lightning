@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning peer-last-connected <peer_id>   (FEAT-1217)
+# lightning peer-last-connected <peer_id>   (FEAT-1577)
 if [ $# -lt 1 ]; then echo '{"error":"usage: peer-last-connected <peer_id>"}'; exit 0; fi
 peer_id="$1"
 result=$(lightning-cli listpeers "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
@@ -7,9 +7,9 @@ python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
 peers = data.get('peers', [])
-if peers:
-    p = peers[0]
-    print(json.dumps({'peer_id': p.get('id'), 'connected': p.get('connected')}))
-else:
+if not peers:
     print(json.dumps({'error': 'peer not found'}))
+    sys.exit(0)
+p = peers[0]
+print(json.dumps({'peer_id': p.get('id'), 'connected': p.get('connected'), 'last_stable_connection': p.get('last_stable_connection')}))
 " "$result"

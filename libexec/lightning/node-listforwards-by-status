@@ -1,14 +1,11 @@
 #!/bin/bash
-# lightning node-listforwards-by-status <status>   (FEAT-1094)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: node-listforwards-by-status <status>"}'
-    exit 0
-fi
+# lightning node-listforwards-by-status <status>   (FEAT-1579)
+if [ $# -lt 1 ]; then echo '{"error":"usage: node-listforwards-by-status <status>"}'; exit 0; fi
 status="$1"
-result=$(lightning-cli listforwards "$status" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+result=$(lightning-cli listforwards status="$status" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
 fwds = data.get('forwards', [])
-print(json.dumps({'status': sys.argv[2], 'count': len(fwds), 'forwards': fwds[:10]}))
+print(json.dumps({'status': sys.argv[2], 'count': len(fwds)}))
 " "$result" "$status"
