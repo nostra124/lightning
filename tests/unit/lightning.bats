@@ -15214,3 +15214,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-800: channel-balance-check man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-check.1" ]
 }
+
+@test "FEAT-801: node-peer-channel-count reports error or total_peers gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-channel-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_peers"
+}
+
+@test "FEAT-801: node-peer-channel-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-channel-count.1" ]
+}
+
+@test "FEAT-802: channel-min-balance requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-min-balance" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-802: channel-min-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-balance.1" ]
+}
+
+@test "FEAT-803: wallet-import-seed requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-import-seed" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-803: wallet-import-seed man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-import-seed.1" ]
+}
+
+@test "FEAT-804: node-invoice-request-list reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-request-list" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-804: node-invoice-request-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-request-list.1" ]
+}
+
+@test "FEAT-805: invoice-expire-soon requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-expire-soon" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-805: invoice-expire-soon man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-expire-soon.1" ]
+}
+
+@test "FEAT-806: channel-cltv-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-cltv-check" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-806: channel-cltv-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-cltv-check.1" ]
+}
+
+@test "FEAT-807: peer-scb-backup reports error or peer_backup_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-scb-backup" 2>/dev/null)
+	echo "$out" | grep -q "error\|peer_backup_count"
+}
+
+@test "FEAT-807: peer-scb-backup man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-scb-backup.1" ]
+}
+
+@test "FEAT-808: wallet-meta-list requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-meta-list" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-808: wallet-meta-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-list.1" ]
+}
+
+@test "FEAT-809: node-fee-collect requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-collect" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-809: node-fee-collect man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-collect.1" ]
+}
+
+@test "FEAT-810: channel-capacity-percent requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-capacity-percent" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-810: channel-capacity-percent man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-percent.1" ]
+}
