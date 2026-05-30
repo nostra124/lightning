@@ -32891,3 +32891,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3070: channel-age-stddev man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-stddev.1" ]
 }
+
+@test "FEAT-3071: channel-age-median reports error or age_median_days gracefully" {
+    out=$(./libexec/lightning/channel-age-median 2>/dev/null)
+    echo "$out" | grep -q "error\|age_median_days"
+}
+@test "FEAT-3071: channel-age-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-median.1" ]
+}
+
+@test "FEAT-3072: node-listforwards-in-msat-min reports error or in_msat_min gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-min 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_min"
+}
+@test "FEAT-3072: node-listforwards-in-msat-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-min.1" ]
+}
+
+@test "FEAT-3073: peer-fee-earned-min reports error or fee_earned_min_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_min_msat"
+}
+@test "FEAT-3073: peer-fee-earned-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-min.1" ]
+}
+
+@test "FEAT-3074: channel-age-min reports error or age_min_days gracefully" {
+    out=$(./libexec/lightning/channel-age-min 2>/dev/null)
+    echo "$out" | grep -q "error\|age_min_days"
+}
+@test "FEAT-3074: channel-age-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-min.1" ]
+}
+
+@test "FEAT-3075: node-listforwards-in-msat-max reports error or in_msat_max gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-max 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_max"
+}
+@test "FEAT-3075: node-listforwards-in-msat-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-max.1" ]
+}
+
+@test "FEAT-3076: peer-fee-earned-max reports error or fee_earned_max_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_max_msat"
+}
+@test "FEAT-3076: peer-fee-earned-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-max.1" ]
+}
+
+@test "FEAT-3077: channel-age-max reports error or age_max_days gracefully" {
+    out=$(./libexec/lightning/channel-age-max 2>/dev/null)
+    echo "$out" | grep -q "error\|age_max_days"
+}
+@test "FEAT-3077: channel-age-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-max.1" ]
+}
+
+@test "FEAT-3078: node-listforwards-out-msat-avg reports error or out_msat_avg gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_avg"
+}
+@test "FEAT-3078: node-listforwards-out-msat-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-avg.1" ]
+}
+
+@test "FEAT-3079: peer-fee-earned-stddev reports error or fee_earned_stddev_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_stddev_msat"
+}
+@test "FEAT-3079: peer-fee-earned-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-stddev.1" ]
+}
+
+@test "FEAT-3080: channel-open-count-month reports error or open_count_month gracefully" {
+    out=$(./libexec/lightning/channel-open-count-month 2>/dev/null)
+    echo "$out" | grep -q "error\|open_count_month"
+}
+@test "FEAT-3080: channel-open-count-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-count-month.1" ]
+}
