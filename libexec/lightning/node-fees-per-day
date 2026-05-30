@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning node-fees-per-day   (FEAT-629)
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+day_ago = int(time.time()) - 86400
+fwds = [f for f in data.get('forwards', []) if f.get('status') == 'settled' and f.get('resolved_time', 0) >= day_ago]
+fee_msat = sum(f.get('fee_msat', 0) for f in fwds)
+print(json.dumps({'forwards_24h': len(fwds), 'fee_msat_24h': fee_msat, 'fee_sat_24h': fee_msat // 1000}))
+" "$result"

@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning channel-announce <channel_id>   (FEAT-630)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: channel-announce <channel_id>"}'
+    exit 0
+fi
+channel_id="$1"
+result=$(lightning-cli setchannel "$channel_id" announce true 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

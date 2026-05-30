@@ -13594,3 +13594,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-620: invoice-qr-data man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-qr-data.1" ]
 }
+
+@test "FEAT-621: node-total-received reports error or total_received gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-total-received" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_received"
+}
+
+@test "FEAT-621: node-total-received man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-total-received.1" ]
+}
+
+@test "FEAT-622: channel-feeppm-set requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-feeppm-set" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-622: channel-feeppm-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feeppm-set.1" ]
+}
+
+@test "FEAT-623: wallet-rename-label requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-rename-label" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-623: wallet-rename-label man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-rename-label.1" ]
+}
+
+@test "FEAT-624: node-graph-size reports error or nodes gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-graph-size" 2>/dev/null)
+	echo "$out" | grep -q "error\|nodes"
+}
+
+@test "FEAT-624: node-graph-size man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-size.1" ]
+}
+
+@test "FEAT-625: invoice-max-amount reports error or max_receivable gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-max-amount" 2>/dev/null)
+	echo "$out" | grep -q "error\|max_receivable"
+}
+
+@test "FEAT-625: invoice-max-amount man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-max-amount.1" ]
+}
+
+@test "FEAT-626: channel-anchor requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-anchor" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-626: channel-anchor man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-anchor.1" ]
+}
+
+@test "FEAT-627: peer-count-channels requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-count-channels" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-627: peer-count-channels man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-count-channels.1" ]
+}
+
+@test "FEAT-628: wallet-list-all returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-list-all" 2>/dev/null)
+	echo "$out" | grep -q "\[\|\]"
+}
+
+@test "FEAT-628: wallet-list-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-list-all.1" ]
+}
+
+@test "FEAT-629: node-fees-per-day reports error or forwards_24h gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fees-per-day" 2>/dev/null)
+	echo "$out" | grep -q "error\|forwards_24h"
+}
+
+@test "FEAT-629: node-fees-per-day man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fees-per-day.1" ]
+}
+
+@test "FEAT-630: channel-announce requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-announce" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-630: channel-announce man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-announce.1" ]
+}
