@@ -9569,3 +9569,18 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-317: wallet-migrate man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-migrate.1" ]
 }
+
+# FEAT-318 — channel-history verb
+
+@test "FEAT-318: channel-history verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-history" ]
+}
+
+@test "FEAT-318: channel-history returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-history" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-318: channel-history man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-history.1" ]
+}

@@ -1,0 +1,29 @@
+.TH "LIGHTNING-CHANNEL-HISTORY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-history \- show forwarded payments through a channel
+.SH SYNOPSIS
+.B lightning channel-history
+.RI [ channel_id ]
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Returns the most recent forwarded payments (HTLCs) through a channel
+from
+.BR listforwards .
+Without
+.IR channel_id ,
+returns history across all channels.
+Default limit is 50.
+.PP
+Output:
+.nf
+[{in_channel, out_channel, amount_msat, fee_msat,
+  resolved_time, status}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-api-forward-stats (1),
+.BR lightning-node-fee-revenue (1)
