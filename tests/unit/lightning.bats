@@ -31931,3 +31931,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2950: node-listforwards-out-msat-median man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-median.1" ]
 }
+
+@test "FEAT-2951: channel-fee-earned-variance reports error or fee_earned_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_variance_msat"
+}
+@test "FEAT-2951: channel-fee-earned-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-variance.1" ]
+}
+
+@test "FEAT-2952: node-pay-fee-stddev reports error or fee_stddev_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_stddev_msat"
+}
+@test "FEAT-2952: node-pay-fee-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-stddev.1" ]
+}
+
+@test "FEAT-2953: channel-local-pct-variance reports error or local_pct_variance gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_variance"
+}
+@test "FEAT-2953: channel-local-pct-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-variance.1" ]
+}
+
+@test "FEAT-2954: peer-local-balance-variance reports error or local_balance_variance_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_variance_msat"
+}
+@test "FEAT-2954: peer-local-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-variance.1" ]
+}
+
+@test "FEAT-2955: channel-remote-pct-variance reports error or remote_pct_variance gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_variance"
+}
+@test "FEAT-2955: channel-remote-pct-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-variance.1" ]
+}
+
+@test "FEAT-2956: node-listforwards-fee-median reports error or fee_median_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_median_msat"
+}
+@test "FEAT-2956: node-listforwards-fee-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-median.1" ]
+}
+
+@test "FEAT-2957: channel-htlc-value-total reports error or htlc_value_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_total_msat"
+}
+@test "FEAT-2957: channel-htlc-value-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-total.1" ]
+}
+
+@test "FEAT-2958: peer-remote-balance-variance reports error or remote_balance_variance_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_variance_msat"
+}
+@test "FEAT-2958: peer-remote-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-variance.1" ]
+}
+
+@test "FEAT-2959: channel-htlc-value-max reports error or htlc_value_max_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_max_msat"
+}
+@test "FEAT-2959: channel-htlc-value-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-max.1" ]
+}
+
+@test "FEAT-2960: node-listforwards-in-out-diff reports error or in_out_diff_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-out-diff 2>/dev/null)
+    echo "$out" | grep -q "error\|in_out_diff_msat"
+}
+@test "FEAT-2960: node-listforwards-in-out-diff man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-out-diff.1" ]
+}
