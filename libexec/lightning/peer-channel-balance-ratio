@@ -1,0 +1,27 @@
+#!/bin/bash
+# lightning peer-channel-balance-ratio   (FEAT-2308)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peers = {}
+for ch in channels:
+    pid = ch.get('peer_id', '')
+    local = ch.get('local_msat', 0)
+    remote = ch.get('remote_msat', 0)
+    if isinstance(local, str):
+        local = int(local.rstrip('msat')) if local.endswith('msat') else int(local)
+    if isinstance(remote, str):
+        remote = int(remote.rstrip('msat')) if remote.endswith('msat') else int(remote)
+    if pid not in peers:
+        peers[pid] = {'local': 0, 'remote': 0}
+    peers[pid]['local'] += local
+    peers[pid]['remote'] += remote
+result = []
+for pid, b in peers.items():
+    total = b['local'] + b['remote']
+    ratio = round(b['local'] / total, 4) if total > 0 else None
+    result.append({'peer_id': pid, 'balance_ratio': ratio})
+print(json.dumps({'peer_balance_ratios': result}))
+" "$result"
