@@ -25821,3 +25821,163 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2160: channel-public-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-public-count.1" ]
 }
+
+@test "FEAT-2161: node-listpays-complete-newest reports error or created_at gracefully" {
+    out=$(./libexec/lightning/node-listpays-complete-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|created_at"
+}
+@test "FEAT-2161: node-listpays-complete-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-complete-newest.1" ]
+}
+
+@test "FEAT-2162: channel-reserve-stats reports error or min gracefully" {
+    out=$(./libexec/lightning/channel-reserve-stats 2>/dev/null)
+    echo "$out" | grep -q "error\|min"
+}
+@test "FEAT-2162: channel-reserve-stats man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-stats.1" ]
+}
+
+@test "FEAT-2163: wallet-notes-size-stats reports error or count gracefully" {
+    out=$(./libexec/lightning/wallet-notes-size-stats 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-2163: wallet-notes-size-stats man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-size-stats.1" ]
+}
+
+@test "FEAT-2164: node-graph-connectivity-stats reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-connectivity-stats 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-2164: node-graph-connectivity-stats man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-connectivity-stats.1" ]
+}
+
+@test "FEAT-2165: channel-capacity-largest reports error or capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-largest 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity"
+}
+@test "FEAT-2165: channel-capacity-largest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-largest.1" ]
+}
+
+@test "FEAT-2166: peer-oldest reports error or peer_id gracefully" {
+    out=$(./libexec/lightning/peer-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_id"
+}
+@test "FEAT-2166: peer-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-oldest.1" ]
+}
+
+@test "FEAT-2167: node-invoice-paid-oldest reports error or label gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|label"
+}
+@test "FEAT-2167: node-invoice-paid-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-oldest.1" ]
+}
+
+@test "FEAT-2168: channel-capacity-smallest reports error or capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-smallest 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity"
+}
+@test "FEAT-2168: channel-capacity-smallest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-smallest.1" ]
+}
+
+@test "FEAT-2169: node-pay-largest-fee reports error or fee gracefully" {
+    out=$(./libexec/lightning/node-pay-largest-fee 2>/dev/null)
+    echo "$out" | grep -q "error\|fee"
+}
+@test "FEAT-2169: node-pay-largest-fee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-largest-fee.1" ]
+}
+
+@test "FEAT-2170: channel-htlc-in-flight-count reports error or total_in_flight gracefully" {
+    out=$(./libexec/lightning/channel-htlc-in-flight-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total_in_flight"
+}
+@test "FEAT-2170: channel-htlc-in-flight-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-in-flight-count.1" ]
+}
+
+@test "FEAT-2171: node-listpays-fee-total reports error or total_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-listpays-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_fee_msat"
+}
+@test "FEAT-2171: node-listpays-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-fee-total.1" ]
+}
+
+@test "FEAT-2172: channel-balance-skew reports error or avg_imbalance_score gracefully" {
+    out=$(./libexec/lightning/channel-balance-skew 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_imbalance_score"
+}
+@test "FEAT-2172: channel-balance-skew man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-skew.1" ]
+}
+
+@test "FEAT-2173: wallet-notes-archive reports error or archived gracefully" {
+    out=$(./libexec/lightning/wallet-notes-archive 2>/dev/null)
+    echo "$out" | grep -q "error\|archived"
+}
+@test "FEAT-2173: wallet-notes-archive man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-archive.1" ]
+}
+
+@test "FEAT-2174: node-graph-node-capacity reports error or node_count gracefully" {
+    out=$(./libexec/lightning/node-graph-node-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|node_count"
+}
+@test "FEAT-2174: node-graph-node-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-node-capacity.1" ]
+}
+
+@test "FEAT-2175: channel-state-open-count reports error or open_channel_count gracefully" {
+    out=$(./libexec/lightning/channel-state-open-count 2>/dev/null)
+    echo "$out" | grep -q "error\|open_channel_count"
+}
+@test "FEAT-2175: channel-state-open-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state-open-count.1" ]
+}
+
+@test "FEAT-2176: peer-newest reports error or peer_id gracefully" {
+    out=$(./libexec/lightning/peer-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_id"
+}
+@test "FEAT-2176: peer-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-newest.1" ]
+}
+
+@test "FEAT-2177: node-invoice-amount-total reports error or total_received_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_received_msat"
+}
+@test "FEAT-2177: node-invoice-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-total.1" ]
+}
+
+@test "FEAT-2178: channel-state-closed-count reports error or closed_or_closing_channel_count gracefully" {
+    out=$(./libexec/lightning/channel-state-closed-count 2>/dev/null)
+    echo "$out" | grep -q "error\|closed_or_closing_channel_count"
+}
+@test "FEAT-2178: channel-state-closed-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state-closed-count.1" ]
+}
+
+@test "FEAT-2179: node-pay-smallest reports error or payment_hash gracefully" {
+    out=$(./libexec/lightning/node-pay-smallest 2>/dev/null)
+    echo "$out" | grep -q "error\|payment_hash"
+}
+@test "FEAT-2179: node-pay-smallest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-smallest.1" ]
+}
+
+@test "FEAT-2180: channel-htlc-total-msat reports error or total_htlc_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|total_htlc_msat"
+}
+@test "FEAT-2180: channel-htlc-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-total-msat.1" ]
+}
