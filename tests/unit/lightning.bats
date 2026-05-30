@@ -8865,3 +8865,18 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-273: MCP tools/list includes price" {
 	grep -q '"price"' share/lightning/wellknown/api/mcp.py
 }
+
+# FEAT-275 — wallet-backup verb
+
+@test "FEAT-275: wallet-backup verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-backup" ]
+}
+
+@test "FEAT-275: wallet-backup returns valid JSON without a wallet" {
+	out=$(LIGHTNING_WALLETS_ROOT=/tmp/no-such-wallet-dir "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-backup" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'accounts' in d"
+}
+
+@test "FEAT-275: wallet-backup man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup.1" ]
+}

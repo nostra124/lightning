@@ -1,0 +1,65 @@
+#!/bin/bash
+# lightning wallet-backup [--output <file>]   (FEAT-275)
+#
+# Exports a portable JSON snapshot of the active wallet:
+#   {wallet, exported_at, accounts:[...], ledger_count, ledger:[...]}
+#
+# accounts: [{address, description, balance_sat, created_at, closed_at}]
+# ledger:   last 1000 entries [{id,account,ts,direction,amount_msat,
+#            peer,payment_hash,message,note}]
+#
+# Writes to stdout by default; use --output FILE to write to a file.
+
+set -e
+outfile=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --output) outfile="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+
+now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+if [ ! -f "$db" ]; then
+    out=$(printf '{"wallet":"%s","exported_at":"%s","accounts":[],"ledger_count":0,"ledger":[]}' \
+        "$wname" "$now")
+    if [ -n "$outfile" ]; then
+        printf '%s\n' "$out" > "$outfile"
+        printf '{"ok":true,"file":"%s"}\n' "$outfile"
+    else
+        printf '%s\n' "$out"
+    fi
+    exit 0
+fi
+
+json=$(python3 -c "
+import sys, json, sqlite3
+db_path, wname, now = sys.argv[1], sys.argv[2], sys.argv[3]
+conn = sqlite3.connect(db_path)
+conn.row_factory = sqlite3.Row
+accounts = [dict(r) for r in conn.execute(
+    'SELECT address, description, '
+    'CAST(COALESCE(balance_msat,0)/1000 AS INTEGER) AS balance_sat, '
+    'created_at, closed_at FROM accounts ORDER BY created_at')]
+ledger_count = conn.execute('SELECT COUNT(*) FROM ledger').fetchone()[0]
+ledger = [dict(r) for r in conn.execute(
+    'SELECT id, account, ts, direction, amount_msat, peer, '
+    'payment_hash, message, note '
+    'FROM ledger ORDER BY id DESC LIMIT 1000')]
+print(json.dumps({'wallet': wname, 'exported_at': now,
+    'accounts': accounts, 'ledger_count': ledger_count,
+    'ledger': ledger}, separators=(',', ':')))
+" "$db" "$wname" "$now")
+
+if [ -n "$outfile" ]; then
+    printf '%s\n' "$json" > "$outfile"
+    printf '{"ok":true,"file":"%s"}\n' "$outfile"
+else
+    printf '%s\n' "$json"
+fi
