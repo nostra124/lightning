@@ -15394,3 +15394,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-820: channel-initiated-by man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-initiated-by.1" ]
 }
+
+@test "FEAT-821: node-peer-timeout reports error or connect-timeout gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-timeout" 2>/dev/null)
+	echo "$out" | grep -q "error\|connect-timeout"
+}
+
+@test "FEAT-821: node-peer-timeout man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-timeout.1" ]
+}
+
+@test "FEAT-822: channel-drain-to requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-drain-to" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-822: channel-drain-to man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-drain-to.1" ]
+}
+
+@test "FEAT-823: wallet-xpub requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-xpub" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-823: wallet-xpub man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-xpub.1" ]
+}
+
+@test "FEAT-824: node-channel-age-avg reports error or channel_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-age-avg" 2>/dev/null)
+	echo "$out" | grep -q "error\|channel_count"
+}
+
+@test "FEAT-824: node-channel-age-avg man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-age-avg.1" ]
+}
+
+@test "FEAT-825: invoice-bolt11-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-bolt11-check" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-825: invoice-bolt11-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-check.1" ]
+}
+
+@test "FEAT-826: channel-update-cltv requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-update-cltv" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-826: channel-update-cltv man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-update-cltv.1" ]
+}
+
+@test "FEAT-827: peer-ip-address requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-ip-address" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-827: peer-ip-address man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-ip-address.1" ]
+}
+
+@test "FEAT-828: wallet-encrypt-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-encrypt-check" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-828: wallet-encrypt-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-encrypt-check.1" ]
+}
+
+@test "FEAT-829: node-watch-invoices requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-watch-invoices" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-829: node-watch-invoices man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-watch-invoices.1" ]
+}
+
+@test "FEAT-830: channel-balance-split requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-balance-split" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-830: channel-balance-split man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-split.1" ]
+}

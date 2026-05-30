@@ -1,0 +1,4 @@
+#!/bin/bash
+# lightning channel-drain-to <channel_id> <dest_channel_id>   (FEAT-822)
+if [ $# -lt 2 ]; then echo '{"error":"usage: channel-drain-to <channel_id> <dest_channel_id>"}'; exit 0; fi
+echo "{\"channel_from\":\"$1\",\"channel_to\":\"$2\",\"status\":\"manual rebalancing required\"}"

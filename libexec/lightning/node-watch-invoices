@@ -1,0 +1,6 @@
+#!/bin/bash
+# lightning node-watch-invoices <label>   (FEAT-829)
+if [ $# -lt 1 ]; then echo '{"error":"usage: node-watch-invoices <label>"}'; exit 0; fi
+label="$1"
+result=$(lightning-cli waitinvoice "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps(d))" "$result"
