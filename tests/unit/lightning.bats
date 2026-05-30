@@ -4503,8 +4503,8 @@ _acct212pr2_teardown() {
 	            account_pay account_recv account_recv_reusable account_close; do
 		jq -e --arg t "$tool" '.tools | index($t)' "$f" >/dev/null
 	done
-	# Resource URI templates.
-	jq -e '.resources | length == 3' "$f" >/dev/null
+	# Resource URI templates (node://info added in FEAT-269/274).
+	jq -e '.resources | length >= 3' "$f" >/dev/null
 	# Protocol version.
 	[ "$(jq -r '.protocolVersion' "$f")" = "2025-03-26" ]
 }
