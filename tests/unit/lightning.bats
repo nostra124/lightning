@@ -32331,3 +32331,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3000: node-summary man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-summary.1" ]
 }
+
+@test "FEAT-3001: peer-balance-ratio-min reports error or balance_ratio_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-ratio-min 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_min_peer"
+}
+@test "FEAT-3001: peer-balance-ratio-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-min.1" ]
+}
+
+@test "FEAT-3002: node-invoice-pending-count reports error or pending_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-count 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_count"
+}
+@test "FEAT-3002: node-invoice-pending-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-count.1" ]
+}
+
+@test "FEAT-3003: channel-spendable-pct-stddev reports error or spendable_pct_stddev gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_stddev"
+}
+@test "FEAT-3003: channel-spendable-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-stddev.1" ]
+}
+
+@test "FEAT-3004: peer-balance-ratio-stddev reports error or balance_ratio_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-ratio-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_stddev_peer"
+}
+@test "FEAT-3004: peer-balance-ratio-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-stddev.1" ]
+}
+
+@test "FEAT-3005: channel-receivable-pct-max reports error or receivable_pct_max gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_max"
+}
+@test "FEAT-3005: channel-receivable-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-max.1" ]
+}
+
+@test "FEAT-3006: node-listforwards-fee-avg-week reports error or avg_fee_msat_week gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg-week 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_msat_week"
+}
+@test "FEAT-3006: node-listforwards-fee-avg-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg-week.1" ]
+}
+
+@test "FEAT-3007: channel-receivable-pct-min reports error or receivable_pct_min gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct-min 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_min"
+}
+@test "FEAT-3007: channel-receivable-pct-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-min.1" ]
+}
+
+@test "FEAT-3008: peer-balance-ratio-median reports error or balance_ratio_median_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-ratio-median 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_median_peer"
+}
+@test "FEAT-3008: peer-balance-ratio-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-median.1" ]
+}
+
+@test "FEAT-3009: channel-receivable-pct-stddev reports error or receivable_pct_stddev gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_stddev"
+}
+@test "FEAT-3009: channel-receivable-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-stddev.1" ]
+}
+
+@test "FEAT-3010: node-listforwards-fee-per-channel reports error or fee_per_channel gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-per-channel 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_per_channel"
+}
+@test "FEAT-3010: node-listforwards-fee-per-channel man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-per-channel.1" ]
+}
