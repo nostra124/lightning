@@ -31701,3 +31701,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2920: node-listforwards-fee-variance man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-variance.1" ]
 }
+@test "FEAT-2921: channel-both-reserves-avg reports error or both_reserves_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_avg_msat"
+}
+@test "FEAT-2921: channel-both-reserves-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-avg.1" ]
+}
+@test "FEAT-2922: peer-remote-balance-min reports error or remote_balance_min_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-min 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_min_msat"
+}
+@test "FEAT-2922: peer-remote-balance-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-min.1" ]
+}
+@test "FEAT-2923: channel-both-reserves-min reports error or both_reserves_min_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-min 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_min_msat"
+}
+@test "FEAT-2923: channel-both-reserves-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-min.1" ]
+}
+@test "FEAT-2924: node-listforwards-in-out-ratio reports error or in_out_ratio gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-out-ratio 2>/dev/null)
+    echo "$out" | grep -q "error\|in_out_ratio"
+}
+@test "FEAT-2924: node-listforwards-in-out-ratio man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-out-ratio.1" ]
+}
+@test "FEAT-2925: channel-both-reserves-max reports error or both_reserves_max_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-max 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_max_msat"
+}
+@test "FEAT-2925: channel-both-reserves-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-max.1" ]
+}
+@test "FEAT-2926: peer-local-reserve-total reports error or local_reserve_total_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_total_msat"
+}
+@test "FEAT-2926: peer-local-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-reserve-total.1" ]
+}
+@test "FEAT-2927: channel-local-balance-range reports error or local_balance_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_range_msat"
+}
+@test "FEAT-2927: channel-local-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-range.1" ]
+}
+@test "FEAT-2928: node-listforwards-settled-count-today reports error or settled_today_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-settled-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|settled_today_count"
+}
+@test "FEAT-2928: node-listforwards-settled-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-settled-count-today.1" ]
+}
+@test "FEAT-2929: channel-remote-balance-range reports error or remote_balance_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_range_msat"
+}
+@test "FEAT-2929: channel-remote-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-range.1" ]
+}
+@test "FEAT-2930: peer-remote-reserve-total reports error or remote_reserve_total_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_total_msat"
+}
+@test "FEAT-2930: peer-remote-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-total.1" ]
+}
