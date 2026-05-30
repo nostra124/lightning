@@ -276,6 +276,21 @@ TOOLS = [
         "argmap": lambda a: [],
     },
     {
+        "name": "fee_list",
+        "description": "List per-channel routing fee policy: base_msat and "
+                       "ppm (parts-per-million) for each active channel. "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-fee-list"],
+        "argmap": lambda a: [],
+    },
+    {
         "name": "price",
         "description": "Return the latest stored sat/fiat price tick. "
                        "Returns {base, sat_per_unit, price_fiat, ts} or "

@@ -8906,3 +8906,18 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-276: wallet-check man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-check.1" ]
 }
+
+# FEAT-277 — api-fee-list verb + MCP fee_list tool
+
+@test "FEAT-277: api-fee-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-fee-list" ]
+}
+
+@test "FEAT-277: api-fee-list returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-fee-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-277: MCP tools/list includes fee_list" {
+	grep -q '"fee_list"' share/lightning/wellknown/api/mcp.py
+}

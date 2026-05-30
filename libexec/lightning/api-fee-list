@@ -1,0 +1,26 @@
+#!/bin/bash
+# lightning api-fee-list   (FEAT-277)
+#
+# Returns per-channel fee policy as JSON array.
+# [{channel_id, base_msat, ppm}]
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || { echo '[]'; exit 0; }
+
+json=$(lightning-cli $LD $NET listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+out = []
+for ch in d.get('channels', []):
+    out.append({
+        'channel_id': ch.get('short_channel_id') or ch.get('channel_id') or '-',
+        'base_msat': ch.get('fee_base_msat', 0),
+        'ppm': ch.get('fee_proportional_millionths', 0),
+    })
+print(json.dumps(out, separators=(',', ':')))
+" "$json"
