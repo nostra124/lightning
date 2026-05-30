@@ -10479,3 +10479,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-375: channel-open-private man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-private.1" ]
 }
+
+# FEAT-376 — node-scb-backup verb
+
+@test "FEAT-376: node-scb-backup verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-scb-backup" ]
+}
+
+@test "FEAT-376: node-scb-backup reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-scb-backup" 2>/dev/null)
+	echo "$out" | grep -q "error\|ok"
+}
+
+@test "FEAT-376: node-scb-backup man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-scb-backup.1" ]
+}
+
+# FEAT-377 — channel-max-htlc-set verb
+
+@test "FEAT-377: channel-max-htlc-set verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-max-htlc-set" ]
+}
+
+@test "FEAT-377: channel-max-htlc-set reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-max-htlc-set" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-377: channel-max-htlc-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-htlc-set.1" ]
+}

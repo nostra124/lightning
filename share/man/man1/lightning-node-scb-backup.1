@@ -1,0 +1,30 @@
+.TH "LIGHTNING-NODE-SCB-BACKUP" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-scb-backup \- export a static channel backup (SCB)
+.SH SYNOPSIS
+.B lightning node-scb-backup
+.RI [ output_path ]
+.SH DESCRIPTION
+Calls
+.B lightning-cli staticbackup
+and writes the binary SCB to
+.I output_path
+(default
+.IR ./static_channel_backup_<timestamp>.bin ).
+Returns
+.B {"ok":true}
+with the path and byte count on success.
+Returns an error object if the daemon is unreachable or no SCB is available.
+.PP
+Output:
+.nf
+{"ok":true,"path":...,"size":N}
+{"ok":false,"reason":...}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-backup (1),
+.BR lightning-scb (1)
