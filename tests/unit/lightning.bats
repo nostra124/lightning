@@ -10584,3 +10584,48 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-382: node-bandwidth man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-bandwidth.1" ]
 }
+
+# FEAT-383 — channel-top-earners verb
+
+@test "FEAT-383: channel-top-earners verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-top-earners" ]
+}
+
+@test "FEAT-383: channel-top-earners returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-top-earners" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-383: channel-top-earners man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-top-earners.1" ]
+}
+
+# FEAT-384 — node-node-id verb
+
+@test "FEAT-384: node-node-id verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-node-id" ]
+}
+
+@test "FEAT-384: node-node-id reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-node-id" 2>/dev/null)
+	echo "$out" | grep -q "error\|id"
+}
+
+@test "FEAT-384: node-node-id man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-node-id.1" ]
+}
+
+# FEAT-385 — peer-channels verb
+
+@test "FEAT-385: peer-channels verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-channels" ]
+}
+
+@test "FEAT-385: peer-channels reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-channels" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-385: peer-channels man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channels.1" ]
+}

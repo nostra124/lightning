@@ -1,0 +1,25 @@
+.TH "LIGHTNING-CHANNEL-TOP-EARNERS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-top-earners \- show top channels by total routing fee earned
+.SH SYNOPSIS
+.B lightning channel-top-earners
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Ranks channels by total fees earned from settled forwards, returning
+the top
+.I N
+channels (default 10).
+Returns an empty array if the daemon is unreachable.
+.PP
+Output:
+.nf
+[{channel_id, total_fee_msat}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-fee-earned (1),
+.BR lightning-node-fee-revenue (1)

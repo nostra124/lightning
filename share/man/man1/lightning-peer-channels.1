@@ -1,0 +1,25 @@
+.TH "LIGHTNING-PEER-CHANNELS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peer-channels \- list all channels with a specific peer
+.SH SYNOPSIS
+.B lightning peer-channels
+.I peer_id
+.SH DESCRIPTION
+Returns all channels with the specified
+.I peer_id
+from
+.BR listpeerchannels ,
+including state and balance information.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+[{channel_id, state, to_us_msat, total_msat}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-peer-info (1),
+.BR lightning-channel-list (1)
