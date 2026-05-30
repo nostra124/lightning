@@ -28491,3 +28491,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2510: channel-fee-revenue-estimate man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-revenue-estimate.1" ]
 }
+
+@test "FEAT-2511: node-listforwards-fee-total-alltime reports error or total_fee_msat_alltime gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-alltime 2>/dev/null)
+    echo "$out" | grep -q "error\|total_fee_msat_alltime"
+}
+@test "FEAT-2511: node-listforwards-fee-total-alltime man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-alltime.1" ]
+}
+
+@test "FEAT-2512: channel-htlc-expiry-latest reports error or cltv_expiry gracefully" {
+    out=$(./libexec/lightning/channel-htlc-expiry-latest 2>/dev/null)
+    echo "$out" | grep -q "error\|cltv_expiry"
+}
+@test "FEAT-2512: channel-htlc-expiry-latest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-expiry-latest.1" ]
+}
+
+@test "FEAT-2513: peer-capacity-total reports error or total_capacity_sat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_capacity_sat"
+}
+@test "FEAT-2513: peer-capacity-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-total.1" ]
+}
+
+@test "FEAT-2514: node-invoice-paid-count-week reports error or invoice_paid_count_week gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-week 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_paid_count_week"
+}
+@test "FEAT-2514: node-invoice-paid-count-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-week.1" ]
+}
+
+@test "FEAT-2515: channel-fee-base-list reports error or channel_fee_base_list gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-list 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_fee_base_list"
+}
+@test "FEAT-2515: channel-fee-base-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-list.1" ]
+}
+
+@test "FEAT-2516: node-pay-amount-min reports error or min_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_amount_msat"
+}
+@test "FEAT-2516: node-pay-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-min.1" ]
+}
+
+@test "FEAT-2517: channel-capacity-bottom5 reports error or bottom5_channels_by_capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_channels_by_capacity"
+}
+@test "FEAT-2517: channel-capacity-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-bottom5.1" ]
+}
+
+@test "FEAT-2518: peer-remote-pct-max reports error or remote_pct gracefully" {
+    out=$(./libexec/lightning/peer-remote-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct"
+}
+@test "FEAT-2518: peer-remote-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-pct-max.1" ]
+}
+
+@test "FEAT-2519: node-listinvoices-paid-amount-min reports error or paid_invoice_amount_min_msat gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_invoice_amount_min_msat"
+}
+@test "FEAT-2519: node-listinvoices-paid-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-amount-min.1" ]
+}
+
+@test "FEAT-2520: channel-fee-revenue-total-estimate reports error or total_fee_revenue_estimate_annual_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-revenue-total-estimate 2>/dev/null)
+    echo "$out" | grep -q "error\|total_fee_revenue_estimate_annual_msat"
+}
+@test "FEAT-2520: channel-fee-revenue-total-estimate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-revenue-total-estimate.1" ]
+}
