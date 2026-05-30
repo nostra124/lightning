@@ -442,15 +442,43 @@ function screenSend(id) {
   };
 }
 
+// FEAT-245 — BOLT-11 invoice + BOLT-12 reusable offer on the same screen.
 function screenRecv(id) {
   const acct = getAccount(id);
   if (!acct) return go("picker");
   h(`<h2>Receive</h2>
-     <label>Amount (sat)<input id="sat" type="number" min="1" placeholder="1000"></label>
-     <label>Description<input id="desc" maxlength="128" placeholder="optional"></label>
-     <button id="mint" class="primary">Create invoice</button>
+     <div class="row" id="recv-tabs">
+       <button id="tab-bolt11" class="primary">Invoice (BOLT-11)</button>
+       <button id="tab-bolt12">Reusable offer (BOLT-12)</button>
+     </div>
+     <div id="recv-bolt11">
+       <label>Amount (sat)<input id="sat" type="number" min="1" placeholder="1000"></label>
+       <label>Description<input id="desc" maxlength="128" placeholder="optional"></label>
+       <button id="mint" class="primary">Create invoice</button>
+     </div>
+     <div id="recv-bolt12" style="display:none">
+       <label>Amount (sat, or leave blank for any amount)<input id="sat12" type="number" min="1" placeholder="any"></label>
+       <label>Description<input id="desc12" maxlength="128" placeholder="optional"></label>
+       <button id="mint12" class="primary">Get reusable offer</button>
+     </div>
      <div id="inv"></div>
      <a href="#account/${esc(id)}">Back</a>`);
+
+  document.getElementById("tab-bolt11").onclick = () => {
+    document.getElementById("recv-bolt11").style.display = "";
+    document.getElementById("recv-bolt12").style.display = "none";
+    document.getElementById("tab-bolt11").classList.add("primary");
+    document.getElementById("tab-bolt12").classList.remove("primary");
+    document.getElementById("inv").innerHTML = "";
+  };
+  document.getElementById("tab-bolt12").onclick = () => {
+    document.getElementById("recv-bolt11").style.display = "none";
+    document.getElementById("recv-bolt12").style.display = "";
+    document.getElementById("tab-bolt12").classList.add("primary");
+    document.getElementById("tab-bolt11").classList.remove("primary");
+    document.getElementById("inv").innerHTML = "";
+  };
+
   document.getElementById("mint").onclick = async () => {
     const sat = parseInt(document.getElementById("sat").value, 10);
     const description = document.getElementById("desc").value.trim();
@@ -461,6 +489,20 @@ function screenRecv(id) {
         `<div class="card"><p>Share this invoice:</p>
          <pre class="key">${esc(r.bolt11 || "")}</pre></div>`;
     } catch (e) { toast("Mint failed: " + e.message, "error"); }
+  };
+
+  document.getElementById("mint12").onclick = async () => {
+    const satVal = document.getElementById("sat12").value.trim();
+    const description = document.getElementById("desc12").value.trim();
+    const sat = satVal === "" ? "any" : parseInt(satVal, 10);
+    if (sat !== "any" && (!Number.isInteger(sat) || sat <= 0))
+      return toast("Enter a positive amount or leave blank for any", "error");
+    try {
+      const r = await api(`/accounts/${id}/recv-reusable`, { method: "POST", key: acct.key, body: { sat, description } });
+      document.getElementById("inv").innerHTML =
+        `<div class="card"><p>Reusable BOLT-12 offer (share freely — payers can pay multiple times):</p>
+         <pre class="key">${esc(r.bolt12 || "")}</pre></div>`;
+    } catch (e) { toast("Offer failed: " + e.message, "error"); }
   };
 }
 

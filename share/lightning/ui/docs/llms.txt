@@ -25,7 +25,8 @@ work (crediting deposits, GC, rebalancing); the PWA just talks to it.
 
 - **Send**: paste a BOLT-11 invoice, tap Pay.
 - **Receive**: enter an amount + description, mint a BOLT-11 invoice to
-  share.
+  share; or switch to the **Reusable offer (BOLT-12)** tab to create a
+  reusable `lno1…` offer (FEAT-245) — shareable in a bio, no expiry.
 - **Settings**: reveal the API key (for LLM agents / CLI), or forget the
   account on this device (funds stay on the node).
 

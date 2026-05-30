@@ -8270,3 +8270,29 @@ _acct243_teardown() {
 	grep -q "profile" "$f"
 	grep -q "fund_class" "$f"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-245 — PWA: BOLT-12 reusable offer on the Receive screen
+# ---------------------------------------------------------------------------
+
+@test "FEAT-245: screenRecv has BOLT-12 tab button" {
+	grep -q "tab-bolt12" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-245: screenRecv calls recv-reusable endpoint" {
+	grep -q "recv-reusable" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-245: BOLT-12 tab sends sat=any when amount is blank" {
+	grep -q '"any"' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-245: screenRecv renders both Invoice and Reusable offer tabs" {
+	js="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "Invoice (BOLT-11)" "$js"
+	grep -q "Reusable offer (BOLT-12)" "$js"
+}
+
+@test "FEAT-245: screenRecv displays bolt12 string on success" {
+	grep -q "r.bolt12" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
