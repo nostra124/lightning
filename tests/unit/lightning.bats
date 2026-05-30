@@ -32651,3 +32651,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3040: channel-reserve-remote-min man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-remote-min.1" ]
 }
+
+@test "FEAT-3041: channel-reserve-remote-max reports error or reserve_remote_max gracefully" {
+    out=$(./libexec/lightning/channel-reserve-remote-max 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_remote_max"
+}
+@test "FEAT-3041: channel-reserve-remote-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-remote-max.1" ]
+}
+
+@test "FEAT-3042: node-listforwards-volume-day reports error or volume_msat_day gracefully" {
+    out=$(./libexec/lightning/node-listforwards-volume-day 2>/dev/null)
+    echo "$out" | grep -q "error\|volume_msat_day"
+}
+@test "FEAT-3042: node-listforwards-volume-day man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-volume-day.1" ]
+}
+
+@test "FEAT-3043: peer-htlc-count-total reports error or htlc_count_total_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_total_peer"
+}
+@test "FEAT-3043: peer-htlc-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-total.1" ]
+}
+
+@test "FEAT-3044: channel-reserve-local-stddev reports error or reserve_local_stddev gracefully" {
+    out=$(./libexec/lightning/channel-reserve-local-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_local_stddev"
+}
+@test "FEAT-3044: channel-reserve-local-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-local-stddev.1" ]
+}
+
+@test "FEAT-3045: node-listforwards-volume-week reports error or volume_msat_week gracefully" {
+    out=$(./libexec/lightning/node-listforwards-volume-week 2>/dev/null)
+    echo "$out" | grep -q "error\|volume_msat_week"
+}
+@test "FEAT-3045: node-listforwards-volume-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-volume-week.1" ]
+}
+
+@test "FEAT-3046: peer-htlc-count-stddev reports error or htlc_count_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_stddev_peer"
+}
+@test "FEAT-3046: peer-htlc-count-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-stddev.1" ]
+}
+
+@test "FEAT-3047: channel-reserve-remote-stddev reports error or reserve_remote_stddev gracefully" {
+    out=$(./libexec/lightning/channel-reserve-remote-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_remote_stddev"
+}
+@test "FEAT-3047: channel-reserve-remote-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-remote-stddev.1" ]
+}
+
+@test "FEAT-3048: node-listforwards-volume-month reports error or volume_msat_month gracefully" {
+    out=$(./libexec/lightning/node-listforwards-volume-month 2>/dev/null)
+    echo "$out" | grep -q "error\|volume_msat_month"
+}
+@test "FEAT-3048: node-listforwards-volume-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-volume-month.1" ]
+}
+
+@test "FEAT-3049: peer-htlc-count-median reports error or htlc_count_median_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-median 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_median_peer"
+}
+@test "FEAT-3049: peer-htlc-count-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-median.1" ]
+}
+
+@test "FEAT-3050: channel-reserve-local-median reports error or reserve_local_median gracefully" {
+    out=$(./libexec/lightning/channel-reserve-local-median 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_local_median"
+}
+@test "FEAT-3050: channel-reserve-local-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-local-median.1" ]
+}
