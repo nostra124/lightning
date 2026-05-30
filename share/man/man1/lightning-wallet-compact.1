@@ -1,0 +1,27 @@
+.TH "LIGHTNING-WALLET-COMPACT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-compact \- run VACUUM on the wallet SQLite database
+.SH SYNOPSIS
+.B lightning wallet-compact
+.RI [ wallet ]
+.SH DESCRIPTION
+Runs
+.B VACUUM
+on the wallet's SQLite database to reclaim free pages and reduce
+file size.
+Reports bytes saved.
+Returns
+.B {"ok":false}
+if the database does not exist or the vacuum fails.
+.PP
+Output:
+.nf
+{"ok":true,"before_bytes":N,"after_bytes":N,"saved_bytes":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-check (1),
+.BR lightning-wallet-prune (1)

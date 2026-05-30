@@ -10159,3 +10159,53 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-355: wallet-notes man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes.1" ]
 }
+
+# FEAT-356 — node-forwarding-stats verb
+
+@test "FEAT-356: node-forwarding-stats verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-forwarding-stats" ]
+}
+
+@test "FEAT-356: node-forwarding-stats reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-forwarding-stats" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-356: node-forwarding-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-forwarding-stats.1" ]
+}
+
+# FEAT-357 — channel-capacity-check verb
+
+@test "FEAT-357: channel-capacity-check verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-capacity-check" ]
+}
+
+@test "FEAT-357: channel-capacity-check reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-capacity-check" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-357: channel-capacity-check returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-capacity-check" 100000 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-357: channel-capacity-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-check.1" ]
+}
+
+# FEAT-358 — wallet-compact verb
+
+@test "FEAT-358: wallet-compact verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-compact" ]
+}
+
+@test "FEAT-358: wallet-compact reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-compact" 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-358: wallet-compact man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-compact.1" ]
+}

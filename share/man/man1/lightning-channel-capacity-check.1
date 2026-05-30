@@ -1,0 +1,25 @@
+.TH "LIGHTNING-CHANNEL-CAPACITY-CHECK" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-capacity-check \- list channels with local balance below a threshold
+.SH SYNOPSIS
+.B lightning channel-capacity-check
+.I min_sat
+.SH DESCRIPTION
+Returns all
+.B CHANNELD_NORMAL
+channels whose local balance (in satoshis) is below
+.IR min_sat .
+Useful for spotting depleted outbound capacity before sending.
+Returns an empty array if the daemon is unreachable.
+.PP
+Output:
+.nf
+[{channel_id, peer_id, to_us_msat, total_msat}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-balance (1),
+.BR lightning-liquidity-report (1)
