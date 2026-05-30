@@ -118,9 +118,12 @@ def _pay(account_id):
     sat = body.get("sat")
     if not isinstance(target, str) or not target:
         _lib.respond("400 Bad Request", {"error": "target_required"})
+    note = body.get("note", "")
     args = ["api-account-pay", account_id, target]
     if isinstance(sat, int) and sat > 0:
         args += ["--sat", str(sat)]
+    if isinstance(note, str) and note:
+        args += ["--note", note[:200]]
     result = _lib.call_verb(*args)
     _lib.respond("200 OK", result)
 

@@ -454,14 +454,19 @@ function screenSend(id) {
   h(`<h2>Send</h2>
      <label>Invoice / Lightning address / offer
        <textarea id="bolt11" rows="3" placeholder="lnbc… · lno… · user@domain.com"></textarea></label>
+     <label>Note (optional, stored locally with the transaction)
+       <input id="note" maxlength="200" placeholder="e.g. rent, coffee"></label>
      <button id="pay" class="primary">Pay</button>
      <a href="#account/${esc(id)}">Cancel</a>`);
   document.getElementById("pay").onclick = async () => {
     const target = document.getElementById("bolt11").value.trim();
     if (!target) return toast("Paste an invoice, Lightning address, or offer", "error");
+    const note = document.getElementById("note").value.trim();
     document.getElementById("pay").disabled = true;
     try {
-      const r = await api(`/accounts/${id}/pay`, { method: "POST", key: acct.key, body: { target } });
+      const body = { target };
+      if (note) body.note = note;
+      const r = await api(`/accounts/${id}/pay`, { method: "POST", key: acct.key, body });
       const fee = r.fee_sat != null ? " (fee: " + r.fee_sat + " sat)" : "";
       toast("Paid — " + (r.amount_sat ?? "?") + " sat" + fee, "ok");
       go("account/" + id);

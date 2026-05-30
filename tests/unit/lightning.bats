@@ -8497,3 +8497,26 @@ _acct243_teardown() {
 @test "FEAT-252: llms.txt documents GET /node" {
 	grep -q "GET /node" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
 }
+
+# FEAT-253 — payment note / memo
+
+@test "FEAT-253: api-account-pay accepts --note argument" {
+	grep -q "\-\-note" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-pay"
+}
+
+@test "FEAT-253: api-account-pay writes note to ledger" {
+	grep -q "sql_quote.*note\|note.*sql_quote" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-pay"
+}
+
+@test "FEAT-253: accounts.py passes note to verb" {
+	grep -A5 "def _pay" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py" \
+		| grep -q "note"
+}
+
+@test "FEAT-253: PWA Send screen has note input" {
+	grep -q 'id="note"' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-253: PWA Send includes note in pay body" {
+	grep -q "body.note\|body\[.note.\]" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
