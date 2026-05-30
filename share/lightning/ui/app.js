@@ -387,12 +387,14 @@ async function screenAccount(id) {
        <button id="send">Send</button>
        <button id="recv">Receive</button>
        <button id="topup">Top up</button>
+       <button id="history">History</button>
        <button id="commerce">Commerce</button>
        <button id="settings">⚙</button>
      </div>
      <div id="topupbox"></div>`);
   document.getElementById("send").onclick = () => go("send/" + id);
   document.getElementById("recv").onclick = () => go("recv/" + id);
+  document.getElementById("history").onclick = () => go("history/" + id);
   document.getElementById("settings").onclick = () => go("settings/" + id);
   document.getElementById("commerce").onclick = () => go("commerce/" + id);
   document.getElementById("topup").onclick = () => showTopup(id, acct.key);
@@ -808,6 +810,54 @@ async function screenMandates(id) {
   refresh();
 }
 
+// FEAT-246 — transaction history screen.
+async function screenHistory(id) {
+  const acct = getAccount(id);
+  if (!acct) return go("picker");
+  h(`<h2>History</h2>
+     <div id="entries"><p class="muted">Loading…</p></div>
+     <div id="hist-nav" style="display:none">
+       <button id="older">Older</button>
+     </div>
+     <a href="#account/${esc(id)}">Back</a>`);
+
+  let beforeId = null;
+  const load = async () => {
+    try {
+      const url = `/accounts/${id}/history` + (beforeId ? `?before=${beforeId}` : "");
+      const r = await api(url, { key: acct.key });
+      const entries = r.entries || [];
+      if (entries.length === 0 && !beforeId) {
+        document.getElementById("entries").innerHTML = "<p class='muted'>No transactions yet.</p>";
+        return;
+      }
+      const rows = entries.map(e => {
+        const dir = e.direction === "in" ? "+" : "−";
+        const sat = Math.round(Math.abs(e.amount_msat) / 1000).toLocaleString();
+        const label = esc(e.message || e.peer || e.payment_hash.slice(0, 12));
+        const ts = e.ts ? new Date(e.ts).toLocaleString() : "";
+        const cls = e.direction === "in" ? "color:green" : "color:#c00";
+        return `<div class="card" style="padding:.4em .8em">
+          <span style="${cls}">${dir}${sat} sat</span>
+          <span class="muted" style="float:right;font-size:.85em">${ts}</span>
+          <br><span class="muted" style="font-size:.85em">${label}</span>
+        </div>`;
+      }).join("");
+      const box = document.getElementById("entries");
+      if (beforeId) box.innerHTML += rows;
+      else box.innerHTML = rows;
+      if (r.has_more && entries.length) {
+        beforeId = entries[entries.length - 1].id;
+        document.getElementById("hist-nav").style.display = "";
+      } else {
+        document.getElementById("hist-nav").style.display = "none";
+      }
+    } catch (e) { document.getElementById("entries").innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+  };
+  document.getElementById("older").onclick = load;
+  await load();
+}
+
 function route() {
   if (POLL) { clearInterval(POLL); POLL = null; }
   renderNav();
@@ -820,6 +870,7 @@ function route() {
     case "send": return screenSend(arg);
     case "recv": return screenRecv(arg);
     case "settings": return screenSettings(arg);
+    case "history": return screenHistory(arg);
     case "referrals": return screenReferrals(arg);
     case "commerce": return screenCommerce(arg);
     case "pos": return screenPOS(arg);

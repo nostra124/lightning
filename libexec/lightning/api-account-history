@@ -1,0 +1,58 @@
+#!/bin/bash
+# lightning api-account-history <address> [--limit N] [--before ID]
+#                                                          (FEAT-246)
+#
+# Returns recent ledger entries for the account as JSON.
+#   {"entries":[{"id":1,"ts":"...","direction":"in","amount_msat":5000,
+#                "peer":"-","payment_hash":"...","message":"","note":""},...],
+#    "has_more": false}
+# Default limit 50; use --before <last_id> to page backwards.
+
+set -e
+[ $# -ge 1 ] || exit 1
+address="$1"; shift
+limit=50
+before=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--limit) limit="$2"; shift 2 ;;
+		--before) before="$2"; shift 2 ;;
+		*) exit 2 ;;
+	esac
+done
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+[[ "$limit" =~ ^[0-9]+$ ]] && [ "$limit" -ge 1 ] && [ "$limit" -le 200 ] || limit=50
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$name" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+# Build WHERE clause.
+where="account = $(sql_quote "$name")"
+if [ -n "$before" ] && [[ "$before" =~ ^[0-9]+$ ]]; then
+	where="$where AND id < $before"
+fi
+
+# Fetch limit+1 rows to detect has_more.
+fetch=$(( limit + 1 ))
+rows=$(sqlite3 -json "$db" \
+	"SELECT id, ts, direction, amount_msat, peer, payment_hash, message, note \
+	 FROM ledger WHERE $where ORDER BY id DESC LIMIT $fetch;" 2>/dev/null || echo "[]")
+
+# If we got limit+1 rows, there are more; trim to limit.
+count=$(echo "$rows" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d))" 2>/dev/null || echo 0)
+has_more="false"
+if [ "$count" -gt "$limit" ]; then
+	has_more="true"
+	rows=$(echo "$rows" | python3 -c \
+		"import json,sys; d=json.load(sys.stdin); print(json.dumps(d[:$limit]))" 2>/dev/null || echo "[]")
+fi
+
+printf '{"entries":%s,"has_more":%s}\n' "$rows" "$has_more"

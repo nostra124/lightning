@@ -129,6 +129,12 @@ Body `{ "sat": N, "description": "…" }` → `{ bolt11, payment_hash }`.
 ### POST /accounts/<id>/recv-reusable
 BOLT-12 offer; `sat` may be `"any"`.
 
+### GET /accounts/<id>/history[?limit=N&before=ID]
+Returns `{ entries: [...], has_more: bool }`. Each entry: `id, ts,
+direction ("in"|"out"), amount_msat, peer, payment_hash, message,
+note`. Paginate backwards via `before=<last_id>`. Default limit 50,
+max 200. (FEAT-246)
+
 ### POST /accounts/<id>/transfer
 Body `{ "to": "<id|name>", "sat": N, "note": "…" }` — intra-node move.
 

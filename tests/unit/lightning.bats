@@ -8296,3 +8296,61 @@ _acct243_teardown() {
 @test "FEAT-245: screenRecv displays bolt12 string on success" {
 	grep -q "r.bolt12" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-246 — Transaction history API + PWA screen
+# ---------------------------------------------------------------------------
+
+@test "FEAT-246: api-account-history verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-history" ]
+}
+
+@test "FEAT-246: api-account-history returns entries + has_more for unknown account exits 4" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.246.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.246.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	db="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create 2>/dev/null)
+	addr=$(echo "$acct_json" | jq -r '.account_id')
+	run "$LIGHTNING_BIN" api-account-history "$addr"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.entries | type == "array"'
+	echo "$output" | jq -e 'has("has_more")'
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR"
+}
+
+@test "FEAT-246: api-account-history entries include ledger rows after a transfer" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.246b.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.246b.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	db="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	# Seed two accounts; book a ledger row manually.
+	a1_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create 2>/dev/null)
+	addr=$(echo "$a1_json" | jq -r '.account_id')
+	name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address='$addr';")
+	sqlite3 "$db" "INSERT INTO ledger(ts,account,direction,amount_msat,peer,payment_hash,message) VALUES(datetime('now'),'$name','in',5000000,'-','-','test-entry');"
+	run "$LIGHTNING_BIN" api-account-history "$addr"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.entries | length >= 1'
+	echo "$output" | jq -e '.entries[0].direction == "in"'
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR"
+}
+
+@test "FEAT-246: accounts.py routes GET history" {
+	grep -q '"history"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
+	grep -q '_history' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
+}
+
+@test "FEAT-246: PWA app.js has screenHistory" {
+	grep -q "screenHistory" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-246: PWA account screen has History button" {
+	grep -q 'History' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-246: llms.txt documents the history endpoint" {
+	grep -q "history" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+}

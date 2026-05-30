@@ -433,6 +433,21 @@ def _close(account_id):
     _lib.respond("200 OK", result)
 
 
+def _history(account_id):
+    # FEAT-246 — transaction history (ledger entries for the account).
+    if _method() != "GET":
+        _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+    _lib.auth_account(account_id)
+    qs = _query()
+    args = ["api-account-history", account_id]
+    if "limit" in qs:
+        args += ["--limit", qs["limit"][0]]
+    if "before" in qs:
+        args += ["--before", qs["before"][0]]
+    result = _lib.call_verb(*args)
+    _lib.respond("200 OK", result)
+
+
 def _referrals(account_id):
     if _method() != "GET":
         _lib.respond("405 Method Not Allowed", {"error": "use_get"})
@@ -526,6 +541,7 @@ def main():
         "recv": lambda: _recv(account_id, reusable=False),
         "recv-reusable": lambda: _recv(account_id, reusable=True),
         "transfer": lambda: _transfer(account_id),
+        "history": lambda: _history(account_id),
         "referrals": lambda: _referrals(account_id),
         "invite-codes": lambda: _invite_codes(account_id),
         "close": lambda: _close(account_id),

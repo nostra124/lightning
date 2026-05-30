@@ -82,4 +82,7 @@ www-data ALL=(alice) NOPASSWD: \
     /usr/local/bin/lightning api-account-pay           bcrt1* * *, \
     /usr/local/bin/lightning api-account-withdraw      bc1* [0-9]* *, \
     /usr/local/bin/lightning api-account-withdraw      tb1* [0-9]* *, \
-    /usr/local/bin/lightning api-account-withdraw      bcrt1* [0-9]* *
+    /usr/local/bin/lightning api-account-withdraw      bcrt1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-history       bc1* *, \
+    /usr/local/bin/lightning api-account-history       tb1* *, \
+    /usr/local/bin/lightning api-account-history       bcrt1* *
