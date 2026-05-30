@@ -2270,9 +2270,17 @@ EOF
 @test "1.2.0: shellcheck -S warning is clean across the verb tree" {
 	command -v shellcheck >/dev/null || skip "shellcheck not installed"
 	root="$BATS_TEST_DIRNAME/../.."
+	# libexec/lightning/ also holds Python helpers (FEAT-222 PR-3's
+	# _webauthn-verify, _session-token) — pick only files with a sh/bash
+	# shebang so shellcheck doesn't trip on SC1071 (unsupported shell).
+	shell_files=()
+	while IFS= read -r f; do
+		head -1 "$f" 2>/dev/null | grep -qE '^#!.*/(ba)?sh([[:space:]]|$)' \
+			&& shell_files+=("$f")
+	done < <(find "$root/libexec/lightning" -type f)
 	run shellcheck -S warning \
 		"$root/bin/lightning" \
-		$(find "$root/libexec/lightning" -type f) \
+		"${shell_files[@]}" \
 		$(find "$root/share/lightning/hooks" -type f) \
 		"$root/tests/sit/helpers.bash" \
 		"$root/share/doc/lightning/standards/refresh.sh"
@@ -6227,6 +6235,136 @@ _user222_teardown() {
 	[ -n "$f" ]
 	grep -q "^id: FEAT-222" "$f"
 	grep -q "wallet_users" "$f"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-222 PR-3: passkey crypto foundation (schema + helpers).
+# ---------------------------------------------------------------------------
+
+_acct222pr3_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	# Trigger migrate_accounts_schema so the FEAT-222 PR-3 tables
+	# (user_passkeys + auth_challenges_user) materialise on this DB.
+	"$LIGHTNING_BIN" account list >/dev/null
+	BATS_DB="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+}
+
+# Stub the rpk `secret` tool with a $BATS_TMPDIR-backed key-value store so
+# _session-token's mint/verify roundtrip is reproducible without a real
+# keyring.  The store path must be stable across invocations within the
+# test (each invocation forks a fresh shell -> its own $$), so the dir
+# uses BIN_SHIM (which is already test-unique) rather than $$.
+_stub_secret() {
+	cat > "$BIN_SHIM/secret" <<EOF
+#!/bin/bash
+store="$BIN_SHIM/secret-store"
+mkdir -p "\$store"
+case "\$1" in
+	get) f="\$store/\${2//\//_}"; [ -f "\$f" ] && cat "\$f" || exit 1 ;;
+	set) f="\$store/\${2//\//_}"; cat > "\$f" ;;
+	*) exit 1 ;;
+esac
+EOF
+	chmod +x "$BIN_SHIM/secret"
+}
+
+@test "FEAT-222 PR-3: schema declares user_passkeys + auth_challenges_user" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/schema.sql"
+	grep -q "CREATE TABLE IF NOT EXISTS user_passkeys" "$f"
+	grep -q "CREATE TABLE IF NOT EXISTS auth_challenges_user" "$f"
+}
+
+@test "FEAT-222 PR-3: migration creates the two passkey tables (idempotent)" {
+	_acct222pr3_setup
+	tables=$(sqlite3 "$BATS_DB" "SELECT name FROM sqlite_master WHERE type='table';")
+	[[ "$tables" == *"user_passkeys"* ]]
+	[[ "$tables" == *"auth_challenges_user"* ]]
+	# Re-trigger the migration; must not error or duplicate.
+	"$LIGHTNING_BIN" account list >/dev/null
+	n_pk=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='user_passkeys';")
+	n_ch=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='auth_challenges_user';")
+	[ "$n_pk" = "1" ]
+	[ "$n_ch" = "1" ]
+}
+
+@test "FEAT-222 PR-3: _webauthn-verify list with no passkeys returns just the header" {
+	_acct222pr3_setup
+	"$LIGHTNING_BIN" wallet-user create --label operator >/dev/null
+	uid=$(sqlite3 "$BATS_DB" "SELECT id FROM wallet_users LIMIT 1;")
+	run "$LIGHTNING_BIN" _webauthn-verify list --user-id "$uid"
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == "credential_id"$'\t'"label"$'\t'"created_at"$'\t'"last_used_at"$'\t'"sign_count" ]]
+	[ "${#lines[@]}" -eq 1 ]
+}
+
+@test "FEAT-222 PR-3: _webauthn-verify list + revoke roundtrip on a manually-inserted passkey" {
+	_acct222pr3_setup
+	"$LIGHTNING_BIN" wallet-user create --label operator >/dev/null
+	uid=$(sqlite3 "$BATS_DB" "SELECT id FROM wallet_users LIMIT 1;")
+	sqlite3 "$BATS_DB" "INSERT INTO user_passkeys(user, credential_id, public_key, sign_count, label, created_at) \
+		VALUES('$uid', 'credabc', X'00', 0, 'phone', strftime('%s','now'));"
+
+	run "$LIGHTNING_BIN" _webauthn-verify list --user-id "$uid"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"credabc"* ]]
+	[[ "$output" == *"phone"* ]]
+
+	run "$LIGHTNING_BIN" _webauthn-verify revoke --credential-id credabc --user-id "$uid"
+	[ "$status" -eq 0 ]
+
+	run "$LIGHTNING_BIN" _webauthn-verify list --user-id "$uid"
+	[ "${#lines[@]}" -eq 1 ]
+}
+
+@test "FEAT-222 PR-3: _webauthn-verify revoke of a nonexistent credential exits 4" {
+	_acct222pr3_setup
+	run "$LIGHTNING_BIN" _webauthn-verify revoke --credential-id deadbeef
+	[ "$status" -eq 4 ]
+}
+
+@test "FEAT-222 PR-3: _webauthn-verify register-begin mints + stores a challenge" {
+	_acct222pr3_setup
+	run "$LIGHTNING_BIN" _webauthn-verify register-begin \
+		--user-id usr_alice --rp-id example.com --rp-name "Example"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"challenge"'* ]]
+	[[ "$output" == *'"rp"'* ]]
+	# Challenge persisted with purpose=register and user=NULL.
+	n=$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM auth_challenges_user WHERE purpose='register' AND user IS NULL;")
+	[ "$n" = "1" ]
+}
+
+@test "FEAT-222 PR-3: _session-token mint -> verify roundtrip" {
+	_stub_secret
+	run "$LIGHTNING_BIN" _session-token mint --user-id usr_alice --ttl 60
+	[ "$status" -eq 0 ]
+	[[ "$output" == sess_*.* ]]
+	tok="$output"
+	run "$LIGHTNING_BIN" _session-token verify --token "$tok"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"user_id"'* ]]
+	[[ "$output" == *"usr_alice"* ]]
+}
+
+@test "FEAT-222 PR-3: _session-token verify of a tampered token fails (exit 6)" {
+	_stub_secret
+	"$LIGHTNING_BIN" _session-token mint --user-id usr_alice >/dev/null
+	run "$LIGHTNING_BIN" _session-token verify --token "sess_BAD.PAYLOAD"
+	[ "$status" -eq 6 ]
+}
+
+@test "FEAT-222 PR-3: _session-token refresh issues a fresh signed token" {
+	_stub_secret
+	run "$LIGHTNING_BIN" _session-token mint --user-id usr_alice --ttl 60
+	tok="$output"
+	run "$LIGHTNING_BIN" _session-token refresh --token "$tok" --ttl 120
+	[ "$status" -eq 0 ]
+	[[ "$output" == sess_*.* ]]
+	# Refreshed token verifies cleanly.
+	run "$LIGHTNING_BIN" _session-token verify --token "$output"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"usr_alice"* ]]
 }
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,356 @@
+#!/usr/bin/env python3
+"""WebAuthn verification helper (FEAT-222 PR-3).
+
+Wraps the `webauthn` PyPI lib's four core operations behind a CLI so the
+shell verbs + Apache CGI scripts can drive passkey registration / login
+without each carrying its own crypto.  Reads / writes the active
+wallet's state.db directly (resolved like ledger / account).  All
+crypto is delegated to the lib — this script handles the DB plumbing,
+challenge lifecycle, and replay/clone-detection sign-count check.
+
+Subcommands:
+  register-begin --user-id <id> --rp-id <id> --rp-name <name>
+      stdout: JSON {challenge, rp, user, pubKeyCredParams, ...}.
+      Stores the challenge with user=NULL (the user is minted on finish).
+
+  register-finish --user-id <id> --rp-id <id> --expected-origin <url>
+                  [--label <text>]
+      stdin:  JSON {challenge, attestation}.
+      stdout: JSON {credential_id, user_id}.
+      Verifies the WebAuthn attestation, consumes the challenge, INSERTs
+      a row in user_passkeys.  Caller must have already created the user.
+
+  login-begin --user-id <id> --rp-id <id>
+      stdout: JSON {challenge, rpId, allowCredentials, ...}.
+
+  login-finish --user-id <id> --rp-id <id> --expected-origin <url>
+      stdin:  JSON {challenge, assertion}.
+      stdout: JSON {credential_id, user_id}.
+      Verifies the assertion, enforces sign_count monotonicity (a non-
+      increase is a clone signal -> exit 7), updates last_used_at.
+
+  list --user-id <id>
+      stdout: TSV (header + rows) of the user's registered passkeys.
+
+  revoke --credential-id <id> [--user-id <id>]
+      Deletes a single passkey.  --user-id when given scopes the delete
+      to that user (defence against typos).
+
+Exit codes:
+  0    success
+  1    usage / generic
+  2    bad arg
+  4    not found
+  5    no wallet database
+  6    verification failed
+  7    challenge expired / invalid / sign_count regression
+  127  `webauthn` PyPI package not installed
+"""
+
+import argparse
+import base64
+import json
+import os
+import secrets
+import sqlite3
+import sys
+import time
+
+CHALLENGE_TTL_SEC = 300
+
+
+def die(msg, code=1):
+    sys.stderr.write(json.dumps({"error": "fatal", "message": msg}) + "\n")
+    sys.exit(code)
+
+
+def emit(obj):
+    sys.stdout.write(json.dumps(obj) + "\n")
+
+
+def b64url_encode(b):
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode("ascii")
+
+
+def b64url_decode(s):
+    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def wallet_db_path():
+    """Resolve the active wallet's state.db (matches wallet/ledger/account)."""
+    home = os.environ.get("HOME", "")
+    root = os.environ.get("LIGHTNING_WALLETS_ROOT", os.path.join(home, ".lightning/wallet"))
+    link_base = os.environ.get("LIGHTNING_WALLETS_ROOT", os.path.join(home, ".lightning"))
+    link = os.path.join(link_base, "active")
+    active = "default"
+    try:
+        with open(link) as f:
+            n = f.read().strip()
+            if n:
+                active = n
+    except FileNotFoundError:
+        pass
+    return os.path.join(root, active, "state.db")
+
+
+def db_connect():
+    db = wallet_db_path()
+    if not os.path.exists(db):
+        die("no wallet database at " + db, 5)
+    conn = sqlite3.connect(db)
+    conn.execute("PRAGMA foreign_keys=ON;")
+    return conn
+
+
+def gen_challenge(conn, user, purpose):
+    chal = secrets.token_urlsafe(32)
+    now = int(time.time())
+    conn.execute(
+        "INSERT INTO auth_challenges_user(challenge, user, purpose, created_at, expires_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (chal, user, purpose, now, now + CHALLENGE_TTL_SEC),
+    )
+    conn.commit()
+    return chal
+
+
+def consume_challenge(conn, challenge, purpose):
+    """Find + delete a challenge; return its user_id or exit on miss/expiry."""
+    row = conn.execute(
+        "SELECT user, expires_at FROM auth_challenges_user WHERE challenge = ? AND purpose = ?",
+        (challenge, purpose),
+    ).fetchone()
+    if not row:
+        die("challenge not found or wrong purpose", 7)
+    user, expires_at = row
+    conn.execute("DELETE FROM auth_challenges_user WHERE challenge = ?", (challenge,))
+    conn.commit()
+    if expires_at < int(time.time()):
+        die("challenge expired", 7)
+    return user
+
+
+def require_webauthn():
+    try:
+        import webauthn  # noqa: F401
+        return webauthn
+    except ImportError:
+        sys.stderr.write(json.dumps({
+            "error": "missing_dependency",
+            "message": "the `webauthn` PyPI package is required for verify ops; "
+                       "install with `pip3 install webauthn`",
+        }) + "\n")
+        sys.exit(127)
+
+
+# --- subcommand handlers ---
+
+def cmd_register_begin(args):
+    conn = db_connect()
+    chal = gen_challenge(conn, None, "register")
+    # The caller assembles the full PublicKeyCredentialCreationOptions
+    # from these primitives — keeps this helper transport-agnostic.
+    emit({
+        "challenge": chal,
+        "rp": {"id": args.rp_id, "name": args.rp_name},
+        "user": {"id": b64url_encode(args.user_id.encode()),
+                 "name": args.user_id,
+                 "displayName": args.user_id},
+        "pubKeyCredParams": [{"alg": -7, "type": "public-key"},
+                             {"alg": -257, "type": "public-key"}],
+        "timeout": CHALLENGE_TTL_SEC * 1000,
+        "authenticatorSelection": {"userVerification": "preferred",
+                                   "residentKey": "preferred"},
+    })
+
+
+def cmd_register_finish(args):
+    try:
+        body = json.loads(sys.stdin.read() or "{}")
+    except json.JSONDecodeError as e:
+        die("bad JSON on stdin: " + str(e), 2)
+    challenge = body.get("challenge", "")
+    attestation = body.get("attestation")
+    if not challenge or attestation is None:
+        die("body must be {challenge, attestation}", 2)
+    conn = db_connect()
+    consume_challenge(conn, challenge, "register")
+
+    row = conn.execute("SELECT id FROM wallet_users WHERE id = ?", (args.user_id,)).fetchone()
+    if not row:
+        die("user " + args.user_id + " not found", 4)
+
+    webauthn = require_webauthn()
+    try:
+        verified = webauthn.verify_registration_response(
+            credential=attestation,
+            expected_challenge=b64url_decode(challenge),
+            expected_rp_id=args.rp_id,
+            expected_origin=args.expected_origin,
+        )
+    except Exception as e:
+        die("attestation verification failed: " + str(e), 6)
+
+    cred_id_b64 = b64url_encode(verified.credential_id)
+    now = int(time.time())
+    try:
+        conn.execute(
+            "INSERT INTO user_passkeys(user, credential_id, public_key, sign_count, "
+            "label, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (args.user_id, cred_id_b64, verified.credential_public_key,
+             verified.sign_count, args.label or "", now),
+        )
+    except sqlite3.IntegrityError:
+        die("credential already registered", 6)
+    conn.commit()
+    emit({"credential_id": cred_id_b64, "user_id": args.user_id})
+
+
+def cmd_login_begin(args):
+    conn = db_connect()
+    creds = conn.execute(
+        "SELECT credential_id FROM user_passkeys WHERE user = ?", (args.user_id,)
+    ).fetchall()
+    if not creds:
+        die("user " + args.user_id + " has no registered passkeys", 4)
+    chal = gen_challenge(conn, args.user_id, "login")
+    emit({
+        "challenge": chal,
+        "rpId": args.rp_id,
+        "allowCredentials": [{"type": "public-key", "id": cid} for (cid,) in creds],
+        "timeout": CHALLENGE_TTL_SEC * 1000,
+        "userVerification": "preferred",
+    })
+
+
+def cmd_login_finish(args):
+    try:
+        body = json.loads(sys.stdin.read() or "{}")
+    except json.JSONDecodeError as e:
+        die("bad JSON on stdin: " + str(e), 2)
+    challenge = body.get("challenge", "")
+    assertion = body.get("assertion")
+    if not challenge or assertion is None:
+        die("body must be {challenge, assertion}", 2)
+    conn = db_connect()
+    cuser = consume_challenge(conn, challenge, "login")
+    if cuser and cuser != args.user_id:
+        die("challenge user mismatch", 7)
+
+    cred_id_b64 = assertion.get("id") or assertion.get("rawId")
+    if not cred_id_b64:
+        die("assertion missing credential id", 2)
+    row = conn.execute(
+        "SELECT public_key, sign_count FROM user_passkeys "
+        "WHERE user = ? AND credential_id = ?",
+        (args.user_id, cred_id_b64),
+    ).fetchone()
+    if not row:
+        die("credential not registered for this user", 4)
+    public_key, stored_count = row
+
+    webauthn = require_webauthn()
+    try:
+        verified = webauthn.verify_authentication_response(
+            credential=assertion,
+            expected_challenge=b64url_decode(challenge),
+            expected_rp_id=args.rp_id,
+            expected_origin=args.expected_origin,
+            credential_public_key=public_key,
+            credential_current_sign_count=stored_count,
+        )
+    except Exception as e:
+        die("assertion verification failed: " + str(e), 6)
+
+    new_count = verified.new_sign_count
+    # sign_count must monotonically increase; 0 is the "device doesn't
+    # track it" convention and is allowed to stay 0.
+    if new_count and new_count <= stored_count:
+        die("sign_count did not increase (possible clone)", 7)
+    conn.execute(
+        "UPDATE user_passkeys SET sign_count = ?, last_used_at = ? WHERE credential_id = ?",
+        (new_count, int(time.time()), cred_id_b64),
+    )
+    conn.commit()
+    emit({"credential_id": cred_id_b64, "user_id": args.user_id})
+
+
+def cmd_list(args):
+    conn = db_connect()
+    rows = conn.execute(
+        "SELECT credential_id, label, created_at, last_used_at, sign_count "
+        "FROM user_passkeys WHERE user = ? ORDER BY id",
+        (args.user_id,),
+    ).fetchall()
+    sys.stdout.write("credential_id\tlabel\tcreated_at\tlast_used_at\tsign_count\n")
+    for r in rows:
+        sys.stdout.write("\t".join("" if x is None else str(x) for x in r) + "\n")
+
+
+def cmd_revoke(args):
+    conn = db_connect()
+    if args.user_id:
+        cur = conn.execute(
+            "DELETE FROM user_passkeys WHERE user = ? AND credential_id = ?",
+            (args.user_id, args.credential_id),
+        )
+    else:
+        cur = conn.execute(
+            "DELETE FROM user_passkeys WHERE credential_id = ?", (args.credential_id,)
+        )
+    conn.commit()
+    if cur.rowcount == 0:
+        die("credential not found", 4)
+    emit({"revoked": args.credential_id})
+
+
+# --- main ---
+
+def main():
+    ap = argparse.ArgumentParser(prog="_webauthn-verify")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    rb = sub.add_parser("register-begin")
+    rb.add_argument("--user-id", required=True)
+    rb.add_argument("--rp-id", required=True)
+    rb.add_argument("--rp-name", required=True)
+    rb.set_defaults(func=cmd_register_begin)
+
+    rf = sub.add_parser("register-finish")
+    rf.add_argument("--user-id", required=True)
+    rf.add_argument("--rp-id", required=True)
+    rf.add_argument("--expected-origin", required=True)
+    rf.add_argument("--label", default="")
+    rf.set_defaults(func=cmd_register_finish)
+
+    lb = sub.add_parser("login-begin")
+    lb.add_argument("--user-id", required=True)
+    lb.add_argument("--rp-id", required=True)
+    lb.set_defaults(func=cmd_login_begin)
+
+    lf = sub.add_parser("login-finish")
+    lf.add_argument("--user-id", required=True)
+    lf.add_argument("--rp-id", required=True)
+    lf.add_argument("--expected-origin", required=True)
+    lf.set_defaults(func=cmd_login_finish)
+
+    ls = sub.add_parser("list")
+    ls.add_argument("--user-id", required=True)
+    ls.set_defaults(func=cmd_list)
+
+    rv = sub.add_parser("revoke")
+    rv.add_argument("--credential-id", required=True)
+    rv.add_argument("--user-id", default="")
+    rv.set_defaults(func=cmd_revoke)
+
+    args = ap.parse_args()
+    try:
+        args.func(args)
+    except SystemExit:
+        raise
+    except sqlite3.Error as e:
+        die("sqlite error: " + str(e), 1)
+
+
+if __name__ == "__main__":
+    main()

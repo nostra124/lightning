@@ -71,6 +71,35 @@ CREATE TABLE IF NOT EXISTS wallet_users (
     label         TEXT    NOT NULL DEFAULT ''
 );
 
+-- FEAT-222 PR-3 — passkey credential storage.  One row per registered
+-- authenticator (a user can pair multiple passkeys for redundancy).
+-- Only the public half is stored; the private key stays on the
+-- authenticator hardware.  `sign_count` is the device's monotonic
+-- counter — a non-increase on assertion is a replay / clone signal and
+-- the credential must be rejected.
+CREATE TABLE IF NOT EXISTS user_passkeys (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user          TEXT    NOT NULL REFERENCES wallet_users(id) ON DELETE CASCADE,
+    credential_id TEXT    NOT NULL UNIQUE,
+    public_key    BLOB    NOT NULL,
+    sign_count    INTEGER NOT NULL DEFAULT 0,
+    label         TEXT    NOT NULL DEFAULT '',
+    created_at    INTEGER NOT NULL,
+    last_used_at  INTEGER
+);
+
+-- FEAT-222 PR-3 — outstanding WebAuthn challenges (begin -> finish).
+-- Short-lived (~5 min); cleaned lazily on the next register/login pass.
+-- `user` is NULL on register-begin (the user doesn't exist yet — the
+-- register-finish call mints them); populated on login-begin.
+CREATE TABLE IF NOT EXISTS auth_challenges_user (
+    challenge   TEXT    PRIMARY KEY,
+    user        TEXT,                    -- NULL during register-begin
+    purpose     TEXT    NOT NULL,        -- 'register' | 'login'
+    created_at  INTEGER NOT NULL,
+    expires_at  INTEGER NOT NULL
+);
+
 -- FEAT-225 — commercial invoices.  A merchant-issued invoice that
 -- carries a structured order/shipment reference + optional payment
 -- terms (due date, Skonto early-pay discount, late fee).  Keyed by
