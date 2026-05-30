@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning node-listchannels-by-node <node_id>   (FEAT-844)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: node-listchannels-by-node <node_id>"}'
+    exit 0
+fi
+node_id="$1"
+if ! result=$(lightning-cli listchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+nid = sys.argv[2]
+chs = [c for c in data.get('channels', []) if c.get('source') == nid or c.get('destination') == nid]
+print(json.dumps({'count': len(chs), 'channels': chs}))
+" "$result" "$node_id"

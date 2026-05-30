@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning peer-last-channel <peer_id>   (FEAT-847)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: peer-last-channel <peer_id>"}'
+    exit 0
+fi
+peer_id="$1"
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pid = sys.argv[2]
+chs = [c for c in data.get('channels', []) if c.get('peer_id') == pid]
+if chs:
+    print(json.dumps(chs[-1]))
+else:
+    print(json.dumps({'error': 'no channels for peer'}))
+" "$result" "$peer_id"

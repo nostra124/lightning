@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-label-get <wallet_name>   (FEAT-848)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-label-get <wallet_name>"}'
+    exit 0
+fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+label_file="$root/$wname/label"
+if [ ! -f "$label_file" ]; then
+    echo "{\"wallet\":\"$wname\",\"label\":null}"
+    exit 0
+fi
+label=$(cat "$label_file")
+echo "{\"wallet\":\"$wname\",\"label\":\"$label\"}"

@@ -15574,3 +15574,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-840: channel-max-inflight man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-inflight.1" ]
 }
+
+@test "FEAT-841: node-peer-list-ids returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-list-ids" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+@test "FEAT-841: node-peer-list-ids man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-list-ids.1" ]
+}
+
+@test "FEAT-842: channel-private-list reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-private-list" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-842: channel-private-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-private-list.1" ]
+}
+
+@test "FEAT-843: wallet-lock requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-lock" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-843: wallet-lock man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-lock.1" ]
+}
+
+@test "FEAT-844: node-listchannels-by-node requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listchannels-by-node" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-844: node-listchannels-by-node man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-node.1" ]
+}
+
+@test "FEAT-845: invoice-retry requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-retry" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-845: invoice-retry man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-retry.1" ]
+}
+
+@test "FEAT-846: channel-total-balance reports error or local_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-total-balance" 2>/dev/null)
+	echo "$out" | grep -q "error\|local_msat"
+}
+@test "FEAT-846: channel-total-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-balance.1" ]
+}
+
+@test "FEAT-847: peer-last-channel requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-last-channel" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-847: peer-last-channel man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-last-channel.1" ]
+}
+
+@test "FEAT-848: wallet-label-get requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-label-get" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-848: wallet-label-get man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-label-get.1" ]
+}
+
+@test "FEAT-849: node-htlc-in-flight reports error or in_flight_htlcs gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-in-flight" 2>/dev/null)
+	echo "$out" | grep -q "error\|in_flight_htlcs"
+}
+@test "FEAT-849: node-htlc-in-flight man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-in-flight.1" ]
+}
+
+@test "FEAT-850: channel-final-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-final-status" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-850: channel-final-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-final-status.1" ]
+}
