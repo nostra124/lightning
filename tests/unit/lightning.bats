@@ -22864,3 +22864,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1790: channel-reestablished man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reestablished.1" ]
 }
+
+@test "FEAT-1791: node-listpays-destination-count reports error or total_pays gracefully" {
+    out=$(./libexec/lightning/node-listpays-destination-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total_pays"
+}
+@test "FEAT-1791: node-listpays-destination-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-destination-count.1" ]
+}
+
+@test "FEAT-1792: channel-total-htlc-out reports error gracefully" {
+    out=$(./libexec/lightning/channel-total-htlc-out 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1792: channel-total-htlc-out man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-htlc-out.1" ]
+}
+
+@test "FEAT-1793: wallet-notes-newest reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-newest 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1793: wallet-notes-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-newest.1" ]
+}
+
+@test "FEAT-1794: node-listchannels-by-capacity reports error gracefully" {
+    out=$(./libexec/lightning/node-listchannels-by-capacity 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1794: node-listchannels-by-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-capacity.1" ]
+}
+
+@test "FEAT-1795: invoice-msatoshi reports error gracefully" {
+    out=$(./libexec/lightning/invoice-msatoshi 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1795: invoice-msatoshi man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-msatoshi.1" ]
+}
+
+@test "FEAT-1796: channel-inflight-htlc-total reports error or total_inflight_htlcs gracefully" {
+    out=$(./libexec/lightning/channel-inflight-htlc-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_inflight_htlcs"
+}
+@test "FEAT-1796: channel-inflight-htlc-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-inflight-htlc-total.1" ]
+}
+
+@test "FEAT-1797: peer-channel-balance reports error gracefully" {
+    out=$(./libexec/lightning/peer-channel-balance 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1797: peer-channel-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-balance.1" ]
+}
+
+@test "FEAT-1798: wallet-notes-import-csv reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-import-csv 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1798: wallet-notes-import-csv man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-import-csv.1" ]
+}
+
+@test "FEAT-1799: node-graph-reachable reports error gracefully" {
+    out=$(./libexec/lightning/node-graph-reachable 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1799: node-graph-reachable man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-reachable.1" ]
+}
+
+@test "FEAT-1800: channel-capacity-sat reports error gracefully" {
+    out=$(./libexec/lightning/channel-capacity-sat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1800: channel-capacity-sat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-sat.1" ]
+}

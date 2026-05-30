@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning channel-capacity-sat <channel_id>   (FEAT-1360)
+# lightning channel-capacity-sat <channel_id>   (FEAT-1800)
 if [ $# -lt 1 ]; then echo '{"error":"usage: channel-capacity-sat <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
@@ -10,8 +10,7 @@ cid = sys.argv[2]
 for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
         total = ch.get('total_msat', 0)
-        sat = total // 1000 if total else None
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'capacity_sat': sat}))
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'capacity_sat': total // 1000, 'capacity_msat': total}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"

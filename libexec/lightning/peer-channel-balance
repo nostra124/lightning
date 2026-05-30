@@ -1,15 +1,14 @@
 #!/bin/bash
-# lightning peer-channel-balance <peer_id>   (FEAT-1717)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: peer-channel-balance <peer_id>"}'; exit 0
-fi
+# lightning peer-channel-balance <peer_id>   (FEAT-1797)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-channel-balance <peer_id>"}'; exit 0; fi
 peer_id="$1"
-result=$(lightning-cli listpeerchannels "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-channels = [c for c in data.get('channels', []) if c.get('state') == 'CHANNELD_NORMAL']
-local = sum(c.get('to_us_msat', 0) for c in channels)
+pid = sys.argv[2]
+channels = [c for c in data.get('channels', []) if c.get('peer_id') == pid]
+to_us = sum(c.get('to_us_msat', 0) for c in channels)
 total = sum(c.get('total_msat', 0) for c in channels)
-print(json.dumps({'peer_id': sys.argv[2], 'local_msat': local, 'remote_msat': total - local, 'total_msat': total}))
+print(json.dumps({'peer_id': pid, 'to_us_msat': to_us, 'total_msat': total}))
 " "$result" "$peer_id"

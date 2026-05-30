@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning wallet-notes-import-csv <file>   (FEAT-1798)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-import-csv <file>"}'; exit 0; fi
+file="$1"
+if [ ! -f "$file" ]; then echo '{"error":"file not found"}'; exit 0; fi
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+count=0
+while IFS=',' read -r key value tag; do
+    sqlite3 "$db" "INSERT OR REPLACE INTO notes (key, value, tag) VALUES ('$key', '$value', '$tag');" 2>/dev/null
+    count=$((count+1))
+done < "$file"
+echo "{\"imported\":$count}"
