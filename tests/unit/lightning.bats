@@ -32251,3 +32251,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2990: node-invoice-unpaid-amount-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-amount-total.1" ]
 }
+
+@test "FEAT-2991: channel-balance-ratio-stddev reports error or balance_ratio_stddev gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_stddev"
+}
+@test "FEAT-2991: channel-balance-ratio-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio-stddev.1" ]
+}
+
+@test "FEAT-2992: node-invoice-expired-amount-total reports error or expired_amount_total_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-expired-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|expired_amount_total_msat"
+}
+@test "FEAT-2992: node-invoice-expired-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expired-amount-total.1" ]
+}
+
+@test "FEAT-2993: channel-balance-ratio-median reports error or balance_ratio_median gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio-median 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_median"
+}
+@test "FEAT-2993: channel-balance-ratio-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio-median.1" ]
+}
+
+@test "FEAT-2994: peer-balance-ratio-avg reports error or balance_ratio_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-ratio-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_avg_peer"
+}
+@test "FEAT-2994: peer-balance-ratio-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-avg.1" ]
+}
+
+@test "FEAT-2995: channel-balance-ratio-variance reports error or balance_ratio_variance gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_variance"
+}
+@test "FEAT-2995: channel-balance-ratio-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio-variance.1" ]
+}
+
+@test "FEAT-2996: node-pay-fee-max reports error or fee_max_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_max_msat"
+}
+@test "FEAT-2996: node-pay-fee-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-max.1" ]
+}
+
+@test "FEAT-2997: channel-spendable-pct-max reports error or spendable_pct_max gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_max"
+}
+@test "FEAT-2997: channel-spendable-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-max.1" ]
+}
+
+@test "FEAT-2998: peer-balance-ratio-max reports error or balance_ratio_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-ratio-max 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_max_peer"
+}
+@test "FEAT-2998: peer-balance-ratio-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-max.1" ]
+}
+
+@test "FEAT-2999: channel-spendable-pct-min reports error or spendable_pct_min gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-min 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_min"
+}
+@test "FEAT-2999: channel-spendable-pct-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-min.1" ]
+}
+
+@test "FEAT-3000: node-summary reports error or alias gracefully" {
+    out=$(./libexec/lightning/node-summary 2>/dev/null)
+    echo "$out" | grep -q "error\|alias"
+}
+@test "FEAT-3000: node-summary man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-summary.1" ]
+}
