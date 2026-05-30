@@ -30991,3 +30991,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2830: channel-spendable-stddev man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-stddev.1" ]
 }
+
+@test "FEAT-2831: channel-receivable-stddev reports error or receivable_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_stddev_msat"
+}
+@test "FEAT-2831: channel-receivable-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-stddev.1" ]
+}
+
+@test "FEAT-2832: node-listforwards-fee-kurtosis-weekly reports error or fee_kurtosis_weekly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_kurtosis_weekly"
+}
+@test "FEAT-2832: node-listforwards-fee-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-2833: peer-local-balance-kurtosis reports error or local_balance_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_kurtosis_peer"
+}
+@test "FEAT-2833: peer-local-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-kurtosis.1" ]
+}
+
+@test "FEAT-2834: node-pay-fee-kurtosis reports error or fee_kurtosis_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_kurtosis_pay"
+}
+@test "FEAT-2834: node-pay-fee-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-kurtosis.1" ]
+}
+
+@test "FEAT-2835: channel-fee-ppm-stddev reports error or fee_ppm_stddev gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_stddev"
+}
+@test "FEAT-2835: channel-fee-ppm-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-stddev.1" ]
+}
+
+@test "FEAT-2836: node-invoice-paid-amount-stddev-weekly reports error or paid_amount_stddev_weekly gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-stddev-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_stddev_weekly"
+}
+@test "FEAT-2836: node-invoice-paid-amount-stddev-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-stddev-weekly.1" ]
+}
+
+@test "FEAT-2837: channel-our-reserve-stddev reports error or our_reserve_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-our-reserve-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|our_reserve_stddev_msat"
+}
+@test "FEAT-2837: channel-our-reserve-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-stddev.1" ]
+}
+
+@test "FEAT-2838: peer-remote-balance-kurtosis reports error or remote_balance_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_kurtosis_peer"
+}
+@test "FEAT-2838: peer-remote-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-kurtosis.1" ]
+}
+
+@test "FEAT-2839: node-listforwards-in-msat-stddev reports error or in_msat_stddev gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_stddev"
+}
+@test "FEAT-2839: node-listforwards-in-msat-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-stddev.1" ]
+}
+
+@test "FEAT-2840: channel-their-reserve-stddev reports error or their_reserve_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-their-reserve-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|their_reserve_stddev_msat"
+}
+@test "FEAT-2840: channel-their-reserve-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-stddev.1" ]
+}
