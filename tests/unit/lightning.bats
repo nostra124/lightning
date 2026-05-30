@@ -27940,9 +27940,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-48h.1" ]
 }
 
-@test "FEAT-2442: channel-htlc-outgoing-value reports error or outgoing_htlc_value_msat gracefully" {
+@test "FEAT-2442: channel-htlc-outgoing-value reports error or total_outgoing_htlc_msat gracefully" {
     out=$(./libexec/lightning/channel-htlc-outgoing-value 2>/dev/null)
-    echo "$out" | grep -q "error\|outgoing_htlc_value_msat"
+    echo "$out" | grep -q "error\|total_outgoing_htlc_msat"
 }
 @test "FEAT-2442: channel-htlc-outgoing-value man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-outgoing-value.1" ]
@@ -27964,9 +27964,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-rate.1" ]
 }
 
-@test "FEAT-2445: channel-fee-base-min reports error or fee_base_msat gracefully" {
+@test "FEAT-2445: channel-fee-base-min reports error or channel_fee_base_min gracefully" {
     out=$(./libexec/lightning/channel-fee-base-min 2>/dev/null)
-    echo "$out" | grep -q "error\|fee_base_msat"
+    echo "$out" | grep -q "error\|channel_fee_base_min"
 }
 @test "FEAT-2445: channel-fee-base-min man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-min.1" ]
@@ -27980,17 +27980,17 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-complete-count-7d.1" ]
 }
 
-@test "FEAT-2447: channel-htlc-outgoing-value reports error or outgoing_htlc_value_msat gracefully" {
+@test "FEAT-2447: channel-htlc-outgoing-value reports error or total_outgoing_htlc_msat gracefully" {
     out=$(./libexec/lightning/channel-htlc-outgoing-value 2>/dev/null)
-    echo "$out" | grep -q "error\|outgoing_htlc_value_msat"
+    echo "$out" | grep -q "error\|total_outgoing_htlc_msat"
 }
 @test "FEAT-2447: channel-htlc-outgoing-value man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-outgoing-value.1" ]
 }
 
-@test "FEAT-2448: peer-fee-base-avg reports error or fee_base_avg_msat gracefully" {
+@test "FEAT-2448: peer-fee-base-avg reports error or fee_base_avg_by_peer gracefully" {
     out=$(./libexec/lightning/peer-fee-base-avg 2>/dev/null)
-    echo "$out" | grep -q "error\|fee_base_avg_msat"
+    echo "$out" | grep -q "error\|fee_base_avg_by_peer"
 }
 @test "FEAT-2448: peer-fee-base-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-avg.1" ]
