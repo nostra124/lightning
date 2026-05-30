@@ -1,9 +1,14 @@
 #!/bin/bash
-# lightning channel-peer-count   (FEAT-959)
-if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+# lightning channel-peer-count   (FEAT-2040)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-peers = set(c.get('peer_id') for c in data.get('channels', []))
-print(json.dumps({'unique_peers': len(peers), 'total_channels': len(data.get('channels', []))}))
+channels = data.get('channels', [])
+peers = set()
+for ch in channels:
+    pid = ch.get('peer_id', ch.get('node_id', ''))
+    if pid:
+        peers.add(pid)
+print(json.dumps({'peer_count': len(peers)}))
 " "$result"

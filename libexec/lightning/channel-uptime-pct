@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning channel-uptime-pct   (FEAT-2035)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+results = []
+for ch in channels:
+    cid = ch.get('channel_id', ch.get('short_channel_id', ''))
+    total = ch.get('total_msat', 0)
+    uptime = ch.get('uptime', 0)
+    lifetime = ch.get('lifetime', 0)
+    if lifetime > 0:
+        pct = round(100.0 * uptime / lifetime, 2)
+    else:
+        pct = 0
+    results.append({'channel_id': cid, 'uptime_pct': pct})
+print(json.dumps({'channels': results}))
+" "$result"

@@ -1,9 +1,18 @@
 #!/bin/bash
-# lightning wallet-notes-tag-count <tag>   (FEAT-1808)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-tag-count <tag>"}'; exit 0; fi
-tag="$1"
-wname="${LIGHTNING_WALLET:-default}"
-db="$HOME/.lightning/wallets/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-count=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes WHERE tag='$tag';" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
-echo "{\"tag\":\"$tag\",\"count\":$count}"
+# lightning wallet-notes-tag-count   (FEAT-2033)
+DB="${LIGHTNING_WALLET_DB:-$HOME/.lightning/wallet.db}"
+if [ ! -f "$DB" ]; then
+    echo '{"error":"wallet db not found"}'
+    exit 0
+fi
+result=$(sqlite3 "$DB" "SELECT tag, COUNT(*) as cnt FROM notes GROUP BY tag;" 2>/dev/null) || { echo '{"error":"sqlite3 query failed"}'; exit 0; }
+python3 -c "
+import sys, json
+lines = sys.argv[1].strip().splitlines() if sys.argv[1].strip() else []
+counts = {}
+for line in lines:
+    parts = line.split('|')
+    if len(parts) == 2:
+        counts[parts[0]] = int(parts[1])
+print(json.dumps({'tag_counts': counts}))
+" "$result"

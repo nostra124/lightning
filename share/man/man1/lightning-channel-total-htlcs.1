@@ -1,12 +1,14 @@
-.TH "LIGHTNING-CHANNEL_TOTAL_HTLCS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-CHANNEL-TOTAL-HTLCS" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-channel-total-htlcs \- count in-flight HTLCs on a channel
+lightning-channel-total-htlcs \- FEAT-2032 verb
 .SH SYNOPSIS
 .B lightning channel-total-htlcs
 .SH DESCRIPTION
-Count in-flight HTLCs on a channel.
+verb for lightning CLI (FEAT-2032).
 .PP
-Output: JSON object or array from CLN.
+Sums all in-flight HTLCs across all peer channels.
+.PP
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0

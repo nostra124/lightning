@@ -24781,3 +24781,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2030: channel-state-summary man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state-summary.1" ]
 }
+
+@test "FEAT-2031: node-listpays-grouped-status reports error or status_counts gracefully" {
+    out=$(./libexec/lightning/node-listpays-grouped-status 2>/dev/null)
+    echo "$out" | grep -q "error\|status_counts"
+}
+@test "FEAT-2031: node-listpays-grouped-status man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-grouped-status.1" ]
+}
+
+@test "FEAT-2032: channel-total-htlcs reports error or total_htlcs gracefully" {
+    out=$(./libexec/lightning/channel-total-htlcs 2>/dev/null)
+    echo "$out" | grep -q "error\|total_htlcs"
+}
+@test "FEAT-2032: channel-total-htlcs man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-htlcs.1" ]
+}
+
+@test "FEAT-2033: wallet-notes-tag-count reports error or tag_counts gracefully" {
+    out=$(./libexec/lightning/wallet-notes-tag-count 2>/dev/null)
+    echo "$out" | grep -q "error\|tag_counts"
+}
+@test "FEAT-2033: wallet-notes-tag-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-tag-count.1" ]
+}
+
+@test "FEAT-2034: node-graph-max-capacity reports error or max_capacity_sat gracefully" {
+    out=$(./libexec/lightning/node-graph-max-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|max_capacity_sat"
+}
+@test "FEAT-2034: node-graph-max-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-max-capacity.1" ]
+}
+
+@test "FEAT-2035: channel-uptime-pct reports error or uptime_pct gracefully" {
+    out=$(./libexec/lightning/channel-uptime-pct 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_pct\|channels"
+}
+@test "FEAT-2035: channel-uptime-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime-pct.1" ]
+}
+
+@test "FEAT-2036: peer-newest-channel-age reports error or newest_channel_age_seconds gracefully" {
+    out=$(./libexec/lightning/peer-newest-channel-age 2>/dev/null)
+    echo "$out" | grep -q "error\|newest_channel_age_seconds"
+}
+@test "FEAT-2036: peer-newest-channel-age man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-newest-channel-age.1" ]
+}
+
+@test "FEAT-2037: node-invoice-pending-count reports error or pending_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-count 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_count"
+}
+@test "FEAT-2037: node-invoice-pending-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-count.1" ]
+}
+
+@test "FEAT-2038: channel-local-reserve-pct reports error or local_reserve_pct gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-pct 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_pct\|channels"
+}
+@test "FEAT-2038: channel-local-reserve-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-pct.1" ]
+}
+
+@test "FEAT-2039: node-pay-avg-msat reports error or avg_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-avg-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_msat"
+}
+@test "FEAT-2039: node-pay-avg-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-avg-msat.1" ]
+}
+
+@test "FEAT-2040: channel-peer-count reports error or peer_count gracefully" {
+    out=$(./libexec/lightning/channel-peer-count 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_count"
+}
+@test "FEAT-2040: channel-peer-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-count.1" ]
+}

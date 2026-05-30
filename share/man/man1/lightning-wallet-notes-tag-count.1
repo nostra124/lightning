@@ -1,10 +1,13 @@
-.TH "LIGHTNING-WALLET_NOTES_TAG_COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET-NOTES-TAG-COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-notes-tag-count \- FEAT-1808 wallet-notes-tag-count
+lightning-wallet-notes-tag-count \- FEAT-2033 verb
 .SH SYNOPSIS
 .B lightning wallet-notes-tag-count
 .SH DESCRIPTION
-wallet-notes-tag-count for lightning CLI (FEAT-1808).
+verb for lightning CLI (FEAT-2033).
+.PP
+Queries the per-wallet SQLite store and returns note counts grouped by tag.
+Returns an error gracefully if no wallet database is found.
 .PP
 Output: JSON from CLN.
 .SH EXIT STATUS
