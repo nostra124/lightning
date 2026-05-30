@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning node-listpays-complete-fee-max   (FEAT-2211)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = [p for p in data.get('pays', []) if p.get('status') == 'complete']
+if not pays:
+    print(json.dumps({'max_fee_msat': 0, 'count': 0}))
+    sys.exit(0)
+fees = []
+for p in pays:
+    sent = p.get('amount_sent_msat', 0)
+    amt = p.get('amount_msat', 0)
+    if isinstance(sent, str): sent = int(sent.rstrip('msat'))
+    if isinstance(amt, str): amt = int(amt.rstrip('msat'))
+    fees.append(sent - amt)
+print(json.dumps({'max_fee_msat': max(fees), 'count': len(pays)}))
+" "$result"

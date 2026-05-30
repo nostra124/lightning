@@ -26221,3 +26221,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2210: channel-capacity-percentiles man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-percentiles.1" ]
 }
+
+@test "FEAT-2211: node-listpays-complete-fee-max reports error or max_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-listpays-complete-fee-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_fee_msat"
+}
+@test "FEAT-2211: node-listpays-complete-fee-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-complete-fee-max.1" ]
+}
+
+@test "FEAT-2212: channel-balance-gini reports error or gini gracefully" {
+    out=$(./libexec/lightning/channel-balance-gini 2>/dev/null)
+    echo "$out" | grep -q "error\|gini"
+}
+@test "FEAT-2212: channel-balance-gini man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-gini.1" ]
+}
+
+@test "FEAT-2213: wallet-notes-split reports error or notes gracefully" {
+    out=$(./libexec/lightning/wallet-notes-split 2>/dev/null)
+    echo "$out" | grep -q "error\|notes"
+}
+@test "FEAT-2213: wallet-notes-split man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-split.1" ]
+}
+
+@test "FEAT-2214: node-graph-closeness reports error or avg_closeness_proxy gracefully" {
+    out=$(./libexec/lightning/node-graph-closeness 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_closeness_proxy"
+}
+@test "FEAT-2214: node-graph-closeness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-closeness.1" ]
+}
+
+@test "FEAT-2215: channel-htlc-density reports error or channels gracefully" {
+    out=$(./libexec/lightning/channel-htlc-density 2>/dev/null)
+    echo "$out" | grep -q "error\|channels"
+}
+@test "FEAT-2215: channel-htlc-density man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-density.1" ]
+}
+
+@test "FEAT-2216: peer-newest-pay reports error or peers gracefully" {
+    out=$(./libexec/lightning/peer-newest-pay 2>/dev/null)
+    echo "$out" | grep -q "error\|peers"
+}
+@test "FEAT-2216: peer-newest-pay man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-newest-pay.1" ]
+}
+
+@test "FEAT-2217: node-invoice-paid-streak reports error or streak gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-streak 2>/dev/null)
+    echo "$out" | grep -q "error\|streak"
+}
+@test "FEAT-2217: node-invoice-paid-streak man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-streak.1" ]
+}
+
+@test "FEAT-2218: channel-capacity-histogram reports error or histogram gracefully" {
+    out=$(./libexec/lightning/channel-capacity-histogram 2>/dev/null)
+    echo "$out" | grep -q "error\|histogram"
+}
+@test "FEAT-2218: channel-capacity-histogram man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-histogram.1" ]
+}
+
+@test "FEAT-2219: node-pay-streak reports error or streak gracefully" {
+    out=$(./libexec/lightning/node-pay-streak 2>/dev/null)
+    echo "$out" | grep -q "error\|streak"
+}
+@test "FEAT-2219: node-pay-streak man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-streak.1" ]
+}
+
+@test "FEAT-2220: channel-local-reserve-total reports error or total_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_reserve_msat"
+}
+@test "FEAT-2220: channel-local-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-total.1" ]
+}

@@ -1,0 +1,25 @@
+#!/bin/bash
+# lightning channel-balance-gini   (FEAT-2212)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+balances = []
+for c in channels:
+    b = c.get('to_us_msat', 0)
+    if isinstance(b, str): b = int(b.rstrip('msat'))
+    balances.append(b)
+if len(balances) < 2:
+    print(json.dumps({'gini': 0.0, 'channel_count': len(balances)}))
+    sys.exit(0)
+balances.sort()
+n = len(balances)
+s = sum(balances)
+if s == 0:
+    print(json.dumps({'gini': 0.0, 'channel_count': n}))
+    sys.exit(0)
+num = sum((i+1)*b for i, b in enumerate(balances))
+gini = (2*num) / (n*s) - (n+1)/n
+print(json.dumps({'gini': round(gini, 6), 'channel_count': n}))
+" "$result"

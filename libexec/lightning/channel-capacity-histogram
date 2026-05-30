@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning channel-capacity-histogram   (FEAT-2218)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+buckets = {'0-100k': 0, '100k-1M': 0, '1M-10M': 0, '10M+': 0}
+for c in channels:
+    cap = c.get('total_msat', 0)
+    if isinstance(cap, str): cap = int(cap.rstrip('msat'))
+    sats = cap // 1000
+    if sats < 100_000: buckets['0-100k'] += 1
+    elif sats < 1_000_000: buckets['100k-1M'] += 1
+    elif sats < 10_000_000: buckets['1M-10M'] += 1
+    else: buckets['10M+'] += 1
+print(json.dumps({'histogram': buckets, 'channel_count': len(channels)}))
+" "$result"

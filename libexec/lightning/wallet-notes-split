@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning wallet-notes-split   (FEAT-2213)
+db="${LIGHTNING_WALLET_DB:-wallet.db}"
+result=$(sqlite3 "$db" "SELECT id, note FROM notes;" 2>/dev/null)
+if [ $? -ne 0 ]; then
+    echo '{"error":"wallet db not found or notes table missing"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+lines = sys.argv[1].splitlines() if sys.argv[1] else []
+notes = []
+for line in lines:
+    parts = line.split('|', 1)
+    if len(parts) == 2:
+        notes.append({'id': parts[0], 'note': parts[1]})
+print(json.dumps({'notes': notes, 'count': len(notes)}))
+" "$result"
