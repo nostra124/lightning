@@ -20564,3 +20564,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1490: channel-peer-scid man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-scid.1" ]
 }
+@test "FEAT-1491: node-listchannels-inactive reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listchannels-inactive 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1491: node-listchannels-inactive man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-inactive.1" ]
+}
+@test "FEAT-1492: channel-last-htlc-id reports error gracefully" {
+    out=$(./libexec/lightning/channel-last-htlc-id 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1492: channel-last-htlc-id man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-last-htlc-id.1" ]
+}
+@test "FEAT-1493: wallet-notes-stats reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-stats 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1493: wallet-notes-stats man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-stats.1" ]
+}
+@test "FEAT-1494: node-pay-first reports error gracefully" {
+    out=$(./libexec/lightning/node-pay-first 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1494: node-pay-first man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-first.1" ]
+}
+@test "FEAT-1495: invoice-bolt11-features reports error gracefully" {
+    out=$(./libexec/lightning/invoice-bolt11-features 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1495: invoice-bolt11-features man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-features.1" ]
+}
+@test "FEAT-1496: channel-their-to-self-delay reports error gracefully" {
+    out=$(./libexec/lightning/channel-their-to-self-delay 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1496: channel-their-to-self-delay man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-to-self-delay.1" ]
+}
+@test "FEAT-1497: peer-connected-count reports error or connected_count gracefully" {
+    out=$(./libexec/lightning/peer-connected-count 2>/dev/null)
+    echo "$out" | grep -q "error\|connected_count"
+}
+@test "FEAT-1497: peer-connected-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connected-count.1" ]
+}
+@test "FEAT-1498: wallet-notes-clear-tag reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-clear-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1498: wallet-notes-clear-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-clear-tag.1" ]
+}
+@test "FEAT-1499: node-listforwards-failed reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-failed 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1499: node-listforwards-failed man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-failed.1" ]
+}
+@test "FEAT-1500: channel-their-reserve reports error gracefully" {
+    out=$(./libexec/lightning/channel-their-reserve 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1500: channel-their-reserve man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve.1" ]
+}

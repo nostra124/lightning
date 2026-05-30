@@ -1,15 +1,10 @@
 #!/bin/bash
-# lightning wallet-notes-stats <wallet_name>   (FEAT-1098)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: wallet-notes-stats <wallet_name>"}'
-    exit 0
-fi
+# lightning wallet-notes-stats <wallet>   (FEAT-1493)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-stats <wallet>"}'; exit 0; fi
 wname="$1"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"wallet_not_found"}'
-    exit 0
-fi
-count=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes;" 2>/dev/null || echo 0)
-echo "{\"wallet\":\"$wname\",\"note_count\":$count}"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+total=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+pinned=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes WHERE pinned=1;" 2>/dev/null)
+tags=$(sqlite3 "$db" "SELECT COUNT(DISTINCT tag) FROM notes WHERE tag IS NOT NULL;" 2>/dev/null)
+echo "{\"wallet\":\"$wname\",\"total\":$total,\"pinned\":$pinned,\"distinct_tags\":$tags}"
