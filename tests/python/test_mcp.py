@@ -225,12 +225,13 @@ def test_tools_call_backend_failure_returns_isError(api_dir, bin_shim, lightning
 # --- resources -----------------------------------------------------------
 
 
-def test_resources_list_returns_three(api_dir, bin_shim, lightning_stub, cgi, parse):
+def test_resources_list_returns_four(api_dir, bin_shim, lightning_stub, cgi, parse):
     lightning_stub({})
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, rpc("resources/list"))
     j = json.loads(body_out)
     uris = {r["uri"] for r in j["result"]["resources"]}
-    assert uris == {"account://{id}", "account://{id}/ledger", "account://{id}/topup"}
+    assert uris == {"account://{id}", "account://{id}/ledger", "account://{id}/topup",
+                    "node://info"}
 
 
 def test_resources_read_account_root(api_dir, bin_shim, lightning_stub, cgi, parse):
@@ -290,6 +291,15 @@ def test_tools_call_history(api_dir, bin_shim, lightning_stub, cgi, parse):
                                headers={"HTTP_AUTHORIZATION": "Bearer lt_x"})
     j = json.loads(body_out)
     assert j["result"]["structuredContent"]["entries"][0]["direction"] == "in"
+
+
+def test_resources_read_node_info(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"pubkey":"0266e4598d1d3c415f572a8488830b60f7e744ed9235eb0b1ba93283b315c03518","alias":"alice","num_channels":2,"local_msat":200000}'
+    lightning_stub({"api-node-info": (0, body)})
+    payload = rpc("resources/read", {"uri": "node://info"})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert "pubkey" in j["result"]["contents"][0]["text"]
 
 
 def test_resources_read_bad_uri_errors(api_dir, bin_shim, lightning_stub, cgi, parse):

@@ -280,6 +280,8 @@ TOOLS = [
 TOOLS_BY_NAME = {t["name"]: t for t in TOOLS}
 
 
+NODE_RESOURCE_URI = "node://info"
+
 RESOURCES = [
     {
         "uri": "account://{id}",
@@ -298,6 +300,13 @@ RESOURCES = [
         "uri": "account://{id}/topup",
         "name": "Account top-up URI",
         "description": "BIP-21 URI for on-chain top-up.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": NODE_RESOURCE_URI,
+        "name": "Node info",
+        "description": "Node pubkey, alias, channel count, and local "
+                       "capacity.  No auth required.",
         "mimeType": "application/json",
     },
 ]
@@ -395,6 +404,12 @@ def handle_resources_list(params):
 
 
 def _resource_read(uri, bearer):
+    if uri == NODE_RESOURCE_URI:
+        rc, payload = call_verb_json("api-node-info")
+        if rc != 0:
+            return jsonrpc_error(None, -32000, "backend_failed", payload)
+        return {"contents": [{"uri": uri, "mimeType": "application/json",
+                               "text": json.dumps(payload, separators=(",", ":"))}]}
     if not ACCOUNT_RESOURCE_RE.match(uri):
         return jsonrpc_error(None, -32602, "bad_resource_uri", {"uri": uri})
     parts = uri[len("account://"):].split("/", 1)
