@@ -21664,3 +21664,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1640: channel-their-cltv-delta-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-cltv-delta-total.1" ]
 }
+
+@test "FEAT-1641: node-pay-preimage-list reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-preimage-list 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1641: node-pay-preimage-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-preimage-list.1" ]
+}
+
+@test "FEAT-1642: channel-receivable-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-receivable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1642: channel-receivable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-total.1" ]
+}
+
+@test "FEAT-1643: wallet-notes-swap requires args" {
+    out=$(./libexec/lightning/wallet-notes-swap 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1643: wallet-notes-swap man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-swap.1" ]
+}
+
+@test "FEAT-1644: node-listchannels-by-scid requires arg" {
+    out=$(./libexec/lightning/node-listchannels-by-scid 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1644: node-listchannels-by-scid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-scid.1" ]
+}
+
+@test "FEAT-1645: invoice-description requires arg" {
+    out=$(./libexec/lightning/invoice-description 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1645: invoice-description man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-description.1" ]
+}
+
+@test "FEAT-1646: channel-local-reserve-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1646: channel-local-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-total.1" ]
+}
+
+@test "FEAT-1647: peer-total-sent-msat requires arg" {
+    out=$(./libexec/lightning/peer-total-sent-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1647: peer-total-sent-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-sent-msat.1" ]
+}
+
+@test "FEAT-1648: wallet-meta-has-key requires args" {
+    out=$(./libexec/lightning/wallet-meta-has-key 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1648: wallet-meta-has-key man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-has-key.1" ]
+}
+
+@test "FEAT-1649: node-graph-total-capacity reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/node-graph-total-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1649: node-graph-total-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-total-capacity.1" ]
+}
+
+@test "FEAT-1650: channel-local-balance-pct requires arg" {
+    out=$(./libexec/lightning/channel-local-balance-pct 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1650: channel-local-balance-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-pct.1" ]
+}
