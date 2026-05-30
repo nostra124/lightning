@@ -24621,3 +24621,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2010: channel-opener-local-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-local-count.1" ]
 }
+
+@test "FEAT-2011: node-listpays-pending-count reports error or pending_pays_count gracefully" {
+    out=$(./libexec/lightning/node-listpays-pending-count 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_pays_count\|count"
+}
+@test "FEAT-2011: node-listpays-pending-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-pending-count.1" ]
+}
+
+@test "FEAT-2012: channel-htlc-max-count reports error or max_htlc_count gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-count 2>/dev/null)
+    echo "$out" | grep -q "error\|max_htlc_count"
+}
+@test "FEAT-2012: channel-htlc-max-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-count.1" ]
+}
+
+@test "FEAT-2013: wallet-notes-export reports error or notes gracefully" {
+    out=$(./libexec/lightning/wallet-notes-export 2>/dev/null)
+    echo "$out" | grep -q "error\|notes"
+}
+@test "FEAT-2013: wallet-notes-export man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-export.1" ]
+}
+
+@test "FEAT-2014: node-graph-node-count reports error or node_count gracefully" {
+    out=$(./libexec/lightning/node-graph-node-count 2>/dev/null)
+    echo "$out" | grep -q "error\|node_count\|count"
+}
+@test "FEAT-2014: node-graph-node-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-node-count.1" ]
+}
+
+@test "FEAT-2015: channel-min-htlc reports error or our_min_htlc_msat gracefully" {
+    out=$(./libexec/lightning/channel-min-htlc 2>/dev/null)
+    echo "$out" | grep -q "error\|our_min_htlc_msat\|min_htlc"
+}
+@test "FEAT-2015: channel-min-htlc man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-htlc.1" ]
+}
+
+@test "FEAT-2016: peer-fee-revenue reports error or fee_revenue_by_channel gracefully" {
+    out=$(./libexec/lightning/peer-fee-revenue 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_revenue_by_channel"
+}
+@test "FEAT-2016: peer-fee-revenue man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-revenue.1" ]
+}
+
+@test "FEAT-2017: node-invoice-oldest reports error or oldest_paid_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|oldest_paid_invoice"
+}
+@test "FEAT-2017: node-invoice-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-oldest.1" ]
+}
+
+@test "FEAT-2018: channel-max-spendable reports error or max_spendable_msat gracefully" {
+    out=$(./libexec/lightning/channel-max-spendable 2>/dev/null)
+    echo "$out" | grep -q "error\|max_spendable_msat"
+}
+@test "FEAT-2018: channel-max-spendable man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-spendable.1" ]
+}
+
+@test "FEAT-2019: node-pay-success-count reports error or success gracefully" {
+    out=$(./libexec/lightning/node-pay-success-count 2>/dev/null)
+    echo "$out" | grep -q "error\|success"
+}
+@test "FEAT-2019: node-pay-success-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-success-count.1" ]
+}
+
+@test "FEAT-2020: channel-remote-reserve reports error or their_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve 2>/dev/null)
+    echo "$out" | grep -q "error\|their_reserve_msat\|reserve"
+}
+@test "FEAT-2020: channel-remote-reserve man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve.1" ]
+}

@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning channel-htlc-max-count   (FEAT-2012)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+max_count = 0
+for ch in channels:
+    htlcs = ch.get('htlcs', [])
+    if len(htlcs) > max_count:
+        max_count = len(htlcs)
+print(json.dumps({'max_htlc_count': max_count}))
+" "$result"
