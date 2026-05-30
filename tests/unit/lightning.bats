@@ -12694,3 +12694,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-520: node-channel-age man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-age.1" ]
 }
+
+@test "FEAT-521: node-fee-report reports error or total_forwards gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-report" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_forwards"
+}
+
+@test "FEAT-521: node-fee-report man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-report.1" ]
+}
+
+@test "FEAT-522: channel-open-check reports error or can_open gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-check" 2>/dev/null)
+	echo "$out" | grep -q "error\|can_open"
+}
+
+@test "FEAT-522: channel-open-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-check.1" ]
+}
+
+@test "FEAT-523: wallet-path requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-path" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-523: wallet-path man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-path.1" ]
+}
+
+@test "FEAT-524: node-payment-limits reports error or min_payment gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-limits" 2>/dev/null)
+	echo "$out" | grep -q "error\|min_payment"
+}
+
+@test "FEAT-524: node-payment-limits man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-payment-limits.1" ]
+}
+
+@test "FEAT-525: invoice-list-unpaid reports array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-unpaid" 2>/dev/null)
+	echo "$out" | grep -q "\[\|\]"
+}
+
+@test "FEAT-525: invoice-list-unpaid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-unpaid.1" ]
+}
+
+@test "FEAT-526: peer-channels-list requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-channels-list" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-526: peer-channels-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channels-list.1" ]
+}
+
+@test "FEAT-527: node-drain-check reports error or drained_channels gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-drain-check" 2>/dev/null)
+	echo "$out" | grep -q "error\|drained_channels"
+}
+
+@test "FEAT-527: node-drain-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-drain-check.1" ]
+}
+
+@test "FEAT-528: wallet-notes requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-notes" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-528: wallet-notes man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes.1" ]
+}
+
+@test "FEAT-529: node-alias-lookup requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-alias-lookup" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-529: node-alias-lookup man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-alias-lookup.1" ]
+}
+
+@test "FEAT-530: channel-htlc-list requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-list" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-530: channel-htlc-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-list.1" ]
+}

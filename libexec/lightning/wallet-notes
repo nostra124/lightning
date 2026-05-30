@@ -1,20 +1,15 @@
 #!/bin/bash
-# lightning wallet-notes [<wallet>] [--limit N]   (FEAT-355)
-set -e
-wname="default"
-limit=50
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --limit) limit="$2"; shift 2 ;;
-        *) wname="$1"; shift ;;
-    esac
-done
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '[]'
+# lightning wallet-notes <wallet_name>   (FEAT-528)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-notes <wallet_name>"}'
     exit 0
 fi
-sqlite3 -json "$db" \
-    "SELECT entry_id, note, created_at FROM ledger WHERE note IS NOT NULL AND note != '' ORDER BY created_at DESC LIMIT $limit;" \
-    2>/dev/null || echo '[]'
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+notes_file="$root/$wname/notes.txt"
+if [ -f "$notes_file" ]; then
+    notes=$(cat "$notes_file")
+    python3 -c "import sys, json; print(json.dumps({'wallet': sys.argv[1], 'notes': sys.argv[2]}))" "$wname" "$notes"
+else
+    echo "{\"wallet\":\"$wname\",\"notes\":null}"
+fi
