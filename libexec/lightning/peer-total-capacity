@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning peer-total-capacity <peer_id>   (FEAT-1407)
+# lightning peer-total-capacity <peer_id>   (FEAT-1787)
 if [ $# -lt 1 ]; then echo '{"error":"usage: peer-total-capacity <peer_id>"}'; exit 0; fi
 peer_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
@@ -7,6 +7,7 @@ python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
 pid = sys.argv[2]
-total = sum(ch.get('total_msat', 0) for ch in data.get('channels', []) if ch.get('peer_id') == pid)
-print(json.dumps({'peer_id': pid, 'total_capacity_msat': total}))
+channels = [c for c in data.get('channels', []) if c.get('peer_id') == pid]
+total = sum(c.get('total_msat', 0) for c in channels)
+print(json.dumps({'peer_id': pid, 'channel_count': len(channels), 'total_capacity_msat': total}))
 " "$result" "$peer_id"
