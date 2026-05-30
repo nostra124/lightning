@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning node-listforwards-settled-count-today   (FEAT-2928)
+result=$(lightning-cli listforwards status=settled 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+today_start = int(time.mktime(time.strptime(time.strftime('%Y-%m-%d'), '%Y-%m-%d')))
+count = sum(1 for f in forwards if f.get('resolved_time', 0) >= today_start)
+print(json.dumps({'settled_today_count': count}))
+" "$result"
