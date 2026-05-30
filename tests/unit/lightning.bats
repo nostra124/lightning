@@ -22944,3 +22944,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1800: channel-capacity-sat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-sat.1" ]
 }
+
+@test "FEAT-1801: node-listpays-by-status reports error gracefully" {
+    out=$(./libexec/lightning/node-listpays-by-status 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1801: node-listpays-by-status man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-by-status.1" ]
+}
+
+@test "FEAT-1802: channel-spendable-msat reports error gracefully" {
+    out=$(./libexec/lightning/channel-spendable-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1802: channel-spendable-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-msat.1" ]
+}
+
+@test "FEAT-1803: wallet-notes-tag-rename reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-tag-rename 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1803: wallet-notes-tag-rename man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-tag-rename.1" ]
+}
+
+@test "FEAT-1804: node-listchannels-direction reports error gracefully" {
+    out=$(./libexec/lightning/node-listchannels-direction 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1804: node-listchannels-direction man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-direction.1" ]
+}
+
+@test "FEAT-1805: invoice-bolt11-amount reports error gracefully" {
+    out=$(./libexec/lightning/invoice-bolt11-amount 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1805: invoice-bolt11-amount man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-amount.1" ]
+}
+
+@test "FEAT-1806: channel-receivable-msat reports error gracefully" {
+    out=$(./libexec/lightning/channel-receivable-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1806: channel-receivable-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-msat.1" ]
+}
+
+@test "FEAT-1807: peer-local-balance reports error gracefully" {
+    out=$(./libexec/lightning/peer-local-balance 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1807: peer-local-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance.1" ]
+}
+
+@test "FEAT-1808: wallet-notes-tag-count reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-tag-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1808: wallet-notes-tag-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-tag-count.1" ]
+}
+
+@test "FEAT-1809: node-listforwards-in-msat reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1809: node-listforwards-in-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat.1" ]
+}
+
+@test "FEAT-1810: channel-opener-remote reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-opener-remote 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1810: channel-opener-remote man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-remote.1" ]
+}

@@ -1,10 +1,9 @@
 #!/bin/bash
-# lightning wallet-notes-tag-count <wallet> <tag>   (FEAT-1603)
-if [ $# -lt 2 ]; then
-    echo '{"error":"usage: wallet-notes-tag-count <wallet> <tag>"}'; exit 0
-fi
-wname="$1"; tag="$2"
-db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+# lightning wallet-notes-tag-count <tag>   (FEAT-1808)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-tag-count <tag>"}'; exit 0; fi
+tag="$1"
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
 if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
 count=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes WHERE tag='$tag';" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
-echo "{\"wallet\":\"$wname\",\"tag\":\"$tag\",\"count\":$count}"
+echo "{\"tag\":\"$tag\",\"count\":$count}"

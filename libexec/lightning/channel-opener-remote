@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning channel-opener-remote   (FEAT-1620)
+# lightning channel-opener-remote   (FEAT-1810)
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json

@@ -1,13 +1,11 @@
 #!/bin/bash
-# lightning invoice-bolt11-amount <bolt11>   (FEAT-1285)
+# lightning invoice-bolt11-amount <bolt11>   (FEAT-1805)
 if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-bolt11-amount <bolt11>"}'; exit 0; fi
 bolt11="$1"
-if ! result=$(lightning-cli decodepay "$bolt11" 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
+result=$(lightning-cli decodepay "$bolt11" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
+if 'error' in data: print(json.dumps({'error': data['error']})); sys.exit(0)
 print(json.dumps({'amount_msat': data.get('amount_msat'), 'description': data.get('description')}))
 " "$result"
