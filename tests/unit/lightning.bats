@@ -9333,3 +9333,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-302: channel-set-fee man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-set-fee.1" ]
 }
+
+# FEAT-303 — wallet-accounts-summary verb
+
+@test "FEAT-303: wallet-accounts-summary verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-accounts-summary" ]
+}
+
+@test "FEAT-303: wallet-accounts-summary reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-accounts-summary" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('error')=='database_not_found'"
+}
+
+@test "FEAT-303: wallet-accounts-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-accounts-summary.1" ]
+}
+
+# FEAT-304 — node-channel-graph verb
+
+@test "FEAT-304: node-channel-graph verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-graph" ]
+}
+
+@test "FEAT-304: node-channel-graph returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-graph" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-304: node-channel-graph man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-graph.1" ]
+}

@@ -1,0 +1,36 @@
+#!/bin/bash
+# lightning wallet-accounts-summary   (FEAT-303)
+#
+# Returns aggregate stats across all accounts in the wallet.
+# {account_count, total_balance_sat, total_limit_sat, wallet}
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+
+WALLETS_ROOT="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+wname="${WALLET:-default}"
+db="$WALLETS_ROOT/$wname/state.db"
+
+[ -f "$db" ] || {
+    echo '{"error":"database_not_found"}'; exit 0; }
+
+python3 -c "
+import sqlite3, json, sys
+db = sys.argv[1]; wname = sys.argv[2]
+conn = sqlite3.connect(db)
+try:
+    row = conn.execute(
+        'SELECT COUNT(*), COALESCE(SUM(balance_msat),0), COALESCE(SUM(limit_msat),0) FROM accounts'
+    ).fetchone()
+    count, bal_msat, lim_msat = row
+    print(json.dumps({
+        'wallet': wname,
+        'account_count': count,
+        'total_balance_sat': bal_msat // 1000,
+        'total_limit_sat': lim_msat // 1000,
+    }, separators=(',', ':')))
+except Exception as e:
+    print(json.dumps({'error': str(e)}))
+finally:
+    conn.close()
+" "$db" "$wname"

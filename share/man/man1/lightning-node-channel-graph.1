@@ -1,0 +1,27 @@
+.TH "LIGHTNING-NODE-CHANNEL-GRAPH" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-channel-graph \- query the local channel graph
+.SH SYNOPSIS
+.B lightning node-channel-graph
+.RB [ --peer
+.IR peer_id ]
+.SH DESCRIPTION
+Returns edges from the local gossip channel graph via
+.BR listchannels .
+Use
+.B --peer
+to filter to channels involving a specific node.
+.PP
+Output:
+.nf
+[{source, destination, short_channel_id,
+  base_fee_msat, fee_per_millionth, delay}]
+.fi
+Returns an empty array when the daemon is not reachable.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-route-find (1),
+.BR lightning-channel-list (1)

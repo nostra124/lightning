@@ -1,0 +1,42 @@
+#!/bin/bash
+# lightning node-channel-graph [--peer <peer_id>]   (FEAT-304)
+#
+# Returns local channel graph edges known to this node via listchannels.
+# Optional --peer filters to channels involving a specific peer.
+# Returns [{source, destination, short_channel_id, base_fee_msat, fee_per_millionth, delay}]
+
+set -e
+peer=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --peer) peer="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || { echo '[]'; exit 0; }
+
+if [ -n "$peer" ]; then
+    raw=$(lightning-cli $LD $NET listchannels "$peer" 2>/dev/null) || { echo '[]'; exit 0; }
+else
+    raw=$(lightning-cli $LD $NET listchannels 2>/dev/null) || { echo '[]'; exit 0; }
+fi
+
+python3 -c "
+import sys, json
+chans = json.loads(sys.argv[1]).get('channels', [])
+result = []
+for c in chans:
+    result.append({
+        'source': c.get('source', ''),
+        'destination': c.get('destination', ''),
+        'short_channel_id': c.get('short_channel_id', ''),
+        'base_fee_msat': c.get('base_fee_millisatoshi', 0),
+        'fee_per_millionth': c.get('fee_per_millionth', 0),
+        'delay': c.get('delay', 0),
+    })
+print(json.dumps(result, separators=(',', ':')))
+" "$raw"
