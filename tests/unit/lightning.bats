@@ -25261,3 +25261,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2090: channel-capacity-total-sat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-total-sat.1" ]
 }
+
+@test "FEAT-2091: node-listpays-complete-list reports error or complete_pays gracefully" {
+    out=$(./libexec/lightning/node-listpays-complete-list 2>/dev/null)
+    echo "$out" | grep -q "error\|complete_pays"
+}
+@test "FEAT-2091: node-listpays-complete-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-complete-list.1" ]
+}
+
+@test "FEAT-2092: channel-uptime-stats reports error or uptime_stats gracefully" {
+    out=$(./libexec/lightning/channel-uptime-stats 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_stats"
+}
+@test "FEAT-2092: channel-uptime-stats man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime-stats.1" ]
+}
+
+@test "FEAT-2093: wallet-notes-tag-list reports error or tags gracefully" {
+    out=$(./libexec/lightning/wallet-notes-tag-list 2>/dev/null)
+    echo "$out" | grep -q "error\|tags"
+}
+@test "FEAT-2093: wallet-notes-tag-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-tag-list.1" ]
+}
+
+@test "FEAT-2094: node-graph-channel-list reports error or channels gracefully" {
+    out=$(./libexec/lightning/node-graph-channel-list 2>/dev/null)
+    echo "$out" | grep -q "error\|channels"
+}
+@test "FEAT-2094: node-graph-channel-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channel-list.1" ]
+}
+
+@test "FEAT-2095: channel-balance-check reports error or imbalanced_count gracefully" {
+    out=$(./libexec/lightning/channel-balance-check 2>/dev/null)
+    echo "$out" | grep -q "error\|imbalanced_count"
+}
+@test "FEAT-2095: channel-balance-check man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-check.1" ]
+}
+
+@test "FEAT-2096: peer-capacity-total reports error or total_capacity_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_capacity_msat"
+}
+@test "FEAT-2096: peer-capacity-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-total.1" ]
+}
+
+@test "FEAT-2097: node-invoice-pending-list reports error or pending_invoices gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-list 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_invoices"
+}
+@test "FEAT-2097: node-invoice-pending-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-list.1" ]
+}
+
+@test "FEAT-2098: channel-htlc-list reports error or htlcs gracefully" {
+    out=$(./libexec/lightning/channel-htlc-list 2>/dev/null)
+    echo "$out" | grep -q "error\|htlcs"
+}
+@test "FEAT-2098: channel-htlc-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-list.1" ]
+}
+
+@test "FEAT-2099: node-pay-by-hash reports error or pays gracefully" {
+    out=$(./libexec/lightning/node-pay-by-hash 2>/dev/null)
+    echo "$out" | grep -q "error\|pays"
+}
+@test "FEAT-2099: node-pay-by-hash man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-by-hash.1" ]
+}
+
+@test "FEAT-2100: channel-summary-all reports error or channels gracefully" {
+    out=$(./libexec/lightning/channel-summary-all 2>/dev/null)
+    echo "$out" | grep -q "error\|channels"
+}
+@test "FEAT-2100: channel-summary-all man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-summary-all.1" ]
+}

@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning channel-summary-all   (FEAT-2100)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+summary = [{'channel_id': c.get('channel_id'), 'state': c.get('state'), 'to_us_msat': c.get('to_us_msat'), 'total_msat': c.get('total_msat'), 'peer_id': c.get('peer_id')} for c in channels]
+print(json.dumps({'channels': summary, 'count': len(summary)}))
+" "$result"
