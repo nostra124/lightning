@@ -1,32 +1,15 @@
-.TH "LIGHTNING-WALLET-TAG" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET_TAG" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-tag \- append a tag to a ledger entry's note
+lightning-wallet-tag \- FEAT-698 wallet-tag verb
 .SH SYNOPSIS
 .B lightning wallet-tag
-.I wallet
-.I entry_id
-.I tag
 .SH DESCRIPTION
-Appends
-.I tag
-to the
-.B note
-field of the ledger entry identified by
-.I entry_id
-in the specified wallet's database.
-Returns
-.B {"ok":false}
-if the database does not exist or the update fails.
+wallet-tag verb for lightning CLI (FEAT-698).
 .PP
-Output:
-.nf
-{"ok":true}
-{"ok":false,"reason":...}
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-wallet-ledger-search (1),
-.BR lightning-wallet-transaction-log (1)
+.BR lightning(1)

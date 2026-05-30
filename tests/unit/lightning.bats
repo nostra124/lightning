@@ -14224,3 +14224,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-690: channel-close-unilateral man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-unilateral.1" ]
 }
+
+@test "FEAT-691: node-invoice-list-pending returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-list-pending" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+
+@test "FEAT-691: node-invoice-list-pending man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-list-pending.1" ]
+}
+
+@test "FEAT-692: channel-active-count reports error or active gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-active-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|active"
+}
+
+@test "FEAT-692: channel-active-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-active-count.1" ]
+}
+
+@test "FEAT-693: wallet-notes-get requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-notes-get" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-693: wallet-notes-get man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-get.1" ]
+}
+
+@test "FEAT-694: node-pay-route requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-pay-route" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-694: node-pay-route man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-route.1" ]
+}
+
+@test "FEAT-695: invoice-description requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-description" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-695: invoice-description man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-description.1" ]
+}
+
+@test "FEAT-696: channel-total-sent requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-total-sent" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-696: channel-total-sent man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-sent.1" ]
+}
+
+@test "FEAT-697: peer-score-list reports error or array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-score-list" 2>/dev/null)
+	echo "$out" | grep -q "error\|\["
+}
+
+@test "FEAT-697: peer-score-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-score-list.1" ]
+}
+
+@test "FEAT-698: wallet-tag requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-tag" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-698: wallet-tag man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-tag.1" ]
+}
+
+@test "FEAT-699: node-peer-last-seen requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-last-seen" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-699: node-peer-last-seen man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-last-seen.1" ]
+}
+
+@test "FEAT-700: channel-opener-remote reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-opener-remote" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-700: channel-opener-remote man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-remote.1" ]
+}

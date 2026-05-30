@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning wallet-notes-get <wallet_name>   (FEAT-693)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-get <wallet_name>"}'; exit 0; fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+notes=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='notes'" 2>/dev/null) || notes=""
+echo "{\"wallet\":\"$wname\",\"notes\":\"$notes\"}"
