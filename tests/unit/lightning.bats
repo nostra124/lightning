@@ -13504,3 +13504,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-610: channel-close-timeout man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-timeout.1" ]
 }
+
+@test "FEAT-611: node-total-sent reports error or total_payments gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-total-sent" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_payments"
+}
+
+@test "FEAT-611: node-total-sent man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-total-sent.1" ]
+}
+
+@test "FEAT-612: channel-total-htlcs requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-total-htlcs" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-612: channel-total-htlcs man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-htlcs.1" ]
+}
+
+@test "FEAT-613: wallet-network reports error or network gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-network" 2>/dev/null)
+	echo "$out" | grep -q "error\|network"
+}
+
+@test "FEAT-613: wallet-network man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-network.1" ]
+}
+
+@test "FEAT-614: node-pay-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-pay-status" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-614: node-pay-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-status.1" ]
+}
+
+@test "FEAT-615: invoice-claim requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-claim" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-615: invoice-claim man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-claim.1" ]
+}
+
+@test "FEAT-616: channel-opener requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-opener" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-616: channel-opener man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener.1" ]
+}
+
+@test "FEAT-617: peer-addr requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-addr" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-617: peer-addr man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-addr.1" ]
+}
+
+@test "FEAT-618: wallet-delete requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-delete" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-618: wallet-delete man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-delete.1" ]
+}
+
+@test "FEAT-619: node-min-final-cltv reports error or min_final_cltv gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-min-final-cltv" 2>/dev/null)
+	echo "$out" | grep -q "error\|min_final_cltv"
+}
+
+@test "FEAT-619: node-min-final-cltv man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-min-final-cltv.1" ]
+}
+
+@test "FEAT-620: invoice-qr-data requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-qr-data" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-620: invoice-qr-data man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-qr-data.1" ]
+}
