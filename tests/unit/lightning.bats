@@ -33611,3 +33611,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3160: channel-htlc-density-median man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-density-median.1" ]
 }
+
+@test "FEAT-3161: channel-htlc-density-range reports error or htlc_density_range gracefully" {
+    out=$(./libexec/lightning/channel-htlc-density-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_density_range"
+}
+@test "FEAT-3161: channel-htlc-density-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-density-range.1" ]
+}
+
+@test "FEAT-3162: node-pay-fee-median reports error or pay_fee_median_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-median 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_fee_median_msat"
+}
+@test "FEAT-3162: node-pay-fee-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-median.1" ]
+}
+
+@test "FEAT-3163: peer-fee-base-avg reports error or fee_base_avg_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_avg_msat_peer"
+}
+@test "FEAT-3163: peer-fee-base-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-avg.1" ]
+}
+
+@test "FEAT-3164: channel-local-pct-stddev reports error or local_pct_stddev_channel gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_stddev_channel"
+}
+@test "FEAT-3164: channel-local-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-stddev.1" ]
+}
+
+@test "FEAT-3165: node-invoice-paid-count-week reports error or paid_count_week gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-week 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_week"
+}
+@test "FEAT-3165: node-invoice-paid-count-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-week.1" ]
+}
+
+@test "FEAT-3166: peer-fee-ppm-avg reports error or fee_ppm_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_avg_peer"
+}
+@test "FEAT-3166: peer-fee-ppm-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-avg.1" ]
+}
+
+@test "FEAT-3167: channel-remote-pct-stddev reports error or remote_pct_stddev_channel gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_stddev_channel"
+}
+@test "FEAT-3167: channel-remote-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-stddev.1" ]
+}
+
+@test "FEAT-3168: node-invoice-paid-count-day reports error or paid_count_day gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-day 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_day"
+}
+@test "FEAT-3168: node-invoice-paid-count-day man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-day.1" ]
+}
+
+@test "FEAT-3169: peer-fee-ppm-min reports error or fee_ppm_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_min_peer"
+}
+@test "FEAT-3169: peer-fee-ppm-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-min.1" ]
+}
+
+@test "FEAT-3170: channel-local-pct-median reports error or local_pct_median_channel gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-median 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_median_channel"
+}
+@test "FEAT-3170: channel-local-pct-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-median.1" ]
+}
