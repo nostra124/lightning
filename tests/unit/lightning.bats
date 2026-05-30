@@ -21504,3 +21504,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1620: channel-opener-remote man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-remote.1" ]
 }
+
+@test "FEAT-1621: node-pay-amount-min reports error or min_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_amount_msat"
+}
+@test "FEAT-1621: node-pay-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-min.1" ]
+}
+
+@test "FEAT-1622: channel-remote-balance requires arg" {
+    out=$(./libexec/lightning/channel-remote-balance 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1622: channel-remote-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance.1" ]
+}
+
+@test "FEAT-1623: wallet-notes-copy-tag requires args" {
+    out=$(./libexec/lightning/wallet-notes-copy-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1623: wallet-notes-copy-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-copy-tag.1" ]
+}
+
+@test "FEAT-1624: node-invoice-label-list reports error or count gracefully" {
+    out=$(./libexec/lightning/node-invoice-label-list 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1624: node-invoice-label-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-label-list.1" ]
+}
+
+@test "FEAT-1625: invoice-payment-preimage requires arg" {
+    out=$(./libexec/lightning/invoice-payment-preimage 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1625: invoice-payment-preimage man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-payment-preimage.1" ]
+}
+
+@test "FEAT-1626: channel-total-msat requires arg" {
+    out=$(./libexec/lightning/channel-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1626: channel-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-msat.1" ]
+}
+
+@test "FEAT-1627: peer-remote-balance requires arg" {
+    out=$(./libexec/lightning/peer-remote-balance 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1627: peer-remote-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance.1" ]
+}
+
+@test "FEAT-1628: wallet-notes-last-modified requires args" {
+    out=$(./libexec/lightning/wallet-notes-last-modified 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1628: wallet-notes-last-modified man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-last-modified.1" ]
+}
+
+@test "FEAT-1629: node-graph-base-fee-avg reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-base-fee-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1629: node-graph-base-fee-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-base-fee-avg.1" ]
+}
+
+@test "FEAT-1630: channel-our-base-fee requires arg" {
+    out=$(./libexec/lightning/channel-our-base-fee 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1630: channel-our-base-fee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-base-fee.1" ]
+}

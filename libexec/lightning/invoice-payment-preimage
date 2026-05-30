@@ -1,18 +1,17 @@
 #!/bin/bash
-# lightning invoice-payment-preimage <label>   (FEAT-1045)
+# lightning invoice-payment-preimage <label>   (FEAT-1625)
 if [ $# -lt 1 ]; then
-    echo '{"error":"usage: invoice-payment-preimage <label>"}'
-    exit 0
+    echo '{"error":"usage: invoice-payment-preimage <label>"}'; exit 0
 fi
 label="$1"
-result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+result=$(lightning-cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-label = sys.argv[2]
-for inv in data.get('invoices', []):
-    if inv.get('label') == label:
-        print(json.dumps({'label': label, 'payment_preimage': inv.get('payment_preimage')}))
-        sys.exit(0)
-print(json.dumps({'error': 'invoice not found'}))
-" "$result" "$label"
+invs = data.get('invoices', [])
+if not invs:
+    print(json.dumps({'error': 'invoice not found'}))
+    sys.exit(0)
+inv = invs[0]
+print(json.dumps({'label': inv.get('label'), 'payment_preimage': inv.get('payment_preimage')}))
+" "$result"
