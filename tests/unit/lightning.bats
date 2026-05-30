@@ -33451,3 +33451,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3140: channel-fee-proportional-stddev man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-stddev.1" ]
 }
+
+@test "FEAT-3141: channel-fee-proportional-range reports error or fee_proportional_range gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_range"
+}
+@test "FEAT-3141: channel-fee-proportional-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-range.1" ]
+}
+
+@test "FEAT-3142: node-invoice-paid-amount-median reports error or paid_amount_median_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-median 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_median_msat"
+}
+@test "FEAT-3142: node-invoice-paid-amount-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-median.1" ]
+}
+
+@test "FEAT-3143: peer-fee-earned-range reports error or fee_earned_range_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_range_msat"
+}
+@test "FEAT-3143: peer-fee-earned-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-range.1" ]
+}
+
+@test "FEAT-3144: channel-local-pct-range reports error or local_pct_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-range 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_range_channel"
+}
+@test "FEAT-3144: channel-local-pct-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-range.1" ]
+}
+
+@test "FEAT-3145: node-pay-amount-range reports error or pay_amount_range_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_amount_range_msat"
+}
+@test "FEAT-3145: node-pay-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-range.1" ]
+}
+
+@test "FEAT-3146: peer-fee-ppm-median reports error or fee_ppm_median_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_median_peer"
+}
+@test "FEAT-3146: peer-fee-ppm-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-median.1" ]
+}
+
+@test "FEAT-3147: channel-remote-pct-range reports error or remote_pct_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-range 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_range_channel"
+}
+@test "FEAT-3147: channel-remote-pct-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-range.1" ]
+}
+
+@test "FEAT-3148: node-pay-amount-stddev reports error or pay_amount_stddev_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_amount_stddev_msat"
+}
+@test "FEAT-3148: node-pay-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-stddev.1" ]
+}
+
+@test "FEAT-3149: peer-fee-base-median reports error or fee_base_median_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_median_msat_peer"
+}
+@test "FEAT-3149: peer-fee-base-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-median.1" ]
+}
+
+@test "FEAT-3150: channel-htlc-timeout-range reports error or htlc_cltv_range gracefully" {
+    out=$(./libexec/lightning/channel-htlc-timeout-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_cltv_range"
+}
+@test "FEAT-3150: channel-htlc-timeout-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout-range.1" ]
+}

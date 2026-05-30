@@ -1,8 +1,8 @@
 #!/bin/bash
-# lightning node-pay-amount-stddev   (FEAT-3148)
+# lightning node-pay-amount-range   (FEAT-3145)
 result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-print(json.dumps({'pay_amount_stddev_msat': None}))
+print(json.dumps({'pay_amount_range_msat': None}))
 " "$result"

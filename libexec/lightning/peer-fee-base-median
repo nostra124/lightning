@@ -1,8 +1,8 @@
 #!/bin/bash
-# lightning peer-fee-earned-range   (FEAT-3143)
+# lightning peer-fee-base-median   (FEAT-3149)
 result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-print(json.dumps({'fee_earned_range_msat': None}))
+print(json.dumps({'fee_base_median_msat_peer': None}))
 " "$result"
