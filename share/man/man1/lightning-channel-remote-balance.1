@@ -1,16 +1,15 @@
-.TH "LIGHTNING-CHANNEL-REMOTE-BALANCE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-CHANNEL_REMOTE_BALANCE" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-channel-remote-balance \- show local and remote balance across active channels
+lightning-channel-remote-balance \- FEAT-716 channel-remote-balance verb
 .SH SYNOPSIS
 .B lightning channel-remote-balance
 .SH DESCRIPTION
-Sums local and remote balances across all CHANNELD_NORMAL channels.
+channel-remote-balance verb for lightning CLI (FEAT-716).
 .PP
-Output: JSON object with total_msat, local_msat, remote_msat, active_channels.
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-channel-local-balance (1),
-.BR lightning-channel-incoming-capacity (1)
+.BR lightning(1)

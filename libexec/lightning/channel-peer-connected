@@ -1,6 +1,6 @@
 #!/bin/bash
-# lightning channel-remote-balance <channel_id>   (FEAT-716)
-if [ $# -lt 1 ]; then echo '{"error":"usage: channel-remote-balance <channel_id>"}'; exit 0; fi
+# lightning channel-peer-connected <channel_id>   (FEAT-720)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-peer-connected <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
@@ -9,10 +9,7 @@ data = json.loads(sys.argv[1])
 cid = sys.argv[2]
 for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        total = ch.get('total_msat', 0)
-        to_us = ch.get('to_us_msat', 0)
-        remote = total - to_us if isinstance(total, int) and isinstance(to_us, int) else None
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'remote_msat': remote}))
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'peer_connected': ch.get('peer_connected')}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"

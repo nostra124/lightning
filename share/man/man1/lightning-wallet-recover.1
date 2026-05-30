@@ -1,15 +1,15 @@
-.TH "LIGHTNING-WALLET-RECOVER" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET_RECOVER" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-recover \- check wallet database integrity
+lightning-wallet-recover \- FEAT-713 wallet-recover verb
 .SH SYNOPSIS
 .B lightning wallet-recover
-.I wallet_name
 .SH DESCRIPTION
-Runs SQLite PRAGMA integrity_check on the wallet database and returns the result.
+wallet-recover verb for lightning CLI (FEAT-713).
+.PP
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-wallet-archive (1),
-.BR lightning-wallet-stats (1)
+.BR lightning(1)

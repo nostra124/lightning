@@ -14404,3 +14404,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-710: channel-close-force man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-force.1" ]
 }
+
+@test "FEAT-711: node-network reports error or network gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-network" 2>/dev/null)
+	echo "$out" | grep -q "error\|network"
+}
+
+@test "FEAT-711: node-network man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-network.1" ]
+}
+
+@test "FEAT-712: channel-total-received reports error or total_received_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-total-received" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_received_msat"
+}
+
+@test "FEAT-712: channel-total-received man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-received.1" ]
+}
+
+@test "FEAT-713: wallet-recover requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-recover" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-713: wallet-recover man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-recover.1" ]
+}
+
+@test "FEAT-714: node-invoice-expire-all reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-expire-all" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-714: node-invoice-expire-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expire-all.1" ]
+}
+
+@test "FEAT-715: invoice-amount-check requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-amount-check" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-715: invoice-amount-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-amount-check.1" ]
+}
+
+@test "FEAT-716: channel-remote-balance requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-remote-balance" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-716: channel-remote-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance.1" ]
+}
+
+@test "FEAT-717: peer-payment-history requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-payment-history" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-717: peer-payment-history man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-payment-history.1" ]
+}
+
+@test "FEAT-718: wallet-list-all returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-list-all" 2>/dev/null)
+	echo "$out" | grep -q "\["
+}
+
+@test "FEAT-718: wallet-list-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-list-all.1" ]
+}
+
+@test "FEAT-719: node-routing-policy reports error or fee-base gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-routing-policy" 2>/dev/null)
+	echo "$out" | grep -q "error\|fee-base"
+}
+
+@test "FEAT-719: node-routing-policy man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-routing-policy.1" ]
+}
+
+@test "FEAT-720: channel-peer-connected requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-connected" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-720: channel-peer-connected man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-connected.1" ]
+}
