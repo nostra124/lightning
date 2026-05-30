@@ -1,0 +1,29 @@
+#!/bin/bash
+# lightning channel-stuck [--minutes N]   (FEAT-364)
+set -e
+minutes=30
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --minutes) minutes="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+cutoff=$(( $(date +%s) - minutes * 60 ))
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+cutoff = int(sys.argv[2])
+minutes = int(sys.argv[3])
+stuck = []
+for c in data.get('channels', []):
+    htlcs = c.get('htlcs', [])
+    old = [h for h in htlcs if h.get('expiry', 0) and int(h.get('expiry', 0)) < cutoff]
+    if old:
+        stuck.append({
+            'channel_id': c.get('channel_id', ''),
+            'peer_id': c.get('peer_id', ''),
+            'stuck_htlc_count': len(old),
+        })
+print(json.dumps(stuck, separators=(',', ':')))
+" "$result" "$cutoff" "$minutes"

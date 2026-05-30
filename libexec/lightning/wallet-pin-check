@@ -1,0 +1,26 @@
+#!/bin/bash
+# lightning wallet-pin-check <wallet> <pin>   (FEAT-363)
+set -e
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-pin-check <wallet> <pin>"}'
+    exit 0
+fi
+wname="$1"
+pin="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"ok":false,"reason":"database_not_found"}'
+    exit 0
+fi
+stored=$(sqlite3 "$db" "SELECT value FROM secrets WHERE key='pin_hash';" 2>/dev/null)
+if [ -z "$stored" ]; then
+    echo '{"ok":false,"reason":"no_pin_set"}'
+    exit 0
+fi
+pin_hash=$(printf '%s' "$pin" | sha256sum | awk '{print $1}')
+if [ "$pin_hash" = "$stored" ]; then
+    echo '{"ok":true,"match":true}'
+else
+    echo '{"ok":true,"match":false}'
+fi

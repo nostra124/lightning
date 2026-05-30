@@ -10254,3 +10254,53 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-361: channel-remote-balance man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance.1" ]
 }
+
+# FEAT-362 — node-rune-create verb
+
+@test "FEAT-362: node-rune-create verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-rune-create" ]
+}
+
+@test "FEAT-362: node-rune-create reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-rune-create" 2>/dev/null)
+	echo "$out" | grep -q "error\|rune"
+}
+
+@test "FEAT-362: node-rune-create man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-rune-create.1" ]
+}
+
+# FEAT-363 — wallet-pin-check verb
+
+@test "FEAT-363: wallet-pin-check verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-check" ]
+}
+
+@test "FEAT-363: wallet-pin-check reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-check" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-363: wallet-pin-check reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-check" default testpin 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-363: wallet-pin-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-check.1" ]
+}
+
+# FEAT-364 — channel-stuck verb
+
+@test "FEAT-364: channel-stuck verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-stuck" ]
+}
+
+@test "FEAT-364: channel-stuck returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-stuck" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-364: channel-stuck man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-stuck.1" ]
+}
