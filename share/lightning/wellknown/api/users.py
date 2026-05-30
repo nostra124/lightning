@@ -336,12 +336,18 @@ def user_invite_codes_list(uid):
     """Session-authed — list invite codes owned by this user."""
     auth_user(uid)
     tsv = _run(["wallet-user", "invite-code", "list", uid], parse_json=False)
-    lines = [ln for ln in tsv.strip().split("\n") if ln]
-    if not lines:
-        _lib.respond("200 OK", {"invite_codes": []})
-    header = lines[0].split("\t")
-    items = [dict(zip(header, ln.split("\t"))) for ln in lines[1:]]
-    _lib.respond("200 OK", {"invite_codes": items})
+    lines = [ln for ln in (tsv or "").strip().split("\n") if ln]
+    items = []
+    for ln in lines:
+        cols = ln.split("\t")
+        if len(cols) >= 4:
+            items.append({
+                "code": cols[0],
+                "credit_account": cols[1],
+                "uses": int(cols[2]) if cols[2].isdigit() else 0,
+                "created_at": cols[3],
+            })
+    _lib.respond("200 OK", items)
 
 
 def user_invite_codes_create(uid):
