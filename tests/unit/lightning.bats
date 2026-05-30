@@ -26907,3 +26907,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2299: node-listinvoices-pending-list man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-pending-list.1" ]
 }
+
+@test "FEAT-2301: node-listforwards-pending-count reports error or pending_forwards_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-pending-count 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_forwards_count"
+}
+@test "FEAT-2301: node-listforwards-pending-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-pending-count.1" ]
+}
+
+@test "FEAT-2302: channel-htlc-outgoing-count reports error or outgoing_htlc_count gracefully" {
+    out=$(./libexec/lightning/channel-htlc-outgoing-count 2>/dev/null)
+    echo "$out" | grep -q "error\|outgoing_htlc_count"
+}
+@test "FEAT-2302: channel-htlc-outgoing-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-outgoing-count.1" ]
+}
+
+@test "FEAT-2303: peer-newest reports error or peer_id gracefully" {
+    out=$(./libexec/lightning/peer-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_id"
+}
+@test "FEAT-2303: peer-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-newest.1" ]
+}
+
+@test "FEAT-2304: node-invoice-expired-oldest reports error or oldest_expired_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-expired-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|oldest_expired_invoice"
+}
+@test "FEAT-2304: node-invoice-expired-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expired-oldest.1" ]
+}
+
+@test "FEAT-2305: channel-fee-ppm-stddev reports error or fee_ppm_stddev gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_stddev"
+}
+@test "FEAT-2305: channel-fee-ppm-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-stddev.1" ]
+}
+
+@test "FEAT-2306: node-pay-volume-weekly reports error or weekly_pay_volume gracefully" {
+    out=$(./libexec/lightning/node-pay-volume-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|weekly_pay_volume"
+}
+@test "FEAT-2306: node-pay-volume-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-volume-weekly.1" ]
+}
+
+@test "FEAT-2307: channel-capacity-stddev reports error or capacity_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_stddev_msat"
+}
+@test "FEAT-2307: channel-capacity-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-stddev.1" ]
+}
+
+@test "FEAT-2308: peer-channel-balance-ratio reports error or peer_balance_ratios gracefully" {
+    out=$(./libexec/lightning/peer-channel-balance-ratio 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_balance_ratios"
+}
+@test "FEAT-2308: peer-channel-balance-ratio man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-balance-ratio.1" ]
+}
+
+@test "FEAT-2309: node-listinvoices-bolt12-count reports error or bolt12_invoice_count gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-bolt12-count 2>/dev/null)
+    echo "$out" | grep -q "error\|bolt12_invoice_count"
+}
+@test "FEAT-2309: node-listinvoices-bolt12-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-bolt12-count.1" ]
+}
+
+@test "FEAT-2310: channel-fee-base-stddev reports error or fee_base_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_stddev_msat"
+}
+@test "FEAT-2310: channel-fee-base-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-stddev.1" ]
+}
