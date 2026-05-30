@@ -607,6 +607,7 @@ function screenSettings(id) {
      <label>Account label (this device only)
        <input id="label-input" value="${esc(acct.label)}" maxlength="40"></label>
      <button id="save-label">Save label</button>
+     <button id="node-info">Node info</button>
      <button id="referrals">Invite &amp; referrals</button>
      <button id="taxdata">Export transaction data (for tax)</button>
      <p class="muted">${year} — source data for tax preparation, not a report.</p>
@@ -623,6 +624,7 @@ function screenSettings(id) {
     upsertAccount({ ...acct, label: newLabel });
     toast("Label saved", "ok");
   };
+  document.getElementById("node-info").onclick = () => go("node");
   document.getElementById("referrals").onclick = () => go("referrals/" + id);
   document.getElementById("taxdata").onclick = async () => {
     // Bearer-authed download → fetch + blob (a plain link can't set the header).
@@ -653,6 +655,24 @@ function screenSettings(id) {
   document.getElementById("remove").onclick = () => {
     if (confirm("Forget this account on this device?")) { removeAccount(id); go("picker"); }
   };
+}
+
+async function screenNode() {
+  h(`<h2>Node info</h2><p class="muted">Loading…</p>`);
+  try {
+    const info = await fetch(`${CONFIG.api_base}/node`).then(r => r.json());
+    if (info.error) throw new Error(info.error);
+    h(`<h2>Node info</h2>
+       <dl>
+         <dt>Pubkey</dt><dd><code>${esc(info.pubkey)}</code></dd>
+         <dt>Alias</dt><dd>${esc(info.alias)}</dd>
+         <dt>Active channels</dt><dd>${info.num_channels}</dd>
+         <dt>Local capacity</dt><dd>${(info.local_msat / 1000).toLocaleString()} sat</dd>
+       </dl>
+       <a href="#picker">Back</a>`);
+  } catch (e) {
+    h(`<h2>Node info</h2><p class="error">${esc(e.message)}</p><a href="#picker">Back</a>`);
+  }
 }
 
 // --- router ---------------------------------------------------------------
@@ -935,6 +955,7 @@ function route() {
     case "transfer": return screenTransfer(arg);
     case "so": return screenStandingOrders(arg);
     case "mandates": return screenMandates(arg);
+    case "node": return screenNode();
     case "user-register": return screenUserRegister();
     case "user-login": return screenUserLogin();
     case "user": return screenUser();

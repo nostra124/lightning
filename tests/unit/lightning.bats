@@ -8467,3 +8467,33 @@ _acct243_teardown() {
 	grep -A5 "save-label.*onclick" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js" \
 		| grep -q "upsertAccount"
 }
+
+# FEAT-252 — node info verb + PWA node screen
+
+@test "FEAT-252: api-node-info verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-node-info" ]
+}
+
+@test "FEAT-252: node.py CGI script exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/node.py" ]
+}
+
+@test "FEAT-252: Apache conf has ScriptAlias for /v1/node" {
+	grep -q "v1/node" "$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+}
+
+@test "FEAT-252: sudoers lists api-node-info" {
+	grep -q "api-node-info" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+@test "FEAT-252: PWA has screenNode function" {
+	grep -q "function screenNode" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-252: PWA router handles node route" {
+	grep -q '"node".*screenNode' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-252: llms.txt documents GET /node" {
+	grep -q "GET /node" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+}

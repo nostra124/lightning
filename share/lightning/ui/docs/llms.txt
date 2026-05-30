@@ -141,6 +141,9 @@ Body `{ "to": "<id|name>", "sat": N, "note": "…" }` — intra-node move.
 ### GET /accounts/<id>/referrals
 The accounts this one referred + accrued credit.
 
+### GET /node  (FEAT-252, public)
+Node summary: `{pubkey, alias, num_channels, local_msat}`. No auth.
+
 ### GET /accounts/<id>/api-key
 Returns `{ api_key }` for the account. Requires the bearer to match the
 account. Useful for LLM agents that need to retrieve the key they already
