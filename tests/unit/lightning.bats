@@ -28651,3 +28651,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2530: peer-channel-count-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-max.1" ]
 }
+
+@test "FEAT-2531: node-listforwards-failed-count reports error or failed_forwards_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-failed-count 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_forwards_count"
+}
+@test "FEAT-2531: node-listforwards-failed-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-failed-count.1" ]
+}
+
+@test "FEAT-2532: channel-htlc-density-max reports error or htlc_density_max gracefully" {
+    out=$(./libexec/lightning/channel-htlc-density-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_density_max"
+}
+@test "FEAT-2532: channel-htlc-density-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-density-max.1" ]
+}
+
+@test "FEAT-2533: peer-fee-earned-total reports error or fee_earned_total_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_total_msat"
+}
+@test "FEAT-2533: peer-fee-earned-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-total.1" ]
+}
+
+@test "FEAT-2534: node-invoice-pending-oldest reports error or oldest_pending_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|oldest_pending_invoice"
+}
+@test "FEAT-2534: node-invoice-pending-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-oldest.1" ]
+}
+
+@test "FEAT-2535: channel-spendable-max reports error or spendable_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-max 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_msat"
+}
+@test "FEAT-2535: channel-spendable-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-max.1" ]
+}
+
+@test "FEAT-2536: node-pay-fee-total-30d reports error or fee_total_30d_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-total-30d 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_30d_msat"
+}
+@test "FEAT-2536: node-pay-fee-total-30d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-total-30d.1" ]
+}
+
+@test "FEAT-2537: channel-receivable-total reports error or receivable_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_total_msat"
+}
+@test "FEAT-2537: channel-receivable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-total.1" ]
+}
+
+@test "FEAT-2538: peer-htlc-count-max reports error or htlc_count gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count"
+}
+@test "FEAT-2538: peer-htlc-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-max.1" ]
+}
+
+@test "FEAT-2539: node-listinvoices-amount-total reports error or total_invoice_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_invoice_amount_msat"
+}
+@test "FEAT-2539: node-listinvoices-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-amount-total.1" ]
+}
+
+@test "FEAT-2540: channel-our-reserve-min reports error or our_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-our-reserve-min 2>/dev/null)
+    echo "$out" | grep -q "error\|our_reserve_msat"
+}
+@test "FEAT-2540: channel-our-reserve-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-min.1" ]
+}

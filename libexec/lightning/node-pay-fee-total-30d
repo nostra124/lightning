@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning node-pay-fee-total-30d   (FEAT-2536)
+result=$(lightning-cli listsendpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+pays = data.get('payments', [])
+cutoff = time.time() - 30 * 86400
+total = 0
+for p in pays:
+    created = p.get('created_at', 0)
+    if created >= cutoff and p.get('status') == 'complete':
+        sent = p.get('amount_sent_msat', 0)
+        amt = p.get('amount_msat', 0)
+        if isinstance(sent, str):
+            sent = int(sent.rstrip('msat')) if sent.endswith('msat') else int(sent)
+        if isinstance(amt, str):
+            amt = int(amt.rstrip('msat')) if amt.endswith('msat') else int(amt)
+        total += max(0, sent - amt)
+print(json.dumps({'fee_total_30d_msat': total}))
+" "$result"
