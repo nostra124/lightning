@@ -1,0 +1,28 @@
+.TH "LIGHTNING-WALLET-RENAME" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-rename \- rename a wallet directory
+.SH SYNOPSIS
+.B lightning wallet-rename
+.I old_name
+.I new_name
+.SH DESCRIPTION
+Renames the wallet directory
+.I old_name
+to
+.I new_name
+under
+.BR WALLETS_ROOT .
+Fails if the source does not exist or the destination already exists.
+.PP
+Output:
+.nf
+{"ok":true}
+{"ok":false,"reason":...}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-list (1),
+.BR lightning-wallet-check (1)

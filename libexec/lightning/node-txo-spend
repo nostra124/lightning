@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning node-txo-spend <txid> <output> <destination>   (FEAT-374)
+set -e
+if [ $# -lt 3 ]; then
+    echo '{"error":"usage: node-txo-spend <txid> <output> <destination>"}'
+    exit 0
+fi
+txid="$1"
+output="$2"
+dest="$3"
+result=$(lightning-cli withdraw "$dest" all utxos="[\"${txid}:${output}\"]" 2>/dev/null) || {
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+}
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'ok': True, 'txid': data.get('txid', ''), 'tx': data.get('tx', '')}, separators=(',', ':')))
+" "$result"

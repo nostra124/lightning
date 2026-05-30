@@ -1,0 +1,22 @@
+#!/bin/bash
+# lightning wallet-rename <old_name> <new_name>   (FEAT-373)
+set -e
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-rename <old_name> <new_name>"}'
+    exit 0
+fi
+old="$1"
+new="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+src="$root/$old"
+dst="$root/$new"
+if [ ! -d "$src" ]; then
+    echo '{"ok":false,"reason":"source_not_found"}'
+    exit 0
+fi
+if [ -e "$dst" ]; then
+    echo '{"ok":false,"reason":"destination_exists"}'
+    exit 0
+fi
+mv "$src" "$dst"
+echo '{"ok":true}'

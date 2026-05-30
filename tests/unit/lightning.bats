@@ -10429,3 +10429,53 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-372: node-utxo-list man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-utxo-list.1" ]
 }
+
+# FEAT-373 — wallet-rename verb
+
+@test "FEAT-373: wallet-rename verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-rename" ]
+}
+
+@test "FEAT-373: wallet-rename reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-rename" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-373: wallet-rename reports source_not_found for missing wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-rename" default newname 2>/dev/null)
+	echo "$out" | grep -q "source_not_found"
+}
+
+@test "FEAT-373: wallet-rename man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-rename.1" ]
+}
+
+# FEAT-374 — node-txo-spend verb
+
+@test "FEAT-374: node-txo-spend verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-txo-spend" ]
+}
+
+@test "FEAT-374: node-txo-spend reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-txo-spend" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-374: node-txo-spend man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-txo-spend.1" ]
+}
+
+# FEAT-375 — channel-open-private verb
+
+@test "FEAT-375: channel-open-private verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-private" ]
+}
+
+@test "FEAT-375: channel-open-private reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-private" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-375: channel-open-private man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-private.1" ]
+}
