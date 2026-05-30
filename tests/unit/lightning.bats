@@ -8667,3 +8667,19 @@ assert t['auth'] is None
 @test "FEAT-260: channel-open validates sat argument" {
 	grep -q "case.*sat.*\*\[!\*0-9\]\*\|NOT_A_NUMBER\|0-9.*exit 2" "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open"
 }
+
+# FEAT-261 — wallet-stats verb
+
+@test "FEAT-261: wallet-stats verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" ]
+}
+
+@test "FEAT-261: wallet-stats returns valid JSON for missing wallet" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets261"
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['num_accounts']==0"
+}
+
+@test "FEAT-261: wallet-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-stats.1" ]
+}

@@ -1,0 +1,25 @@
+.TH "LIGHTNING-WALLET-STATS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-stats \- print wallet summary statistics
+.SH SYNOPSIS
+.B lightning wallet-stats
+.SH DESCRIPTION
+Prints a JSON summary of the active wallet for operator monitoring:
+.nf
+{
+  "num_accounts": <int>,
+  "total_balance_sat": <int>,
+  "total_in_sat": <int>,
+  "total_out_sat": <int>,
+  "num_payments": <int>,
+  "first_ts": "<datetime>|null",
+  "last_ts": "<datetime>|null"
+}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Success (returns zero-valued object if no wallet exists).
+.SH SEE ALSO
+.BR lightning-wallet (1),
+.BR lightning-wallet-user (1)
