@@ -21824,3 +21824,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1660: channel-awaiting-unilateral man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-awaiting-unilateral.1" ]
 }
+
+@test "FEAT-1661: node-pay-fee-total reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1661: node-pay-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-total.1" ]
+}
+
+@test "FEAT-1662: channel-closingd-sigexchange reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-closingd-sigexchange 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1662: channel-closingd-sigexchange man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-closingd-sigexchange.1" ]
+}
+
+@test "FEAT-1663: wallet-notes-find-value requires args" {
+    out=$(./libexec/lightning/wallet-notes-find-value 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1663: wallet-notes-find-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-find-value.1" ]
+}
+
+@test "FEAT-1664: node-listchannels-by-node requires arg" {
+    out=$(./libexec/lightning/node-listchannels-by-node 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1664: node-listchannels-by-node man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-node.1" ]
+}
+
+@test "FEAT-1665: invoice-updated-index requires arg" {
+    out=$(./libexec/lightning/invoice-updated-index 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1665: invoice-updated-index man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-updated-index.1" ]
+}
+
+@test "FEAT-1666: channel-onchain-state reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-onchain-state 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1666: channel-onchain-state man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-onchain-state.1" ]
+}
+
+@test "FEAT-1667: peer-features-count requires arg" {
+    out=$(./libexec/lightning/peer-features-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1667: peer-features-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-features-count.1" ]
+}
+
+@test "FEAT-1668: wallet-notes-age requires args" {
+    out=$(./libexec/lightning/wallet-notes-age 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1668: wallet-notes-age man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-age.1" ]
+}
+
+@test "FEAT-1669: node-graph-unreachable-nodes reports error or total_nodes gracefully" {
+    out=$(./libexec/lightning/node-graph-unreachable-nodes 2>/dev/null)
+    echo "$out" | grep -q "error\|total_nodes"
+}
+@test "FEAT-1669: node-graph-unreachable-nodes man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-unreachable-nodes.1" ]
+}
+
+@test "FEAT-1670: channel-shutdown-scriptpubkey requires arg" {
+    out=$(./libexec/lightning/channel-shutdown-scriptpubkey 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1670: channel-shutdown-scriptpubkey man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-shutdown-scriptpubkey.1" ]
+}

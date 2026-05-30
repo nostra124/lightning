@@ -1,6 +1,8 @@
 #!/bin/bash
-# lightning invoice-updated-index <label>   (FEAT-1535)
-if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-updated-index <label>"}'; exit 0; fi
+# lightning invoice-updated-index <label>   (FEAT-1665)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: invoice-updated-index <label>"}'; exit 0
+fi
 label="$1"
 result=$(lightning-cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
@@ -10,6 +12,6 @@ invs = data.get('invoices', [])
 if not invs:
     print(json.dumps({'error': 'invoice not found'}))
     sys.exit(0)
-i = invs[0]
-print(json.dumps({'label': i.get('label'), 'updated_index': i.get('updated_index')}))
+inv = invs[0]
+print(json.dumps({'label': inv.get('label'), 'updated_index': inv.get('updated_index')}))
 " "$result"
