@@ -1,0 +1,26 @@
+.TH "LIGHTNING-PEER-INFO" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peer-info \- show detailed information for a single peer
+.SH SYNOPSIS
+.B lightning peer-info
+.I peer_id
+.SH DESCRIPTION
+Returns connectivity and channel summary for a specific peer.
+.PP
+Output:
+.nf
+{"peer_id":"...","alias":"...","connected":bool,
+ "num_channels":N,"local_sat":N,"remote_sat":N,"features":"..."}
+.fi
+Returns
+.nf
+{"error":"not_found"}
+.fi
+when the peer is unknown.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-peer-list (1),
+.BR lightning-peer-connect (1)

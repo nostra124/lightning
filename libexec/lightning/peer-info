@@ -1,0 +1,42 @@
+#!/bin/bash
+# lightning peer-info <peer_id>   (FEAT-307)
+#
+# Returns detailed info for a single peer: connected status, alias,
+# number of channels, total local/remote sat.
+# {peer_id, alias, connected, num_channels, local_sat, remote_sat, features}
+
+set -e
+[ $# -ge 1 ] || { printf 'usage: peer-info <peer_id>\n' >&2; exit 1; }
+peer_id="$1"
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+peers_raw=$(lightning-cli $LD $NET listpeers "$peer_id" 2>/dev/null) || {
+    echo '{"error":"listpeers_failed"}'; exit 0; }
+chans_raw=$(lightning-cli $LD $NET listpeerchannels "$peer_id" 2>/dev/null) \
+    || chans_raw='{"channels":[]}'
+
+python3 -c "
+import sys, json
+peers = json.loads(sys.argv[1]).get('peers', [])
+chans = json.loads(sys.argv[2]).get('channels', [])
+if not peers:
+    print(json.dumps({'error': 'not_found'}))
+    sys.exit(0)
+p = peers[0]
+local_msat = sum(c.get('to_us_msat', 0) for c in chans)
+total_msat = sum(c.get('total_msat', 0) for c in chans)
+print(json.dumps({
+    'peer_id': p.get('id', ''),
+    'alias': (p.get('alias') or '')[:32],
+    'connected': bool(p.get('connected')),
+    'num_channels': len(chans),
+    'local_sat': local_msat // 1000,
+    'remote_sat': (total_msat - local_msat) // 1000,
+    'features': p.get('features', ''),
+}, separators=(',', ':')))
+" "$peers_raw" "$chans_raw"

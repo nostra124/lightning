@@ -1,0 +1,23 @@
+.TH "LIGHTNING-NODE-MEMPOOL" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-mempool \- list unconfirmed on-chain transactions
+.SH SYNOPSIS
+.B lightning node-mempool
+.SH DESCRIPTION
+Returns unconfirmed on-chain transactions known to the Core Lightning
+daemon via
+.BR listtransactions .
+.PP
+Output:
+.nf
+[{txid, amount_sat, type}]
+.fi
+Returns an empty array when the daemon is not reachable or there are
+no pending transactions.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-funds (1),
+.BR lightning-node-health (1)

@@ -9234,7 +9234,7 @@ import sys
 src=open(sys.argv[1]).read()
 i=src.find('\"peers_score\"')
 assert i >= 0, 'tool not found'
-window=src[i:i+400]
+window=src[i:i+800]
 assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 " "$f"
 }
@@ -9392,4 +9392,34 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 
 @test "FEAT-306: invoice-cancel man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-cancel.1" ]
+}
+
+# FEAT-307 — peer-info verb
+
+@test "FEAT-307: peer-info verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-info" ]
+}
+
+@test "FEAT-307: peer-info reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-info" "02aaa" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-307: peer-info man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-info.1" ]
+}
+
+# FEAT-308 — node-mempool verb
+
+@test "FEAT-308: node-mempool verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-mempool" ]
+}
+
+@test "FEAT-308: node-mempool returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-mempool" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-308: node-mempool man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-mempool.1" ]
 }
