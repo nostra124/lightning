@@ -1,0 +1,45 @@
+#!/bin/bash
+# lightning invoice-status <payment_hash|label>   (FEAT-289)
+#
+# Checks whether a local invoice has been paid.
+# Returns {payment_hash, label, status, amount_msat, paid_at}
+# status: "unpaid" | "paid" | "expired"
+
+set -e
+[ $# -ge 1 ] || { printf 'usage: invoice-status <payment_hash|label>\n' >&2; exit 1; }
+query="$1"
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+# Try by payment_hash first, then by label.
+raw=$(lightning-cli $LD $NET listinvoices "$query" 2>/dev/null) \
+    || raw=$(lightning-cli $LD $NET listinvoices 2>/dev/null \
+             | python3 -c "
+import sys,json
+d=json.load(sys.stdin); q=sys.argv[1]
+filtered=[i for i in d.get('invoices',[]) if i.get('label')==q or i.get('payment_hash')==q]
+print(json.dumps({'invoices':filtered}))
+" "$query" 2>/dev/null) \
+    || { echo '{"error":"listinvoices_failed"}'; exit 0; }
+
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+invoices = d.get('invoices', [])
+if not invoices:
+    print(json.dumps({'error': 'not_found'}))
+    sys.exit(0)
+inv = invoices[0]
+status = inv.get('status', 'unknown')
+print(json.dumps({
+    'payment_hash': inv.get('payment_hash', ''),
+    'label': inv.get('label', ''),
+    'status': status,
+    'amount_msat': inv.get('amount_msat', 0),
+    'paid_at': inv.get('paid_at'),
+}, separators=(',', ':')))
+" "$raw"
