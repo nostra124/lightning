@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning node-channel-age-max   (FEAT-1039)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+ages = [ch.get('opened_at', 0) for ch in channels if ch.get('opened_at')]
+oldest = min(ages) if ages else None
+print(json.dumps({'channel_count': len(channels), 'oldest_opened_at': oldest}))
+" "$result"

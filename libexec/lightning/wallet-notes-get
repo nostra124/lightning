@@ -1,9 +1,19 @@
 #!/bin/bash
-# lightning wallet-notes-get <wallet_name>   (FEAT-693)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-get <wallet_name>"}'; exit 0; fi
-wname="$1"
+# lightning wallet-notes-get <wallet_name> <note_id>   (FEAT-1038)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-notes-get <wallet_name> <note_id>"}'
+    exit 0
+fi
+wname="$1"; nid="$2"
 root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
 db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-notes=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='notes'" 2>/dev/null) || notes=""
-echo "{\"wallet\":\"$wname\",\"notes\":\"$notes\"}"
+if [ ! -f "$db" ]; then
+    echo '{"error":"wallet_not_found"}'
+    exit 0
+fi
+note=$(sqlite3 "$db" "SELECT body FROM notes WHERE id='$nid';" 2>/dev/null || echo "")
+if [ -z "$note" ]; then
+    echo '{"error":"note_not_found"}'
+else
+    python3 -c "import json,sys; print(json.dumps({'id':sys.argv[1],'body':sys.argv[2]}))" "$nid" "$note"
+fi
