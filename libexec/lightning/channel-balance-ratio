@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning channel-balance-ratio [<channel_id>]   (FEAT-396)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+channels = json.loads(sys.argv[1]).get('channels', [])
+cid = sys.argv[2] if len(sys.argv) > 2 else ''
+if cid:
+    channels = [c for c in channels if c.get('channel_id') == cid or c.get('short_channel_id') == cid]
+out = []
+for c in channels:
+    total = c.get('total_msat', 0)
+    us = c.get('to_us_msat', 0)
+    ratio = round(us / total, 4) if total else 0
+    out.append({'channel_id': c.get('channel_id',''), 'to_us_msat': us,
+                'total_msat': total, 'balance_ratio': ratio})
+print(json.dumps(out, separators=(',', ':')))
+" "$result" "${1:-}"

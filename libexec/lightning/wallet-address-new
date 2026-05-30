@@ -1,0 +1,5 @@
+#!/bin/bash
+# lightning wallet-address-new [bech32|p2sh-segwit]   (FEAT-402)
+addr_type="${1:-bech32}"
+result=$(lightning-cli newaddr "$addr_type" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

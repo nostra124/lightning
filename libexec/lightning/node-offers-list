@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning node-offers-list [--limit N]   (FEAT-403)
+limit=50
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --limit) limit="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+result=$(lightning-cli listoffers 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+limit = int(sys.argv[2])
+offers = [{'offer_id': o.get('offer_id',''), 'active': o.get('active', False),
+           'bolt12': o.get('bolt12','')} for o in data.get('offers', [])[:limit]]
+print(json.dumps(offers, separators=(',', ':')))
+" "$result" "$limit"

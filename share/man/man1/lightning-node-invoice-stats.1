@@ -1,0 +1,19 @@
+.TH "LIGHTNING-NODE-INVOICE-STATS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-invoice-stats \- show invoice count and revenue summary
+.SH SYNOPSIS
+.B lightning node-invoice-stats
+.SH DESCRIPTION
+Returns a summary of invoices grouped by status and total received amount.
+.PP
+Output:
+.nf
+{"total":N, "paid":N, "unpaid":N, "expired":N, "total_received_msat":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-invoice-summary (1),
+.BR lightning-invoice-list-paid (1)

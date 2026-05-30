@@ -1,0 +1,23 @@
+.TH "LIGHTNING-NODE-OFFERS-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-offers-list \- list BOLT 12 offers
+.SH SYNOPSIS
+.B lightning node-offers-list
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Returns BOLT 12 offers from
+.BR listoffers .
+Default limit is 50.
+.PP
+Output:
+.nf
+[{offer_id, active, bolt12}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-invoice (1),
+.BR lightning-node-invoice-stats (1)

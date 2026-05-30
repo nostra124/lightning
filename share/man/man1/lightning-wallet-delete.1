@@ -1,0 +1,24 @@
+.TH "LIGHTNING-WALLET-DELETE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-delete \- permanently delete a wallet
+.SH SYNOPSIS
+.B lightning wallet-delete
+.I wallet_name
+.RB [ --force ]
+.SH DESCRIPTION
+Deletes the wallet directory and all its contents.
+Requires
+.B --force
+to confirm the destructive operation.
+.PP
+Output:
+.nf
+{"status":"deleted","wallet":"<name>"}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-list (1),
+.BR lightning-wallet-rename (1)

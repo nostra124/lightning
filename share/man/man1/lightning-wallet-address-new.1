@@ -1,0 +1,17 @@
+.TH "LIGHTNING-WALLET-ADDRESS-NEW" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-address-new \- generate a new on-chain deposit address
+.SH SYNOPSIS
+.B lightning wallet-address-new
+.RI [ bech32 | p2sh-segwit ]
+.SH DESCRIPTION
+Generates a new on-chain deposit address via
+.BR newaddr .
+Default address type is bech32.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-onchain-balance (1),
+.BR lightning-wallet-info (1)

@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning wallet-delete <wallet_name> [--force]   (FEAT-398)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-delete <wallet_name> [--force]"}'
+    exit 0
+fi
+wname="$1"; force=""
+[ "${2:-}" = "--force" ] && force=1
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+wallet_dir="$root/$wname"
+if [ ! -d "$wallet_dir" ]; then
+    echo '{"error":"wallet_not_found"}'
+    exit 0
+fi
+if [ -z "$force" ]; then
+    echo '{"error":"use --force to confirm deletion","wallet":"'"$wname"'"}'
+    exit 0
+fi
+rm -rf "$wallet_dir"
+echo '{"status":"deleted","wallet":"'"$wname"'"}'

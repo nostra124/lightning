@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning node-close-expired-invoices   (FEAT-405)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, subprocess, time
+invoices = json.loads(sys.argv[1]).get('invoices', [])
+now = int(time.time())
+expired = [i for i in invoices if i.get('status') == 'unpaid' and i.get('expires_at', now+1) < now]
+deleted = 0
+for inv in expired:
+    label = inv.get('label', '')
+    if label:
+        try:
+            subprocess.run(['lightning-cli', 'delinvoice', label, 'unpaid'], capture_output=True, check=True)
+            deleted += 1
+        except Exception:
+            pass
+print(json.dumps({'deleted': deleted, 'total_expired': len(expired)}, separators=(',', ':')))
+" "$result"
