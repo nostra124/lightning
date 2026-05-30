@@ -29601,3 +29601,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2650: channel-fee-ppm-median man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-median.1" ]
 }
+
+@test "FEAT-2651: node-listforwards-fee-avg reports error or avg_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_msat"
+}
+@test "FEAT-2651: node-listforwards-fee-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg.1" ]
+}
+
+@test "FEAT-2652: channel-both-balances-sum reports error or both_balances_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_sum_msat"
+}
+@test "FEAT-2652: channel-both-balances-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-sum.1" ]
+}
+
+@test "FEAT-2653: peer-fee-earned-total reports error or total_fee_earned_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_fee_earned_msat"
+}
+@test "FEAT-2653: peer-fee-earned-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-total.1" ]
+}
+
+@test "FEAT-2654: node-pay-failed-count-1d reports error or failed_pay_count_1d gracefully" {
+    out=$(./libexec/lightning/node-pay-failed-count-1d 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_pay_count_1d"
+}
+@test "FEAT-2654: node-pay-failed-count-1d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-failed-count-1d.1" ]
+}
+
+@test "FEAT-2655: channel-local-reserve-total reports error or total_local_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_local_reserve_msat"
+}
+@test "FEAT-2655: channel-local-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-total.1" ]
+}
+
+@test "FEAT-2656: node-listforwards-fee-max reports error or max_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_fee_msat"
+}
+@test "FEAT-2656: node-listforwards-fee-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-max.1" ]
+}
+
+@test "FEAT-2657: channel-remote-reserve-total reports error or total_remote_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_remote_reserve_msat"
+}
+@test "FEAT-2657: channel-remote-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-total.1" ]
+}
+
+@test "FEAT-2658: peer-htlc-count-avg reports error or avg_htlc_count_per_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_htlc_count_per_peer"
+}
+@test "FEAT-2658: peer-htlc-count-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-avg.1" ]
+}
+
+@test "FEAT-2659: node-invoice-paid-amount-avg reports error or avg_paid_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_paid_amount_msat"
+}
+@test "FEAT-2659: node-invoice-paid-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-avg.1" ]
+}
+
+@test "FEAT-2660: channel-fee-earned-total reports error or total_fee_earned_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_fee_earned_msat"
+}
+@test "FEAT-2660: channel-fee-earned-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-total.1" ]
+}
