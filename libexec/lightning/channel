@@ -56,6 +56,11 @@ EOF
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 cli() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+# Match wallet/ledger/account: the active pointer lives at
+# $WALLETS_ROOT-parent/active, NOT inside the wallet dir.
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
 require_cli() {
 	command -v lightning-cli >/dev/null || {
 		error "lightning-cli not found — install Core Lightning"; exit 127; }
@@ -186,8 +191,9 @@ cmd_pending() {
 # FEAT-185: Static Channel Backup.
 
 wallet_scb_dir() {
-	local active; active=$(cat "${LIGHTNING_DIR}/wallet/.active" 2>/dev/null || echo "default")
-	echo "${LIGHTNING_DIR}/wallet/$active/scb"
+	local active="default"
+	[ -f "$ACTIVE_LINK" ] && active=$(cat "$ACTIVE_LINK")
+	echo "$WALLETS_ROOT/$active/scb"
 }
 
 scb_emit() {

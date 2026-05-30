@@ -18,12 +18,18 @@ user="$1"
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 
+# Match wallet/ledger/account: the active pointer lives at
+# $WALLETS_ROOT-parent/active, NOT inside the wallet dir.
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+
 command -v sqlite3 >/dev/null || {
 	echo "lightning: sqlite3 not found" >&2; exit 127; }
 
 wallet_db() {
-	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
-	echo "$LIGHTNING_DIR/wallet/$active/state.db"
+	local active="default"
+	[ -f "$ACTIVE_LINK" ] && active=$(cat "$ACTIVE_LINK")
+	echo "$WALLETS_ROOT/$active/state.db"
 }
 
 DB=$(wallet_db)
