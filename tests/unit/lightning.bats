@@ -9528,3 +9528,44 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-315: invoice-wait man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-wait.1" ]
 }
+
+# FEAT-316 — node-onchain-balance verb
+
+@test "FEAT-316: node-onchain-balance verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-onchain-balance" ]
+}
+
+@test "FEAT-316: node-onchain-balance reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-onchain-balance" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-316: node-onchain-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-balance.1" ]
+}
+
+# FEAT-317 — wallet-migrate verb
+
+@test "FEAT-317: wallet-migrate verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-migrate" ]
+}
+
+@test "FEAT-317: wallet-migrate reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-migrate" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('error')=='database_not_found'"
+}
+
+@test "FEAT-317: wallet-migrate is idempotent on a valid database" {
+	tmpdir=$(mktemp -d)
+	mkdir -p "$tmpdir/default"
+	sqlite3 "$tmpdir/default/state.db" \
+		"CREATE TABLE accounts (id TEXT PRIMARY KEY, balance_msat INTEGER, limit_msat INTEGER);"
+	out=$(WALLETS_ROOT="$tmpdir" \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-migrate" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('ok')==True"
+	rm -rf "$tmpdir"
+}
+
+@test "FEAT-317: wallet-migrate man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-migrate.1" ]
+}

@@ -1,0 +1,21 @@
+.TH "LIGHTNING-NODE-ONCHAIN-BALANCE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-onchain-balance \- show confirmed and unconfirmed on-chain balance
+.SH SYNOPSIS
+.B lightning node-onchain-balance
+.SH DESCRIPTION
+Returns the on-chain Bitcoin balance from CLN's
+.B listfunds
+RPC, split by confirmation status.
+.PP
+Output:
+.nf
+{"confirmed_sat":N,"unconfirmed_sat":N,"total_sat":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-funds (1),
+.BR lightning-node-mempool (1)
