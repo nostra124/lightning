@@ -16214,3 +16214,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-920: channel-htlc-max-local man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-local.1" ]
 }
+
+@test "FEAT-921: node-listchannels-public reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listchannels-public" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-921: node-listchannels-public man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-public.1" ]
+}
+
+@test "FEAT-922: channel-receive-limit requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-receive-limit" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-922: channel-receive-limit man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receive-limit.1" ]
+}
+
+@test "FEAT-923: wallet-cold-storage requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-cold-storage" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-923: wallet-cold-storage man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-cold-storage.1" ]
+}
+
+@test "FEAT-924: node-invoice-fee-estimate requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-fee-estimate" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-924: node-invoice-fee-estimate man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-fee-estimate.1" ]
+}
+
+@test "FEAT-925: invoice-bolt11-amount requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-bolt11-amount" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-925: invoice-bolt11-amount man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-amount.1" ]
+}
+
+@test "FEAT-926: channel-htlc-timeout requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-timeout" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-926: channel-htlc-timeout man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout.1" ]
+}
+
+@test "FEAT-927: peer-max-channel requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-max-channel" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-927: peer-max-channel man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-max-channel.1" ]
+}
+
+@test "FEAT-928: wallet-pin-change requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-change" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-928: wallet-pin-change man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-change.1" ]
+}
+
+@test "FEAT-929: node-listforwards-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listforwards-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-929: node-listforwards-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count.1" ]
+}
+
+@test "FEAT-930: channel-last-update requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-last-update" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-930: channel-last-update man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-last-update.1" ]
+}

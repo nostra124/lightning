@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning invoice-bolt11-amount <bolt11>   (FEAT-925)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-bolt11-amount <bolt11>"}'; exit 0; fi
+bolt11="$1"
+if ! result=$(lightning-cli decode "$bolt11" 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'amount_msat': data.get('amount_msat'), 'description': data.get('description')}))
+" "$result"

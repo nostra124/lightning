@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-listchannels-public   (FEAT-921)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pub = [c for c in data.get('channels', []) if not c.get('private', False)]
+print(json.dumps({'count': len(pub), 'channels': [c.get('channel_id') for c in pub]}))
+" "$result"
