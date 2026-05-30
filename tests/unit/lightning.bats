@@ -14044,3 +14044,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-670: channel-balance-total man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-total.1" ]
 }
+
+@test "FEAT-671: node-channels-summary reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channels-summary" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-671: node-channels-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channels-summary.1" ]
+}
+
+@test "FEAT-672: wallet-transaction-count requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-transaction-count" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-672: wallet-transaction-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-transaction-count.1" ]
+}
+
+@test "FEAT-673: invoice-total-value reports error or paid_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-total-value" 2>/dev/null)
+	echo "$out" | grep -q "error\|paid_count"
+}
+
+@test "FEAT-673: invoice-total-value man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-total-value.1" ]
+}
+
+@test "FEAT-674: channel-reestablish requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-reestablish" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-674: channel-reestablish man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reestablish.1" ]
+}
+
+@test "FEAT-675: node-peer-fees requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-fees" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-675: node-peer-fees man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-fees.1" ]
+}
+
+@test "FEAT-676: wallet-prune requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-prune" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-676: wallet-prune man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-prune.1" ]
+}
+
+@test "FEAT-677: node-fee-summary reports error or node_id gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-summary" 2>/dev/null)
+	echo "$out" | grep -q "error\|node_id"
+}
+
+@test "FEAT-677: node-fee-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-summary.1" ]
+}
+
+@test "FEAT-678: channel-msatoshi-to-us requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-msatoshi-to-us" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-678: channel-msatoshi-to-us man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-msatoshi-to-us.1" ]
+}
+
+@test "FEAT-679: peer-disconnect requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-679: peer-disconnect man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect.1" ]
+}
+
+@test "FEAT-680: wallet-sweep requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-sweep" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-680: wallet-sweep man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-sweep.1" ]
+}
