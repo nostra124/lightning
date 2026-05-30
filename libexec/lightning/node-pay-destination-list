@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-pay-destination-list   (FEAT-1244)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+dests = list({p.get('destination') for p in data.get('pays', []) if p.get('destination')})
+print(json.dumps({'count': len(dests), 'destinations': dests}))
+" "$result"

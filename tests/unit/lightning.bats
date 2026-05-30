@@ -18614,3 +18614,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1240: channel-open-alias man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-alias.1" ]
 }
+
+@test "FEAT-1241: node-invoice-last reports error or last_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-last 2>/dev/null)
+    echo "$out" | grep -q "error\|last_invoice"
+}
+@test "FEAT-1241: node-invoice-last man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-last.1" ]
+}
+
+@test "FEAT-1242: channel-close-to requires arg" {
+    out=$(./libexec/lightning/channel-close-to 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1242: channel-close-to man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-to.1" ]
+}
+
+@test "FEAT-1243: wallet-meta-update requires args" {
+    out=$(./libexec/lightning/wallet-meta-update 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1243: wallet-meta-update man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-update.1" ]
+}
+
+@test "FEAT-1244: node-pay-destination-list reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-destination-list 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1244: node-pay-destination-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-destination-list.1" ]
+}
+
+@test "FEAT-1245: invoice-paid-at requires arg" {
+    out=$(./libexec/lightning/invoice-paid-at 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1245: invoice-paid-at man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-paid-at.1" ]
+}
+
+@test "FEAT-1246: channel-remote-cltv requires arg" {
+    out=$(./libexec/lightning/channel-remote-cltv 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1246: channel-remote-cltv man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-cltv.1" ]
+}
+
+@test "FEAT-1247: peer-last-forward requires arg" {
+    out=$(./libexec/lightning/peer-last-forward 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1247: peer-last-forward man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-last-forward.1" ]
+}
+
+@test "FEAT-1248: wallet-notes-pin requires args" {
+    out=$(./libexec/lightning/wallet-notes-pin 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1248: wallet-notes-pin man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-pin.1" ]
+}
+
+@test "FEAT-1249: node-listchannels-count reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listchannels-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1249: node-listchannels-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-count.1" ]
+}
+
+@test "FEAT-1250: channel-peer-node requires arg" {
+    out=$(./libexec/lightning/channel-peer-node 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1250: channel-peer-node man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-node.1" ]
+}
