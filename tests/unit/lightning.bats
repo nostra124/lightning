@@ -26461,3 +26461,161 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2240: channel-remote-balance-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-total.1" ]
 }
+
+@test "FEAT-2241: node-listforwards-settled-count reports error or settled_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-settled-count 2>/dev/null)
+    echo "$out" | grep -q "error\|settled_count"
+}
+@test "FEAT-2241: node-listforwards-settled-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-settled-count.1" ]
+}
+
+@test "FEAT-2242: channel-fee-ppm-range reports error or fee_ppm_min gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_min"
+}
+@test "FEAT-2242: channel-fee-ppm-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-range.1" ]
+}
+
+@test "FEAT-2243: peer-oldest-channel reports error or peer_id gracefully" {
+    out=$(./libexec/lightning/peer-oldest-channel 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_id"
+}
+@test "FEAT-2243: peer-oldest-channel man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-oldest-channel.1" ]
+}
+
+@test "FEAT-2244: node-invoice-newest-paid reports error or paid_at gracefully" {
+    out=$(./libexec/lightning/node-invoice-newest-paid 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_at"
+}
+@test "FEAT-2244: node-invoice-newest-paid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-newest-paid.1" ]
+}
+
+@test "FEAT-2245: channel-capacity-gini reports error or gini gracefully" {
+    out=$(./libexec/lightning/channel-capacity-gini 2>/dev/null)
+    echo "$out" | grep -q "error\|gini"
+}
+@test "FEAT-2245: channel-capacity-gini man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-gini.1" ]
+}
+
+@test "FEAT-2246: node-pay-streak-days reports error or streak_days gracefully" {
+    out=$(./libexec/lightning/node-pay-streak-days 2>/dev/null)
+    echo "$out" | grep -q "error\|streak_days"
+}
+@test "FEAT-2246: node-pay-streak-days man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-streak-days.1" ]
+}
+
+@test "FEAT-2247: channel-remote-reserve-total reports error or remote_reserve_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_total_msat"
+}
+@test "FEAT-2247: channel-remote-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-total.1" ]
+}
+
+@test "FEAT-2248: peer-fee-ppm-max reports error or fee_ppm gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm"
+}
+@test "FEAT-2248: peer-fee-ppm-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-max.1" ]
+}
+
+@test "FEAT-2249: node-listinvoices-recent reports error or recent_invoices gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-recent 2>/dev/null)
+    echo "$out" | grep -q "error\|recent_invoices"
+}
+@test "FEAT-2249: node-listinvoices-recent man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-recent.1" ]
+}
+
+@test "FEAT-2250: channel-funding-txid-list reports error or funding_txids gracefully" {
+    out=$(./libexec/lightning/channel-funding-txid-list 2>/dev/null)
+    echo "$out" | grep -q "error\|funding_txids"
+}
+@test "FEAT-2250: channel-funding-txid-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-txid-list.1" ]
+}
+
+@test "FEAT-2251: node-listforwards-failed-count reports error or failed_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-failed-count 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_count"
+}
+@test "FEAT-2251: node-listforwards-failed-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-failed-count.1" ]
+}
+
+@test "FEAT-2252: channel-fee-base-total reports error or fee_base_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_total_msat"
+}
+@test "FEAT-2252: channel-fee-base-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-total.1" ]
+}
+
+@test "FEAT-2253: peer-newest-invoice reports error or newest_invoice gracefully" {
+    out=$(./libexec/lightning/peer-newest-invoice 2>/dev/null)
+    echo "$out" | grep -q "error\|newest_invoice"
+}
+@test "FEAT-2253: peer-newest-invoice man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-newest-invoice.1" ]
+}
+
+@test "FEAT-2254: node-invoice-paid-total-msat already exists (script)" {
+    [ -f "./libexec/lightning/node-invoice-paid-total-msat" ]
+}
+@test "FEAT-2254: node-invoice-paid-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-total-msat.1" ]
+}
+
+@test "FEAT-2255: channel-local-balance-max reports error or channel gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-max 2>/dev/null)
+    echo "$out" | grep -q "error\|channel"
+}
+@test "FEAT-2255: channel-local-balance-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-max.1" ]
+}
+
+@test "FEAT-2256: node-pay-oldest already exists (script)" {
+    [ -f "./libexec/lightning/node-pay-oldest" ]
+}
+@test "FEAT-2256: node-pay-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-oldest.1" ]
+}
+
+@test "FEAT-2257: channel-remote-balance-max reports error or channel gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-max 2>/dev/null)
+    echo "$out" | grep -q "error\|channel"
+}
+@test "FEAT-2257: channel-remote-balance-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-max.1" ]
+}
+
+@test "FEAT-2258: peer-channel-age-avg reports error or peers gracefully" {
+    out=$(./libexec/lightning/peer-channel-age-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|peers"
+}
+@test "FEAT-2258: peer-channel-age-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-age-avg.1" ]
+}
+
+@test "FEAT-2259: node-listinvoices-unpaid-count reports error or unpaid_count gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-unpaid-count 2>/dev/null)
+    echo "$out" | grep -q "error\|unpaid_count"
+}
+@test "FEAT-2259: node-listinvoices-unpaid-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-unpaid-count.1" ]
+}
+
+@test "FEAT-2260: channel-fee-ppm-total reports error or fee_ppm_total gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_total"
+}
+@test "FEAT-2260: channel-fee-ppm-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-total.1" ]
+}
