@@ -24541,3 +24541,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2000: channel-summary man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-summary.1" ]
 }
+
+@test "FEAT-2001: node-pay-oldest reports error or pay gracefully" {
+    out=$(./libexec/lightning/node-pay-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|pay"
+}
+@test "FEAT-2001: node-pay-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-oldest.1" ]
+}
+
+@test "FEAT-2002: channel-htlc-count requires arg" {
+    out=$(./libexec/lightning/channel-htlc-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-2002: channel-htlc-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count.1" ]
+}
+
+@test "FEAT-2003: wallet-notes-count-by-tag requires arg" {
+    out=$(./libexec/lightning/wallet-notes-count-by-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-2003: wallet-notes-count-by-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-by-tag.1" ]
+}
+
+@test "FEAT-2004: node-graph-fees-avg reports error or avg_base_fee_millisatoshi gracefully" {
+    out=$(./libexec/lightning/node-graph-fees-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_base_fee_millisatoshi"
+}
+@test "FEAT-2004: node-graph-fees-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-fees-avg.1" ]
+}
+
+@test "FEAT-2005: channel-dust-limit requires arg" {
+    out=$(./libexec/lightning/channel-dust-limit 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-2005: channel-dust-limit man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-dust-limit.1" ]
+}
+
+@test "FEAT-2006: peer-channel-count-by-state reports error or peer_count gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-by-state 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_count"
+}
+@test "FEAT-2006: peer-channel-count-by-state man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-by-state.1" ]
+}
+
+@test "FEAT-2007: node-listinvoices-expired reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-expired 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-2007: node-listinvoices-expired man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-expired.1" ]
+}
+
+@test "FEAT-2008: channel-balance-ratio reports error or channels gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio 2>/dev/null)
+    echo "$out" | grep -q "error\|channels"
+}
+@test "FEAT-2008: channel-balance-ratio man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio.1" ]
+}
+
+@test "FEAT-2009: node-pay-count-by-dest requires arg" {
+    out=$(./libexec/lightning/node-pay-count-by-dest 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-2009: node-pay-count-by-dest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-by-dest.1" ]
+}
+
+@test "FEAT-2010: channel-opener-local-count reports error or local_opener_count gracefully" {
+    out=$(./libexec/lightning/channel-opener-local-count 2>/dev/null)
+    echo "$out" | grep -q "error\|local_opener_count"
+}
+@test "FEAT-2010: channel-opener-local-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-local-count.1" ]
+}
