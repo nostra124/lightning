@@ -21194,3 +21194,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1580: channel-locktime man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-locktime.1" ]
 }
+@test "FEAT-1581: node-invoice-pending-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1581: node-invoice-pending-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-count.1" ]
+}
+@test "FEAT-1582: channel-last-state-change reports error gracefully" {
+    out=$(./libexec/lightning/channel-last-state-change 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1582: channel-last-state-change man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-last-state-change.1" ]
+}
+@test "FEAT-1583: wallet-notes-count-by-value reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-count-by-value 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1583: wallet-notes-count-by-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-by-value.1" ]
+}
+@test "FEAT-1584: node-graph-channel-fees reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/node-graph-channel-fees 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1584: node-graph-channel-fees man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channel-fees.1" ]
+}
+@test "FEAT-1585: invoice-list-by-index reports error gracefully" {
+    out=$(./libexec/lightning/invoice-list-by-index 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1585: invoice-list-by-index man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-index.1" ]
+}
+@test "FEAT-1586: channel-peer-connected reports error gracefully" {
+    out=$(./libexec/lightning/channel-peer-connected 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1586: channel-peer-connected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-connected.1" ]
+}
+@test "FEAT-1587: peer-invoice-count reports error gracefully" {
+    out=$(./libexec/lightning/peer-invoice-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1587: peer-invoice-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-invoice-count.1" ]
+}
+@test "FEAT-1588: wallet-notes-bulk-pin reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-bulk-pin 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1588: wallet-notes-bulk-pin man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-bulk-pin.1" ]
+}
+@test "FEAT-1589: node-pay-avg-fee-ppm reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-avg-fee-ppm 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1589: node-pay-avg-fee-ppm man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-avg-fee-ppm.1" ]
+}
+@test "FEAT-1590: channel-push-msat reports error gracefully" {
+    out=$(./libexec/lightning/channel-push-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1590: channel-push-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-push-msat.1" ]
+}
