@@ -33051,3 +33051,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3090: channel-close-count-week man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-count-week.1" ]
 }
+
+@test "FEAT-3091: channel-close-count-day reports error or close_count_day gracefully" {
+    out=$(./libexec/lightning/channel-close-count-day 2>/dev/null)
+    echo "$out" | grep -q "error\|close_count_day"
+}
+@test "FEAT-3091: channel-close-count-day man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-count-day.1" ]
+}
+
+@test "FEAT-3092: node-pay-fee-median reports error or fee_median_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_median_msat"
+}
+@test "FEAT-3092: node-pay-fee-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-median.1" ]
+}
+
+@test "FEAT-3093: peer-balance-ratio-range reports error or balance_ratio_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-ratio-range 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_range_peer"
+}
+@test "FEAT-3093: peer-balance-ratio-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-range.1" ]
+}
+
+@test "FEAT-3094: channel-close-count-total reports error or close_count_total gracefully" {
+    out=$(./libexec/lightning/channel-close-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|close_count_total"
+}
+@test "FEAT-3094: channel-close-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-count-total.1" ]
+}
+
+@test "FEAT-3095: node-pay-amount-min reports error or min_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_amount_msat"
+}
+@test "FEAT-3095: node-pay-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-min.1" ]
+}
+
+@test "FEAT-3096: peer-capacity-ratio-range reports error or capacity_ratio_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-ratio-range 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_ratio_range_peer"
+}
+@test "FEAT-3096: peer-capacity-ratio-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-ratio-range.1" ]
+}
+
+@test "FEAT-3097: channel-open-count-total reports error or open_count_total gracefully" {
+    out=$(./libexec/lightning/channel-open-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|open_count_total"
+}
+@test "FEAT-3097: channel-open-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-count-total.1" ]
+}
+
+@test "FEAT-3098: node-pay-amount-max reports error or max_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_amount_msat"
+}
+@test "FEAT-3098: node-pay-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-max.1" ]
+}
+
+@test "FEAT-3099: peer-htlc-value-range reports error or htlc_value_range_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_range_msat_peer"
+}
+@test "FEAT-3099: peer-htlc-value-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-range.1" ]
+}
+
+@test "FEAT-3100: channel-spendable-pct-max reports error or spendable_pct_max gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_max"
+}
+@test "FEAT-3100: channel-spendable-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-max.1" ]
+}
