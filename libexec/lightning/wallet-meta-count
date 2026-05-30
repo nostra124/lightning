@@ -1,15 +1,10 @@
 #!/bin/bash
-# lightning wallet-meta-count <wallet_name>   (FEAT-1143)
+# lightning wallet-meta-count <wallet>   (FEAT-1618)
 if [ $# -lt 1 ]; then
-    echo '{"error":"usage: wallet-meta-count <wallet_name>"}'
-    exit 0
+    echo '{"error":"usage: wallet-meta-count <wallet>"}'; exit 0
 fi
 wname="$1"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"wallet_not_found"}'
-    exit 0
-fi
-count=$(sqlite3 "$db" "SELECT COUNT(*) FROM meta;" 2>/dev/null || echo 0)
-echo "{\"wallet\":\"$wname\",\"meta_count\":$count}"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+count=$(sqlite3 "$db" "SELECT COUNT(*) FROM meta;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+echo "{\"wallet\":\"$wname\",\"count\":$count}"

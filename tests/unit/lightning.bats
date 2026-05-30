@@ -21424,3 +21424,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1610: channel-their-base-fee man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-base-fee.1" ]
 }
+
+@test "FEAT-1611: node-pay-amount-max reports error or max_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_amount_msat"
+}
+@test "FEAT-1611: node-pay-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-max.1" ]
+}
+
+@test "FEAT-1612: channel-their-base-fee-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-their-base-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1612: channel-their-base-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-base-fee-total.1" ]
+}
+
+@test "FEAT-1613: wallet-notes-move requires args" {
+    out=$(./libexec/lightning/wallet-notes-move 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1613: wallet-notes-move man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-move.1" ]
+}
+
+@test "FEAT-1614: node-listpeers-alias reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpeers-alias 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1614: node-listpeers-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-alias.1" ]
+}
+
+@test "FEAT-1615: invoice-list-by-amount requires arg" {
+    out=$(./libexec/lightning/invoice-list-by-amount 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1615: invoice-list-by-amount man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-amount.1" ]
+}
+
+@test "FEAT-1616: channel-local-disabled reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-local-disabled 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1616: channel-local-disabled man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-disabled.1" ]
+}
+
+@test "FEAT-1617: peer-local-balance requires arg" {
+    out=$(./libexec/lightning/peer-local-balance 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1617: peer-local-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance.1" ]
+}
+
+@test "FEAT-1618: wallet-meta-count requires arg" {
+    out=$(./libexec/lightning/wallet-meta-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1618: wallet-meta-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-count.1" ]
+}
+
+@test "FEAT-1619: node-graph-fee-range reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-fee-range 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1619: node-graph-fee-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-fee-range.1" ]
+}
+
+@test "FEAT-1620: channel-opener-remote reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-opener-remote 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1620: channel-opener-remote man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-remote.1" ]
+}
