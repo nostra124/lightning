@@ -1,0 +1,65 @@
+#!/bin/bash
+# lightning node-peers-score   (FEAT-288)
+#
+# Scores peers by channel health and returns a ranked list.
+# Score (0-100): weighted combination of:
+#   - local_ratio:   local_sat / total_sat  (40 pts — balance)
+#   - connected:     peer is online          (20 pts)
+#   - channel_count: num_channels >= 2       (20 pts)
+#   - uptime_ratio:  approx from HTLC rates  (20 pts — reserved, 0 now)
+#
+# Returns [{peer_id, alias, score, num_channels, local_sat, remote_sat,
+#           connected, local_ratio}] sorted descending by score.
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || { echo '[]'; exit 0; }
+
+peers_raw=$(lightning-cli $LD $NET listpeers 2>/dev/null)    || { echo '[]'; exit 0; }
+chans_raw=$(lightning-cli $LD $NET listpeerchannels 2>/dev/null) || chans_raw='{"channels":[]}'
+
+python3 -c "
+import sys, json
+
+peers = json.loads(sys.argv[1]).get('peers', [])
+chans = json.loads(sys.argv[2]).get('channels', [])
+
+chan_map = {}
+for c in chans:
+    pid = c.get('peer_id', '')
+    if pid not in chan_map:
+        chan_map[pid] = {'num_channels': 0, 'local_msat': 0, 'total_msat': 0}
+    chan_map[pid]['num_channels'] += 1
+    chan_map[pid]['local_msat']  += c.get('to_us_msat', 0)
+    chan_map[pid]['total_msat']  += c.get('total_msat', 0)
+
+result = []
+for p in peers:
+    pid  = p.get('id', '')
+    conn = bool(p.get('connected'))
+    cm   = chan_map.get(pid, {'num_channels': 0, 'local_msat': 0, 'total_msat': 0})
+    total = cm['total_msat']
+    local = cm['local_msat']
+    ratio = (local / total) if total > 0 else 0.5
+
+    balance_score = int(40 * (1 - abs(ratio - 0.5) * 2))  # peak at 0.5
+    conn_score    = 20 if conn else 0
+    chan_score    = 20 if cm['num_channels'] >= 2 else int(20 * cm['num_channels'])
+    score = balance_score + conn_score + chan_score
+
+    result.append({
+        'peer_id': pid,
+        'alias': (p.get('alias') or '')[:32],
+        'score': score,
+        'num_channels': cm['num_channels'],
+        'local_sat': local // 1000,
+        'remote_sat': (total - local) // 1000,
+        'connected': conn,
+        'local_ratio': round(ratio, 3),
+    })
+
+result.sort(key=lambda x: x['score'], reverse=True)
+print(json.dumps(result, separators=(',', ':')))
+" "$peers_raw" "$chans_raw"

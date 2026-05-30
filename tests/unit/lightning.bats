@@ -9073,3 +9073,18 @@ assert 'api-account-list' in src
 @test "FEAT-287: sudoers lists api-account-describe" {
 	grep -q "api-account-describe" share/lightning/sudoers.d/lightning
 }
+
+# FEAT-288 — node-peers-score verb
+
+@test "FEAT-288: node-peers-score verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-peers-score" ]
+}
+
+@test "FEAT-288: node-peers-score returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-peers-score" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-288: node-peers-score man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peers-score.1" ]
+}
