@@ -9453,3 +9453,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-310: node-reachability man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-reachability.1" ]
 }
+
+# FEAT-311 — wallet-transaction-log verb
+
+@test "FEAT-311: wallet-transaction-log verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-transaction-log" ]
+}
+
+@test "FEAT-311: wallet-transaction-log prints header comment without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-transaction-log" 2>/dev/null)
+	echo "$out" | grep -q "^#"
+}
+
+@test "FEAT-311: wallet-transaction-log man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-transaction-log.1" ]
+}
+
+# FEAT-312 — node-close-all verb
+
+@test "FEAT-312: node-close-all verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-close-all" ]
+}
+
+@test "FEAT-312: node-close-all reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-close-all" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-312: node-close-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-close-all.1" ]
+}

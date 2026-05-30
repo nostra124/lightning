@@ -1,0 +1,46 @@
+#!/bin/bash
+# lightning wallet-transaction-log [--account <addr>] [--limit N]   (FEAT-311)
+#
+# Prints ledger entries as human-readable text lines:
+#   DATE  ACCOUNT  DIRECTION  AMOUNT_SAT  [NOTE]
+# One line per entry, tab-separated.
+
+set -e
+acct=""; limit=200
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --account) acct="$2"; shift 2 ;;
+        --limit)   limit="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+
+WALLETS_ROOT="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+wname="${WALLET:-default}"
+db="$WALLETS_ROOT/$wname/state.db"
+
+[ -f "$db" ] || { printf "# wallet not found: %s\n" "$db"; exit 0; }
+
+python3 -c "
+import sqlite3, sys, datetime
+
+db = sys.argv[1]; acct = sys.argv[2]; limit = int(sys.argv[3])
+conn = sqlite3.connect(db)
+conn.row_factory = sqlite3.Row
+try:
+    q = '''SELECT l.created_at, l.account_id, l.direction, l.amount_msat, l.note
+           FROM ledger l
+           WHERE (:acct = '' OR l.account_id = :acct)
+           ORDER BY l.created_at DESC LIMIT :limit'''
+    rows = conn.execute(q, {'acct': acct, 'limit': limit}).fetchall()
+    if not rows:
+        print('# no entries')
+    for r in rows:
+        ts = datetime.datetime.fromtimestamp(r['created_at']).strftime('%Y-%m-%dT%H:%M:%S')
+        note = r['note'] or ''
+        print(f\"{ts}\t{r['account_id']}\t{r['direction']}\t{r['amount_msat']//1000}\t{note}\")
+except Exception as e:
+    print(f'# error: {e}')
+finally:
+    conn.close()
+" "$db" "$acct" "$limit"

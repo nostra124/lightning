@@ -1,0 +1,30 @@
+.TH "LIGHTNING-WALLET-TRANSACTION-LOG" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-transaction-log \- print wallet ledger as a text log
+.SH SYNOPSIS
+.B lightning wallet-transaction-log
+.RB [ --account
+.IR address ]
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Prints ledger entries as tab-separated text lines suitable for piping
+to tools like
+.BR grep (1)
+or
+.BR awk (1).
+.PP
+Output format (tab-separated):
+.nf
+DATE\tACCOUNT\tDIRECTION\tAMOUNT_SAT\t[NOTE]
+.fi
+Default limit is 200 entries; use
+.B --account
+to filter to one account.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-export-csv (1),
+.BR lightning-wallet-backup (1)
