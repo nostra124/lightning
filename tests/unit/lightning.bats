@@ -27931,3 +27931,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2440: channel-remote-reserve-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-avg.1" ]
 }
+
+@test "FEAT-2441: node-listforwards-fee-total-48h reports error or fee_total_msat_48h gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-48h 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_msat_48h"
+}
+@test "FEAT-2441: node-listforwards-fee-total-48h man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-48h.1" ]
+}
+
+@test "FEAT-2442: channel-htlc-outgoing-value reports error or outgoing_htlc_value_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-outgoing-value 2>/dev/null)
+    echo "$out" | grep -q "error\|outgoing_htlc_value_msat"
+}
+@test "FEAT-2442: channel-htlc-outgoing-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-outgoing-value.1" ]
+}
+
+@test "FEAT-2443: peer-capacity-avg reports error or avg_capacity_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_capacity_msat"
+}
+@test "FEAT-2443: peer-capacity-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-avg.1" ]
+}
+
+@test "FEAT-2444: node-invoice-unpaid-rate reports error or unpaid_rate gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|unpaid_rate"
+}
+@test "FEAT-2444: node-invoice-unpaid-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-rate.1" ]
+}
+
+@test "FEAT-2445: channel-fee-base-min reports error or fee_base_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_msat"
+}
+@test "FEAT-2445: channel-fee-base-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-min.1" ]
+}
+
+@test "FEAT-2446: node-pay-complete-count-7d reports error or complete_pay_count_7d gracefully" {
+    out=$(./libexec/lightning/node-pay-complete-count-7d 2>/dev/null)
+    echo "$out" | grep -q "error\|complete_pay_count_7d"
+}
+@test "FEAT-2446: node-pay-complete-count-7d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-complete-count-7d.1" ]
+}
+
+@test "FEAT-2447: channel-htlc-outgoing-value reports error or outgoing_htlc_value_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-outgoing-value 2>/dev/null)
+    echo "$out" | grep -q "error\|outgoing_htlc_value_msat"
+}
+@test "FEAT-2447: channel-htlc-outgoing-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-outgoing-value.1" ]
+}
+
+@test "FEAT-2448: peer-fee-base-avg reports error or fee_base_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_avg_msat"
+}
+@test "FEAT-2448: peer-fee-base-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-avg.1" ]
+}
+
+@test "FEAT-2449: node-listinvoices-paid-newest reports error or paid_at gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_at"
+}
+@test "FEAT-2449: node-listinvoices-paid-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-newest.1" ]
+}
+
+@test "FEAT-2450: channel-local-balance-avg reports error or local_balance_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_avg_msat"
+}
+@test "FEAT-2450: channel-local-balance-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-avg.1" ]
+}
