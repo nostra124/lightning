@@ -7859,7 +7859,7 @@ _pr5_teardown() {
 	mkdir -p "$LIGHTNING_DIR"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" wallet-user create --label test >/dev/null
-	wname="default"; [ -f "$HOME/.lightning/active" ] && wname=$(cat "$HOME/.lightning/active")
+	local wname; wname=$(cat "$LIGHTNING_WALLETS_ROOT/active" 2>/dev/null || echo "default")
 	db="$LIGHTNING_WALLETS_ROOT/$wname/state.db"
 	sqlite3 "$db" "SELECT max_downline FROM wallet_users LIMIT 1;" >/dev/null
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
@@ -7868,7 +7868,7 @@ _pr5_teardown() {
 @test "FEAT-222 PR-5: wallet-user cap sets max_downline" {
 	_pr5_setup
 	"$LIGHTNING_BIN" wallet-user cap "$CHILD_UID" 5
-	wname="default"; [ -f "$HOME/.lightning/active" ] && wname=$(cat "$HOME/.lightning/active")
+	local wname; wname=$(cat "$LIGHTNING_WALLETS_ROOT/active" 2>/dev/null || echo "default")
 	db="$LIGHTNING_WALLETS_ROOT/$wname/state.db"
 	val=$(sqlite3 "$db" "SELECT max_downline FROM wallet_users WHERE id='$CHILD_UID';")
 	[ "$val" = "5" ]
@@ -7879,7 +7879,7 @@ _pr5_teardown() {
 	_pr5_setup
 	"$LIGHTNING_BIN" wallet-user cap "$CHILD_UID" 5
 	"$LIGHTNING_BIN" wallet-user cap "$CHILD_UID" unlimited
-	wname="default"; [ -f "$HOME/.lightning/active" ] && wname=$(cat "$HOME/.lightning/active")
+	local wname; wname=$(cat "$LIGHTNING_WALLETS_ROOT/active" 2>/dev/null || echo "default")
 	db="$LIGHTNING_WALLETS_ROOT/$wname/state.db"
 	val=$(sqlite3 "$db" "SELECT COALESCE(max_downline,'NULL') FROM wallet_users WHERE id='$CHILD_UID';")
 	[ "$val" = "NULL" ]

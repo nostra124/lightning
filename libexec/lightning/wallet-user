@@ -221,6 +221,30 @@ cmd_invite_code_create() {
 	# Ensure invite_codes table has owner_user + credit_account columns.
 	sqlite3 "$db" "ALTER TABLE invite_codes ADD COLUMN owner_user TEXT;" 2>/dev/null || true
 	sqlite3 "$db" "ALTER TABLE invite_codes ADD COLUMN credit_account TEXT;" 2>/dev/null || true
+	# Make `account` nullable so user-owned codes (owner_user IS NOT NULL)
+	# don't require a legacy account FK.  SQLite can't ALTER COLUMN, so
+	# we recreate the table only when the column is still NOT NULL.
+	local acct_notnull
+	acct_notnull=$(sqlite3 "$db" \
+		"SELECT [notnull] FROM pragma_table_info('invite_codes') WHERE name='account';" 2>/dev/null)
+	if [ "$acct_notnull" = "1" ]; then
+		sqlite3 "$db" "PRAGMA foreign_keys=OFF;
+BEGIN;
+CREATE TABLE invite_codes_new (
+	code           TEXT PRIMARY KEY,
+	account        TEXT REFERENCES accounts(name) ON DELETE CASCADE,
+	created_at     INTEGER NOT NULL,
+	uses           INTEGER NOT NULL DEFAULT 0,
+	owner_user     TEXT,
+	credit_account TEXT
+);
+INSERT INTO invite_codes_new SELECT code, account, created_at, uses,
+	owner_user, credit_account FROM invite_codes;
+DROP TABLE invite_codes;
+ALTER TABLE invite_codes_new RENAME TO invite_codes;
+COMMIT;
+PRAGMA foreign_keys=ON;" 2>/dev/null || true
+	fi
 
 	# Cap enforcement: walk up the referrer_user chain.
 	local current_uid="$user_id"
