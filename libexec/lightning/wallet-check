@@ -1,0 +1,54 @@
+#!/bin/bash
+# lightning wallet-check   (FEAT-276)
+#
+# Runs SQLite PRAGMA integrity_check on the active wallet database.
+# Also verifies expected tables exist and reports row counts.
+# Output: {ok:true, tables:{...}} or {ok:false, errors:[...]}
+
+set -e
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+
+if [ ! -f "$db" ]; then
+    echo '{"ok":false,"errors":["database_not_found"]}'
+    exit 1
+fi
+
+python3 -c "
+import sys, json, sqlite3
+
+db_path = sys.argv[1]
+errors = []
+
+conn = sqlite3.connect(db_path)
+
+# PRAGMA integrity_check
+rows = conn.execute('PRAGMA integrity_check').fetchall()
+if rows and rows[0][0] != 'ok':
+    errors += [r[0] for r in rows]
+
+# Required tables
+required = ['accounts', 'ledger']
+existing = {r[0] for r in conn.execute(
+    \"SELECT name FROM sqlite_master WHERE type='table'\")}
+missing = [t for t in required if t not in existing]
+if missing:
+    errors += ['missing_table:' + t for t in missing]
+
+if errors:
+    print(json.dumps({'ok': False, 'errors': errors}))
+    sys.exit(1)
+
+# Row counts for present tables
+counts = {}
+for tbl in sorted(existing):
+    try:
+        n = conn.execute(f'SELECT COUNT(*) FROM \"{tbl}\"').fetchone()[0]
+        counts[tbl] = n
+    except Exception:
+        pass
+
+print(json.dumps({'ok': True, 'tables': counts}))
+" "$db"

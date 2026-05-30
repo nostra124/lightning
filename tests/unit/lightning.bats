@@ -8880,3 +8880,29 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-275: wallet-backup man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup.1" ]
 }
+
+# FEAT-276 — wallet-check verb
+
+@test "FEAT-276: wallet-check verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-check" ]
+}
+
+@test "FEAT-276: wallet-check reports database_not_found without wallet" {
+	out=$(LIGHTNING_WALLETS_ROOT=/tmp/no-such-wallet-276 "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-check" 2>/dev/null) || true
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False"
+}
+
+@test "FEAT-276: wallet-check reports ok on a valid database" {
+	tmpdir=$(mktemp -d)
+	mkdir -p "$tmpdir/default"
+	sqlite3 "$tmpdir/default/state.db" \
+		"CREATE TABLE accounts (id INTEGER); CREATE TABLE ledger (id INTEGER);"
+	out=$(LIGHTNING_WALLETS_ROOT="$tmpdir" \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-check" 2>/dev/null)
+	rm -rf "$tmpdir"
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is True"
+}
+
+@test "FEAT-276: wallet-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-check.1" ]
+}
