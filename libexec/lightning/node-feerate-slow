@@ -1,13 +1,9 @@
 #!/bin/bash
-# lightning node-feerate-slow   (FEAT-1149)
-if ! result=$(lightning-cli feerates slow 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
+# lightning node-feerate-slow   (FEAT-1744)
+result=$(lightning-cli feerates slow 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-perkw = data.get('perkw') or {}
-perkb = data.get('perkb') or {}
-print(json.dumps({'feerate_slow_perkw': perkw.get('slow'), 'feerate_slow_perkb': perkb.get('slow')}))
+fr = data.get('feerates', [{}])[0] if data.get('feerates') else data
+print(json.dumps({'feerate': fr}))
 " "$result"

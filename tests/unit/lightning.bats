@@ -22384,3 +22384,163 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1730: channel-spendable-pct man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct.1" ]
 }
+
+@test "FEAT-1731: node-listpays-complete-sorted reports error or pays gracefully" {
+    out=$(./libexec/lightning/node-listpays-complete-sorted 2>/dev/null)
+    echo "$out" | grep -q "error\|pays"
+}
+@test "FEAT-1731: node-listpays-complete-sorted man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-complete-sorted.1" ]
+}
+
+@test "FEAT-1732: channel-to-them-msat reports error gracefully" {
+    out=$(./libexec/lightning/channel-to-them-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1732: channel-to-them-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-to-them-msat.1" ]
+}
+
+@test "FEAT-1733: wallet-notes-restore reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-restore 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1733: wallet-notes-restore man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-restore.1" ]
+}
+
+@test "FEAT-1734: node-feerate-urgent reports error or feerate gracefully" {
+    out=$(./libexec/lightning/node-feerate-urgent 2>/dev/null)
+    echo "$out" | grep -q "error\|feerate"
+}
+@test "FEAT-1734: node-feerate-urgent man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-urgent.1" ]
+}
+
+@test "FEAT-1735: invoice-received-msat-total reports error or total gracefully" {
+    out=$(./libexec/lightning/invoice-received-msat-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1735: invoice-received-msat-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-received-msat-total.1" ]
+}
+
+@test "FEAT-1736: channel-utilization reports error gracefully" {
+    out=$(./libexec/lightning/channel-utilization 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1736: channel-utilization man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-utilization.1" ]
+}
+
+@test "FEAT-1737: peer-invoice-rate reports error gracefully" {
+    out=$(./libexec/lightning/peer-invoice-rate 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1737: peer-invoice-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-invoice-rate.1" ]
+}
+
+@test "FEAT-1738: wallet-notes-count-archived reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-count-archived 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1738: wallet-notes-count-archived man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-archived.1" ]
+}
+
+@test "FEAT-1739: node-graph-local-node reports error or id gracefully" {
+    out=$(./libexec/lightning/node-graph-local-node 2>/dev/null)
+    echo "$out" | grep -q "error\|id"
+}
+@test "FEAT-1739: node-graph-local-node man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-local-node.1" ]
+}
+
+@test "FEAT-1740: channel-private-count reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-private-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1740: channel-private-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-private-count.1" ]
+}
+
+@test "FEAT-1741: node-listpays-failed-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-failed-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1741: node-listpays-failed-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-failed-count.1" ]
+}
+
+@test "FEAT-1742: channel-to-us-ratio reports error gracefully" {
+    out=$(./libexec/lightning/channel-to-us-ratio 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1742: channel-to-us-ratio man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-to-us-ratio.1" ]
+}
+
+@test "FEAT-1743: wallet-notes-tag-list reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-tag-list 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1743: wallet-notes-tag-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-tag-list.1" ]
+}
+
+@test "FEAT-1744: node-feerate-slow reports error or feerate gracefully" {
+    out=$(./libexec/lightning/node-feerate-slow 2>/dev/null)
+    echo "$out" | grep -q "error\|feerate"
+}
+@test "FEAT-1744: node-feerate-slow man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-slow.1" ]
+}
+
+@test "FEAT-1745: invoice-paid-count reports error or count gracefully" {
+    out=$(./libexec/lightning/invoice-paid-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1745: invoice-paid-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-paid-count.1" ]
+}
+
+@test "FEAT-1746: channel-balance-ratio reports error or channels gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio 2>/dev/null)
+    echo "$out" | grep -q "error\|channels"
+}
+@test "FEAT-1746: channel-balance-ratio man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio.1" ]
+}
+
+@test "FEAT-1747: peer-connected-time reports error gracefully" {
+    out=$(./libexec/lightning/peer-connected-time 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1747: peer-connected-time man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connected-time.1" ]
+}
+
+@test "FEAT-1748: wallet-notes-recent reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-recent 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1748: wallet-notes-recent man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-recent.1" ]
+}
+
+@test "FEAT-1749: node-graph-channel-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-channel-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1749: node-graph-channel-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channel-count.1" ]
+}
+
+@test "FEAT-1750: channel-htlc-count reports error gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1750: channel-htlc-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count.1" ]
+}

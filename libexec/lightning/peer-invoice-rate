@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning peer-invoice-rate <peer_id>   (FEAT-1737)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: peer-invoice-rate <peer_id>"}'; exit 0
+fi
+peer_id="$1"
+result=$(lightning-cli listpeerchannels "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+in_count = sum(c.get('in_payments_offered', 0) for c in channels)
+out_count = sum(c.get('out_payments_offered', 0) for c in channels)
+print(json.dumps({'peer_id': sys.argv[2], 'in_payments_offered': in_count, 'out_payments_offered': out_count}))
+" "$result" "$peer_id"

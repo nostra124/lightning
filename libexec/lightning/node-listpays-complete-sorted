@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-listpays-complete-sorted   (FEAT-1731)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = sorted([p for p in data.get('pays', []) if p.get('status') == 'complete'], key=lambda p: p.get('created_at', 0), reverse=True)
+print(json.dumps({'count': len(pays), 'recent': [p.get('payment_hash') for p in pays[:10]]}))
+" "$result"
