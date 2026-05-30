@@ -32011,3 +32011,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2960: node-listforwards-in-out-diff man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-out-diff.1" ]
 }
+
+@test "FEAT-2961: channel-htlc-value-min reports error or htlc_value_min_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_min_msat"
+}
+@test "FEAT-2961: channel-htlc-value-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-min.1" ]
+}
+
+@test "FEAT-2962: node-listforwards-fee-range reports error or fee_range_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_range_msat"
+}
+@test "FEAT-2962: node-listforwards-fee-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-range.1" ]
+}
+
+@test "FEAT-2963: channel-htlc-count-avg reports error or htlc_count_avg gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_avg"
+}
+@test "FEAT-2963: channel-htlc-count-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-avg.1" ]
+}
+
+@test "FEAT-2964: peer-htlc-value-total reports error or htlc_value_total_msat gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_total_msat"
+}
+@test "FEAT-2964: peer-htlc-value-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-total.1" ]
+}
+
+@test "FEAT-2965: channel-htlc-count-max reports error or htlc_count_max gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_max"
+}
+@test "FEAT-2965: channel-htlc-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-max.1" ]
+}
+
+@test "FEAT-2966: node-listforwards-fee-variance reports error or fee_variance_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_variance_msat"
+}
+@test "FEAT-2966: node-listforwards-fee-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-variance.1" ]
+}
+
+@test "FEAT-2967: channel-htlc-count-min reports error or htlc_count_min gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_min"
+}
+@test "FEAT-2967: channel-htlc-count-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-min.1" ]
+}
+
+@test "FEAT-2968: peer-htlc-value-avg reports error or htlc_value_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_avg_msat"
+}
+@test "FEAT-2968: peer-htlc-value-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-avg.1" ]
+}
+
+@test "FEAT-2969: channel-both-balances-stddev reports error or both_balances_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_stddev_msat"
+}
+@test "FEAT-2969: channel-both-balances-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-stddev.1" ]
+}
+
+@test "FEAT-2970: node-listforwards-in-msat-stddev reports error or in_msat_stddev gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_stddev"
+}
+@test "FEAT-2970: node-listforwards-in-msat-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-stddev.1" ]
+}
