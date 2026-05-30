@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning node-graph-top-capacity   (FEAT-2054)
+result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+seen = set()
+unique = []
+for c in channels:
+    k = c.get('short_channel_id')
+    if k and k not in seen:
+        seen.add(k)
+        unique.append({'short_channel_id': k, 'satoshis': c.get('satoshis', 0), 'source': c.get('source'), 'destination': c.get('destination')})
+top5 = sorted(unique, key=lambda x: x['satoshis'], reverse=True)[:5]
+print(json.dumps({'top_capacity': top5}))
+" "$result"

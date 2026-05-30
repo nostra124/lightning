@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning channel-initiator   (FEAT-2060)
+# lightning channel-short-channel-id   (FEAT-2055)
 CHANNEL_ID=${1:-}
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
@@ -11,6 +11,6 @@ out = []
 for c in channels:
     if channel_id and c.get('channel_id') != channel_id:
         continue
-    out.append({'channel_id': c.get('channel_id'), 'short_channel_id': c.get('short_channel_id'), 'opener': c.get('opener'), 'peer_id': c.get('peer_id')})
+    out.append({'channel_id': c.get('channel_id'), 'short_channel_id': c.get('short_channel_id')})
 print(json.dumps({'channels': out}))
 " "$result" "$CHANNEL_ID"

@@ -1,14 +1,18 @@
 #!/bin/bash
-# lightning peer-total-sent-msat <peer_id>   (FEAT-1647)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: peer-total-sent-msat <peer_id>"}'; exit 0
-fi
-peer_id="$1"
-result=$(lightning-cli listpeerchannels "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+# lightning peer-total-sent-msat   (FEAT-2056)
+PEER_ID=${1:-}
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
+peer_id = sys.argv[2] if len(sys.argv) > 2 else ''
 data = json.loads(sys.argv[1])
 channels = data.get('channels', [])
-total = sum(c.get('out_payments_fulfilled_msat', 0) for c in channels)
-print(json.dumps({'peer_id': sys.argv[2], 'total_sent_msat': total}))
-" "$result" "$peer_id"
+total = 0
+count = 0
+for c in channels:
+    if peer_id and c.get('peer_id') != peer_id:
+        continue
+    total += int(c.get('out_payments_fulfilled', 0))
+    count += 1
+print(json.dumps({'peer_id': peer_id or 'all', 'total_sent_msat': total, 'channel_count': count}))
+" "$result" "$PEER_ID"
