@@ -1,13 +1,10 @@
 #!/bin/bash
-# lightning channel-receivable-max   (FEAT-2282)
+# lightning channel-our-reserve-total   (FEAT-2290)
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
 channels = data.get('channels', [])
-if not channels:
-    print(json.dumps({'channel': None}))
-    sys.exit(0)
-best = max(channels, key=lambda c: c.get('remote_msat', 0))
-print(json.dumps({'channel': best}))
+total = sum(c.get('our_reserve_msat', 0) for c in channels)
+print(json.dumps({'our_reserve_total_msat': total}))
 " "$result"
