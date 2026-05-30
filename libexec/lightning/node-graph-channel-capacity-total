@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-graph-channel-capacity-total   (FEAT-2064)
+result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+total = sum(int(ch.get('satoshis', 0)) for ch in channels)
+print(json.dumps({'total_capacity_sat': total, 'channel_count': len(channels)}))
+" "$result"

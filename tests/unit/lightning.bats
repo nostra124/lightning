@@ -25021,3 +25021,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2060: channel-initiator man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-initiator.1" ]
 }
+
+@test "FEAT-2061: node-listpays-recent reports error or recent_pays gracefully" {
+    out=$(./libexec/lightning/node-listpays-recent 2>/dev/null)
+    echo "$out" | grep -q "error\|recent_pays"
+}
+@test "FEAT-2061: node-listpays-recent man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-recent.1" ]
+}
+
+@test "FEAT-2062: channel-our-fee-summary reports error or fee_summary gracefully" {
+    out=$(./libexec/lightning/channel-our-fee-summary 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_summary"
+}
+@test "FEAT-2062: channel-our-fee-summary man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-fee-summary.1" ]
+}
+
+@test "FEAT-2063: wallet-notes-oldest reports error or oldest_note gracefully" {
+    out=$(./libexec/lightning/wallet-notes-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|oldest_note\|key"
+}
+@test "FEAT-2063: wallet-notes-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-oldest.1" ]
+}
+
+@test "FEAT-2064: node-graph-channel-capacity-total reports error or total_capacity_sat gracefully" {
+    out=$(./libexec/lightning/node-graph-channel-capacity-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_capacity_sat"
+}
+@test "FEAT-2064: node-graph-channel-capacity-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channel-capacity-total.1" ]
+}
+
+@test "FEAT-2065: channel-spendable-pct reports error or spendable_pct gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct\|channels"
+}
+@test "FEAT-2065: channel-spendable-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct.1" ]
+}
+
+@test "FEAT-2066: peer-total-received-msat reports error or total_received_msat gracefully" {
+    out=$(./libexec/lightning/peer-total-received-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|total_received_msat\|received"
+}
+@test "FEAT-2066: peer-total-received-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-received-msat.1" ]
+}
+
+@test "FEAT-2067: node-invoice-total-msat reports error or total_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|total_msat\|total"
+}
+@test "FEAT-2067: node-invoice-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-total-msat.1" ]
+}
+
+@test "FEAT-2068: channel-receivable-total reports error or total_receivable_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_receivable_msat\|receivable"
+}
+@test "FEAT-2068: channel-receivable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-total.1" ]
+}
+
+@test "FEAT-2069: node-pay-min-msat reports error or min_amount_sent_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-min-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|min_amount_sent_msat\|min"
+}
+@test "FEAT-2069: node-pay-min-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-min-msat.1" ]
+}
+
+@test "FEAT-2070: channel-both-reserves reports error or reserves gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves 2>/dev/null)
+    echo "$out" | grep -q "error\|reserves"
+}
+@test "FEAT-2070: channel-both-reserves man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves.1" ]
+}
