@@ -32571,3 +32571,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3030: channel-reserve-local-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-local-avg.1" ]
 }
+
+@test "FEAT-3031: channel-reserve-remote-avg reports error or reserve_remote_avg gracefully" {
+    out=$(./libexec/lightning/channel-reserve-remote-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_remote_avg"
+}
+@test "FEAT-3031: channel-reserve-remote-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-remote-avg.1" ]
+}
+
+@test "FEAT-3032: node-listforwards-fail-rate-day reports error or fail_rate_day gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fail-rate-day 2>/dev/null)
+    echo "$out" | grep -q "error\|fail_rate_day"
+}
+@test "FEAT-3032: node-listforwards-fail-rate-day man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fail-rate-day.1" ]
+}
+
+@test "FEAT-3033: peer-htlc-count-max reports error or htlc_count_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_max_peer"
+}
+@test "FEAT-3033: peer-htlc-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-max.1" ]
+}
+
+@test "FEAT-3034: channel-reserve-local-min reports error or reserve_local_min gracefully" {
+    out=$(./libexec/lightning/channel-reserve-local-min 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_local_min"
+}
+@test "FEAT-3034: channel-reserve-local-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-local-min.1" ]
+}
+
+@test "FEAT-3035: node-listforwards-fail-rate-week reports error or fail_rate_week gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fail-rate-week 2>/dev/null)
+    echo "$out" | grep -q "error\|fail_rate_week"
+}
+@test "FEAT-3035: node-listforwards-fail-rate-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fail-rate-week.1" ]
+}
+
+@test "FEAT-3036: peer-htlc-count-min reports error or htlc_count_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_min_peer"
+}
+@test "FEAT-3036: peer-htlc-count-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-min.1" ]
+}
+
+@test "FEAT-3037: channel-reserve-local-max reports error or reserve_local_max gracefully" {
+    out=$(./libexec/lightning/channel-reserve-local-max 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_local_max"
+}
+@test "FEAT-3037: channel-reserve-local-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-local-max.1" ]
+}
+
+@test "FEAT-3038: node-listforwards-fail-rate-month reports error or fail_rate_month gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fail-rate-month 2>/dev/null)
+    echo "$out" | grep -q "error\|fail_rate_month"
+}
+@test "FEAT-3038: node-listforwards-fail-rate-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fail-rate-month.1" ]
+}
+
+@test "FEAT-3039: peer-htlc-count-avg reports error or htlc_count_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_avg_peer"
+}
+@test "FEAT-3039: peer-htlc-count-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-avg.1" ]
+}
+
+@test "FEAT-3040: channel-reserve-remote-min reports error or reserve_remote_min gracefully" {
+    out=$(./libexec/lightning/channel-reserve-remote-min 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_remote_min"
+}
+@test "FEAT-3040: channel-reserve-remote-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-remote-min.1" ]
+}
