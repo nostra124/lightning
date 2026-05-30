@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-htlc-timeout   (FEAT-551)
+if ! result=$(lightning-cli listconfigs 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+configs = data.get('configs', {})
+timeout = configs.get('max-htlc-expiry', {}).get('value_int', None)
+print(json.dumps({'max_htlc_expiry': timeout}))
+" "$result"

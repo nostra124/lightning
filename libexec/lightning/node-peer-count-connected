@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-peer-count-connected   (FEAT-554)
+if ! result=$(lightning-cli listpeers 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+peers = data.get('peers', [])
+connected = sum(1 for p in peers if p.get('connected'))
+print(json.dumps({'total': len(peers), 'connected': connected, 'disconnected': len(peers) - connected}))
+" "$result"

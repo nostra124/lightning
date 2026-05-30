@@ -12964,3 +12964,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-550: invoice-list-recent man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-recent.1" ]
 }
+
+@test "FEAT-551: node-htlc-timeout reports error or max_htlc_expiry gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-timeout" 2>/dev/null)
+	echo "$out" | grep -q "error\|max_htlc_expiry"
+}
+
+@test "FEAT-551: node-htlc-timeout man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-timeout.1" ]
+}
+
+@test "FEAT-552: channel-balance-ratio requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-balance-ratio" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-552: channel-balance-ratio man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio.1" ]
+}
+
+@test "FEAT-553: wallet-label requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-label" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-553: wallet-label man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-label.1" ]
+}
+
+@test "FEAT-554: node-peer-count-connected reports error or connected gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-count-connected" 2>/dev/null)
+	echo "$out" | grep -q "error\|connected"
+}
+
+@test "FEAT-554: node-peer-count-connected man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-count-connected.1" ]
+}
+
+@test "FEAT-555: invoice-paid-at requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-paid-at" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-555: invoice-paid-at man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-paid-at.1" ]
+}
+
+@test "FEAT-556: channel-type requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-type" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-556: channel-type man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-type.1" ]
+}
+
+@test "FEAT-557: node-check-route requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-check-route" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-557: node-check-route man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-check-route.1" ]
+}
+
+@test "FEAT-558: wallet-balance requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-balance" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-558: wallet-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance.1" ]
+}
+
+@test "FEAT-559: node-max-channel-size reports error or max_channel_size gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-max-channel-size" 2>/dev/null)
+	echo "$out" | grep -q "error\|max_channel_size"
+}
+
+@test "FEAT-559: node-max-channel-size man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-max-channel-size.1" ]
+}
+
+@test "FEAT-560: invoice-webhook-list reports error or paid_invoices gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-webhook-list" 2>/dev/null)
+	echo "$out" | grep -q "error\|paid_invoices"
+}
+
+@test "FEAT-560: invoice-webhook-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-webhook-list.1" ]
+}

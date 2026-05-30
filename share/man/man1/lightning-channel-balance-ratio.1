@@ -1,21 +1,15 @@
-.TH "LIGHTNING-CHANNEL-BALANCE-RATIO" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-CHANNEL_BALANCE_RATIO" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-channel-balance-ratio \- show local/total balance ratio per channel
+lightning-channel-balance-ratio \- show local-to-total balance ratio for a channel
 .SH SYNOPSIS
 .B lightning channel-balance-ratio
-.RI [ channel_id ]
 .SH DESCRIPTION
-Returns the ratio of local balance to total capacity for each channel.
-A ratio near 0.5 indicates good balance.
+Show local-to-total balance ratio for a channel.
 .PP
-Output:
-.nf
-[{channel_id, to_us_msat, total_msat, balance_ratio}]
-.fi
+Output: JSON object or array from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-channel-remote-balance (1),
-.BR lightning-channel-rebalance-report (1)
+.BR lightning(1)
