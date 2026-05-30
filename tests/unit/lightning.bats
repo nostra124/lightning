@@ -9021,3 +9021,31 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-284: Apache conf has ScriptAlias for /v1/health" {
 	grep -q "v1/health" share/lightning/apache/lnurlp.conf
 }
+
+# FEAT-285 — wallet-prune verb
+
+@test "FEAT-285: wallet-prune verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-prune" ]
+}
+
+@test "FEAT-285: wallet-prune returns zero counts without wallet" {
+	out=$(LIGHTNING_WALLETS_ROOT=/tmp/no-wallet-285 \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-prune" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('pruned_accounts',0)==0"
+}
+
+@test "FEAT-285: wallet-prune --dry-run reports would_prune keys" {
+	tmpdir=$(mktemp -d); mkdir -p "$tmpdir/default"
+	sqlite3 "$tmpdir/default/state.db" \
+		"CREATE TABLE accounts (address TEXT, description TEXT, balance_msat INTEGER, created_at TEXT, closed_at TEXT);
+		 CREATE TABLE ledger (id INTEGER, account TEXT);
+		 INSERT INTO accounts VALUES('bc1qtest','test',0,'2020-01-01','2020-01-02');"
+	out=$(LIGHTNING_WALLETS_ROOT="$tmpdir" \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-prune" --dry-run 2>/dev/null)
+	rm -rf "$tmpdir"
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'would_prune_accounts' in d"
+}
+
+@test "FEAT-285: wallet-prune man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-prune.1" ]
+}

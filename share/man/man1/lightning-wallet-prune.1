@@ -1,0 +1,42 @@
+.TH "LIGHTNING-WALLET-PRUNE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-prune \- remove old closed accounts from the wallet
+.SH SYNOPSIS
+.B lightning wallet-prune
+.RB [ --days
+.IR N ]
+.RB [ --dry-run ]
+.SH DESCRIPTION
+Deletes closed accounts — and their associated ledger entries — that
+have been closed for more than
+.I N
+days (default 90).  Only accounts with a
+.B closed_at
+timestamp are eligible; open accounts are never touched.
+.PP
+With
+.B --dry-run
+the command reports what would be removed without modifying the database.
+.PP
+Output:
+.nf
+{"pruned_accounts":N,"pruned_ledger_rows":N}
+.fi
+or with
+.BR --dry-run :
+.nf
+{"would_prune_accounts":N,"would_prune_ledger_rows":N,"dry_run":true}
+.fi
+.TP
+.B --days N
+Age threshold in days (default 90).
+.TP
+.B --dry-run
+Report only; do not modify the database.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-check (1),
+.BR lightning-wallet-backup (1)
