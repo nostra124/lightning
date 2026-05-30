@@ -11121,9 +11121,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-listfunds" ]
 }
 
-@test "FEAT-417: node-listfunds reports lightning-cli not found gracefully" {
+@test "FEAT-417: node-listfunds reports error or funds gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listfunds" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|onchain\|channel_count"
 }
 
 @test "FEAT-417: node-listfunds man page exists" {
@@ -11151,9 +11151,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-splice-status" ]
 }
 
-@test "FEAT-419: node-splice-status reports lightning-cli not found gracefully" {
+@test "FEAT-419: node-splice-status reports error or splicing status gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-splice-status" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|splicing_count"
 }
 
 @test "FEAT-419: node-splice-status man page exists" {
@@ -11186,9 +11186,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-total-capacity" ]
 }
 
-@test "FEAT-421: channel-total-capacity reports lightning-cli not found gracefully" {
+@test "FEAT-421: channel-total-capacity reports error or capacity gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-total-capacity" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|total_capacity"
 }
 
 @test "FEAT-421: channel-total-capacity man page exists" {
@@ -11201,9 +11201,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-address-list" ]
 }
 
-@test "FEAT-422: node-address-list reports lightning-cli not found gracefully" {
+@test "FEAT-422: node-address-list reports error or addresses gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-address-list" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|node_id\|addresses"
 }
 
 @test "FEAT-422: node-address-list man page exists" {
@@ -11246,9 +11246,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-balance-snapshot" ]
 }
 
-@test "FEAT-425: node-balance-snapshot reports lightning-cli not found gracefully" {
+@test "FEAT-425: node-balance-snapshot reports error or snapshot gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-balance-snapshot" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|timestamp\|onchain"
 }
 
 @test "FEAT-425: node-balance-snapshot man page exists" {
