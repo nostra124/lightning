@@ -34171,3 +34171,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3230: channel-htlc-count-skewness man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-skewness.1" ]
 }
+
+@test "FEAT-3231: node-pay-fee-kurtosis-weekly reports error or fee_kurtosis_weekly_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_kurtosis_weekly_pay"
+}
+@test "FEAT-3231: node-pay-fee-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-3232: peer-fee-base-range reports error or fee_base_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_range_peer"
+}
+@test "FEAT-3232: peer-fee-base-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-range.1" ]
+}
+
+@test "FEAT-3233: channel-htlc-count-stddev-weekly reports error or htlc_count_stddev_weekly gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-stddev-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_stddev_weekly"
+}
+@test "FEAT-3233: channel-htlc-count-stddev-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-stddev-weekly.1" ]
+}
+
+@test "FEAT-3234: node-invoice-pending-amount-avg reports error or pending_amount_avg gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_amount_avg"
+}
+@test "FEAT-3234: node-invoice-pending-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-amount-avg.1" ]
+}
+
+@test "FEAT-3235: peer-capacity-kurtosis reports error or capacity_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_kurtosis_peer"
+}
+@test "FEAT-3235: peer-capacity-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-kurtosis.1" ]
+}
+
+@test "FEAT-3236: channel-fee-base-range-weekly reports error or fee_base_range_weekly gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-range-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_range_weekly"
+}
+@test "FEAT-3236: channel-fee-base-range-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-range-weekly.1" ]
+}
+
+@test "FEAT-3237: node-invoice-pending-amount-max reports error or pending_amount_max gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_amount_max"
+}
+@test "FEAT-3237: node-invoice-pending-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-amount-max.1" ]
+}
+
+@test "FEAT-3238: peer-capacity-skewness reports error or capacity_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_skewness_peer"
+}
+@test "FEAT-3238: peer-capacity-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-skewness.1" ]
+}
+
+@test "FEAT-3239: channel-fee-ppm-range-weekly reports error or fee_ppm_range_weekly gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-range-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_range_weekly"
+}
+@test "FEAT-3239: channel-fee-ppm-range-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-range-weekly.1" ]
+}
+
+@test "FEAT-3240: node-invoice-pending-amount-min reports error or pending_amount_min gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_amount_min"
+}
+@test "FEAT-3240: node-invoice-pending-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-amount-min.1" ]
+}
