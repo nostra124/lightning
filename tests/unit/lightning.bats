@@ -30381,3 +30381,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2750: channel-remote-balance-stddev man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-stddev.1" ]
 }
+@test "FEAT-2751: node-listforwards-fee-max reports error or max_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_fee_msat"
+}
+@test "FEAT-2751: node-listforwards-fee-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-max.1" ]
+}
+@test "FEAT-2752: channel-htlc-density-avg reports error or htlc_density_avg gracefully" {
+    out=$(./libexec/lightning/channel-htlc-density-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_density_avg"
+}
+@test "FEAT-2752: channel-htlc-density-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-density-avg.1" ]
+}
+@test "FEAT-2753: peer-fee-earned-avg reports error or fee_earned_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_avg_msat"
+}
+@test "FEAT-2753: peer-fee-earned-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-avg.1" ]
+}
+@test "FEAT-2754: node-pay-fee-min reports error or min_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_fee_msat"
+}
+@test "FEAT-2754: node-pay-fee-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-min.1" ]
+}
+@test "FEAT-2755: channel-htlc-timeout-min reports error or htlc_cltv_expiry_min gracefully" {
+    out=$(./libexec/lightning/channel-htlc-timeout-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_cltv_expiry_min"
+}
+@test "FEAT-2755: channel-htlc-timeout-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout-min.1" ]
+}
+@test "FEAT-2756: node-invoice-paid-amount-min reports error or paid_amount_min_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_min_msat"
+}
+@test "FEAT-2756: node-invoice-paid-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-min.1" ]
+}
+@test "FEAT-2757: channel-fee-ppm-list reports error or fee_ppm_list gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-list 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_list"
+}
+@test "FEAT-2757: channel-fee-ppm-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-list.1" ]
+}
+@test "FEAT-2758: peer-htlc-value-avg reports error or htlc_value_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_avg_msat"
+}
+@test "FEAT-2758: peer-htlc-value-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-avg.1" ]
+}
+@test "FEAT-2759: node-listforwards-fee-range reports error or fee_range_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_range_msat"
+}
+@test "FEAT-2759: node-listforwards-fee-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-range.1" ]
+}
+@test "FEAT-2760: channel-spendable-pct-avg reports error or spendable_pct_avg gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_avg"
+}
+@test "FEAT-2760: channel-spendable-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-avg.1" ]
+}
