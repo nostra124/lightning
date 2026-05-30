@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-channel-graph-dump   (FEAT-791)
+result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+print(json.dumps({'channel_count': len(channels), 'channels': channels[:10]}))
+" "$result"

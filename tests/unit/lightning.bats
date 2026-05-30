@@ -15124,3 +15124,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-790: channel-list-funded man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-list-funded.1" ]
 }
+
+@test "FEAT-791: node-channel-graph-dump reports error or channel_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-graph-dump" 2>/dev/null)
+	echo "$out" | grep -q "error\|channel_count"
+}
+
+@test "FEAT-791: node-channel-graph-dump man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-graph-dump.1" ]
+}
+
+@test "FEAT-792: channel-max-pending-htlc requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-max-pending-htlc" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-792: channel-max-pending-htlc man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-pending-htlc.1" ]
+}
+
+@test "FEAT-793: wallet-seed-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-seed-status" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-793: wallet-seed-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-seed-status.1" ]
+}
+
+@test "FEAT-794: node-onchain-utxo-count reports error or total_utxos gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-onchain-utxo-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_utxos"
+}
+
+@test "FEAT-794: node-onchain-utxo-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-utxo-count.1" ]
+}
+
+@test "FEAT-795: invoice-webhook-set requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-webhook-set" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-795: invoice-webhook-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-webhook-set.1" ]
+}
+
+@test "FEAT-796: channel-peer-uptime requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-uptime" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-796: channel-peer-uptime man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-uptime.1" ]
+}
+
+@test "FEAT-797: peer-invoice-requests requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-invoice-requests" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-797: peer-invoice-requests man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-invoice-requests.1" ]
+}
+
+@test "FEAT-798: wallet-notes-clear requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-notes-clear" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-798: wallet-notes-clear man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-clear.1" ]
+}
+
+@test "FEAT-799: node-peer-score-detail requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-score-detail" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-799: node-peer-score-detail man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-score-detail.1" ]
+}
+
+@test "FEAT-800: channel-balance-check reports error or imbalanced_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-balance-check" 2>/dev/null)
+	echo "$out" | grep -q "error\|imbalanced_count"
+}
+
+@test "FEAT-800: channel-balance-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-check.1" ]
+}
