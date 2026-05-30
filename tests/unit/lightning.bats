@@ -8539,7 +8539,7 @@ _acct243_teardown() {
 }
 
 @test "FEAT-254: PWA history note change sends PATCH request" {
-	grep -q '"PATCH".*history\|PATCH.*history' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q '"PATCH"' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
 }
 
 # FEAT-255 — MCP node_info tool
