@@ -1,0 +1,36 @@
+#!/bin/bash
+# lightning channel-balance-entropy   (FEAT-2202)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+if not channels:
+    print(json.dumps({'error': 'no channels'}))
+    sys.exit(0)
+pcts = []
+for c in channels:
+    local = c.get('to_us_msat', 0)
+    total = c.get('total_msat', 0)
+    try:
+        local = int(str(local).replace('msat',''))
+        total = int(str(total).replace('msat',''))
+    except Exception:
+        continue
+    if total > 0:
+        pcts.append(local / total)
+if not pcts:
+    print(json.dumps({'error': 'no usable channels'}))
+    sys.exit(0)
+n = len(pcts)
+buckets = [0] * 10
+for p in pcts:
+    idx = min(int(p * 10), 9)
+    buckets[idx] += 1
+entropy = 0.0
+for b in buckets:
+    if b > 0:
+        prob = b / n
+        entropy -= prob * math.log2(prob)
+print(json.dumps({'balance_entropy_bits': round(entropy, 4), 'channel_count': n}))
+" "$result"

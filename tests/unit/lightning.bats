@@ -26141,3 +26141,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2200: channel-remote-balance-smallest man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-smallest.1" ]
 }
+
+@test "FEAT-2201: node-listpays-complete-fee-min reports error or min_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-listpays-complete-fee-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_fee_msat"
+}
+@test "FEAT-2201: node-listpays-complete-fee-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-complete-fee-min.1" ]
+}
+
+@test "FEAT-2202: channel-balance-entropy reports error or balance_entropy_bits gracefully" {
+    out=$(./libexec/lightning/channel-balance-entropy 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_entropy_bits"
+}
+@test "FEAT-2202: channel-balance-entropy man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-entropy.1" ]
+}
+
+@test "FEAT-2203: wallet-notes-merge reports error or note_count gracefully" {
+    out=$(./libexec/lightning/wallet-notes-merge 2>/dev/null)
+    echo "$out" | grep -q "error\|note_count"
+}
+@test "FEAT-2203: wallet-notes-merge man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-merge.1" ]
+}
+
+@test "FEAT-2204: node-graph-betweenness reports error or top_node gracefully" {
+    out=$(./libexec/lightning/node-graph-betweenness 2>/dev/null)
+    echo "$out" | grep -q "error\|top_node"
+}
+@test "FEAT-2204: node-graph-betweenness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-betweenness.1" ]
+}
+
+@test "FEAT-2205: channel-feerate-spread reports error or spread_ppm gracefully" {
+    out=$(./libexec/lightning/channel-feerate-spread 2>/dev/null)
+    echo "$out" | grep -q "error\|spread_ppm"
+}
+@test "FEAT-2205: channel-feerate-spread man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate-spread.1" ]
+}
+
+@test "FEAT-2206: peer-htlc-count-avg reports error or avg_htlcs_per_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_htlcs_per_peer"
+}
+@test "FEAT-2206: peer-htlc-count-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-avg.1" ]
+}
+
+@test "FEAT-2207: node-invoice-amount-median reports error or median_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_amount_msat"
+}
+@test "FEAT-2207: node-invoice-amount-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-median.1" ]
+}
+
+@test "FEAT-2208: channel-local-balance-pct-list reports error or channels gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-pct-list 2>/dev/null)
+    echo "$out" | grep -q "error\|channels"
+}
+@test "FEAT-2208: channel-local-balance-pct-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-pct-list.1" ]
+}
+
+@test "FEAT-2209: node-pay-complete-fee-max reports error or max_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-complete-fee-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_fee_msat"
+}
+@test "FEAT-2209: node-pay-complete-fee-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-complete-fee-max.1" ]
+}
+
+@test "FEAT-2210: channel-capacity-percentiles reports error or p25_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-percentiles 2>/dev/null)
+    echo "$out" | grep -q "error\|p25_msat"
+}
+@test "FEAT-2210: channel-capacity-percentiles man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-percentiles.1" ]
+}

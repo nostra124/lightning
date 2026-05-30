@@ -1,0 +1,25 @@
+#!/bin/bash
+# lightning node-invoice-amount-median   (FEAT-2207)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invoices = [i for i in data.get('invoices', []) if i.get('status') == 'paid']
+amounts = []
+for i in invoices:
+    amt = i.get('amount_received_msat', i.get('amount_msat', 0))
+    try:
+        amounts.append(int(str(amt).replace('msat','')))
+    except Exception:
+        pass
+if not amounts:
+    print(json.dumps({'error': 'no paid invoices'}))
+    sys.exit(0)
+amounts.sort()
+n = len(amounts)
+if n % 2 == 1:
+    median = amounts[n // 2]
+else:
+    median = (amounts[n // 2 - 1] + amounts[n // 2]) // 2
+print(json.dumps({'median_amount_msat': median, 'paid_invoice_count': n}))
+" "$result"
