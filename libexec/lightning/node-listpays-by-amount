@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning node-listpays-by-amount <min_msat>   (FEAT-1331)
+if [ $# -lt 1 ]; then echo '{"error":"usage: node-listpays-by-amount <min_msat>"}'; exit 0; fi
+min_msat="$1"
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+mn = int(sys.argv[2])
+pays = [p for p in data.get('pays', []) if p.get('amount_sent_msat', 0) >= mn]
+print(json.dumps({'count': len(pays), 'pays': pays}))
+" "$result" "$min_msat"

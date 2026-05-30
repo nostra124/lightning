@@ -19334,3 +19334,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1330: channel-opener man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener.1" ]
 }
+
+@test "FEAT-1331: node-listpays-by-amount requires arg" {
+    out=$(./libexec/lightning/node-listpays-by-amount 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1331: node-listpays-by-amount man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-by-amount.1" ]
+}
+
+@test "FEAT-1332: channel-our-reserve-msat requires arg" {
+    out=$(./libexec/lightning/channel-our-reserve-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1332: channel-our-reserve-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-msat.1" ]
+}
+
+@test "FEAT-1333: wallet-tag-count requires arg" {
+    out=$(./libexec/lightning/wallet-tag-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1333: wallet-tag-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-tag-count.1" ]
+}
+
+@test "FEAT-1334: node-listforwards-revenue reports error or settled_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-revenue 2>/dev/null)
+    echo "$out" | grep -q "error\|settled_count"
+}
+@test "FEAT-1334: node-listforwards-revenue man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-revenue.1" ]
+}
+
+@test "FEAT-1335: invoice-description requires arg" {
+    out=$(./libexec/lightning/invoice-description 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1335: invoice-description man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-description.1" ]
+}
+
+@test "FEAT-1336: channel-their-reserve-msat requires arg" {
+    out=$(./libexec/lightning/channel-their-reserve-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1336: channel-their-reserve-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-msat.1" ]
+}
+
+@test "FEAT-1337: peer-list-connected reports error or count gracefully" {
+    out=$(./libexec/lightning/peer-list-connected 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1337: peer-list-connected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-connected.1" ]
+}
+
+@test "FEAT-1338: wallet-notes-rename requires args" {
+    out=$(./libexec/lightning/wallet-notes-rename 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1338: wallet-notes-rename man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-rename.1" ]
+}
+
+@test "FEAT-1339: node-pay-median-msat reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-median-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1339: node-pay-median-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-median-msat.1" ]
+}
+
+@test "FEAT-1340: channel-min-htlc-msat requires arg" {
+    out=$(./libexec/lightning/channel-min-htlc-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1340: channel-min-htlc-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-htlc-msat.1" ]
+}
