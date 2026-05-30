@@ -20134,3 +20134,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1430: channel-state-summary man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state-summary.1" ]
 }
+
+@test "FEAT-1431: node-pay-destination-count reports error or unique_destination_count gracefully" {
+    out=$(./libexec/lightning/node-pay-destination-count 2>/dev/null)
+    echo "$out" | grep -q "error\|unique_destination_count"
+}
+@test "FEAT-1431: node-pay-destination-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-destination-count.1" ]
+}
+
+@test "FEAT-1432: channel-htlc-max-remote requires arg" {
+    out=$(./libexec/lightning/channel-htlc-max-remote 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1432: channel-htlc-max-remote man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-remote.1" ]
+}
+
+@test "FEAT-1433: wallet-notes-count-pinned requires arg" {
+    out=$(./libexec/lightning/wallet-notes-count-pinned 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1433: wallet-notes-count-pinned man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-pinned.1" ]
+}
+
+@test "FEAT-1434: node-onchain-total reports error or output_count gracefully" {
+    out=$(./libexec/lightning/node-onchain-total 2>/dev/null)
+    echo "$out" | grep -q "error\|output_count"
+}
+@test "FEAT-1434: node-onchain-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-total.1" ]
+}
+
+@test "FEAT-1435: invoice-created-index requires arg" {
+    out=$(./libexec/lightning/invoice-created-index 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1435: invoice-created-index man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-created-index.1" ]
+}
+
+@test "FEAT-1436: channel-remote-base-fee-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-remote-base-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1436: channel-remote-base-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-base-fee-total.1" ]
+}
+
+@test "FEAT-1437: peer-gossip-timestamp requires arg" {
+    out=$(./libexec/lightning/peer-gossip-timestamp 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1437: peer-gossip-timestamp man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-gossip-timestamp.1" ]
+}
+
+@test "FEAT-1438: wallet-notes-purge-old requires args" {
+    out=$(./libexec/lightning/wallet-notes-purge-old 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1438: wallet-notes-purge-old man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-purge-old.1" ]
+}
+
+@test "FEAT-1439: node-feerate-max reports error or feerate_max_perkw gracefully" {
+    out=$(./libexec/lightning/node-feerate-max 2>/dev/null)
+    echo "$out" | grep -q "error\|feerate_max_perkw"
+}
+@test "FEAT-1439: node-feerate-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-max.1" ]
+}
+
+@test "FEAT-1440: channel-short-channel-id-list reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-short-channel-id-list 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1440: channel-short-channel-id-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-short-channel-id-list.1" ]
+}

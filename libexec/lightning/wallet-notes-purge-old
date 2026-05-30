@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning wallet-notes-purge-old <wallet_name> <days>   (FEAT-1438)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-purge-old <wallet_name> <days>"}'; exit 0; fi
+wname="$1"; days="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+cutoff=$(python3 -c "import time; print(int(time.time()) - int('$days') * 86400)")
+python3 -c "
+import sys, sqlite3, json
+db = sys.argv[1]; cutoff = int(sys.argv[2]); wname = sys.argv[3]
+conn = sqlite3.connect(db)
+cur = conn.execute('DELETE FROM notes WHERE created_at < ? AND pinned != 1', (cutoff,))
+count = cur.rowcount; conn.commit(); conn.close()
+print(json.dumps({'wallet': wname, 'deleted': count}))
+" "$db" "$cutoff" "$wname" 2>/dev/null || echo '{"error":"db_error"}'
