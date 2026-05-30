@@ -30911,3 +30911,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2820: channel-fee-base-kurtosis man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-kurtosis.1" ]
 }
+
+@test "FEAT-2821: node-listforwards-in-msat-skewness reports error or in_msat_skewness gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_skewness"
+}
+@test "FEAT-2821: node-listforwards-in-msat-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-skewness.1" ]
+}
+
+@test "FEAT-2822: channel-capacity-stddev reports error or capacity_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_stddev_msat"
+}
+@test "FEAT-2822: channel-capacity-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-stddev.1" ]
+}
+
+@test "FEAT-2823: peer-fee-base-skewness reports error or fee_base_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_skewness_peer"
+}
+@test "FEAT-2823: peer-fee-base-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-skewness.1" ]
+}
+
+@test "FEAT-2824: node-pay-amount-kurtosis reports error or amount_kurtosis gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_kurtosis"
+}
+@test "FEAT-2824: node-pay-amount-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-kurtosis.1" ]
+}
+
+@test "FEAT-2825: channel-local-balance-stddev reports error or local_balance_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_stddev_msat"
+}
+@test "FEAT-2825: channel-local-balance-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-stddev.1" ]
+}
+
+@test "FEAT-2826: node-invoice-paid-amount-kurtosis reports error or paid_amount_kurtosis gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_kurtosis"
+}
+@test "FEAT-2826: node-invoice-paid-amount-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-kurtosis.1" ]
+}
+
+@test "FEAT-2827: channel-remote-balance-stddev reports error or remote_balance_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_stddev_msat"
+}
+@test "FEAT-2827: channel-remote-balance-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-stddev.1" ]
+}
+
+@test "FEAT-2828: peer-capacity-skewness reports error or capacity_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_skewness_peer"
+}
+@test "FEAT-2828: peer-capacity-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-skewness.1" ]
+}
+
+@test "FEAT-2829: node-listforwards-out-msat-skewness reports error or out_msat_skewness gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_skewness"
+}
+@test "FEAT-2829: node-listforwards-out-msat-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-skewness.1" ]
+}
+
+@test "FEAT-2830: channel-spendable-stddev reports error or spendable_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_stddev_msat"
+}
+@test "FEAT-2830: channel-spendable-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-stddev.1" ]
+}

@@ -1,0 +1,21 @@
+.TH "LIGHTNING-NODE-INVOICE-PAID-AMOUNT-KURTOSIS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-invoice-paid-amount-kurtosis \- FEAT-2826 node-invoice-paid-amount-kurtosis
+.SH SYNOPSIS
+.B lightning node-invoice-paid-amount-kurtosis
+.SH DESCRIPTION
+Computes excess kurtosis of paid invoice amounts (FEAT-2826).
+.PP
+Output: JSON from CLN.
+.TP
+.B paid_amount_kurtosis
+Excess kurtosis (Fisher definition, normal=0) of amount_received_msat from paid invoices.
+.TP
+.B n
+Number of data points used.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

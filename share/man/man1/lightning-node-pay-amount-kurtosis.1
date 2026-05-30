@@ -1,0 +1,21 @@
+.TH "LIGHTNING-NODE-PAY-AMOUNT-KURTOSIS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-pay-amount-kurtosis \- FEAT-2824 node-pay-amount-kurtosis
+.SH SYNOPSIS
+.B lightning node-pay-amount-kurtosis
+.SH DESCRIPTION
+Computes excess kurtosis of payment amounts for completed pays (FEAT-2824).
+.PP
+Output: JSON from CLN.
+.TP
+.B amount_kurtosis
+Excess kurtosis (Fisher definition, normal=0) of amount_msat from completed pays.
+.TP
+.B n
+Number of data points used.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)
