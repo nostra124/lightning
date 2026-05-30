@@ -1,17 +1,20 @@
 #!/bin/bash
-# lightning node-pay-status <payment_hash>   (FEAT-614)
+# lightning node-pay-status <payment_hash>   (FEAT-851)
 if [ $# -lt 1 ]; then
     echo '{"error":"usage: node-pay-status <payment_hash>"}'
     exit 0
 fi
-payment_hash="$1"
-result=$(lightning-cli listpays payment_hash="$payment_hash" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+phash="$1"
+if ! result=$(lightning-cli listpays "$phash" 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
 pays = data.get('pays', [])
 if pays:
-    print(json.dumps(pays[0]))
+    print(json.dumps({'payment_hash': sys.argv[2], 'status': pays[0].get('status')}))
 else:
     print(json.dumps({'error': 'payment not found'}))
-" "$result"
+" "$result" "$phash"

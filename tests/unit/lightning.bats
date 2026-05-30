@@ -15654,3 +15654,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-850: channel-final-status man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-final-status.1" ]
 }
+
+@test "FEAT-851: node-pay-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-pay-status" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-851: node-pay-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-status.1" ]
+}
+
+@test "FEAT-852: channel-peer-capacity requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-capacity" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-852: channel-peer-capacity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-capacity.1" ]
+}
+
+@test "FEAT-853: wallet-notes-count requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-notes-count" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-853: wallet-notes-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count.1" ]
+}
+
+@test "FEAT-854: node-invoice-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-status" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-854: node-invoice-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-status.1" ]
+}
+
+@test "FEAT-855: invoice-amount-paid requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-amount-paid" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-855: invoice-amount-paid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-amount-paid.1" ]
+}
+
+@test "FEAT-856: channel-cltv-delta requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-cltv-delta" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-856: channel-cltv-delta man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-cltv-delta.1" ]
+}
+
+@test "FEAT-857: peer-channels-active requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-channels-active" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-857: peer-channels-active man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channels-active.1" ]
+}
+
+@test "FEAT-858: wallet-passphrase-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-passphrase-check" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-858: wallet-passphrase-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-passphrase-check.1" ]
+}
+
+@test "FEAT-859: node-channel-count-by-state reports error or by_state gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-count-by-state" 2>/dev/null)
+	echo "$out" | grep -q "error\|by_state"
+}
+@test "FEAT-859: node-channel-count-by-state man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-count-by-state.1" ]
+}
+
+@test "FEAT-860: channel-reserve-remote requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-reserve-remote" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-860: channel-reserve-remote man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-remote.1" ]
+}
