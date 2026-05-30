@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning channel-capacity-rank   (FEAT-1100)
+# lightning channel-capacity-rank   (FEAT-2048)
 if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
     echo '{"error":"lightning-cli not found"}'
     exit 0

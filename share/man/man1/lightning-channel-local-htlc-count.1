@@ -1,0 +1,18 @@
+.TH "LIGHTNING-CHANNEL-LOCAL-HTLC-COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-local-htlc-count \- FEAT-2042 verb
+.SH SYNOPSIS
+.B lightning channel-local-htlc-count
+.SH DESCRIPTION
+channel-local-htlc-count for lightning CLI (FEAT-2042).
+.PP
+Counts the total number of local (outgoing) HTLCs across all peer channels
+by querying listpeerchannels.
+.PP
+Output: JSON from CLN.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning peer-fee-ppm-avg   (FEAT-2046)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+ppms = []
+for ch in channels:
+    ppm = ch.get('fee_per_millionth', ch.get('feerate', {}).get('ppm', None))
+    if ppm is not None:
+        ppms.append(int(ppm))
+avg = sum(ppms) // len(ppms) if ppms else 0
+print(json.dumps({'avg_fee_ppm': avg, 'channel_count': len(ppms)}))
+" "$result"

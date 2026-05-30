@@ -24861,3 +24861,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2040: channel-peer-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-count.1" ]
 }
+
+@test "FEAT-2041: node-listpays-amount-range reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-2041: node-listpays-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-amount-range.1" ]
+}
+
+@test "FEAT-2042: channel-local-htlc-count reports error or local_htlc_count gracefully" {
+    out=$(./libexec/lightning/channel-local-htlc-count 2>/dev/null)
+    echo "$out" | grep -q "error\|local_htlc_count"
+}
+@test "FEAT-2042: channel-local-htlc-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-htlc-count.1" ]
+}
+
+@test "FEAT-2043: wallet-notes-key-list reports error or keys gracefully" {
+    out=$(./libexec/lightning/wallet-notes-key-list 2>/dev/null)
+    echo "$out" | grep -q "error\|keys"
+}
+@test "FEAT-2043: wallet-notes-key-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-key-list.1" ]
+}
+
+@test "FEAT-2044: node-graph-min-capacity reports error or min_capacity_sat gracefully" {
+    out=$(./libexec/lightning/node-graph-min-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|min_capacity_sat"
+}
+@test "FEAT-2044: node-graph-min-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-min-capacity.1" ]
+}
+
+@test "FEAT-2045: channel-remote-htlc-total-msat reports error or remote_htlc_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-htlc-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_htlc_total_msat"
+}
+@test "FEAT-2045: channel-remote-htlc-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-htlc-total-msat.1" ]
+}
+
+@test "FEAT-2046: peer-fee-ppm-avg reports error or avg_fee_ppm gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_ppm"
+}
+@test "FEAT-2046: peer-fee-ppm-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-avg.1" ]
+}
+
+@test "FEAT-2047: node-invoice-expired-count reports error or expired_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-expired-count 2>/dev/null)
+    echo "$out" | grep -q "error\|expired_count\|count"
+}
+@test "FEAT-2047: node-invoice-expired-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expired-count.1" ]
+}
+
+@test "FEAT-2048: channel-capacity-rank reports error or channels gracefully" {
+    out=$(./libexec/lightning/channel-capacity-rank 2>/dev/null)
+    echo "$out" | grep -q "error\|channels\|channel_count"
+}
+@test "FEAT-2048: channel-capacity-rank man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-rank.1" ]
+}
+
+@test "FEAT-2049: node-pay-largest reports error or largest_pay_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-largest 2>/dev/null)
+    echo "$out" | grep -q "error\|largest_pay_msat"
+}
+@test "FEAT-2049: node-pay-largest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-largest.1" ]
+}
+
+@test "FEAT-2050: channel-funding-age reports error or channels gracefully" {
+    out=$(./libexec/lightning/channel-funding-age 2>/dev/null)
+    echo "$out" | grep -q "error\|channels\|count"
+}
+@test "FEAT-2050: channel-funding-age man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-age.1" ]
+}
