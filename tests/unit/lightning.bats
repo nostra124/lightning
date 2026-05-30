@@ -29761,3 +29761,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2670: channel-local-pct-stddev man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-stddev.1" ]
 }
+
+@test "FEAT-2671: node-listforwards-count-failed reports error or failed_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-failed 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_count"
+}
+@test "FEAT-2671: node-listforwards-count-failed man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-failed.1" ]
+}
+
+@test "FEAT-2672: channel-fee-base-stddev reports error or fee_base_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_stddev_msat"
+}
+@test "FEAT-2672: channel-fee-base-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-stddev.1" ]
+}
+
+@test "FEAT-2673: peer-spendable-max reports error or spendable_max_msat gracefully" {
+    out=$(./libexec/lightning/peer-spendable-max 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_max_msat"
+}
+@test "FEAT-2673: peer-spendable-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-max.1" ]
+}
+
+@test "FEAT-2674: node-pay-amount-stddev reports error or amount_stddev_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_stddev_msat"
+}
+@test "FEAT-2674: node-pay-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-stddev.1" ]
+}
+
+@test "FEAT-2675: channel-fee-ppm-range reports error or fee_ppm_range gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_range"
+}
+@test "FEAT-2675: channel-fee-ppm-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-range.1" ]
+}
+
+@test "FEAT-2676: node-listforwards-count-offered reports error or offered_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-offered 2>/dev/null)
+    echo "$out" | grep -q "error\|offered_count"
+}
+@test "FEAT-2676: node-listforwards-count-offered man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-offered.1" ]
+}
+
+@test "FEAT-2677: channel-fee-base-range reports error or fee_base_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_range_msat"
+}
+@test "FEAT-2677: channel-fee-base-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-range.1" ]
+}
+
+@test "FEAT-2678: peer-local-reserve-avg reports error or avg_local_reserve_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-reserve-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_local_reserve_msat"
+}
+@test "FEAT-2678: peer-local-reserve-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-reserve-avg.1" ]
+}
+
+@test "FEAT-2679: node-invoice-paid-newest reports error or paid_at gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_at"
+}
+@test "FEAT-2679: node-invoice-paid-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-newest.1" ]
+}
+
+@test "FEAT-2680: channel-capacity-stddev reports error or capacity_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_stddev_msat"
+}
+@test "FEAT-2680: channel-capacity-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-stddev.1" ]
+}
