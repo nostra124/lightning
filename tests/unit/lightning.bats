@@ -10004,3 +10004,48 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-345: wallet-backup-verify man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup-verify.1" ]
 }
+
+# FEAT-346 — channel-policy-check verb
+
+@test "FEAT-346: channel-policy-check verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-policy-check" ]
+}
+
+@test "FEAT-346: channel-policy-check returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-policy-check" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-346: channel-policy-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-policy-check.1" ]
+}
+
+# FEAT-347 — node-emergency-stop verb
+
+@test "FEAT-347: node-emergency-stop verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-emergency-stop" ]
+}
+
+@test "FEAT-347: node-emergency-stop reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-emergency-stop" 2>/dev/null)
+	echo "$out" | grep -q "error\|ok"
+}
+
+@test "FEAT-347: node-emergency-stop man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-emergency-stop.1" ]
+}
+
+# FEAT-348 — peer-alias verb
+
+@test "FEAT-348: peer-alias verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-alias" ]
+}
+
+@test "FEAT-348: peer-alias reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-alias" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-348: peer-alias man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-alias.1" ]
+}

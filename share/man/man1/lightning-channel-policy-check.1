@@ -1,0 +1,28 @@
+.TH "LIGHTNING-CHANNEL-POLICY-CHECK" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-policy-check \- flag unusual fee policies on channels
+.SH SYNOPSIS
+.B lightning channel-policy-check
+.SH DESCRIPTION
+Inspects the local fee policy on each
+.B CHANNELD_NORMAL
+channel and returns channels with unusual settings.
+Flags include
+.BR high_ppm ,
+.BR high_base_fee ,
+.BR high_htlc_min ,
+and
+.BR low_htlc_max .
+Returns an empty array if no issues are found or the daemon is unreachable.
+.PP
+Output:
+.nf
+[{channel_id, peer_id, flags:[...]}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-fee-policy (1),
+.BR lightning-channel-set-fee (1)

@@ -1,0 +1,29 @@
+#!/bin/bash
+# lightning channel-policy-check   (FEAT-346)
+set -e
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = [c for c in data.get('channels', []) if c.get('state') == 'CHANNELD_NORMAL']
+issues = []
+for c in channels:
+    upd = c.get('updates', {}).get('local', {})
+    ch_id = c.get('channel_id', '')
+    base = upd.get('fee_base_msat', 0)
+    ppm = upd.get('fee_proportional_millionths', 0)
+    htlc_min = upd.get('htlc_minimum_msat', 0)
+    htlc_max = upd.get('htlc_maximum_msat', 0)
+    flags = []
+    if ppm > 5000:
+        flags.append('high_ppm')
+    if base > 1000:
+        flags.append('high_base_fee')
+    if htlc_min > 1000000:
+        flags.append('high_htlc_min')
+    if htlc_max and htlc_max < 100000000:
+        flags.append('low_htlc_max')
+    issues.append({'channel_id': ch_id, 'peer_id': c.get('peer_id', ''), 'flags': flags})
+issues = [i for i in issues if i['flags']]
+print(json.dumps(issues, separators=(',', ':')))
+" "$result"

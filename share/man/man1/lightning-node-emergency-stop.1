@@ -1,0 +1,24 @@
+.TH "LIGHTNING-NODE-EMERGENCY-STOP" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-emergency-stop \- gracefully stop the Lightning daemon
+.SH SYNOPSIS
+.B lightning node-emergency-stop
+.SH DESCRIPTION
+Sends a
+.B stop
+command to the daemon via
+.BR lightning-cli .
+All channels will be left intact; the daemon performs a clean shutdown.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{"ok":true,"message":"daemon stopping"}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-health (1),
+.BR lightning-daemon (1)
