@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning channel-receivable-pct-avg   (FEAT-2780)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = []
+for ch in channels:
+    total = ch.get('total_msat', 0)
+    receivable = ch.get('receivable_msat', 0)
+    if isinstance(total, str): total = int(total.rstrip('msat'))
+    if isinstance(receivable, str): receivable = int(receivable.rstrip('msat'))
+    if total > 0:
+        vals.append(receivable / total * 100)
+if not vals:
+    print(json.dumps({'receivable_pct_avg': None}))
+else:
+    print(json.dumps({'receivable_pct_avg': round(sum(vals) / len(vals), 4)}))
+" "$result"

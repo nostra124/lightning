@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning node-listforwards-out-msat-stddev   (FEAT-2779)
+result=$(lightning-cli listforwards status=settled 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+vals = []
+for f in forwards:
+    v = f.get('out_msat', f.get('out_msatoshi'))
+    if v is not None:
+        if isinstance(v, str): v = int(v.rstrip('msat'))
+        vals.append(v)
+if not vals:
+    print(json.dumps({'out_msat_stddev': None}))
+else:
+    avg = sum(vals) / len(vals)
+    stddev = math.sqrt(sum((v - avg) ** 2 for v in vals) / len(vals))
+    print(json.dumps({'out_msat_stddev': round(stddev, 4)}))
+" "$result"
