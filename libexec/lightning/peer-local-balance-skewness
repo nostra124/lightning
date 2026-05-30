@@ -1,0 +1,27 @@
+#!/bin/bash
+# lightning peer-local-balance-skewness   (FEAT-2813)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+# aggregate local balance per peer
+from collections import defaultdict
+peer_bal = defaultdict(int)
+for c in channels:
+    pid = c.get('peer_id', '')
+    peer_bal[pid] += c.get('to_us_msat', 0)
+vals = list(peer_bal.values())
+if len(vals) < 3:
+    print(json.dumps({'local_balance_skewness_peer': None, 'count': len(vals)}))
+    sys.exit(0)
+n = len(vals)
+mean = sum(vals) / n
+var = sum((x - mean)**2 for x in vals) / n
+std = var**0.5
+if std == 0:
+    print(json.dumps({'local_balance_skewness_peer': None, 'count': n}))
+    sys.exit(0)
+skew = (sum(((x - mean)/std)**3 for x in vals) / n)
+print(json.dumps({'local_balance_skewness_peer': skew, 'count': n}))
+" "$result"
