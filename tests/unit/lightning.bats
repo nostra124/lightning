@@ -24461,3 +24461,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1990: channel-balance-pct man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-pct.1" ]
 }
+
+@test "FEAT-1991: node-listpays-complete-last reports error or pay gracefully" {
+    out=$(./libexec/lightning/node-listpays-complete-last 2>/dev/null)
+    echo "$out" | grep -q "error\|pay"
+}
+@test "FEAT-1991: node-listpays-complete-last man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-complete-last.1" ]
+}
+
+@test "FEAT-1992: channel-peer-alias requires arg" {
+    out=$(./libexec/lightning/channel-peer-alias 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1992: channel-peer-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-alias.1" ]
+}
+
+@test "FEAT-1993: wallet-notes-vacuum requires arg" {
+    out=$(./libexec/lightning/wallet-notes-vacuum 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1993: wallet-notes-vacuum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-vacuum.1" ]
+}
+
+@test "FEAT-1994: node-graph-channels-per-node reports error or unique_nodes gracefully" {
+    out=$(./libexec/lightning/node-graph-channels-per-node 2>/dev/null)
+    echo "$out" | grep -q "error\|unique_nodes"
+}
+@test "FEAT-1994: node-graph-channels-per-node man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channels-per-node.1" ]
+}
+
+@test "FEAT-1995: channel-csv-delay-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-csv-delay-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1995: channel-csv-delay-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-csv-delay-total.1" ]
+}
+
+@test "FEAT-1996: peer-oldest-channel-age requires arg" {
+    out=$(./libexec/lightning/peer-oldest-channel-age 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1996: peer-oldest-channel-age man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-oldest-channel-age.1" ]
+}
+
+@test "FEAT-1997: node-invoice-count reports error or total gracefully" {
+    out=$(./libexec/lightning/node-invoice-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1997: node-invoice-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count.1" ]
+}
+
+@test "FEAT-1998: channel-state requires arg" {
+    out=$(./libexec/lightning/channel-state 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1998: channel-state man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state.1" ]
+}
+
+@test "FEAT-1999: node-graph-capacity-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/node-graph-capacity-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1999: node-graph-capacity-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-capacity-total.1" ]
+}
+
+@test "FEAT-2000: channel-summary requires arg" {
+    out=$(./libexec/lightning/channel-summary 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-2000: channel-summary man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-summary.1" ]
+}

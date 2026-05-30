@@ -1,15 +1,16 @@
 #!/bin/bash
-# lightning channel-state <channel_id>   (FEAT-1506)
+# lightning channel-state <channel_id>   (FEAT-1998)
 if [ $# -lt 1 ]; then echo '{"error":"usage: channel-state <channel_id>"}'; exit 0; fi
-channel_id="$1"
+arg="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-cid = sys.argv[2]
-for ch in data.get('channels', []):
-    if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'state': ch.get('state')}))
-        sys.exit(0)
-print(json.dumps({'error': 'channel not found'}))
-" "$result" "$channel_id"
+channel_id = sys.argv[2]
+channels = data.get('channels', [])
+ch = next((c for c in channels if c.get('channel_id') == channel_id), None)
+if not ch:
+    print(json.dumps({'error': 'channel not found'}))
+    sys.exit(0)
+print(json.dumps({'channel_id': channel_id, 'state': ch.get('state')}))
+" "$result" "$arg"
