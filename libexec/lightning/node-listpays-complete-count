@@ -1,9 +1,10 @@
 #!/bin/bash
-# lightning node-listpays-complete-count   (FEAT-1371)
+# lightning node-listpays-complete-count   (FEAT-1931)
 result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-complete = [p for p in data.get('pays', []) if p.get('status') == 'complete']
-print(json.dumps({'count': len(complete)}))
+pays = data.get('pays', [])
+count = sum(1 for p in pays if p.get('status') == 'complete')
+print(json.dumps({'count': count}))
 " "$result"
