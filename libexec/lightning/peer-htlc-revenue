@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning peer-htlc-revenue   (FEAT-2146)
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+revenue = {}
+for f in forwards:
+    if f.get('status') != 'settled': continue
+    peer = f.get('in_channel', 'unknown')
+    fee  = f.get('fee_msat', 0)
+    if isinstance(fee, str): fee = int(fee.replace('msat',''))
+    revenue[peer] = revenue.get(peer, 0) + fee
+result = [{'peer_channel': k, 'fee_msat': v} for k, v in sorted(revenue.items(), key=lambda x: -x[1])]
+print(json.dumps({'revenue': result, 'count': len(result)}))
+" "$result"

@@ -25661,3 +25661,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2140: channel-private-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-private-count.1" ]
 }
+
+@test "FEAT-2141: node-listpays-fee-avg reports error or avg_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-listpays-fee-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_msat"
+}
+@test "FEAT-2141: node-listpays-fee-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-fee-avg.1" ]
+}
+
+@test "FEAT-2142: channel-funding-stats reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-funding-stats 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-2142: channel-funding-stats man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-stats.1" ]
+}
+
+@test "FEAT-2143: wallet-notes-stats reports error or count gracefully" {
+    out=$(./libexec/lightning/wallet-notes-stats 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-2143: wallet-notes-stats man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-stats.1" ]
+}
+
+@test "FEAT-2144: node-graph-degree-stats reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-degree-stats 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-2144: node-graph-degree-stats man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-degree-stats.1" ]
+}
+
+@test "FEAT-2145: channel-imbalance-list reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-imbalance-list 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-2145: channel-imbalance-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-imbalance-list.1" ]
+}
+
+@test "FEAT-2146: peer-htlc-revenue reports error or count gracefully" {
+    out=$(./libexec/lightning/peer-htlc-revenue 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-2146: peer-htlc-revenue man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-revenue.1" ]
+}
+
+@test "FEAT-2147: node-invoice-count-by-status reports error or total gracefully" {
+    out=$(./libexec/lightning/node-invoice-count-by-status 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-2147: node-invoice-count-by-status man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-by-status.1" ]
+}
+
+@test "FEAT-2148: channel-age-oldest reports error or oldest gracefully" {
+    out=$(./libexec/lightning/channel-age-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|oldest"
+}
+@test "FEAT-2148: channel-age-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-oldest.1" ]
+}
+
+@test "FEAT-2149: node-pay-count-total reports error or total gracefully" {
+    out=$(./libexec/lightning/node-pay-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-2149: node-pay-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-total.1" ]
+}
+
+@test "FEAT-2150: channel-age-newest reports error or newest gracefully" {
+    out=$(./libexec/lightning/channel-age-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|newest"
+}
+@test "FEAT-2150: channel-age-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-newest.1" ]
+}

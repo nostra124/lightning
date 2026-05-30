@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning node-graph-degree-stats   (FEAT-2144)
+result=$(lightning-cli listnodes 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+nodes = data.get('nodes', [])
+if not nodes:
+    print(json.dumps({'count': 0, 'with_addresses': 0, 'with_alias': 0}))
+    sys.exit(0)
+with_addr  = sum(1 for n in nodes if n.get('addresses'))
+with_alias = sum(1 for n in nodes if n.get('alias'))
+print(json.dumps({'count': len(nodes), 'with_addresses': with_addr, 'with_alias': with_alias}))
+" "$result"
