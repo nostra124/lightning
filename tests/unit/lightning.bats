@@ -33291,3 +33291,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3120: channel-capacity-range man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-range.1" ]
 }
+
+@test "FEAT-3121: channel-balance-range reports error or balance_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_range_msat"
+}
+@test "FEAT-3121: channel-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-range.1" ]
+}
+
+@test "FEAT-3122: node-invoice-amount-min reports error or invoice_amount_min_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_min_msat"
+}
+@test "FEAT-3122: node-invoice-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-min.1" ]
+}
+
+@test "FEAT-3123: peer-remote-reserve-median reports error or remote_reserve_median_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-reserve-median 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_median_msat"
+}
+@test "FEAT-3123: peer-remote-reserve-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-median.1" ]
+}
+
+@test "FEAT-3124: channel-local-balance-range reports error or local_balance_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_range_msat"
+}
+@test "FEAT-3124: channel-local-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-range.1" ]
+}
+
+@test "FEAT-3125: node-invoice-amount-max reports error or invoice_amount_max_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_max_msat"
+}
+@test "FEAT-3125: node-invoice-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-max.1" ]
+}
+
+@test "FEAT-3126: peer-local-reserve-median reports error or local_reserve_median_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-reserve-median 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_median_msat"
+}
+@test "FEAT-3126: peer-local-reserve-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-reserve-median.1" ]
+}
+
+@test "FEAT-3127: channel-remote-balance-range reports error or remote_balance_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_range_msat"
+}
+@test "FEAT-3127: channel-remote-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-range.1" ]
+}
+
+@test "FEAT-3128: node-invoice-amount-stddev reports error or invoice_amount_stddev_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_stddev_msat"
+}
+@test "FEAT-3128: node-invoice-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-stddev.1" ]
+}
+
+@test "FEAT-3129: peer-local-reserve-range reports error or local_reserve_range_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-reserve-range 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_range_msat"
+}
+@test "FEAT-3129: peer-local-reserve-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-reserve-range.1" ]
+}
+
+@test "FEAT-3130: channel-spendable-range reports error or spendable_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-range 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_range_msat"
+}
+@test "FEAT-3130: channel-spendable-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-range.1" ]
+}
