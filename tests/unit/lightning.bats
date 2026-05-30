@@ -20494,3 +20494,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1480: channel-our-reserve man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve.1" ]
 }
+@test "FEAT-1481: node-pay-fees-total reports error or complete_count gracefully" {
+    out=$(./libexec/lightning/node-pay-fees-total 2>/dev/null)
+    echo "$out" | grep -q "error\|complete_count"
+}
+@test "FEAT-1481: node-pay-fees-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fees-total.1" ]
+}
+@test "FEAT-1482: channel-local-htlc-max reports error gracefully" {
+    out=$(./libexec/lightning/channel-local-htlc-max 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1482: channel-local-htlc-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-htlc-max.1" ]
+}
+@test "FEAT-1483: wallet-notes-import-json reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-import-json 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1483: wallet-notes-import-json man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-import-json.1" ]
+}
+@test "FEAT-1484: node-listpeers-public reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpeers-public 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1484: node-listpeers-public man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-public.1" ]
+}
+@test "FEAT-1485: invoice-min-final-cltv reports error gracefully" {
+    out=$(./libexec/lightning/invoice-min-final-cltv 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1485: invoice-min-final-cltv man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-min-final-cltv.1" ]
+}
+@test "FEAT-1486: channel-spendable-balance reports error or total_spendable_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-balance 2>/dev/null)
+    echo "$out" | grep -q "error\|total_spendable_msat"
+}
+@test "FEAT-1486: channel-spendable-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-balance.1" ]
+}
+@test "FEAT-1487: peer-node-color reports error gracefully" {
+    out=$(./libexec/lightning/peer-node-color 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1487: peer-node-color man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-node-color.1" ]
+}
+@test "FEAT-1488: wallet-notes-rotate-key reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-rotate-key 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1488: wallet-notes-rotate-key man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-rotate-key.1" ]
+}
+@test "FEAT-1489: node-invoice-count reports error or total gracefully" {
+    out=$(./libexec/lightning/node-invoice-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1489: node-invoice-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count.1" ]
+}
+@test "FEAT-1490: channel-peer-scid reports error gracefully" {
+    out=$(./libexec/lightning/channel-peer-scid 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1490: channel-peer-scid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-scid.1" ]
+}
