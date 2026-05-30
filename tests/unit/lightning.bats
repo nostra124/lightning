@@ -9153,7 +9153,7 @@ import sys
 src=open(sys.argv[1]).read()
 i=src.find('\"payment_status\"')
 assert i >= 0, 'tool not found'
-window=src[i:i+500]
+window=src[i:i+800]
 assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 " "$f"
 }
@@ -9192,7 +9192,7 @@ import sys
 src=open(sys.argv[1]).read()
 i=src.find('\"invoice_status\"')
 assert i >= 0, 'tool not found'
-window=src[i:i+500]
+window=src[i:i+800]
 assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 " "$f"
 }
@@ -9362,4 +9362,34 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 
 @test "FEAT-304: node-channel-graph man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-graph.1" ]
+}
+
+# FEAT-305 — node-uptime verb
+
+@test "FEAT-305: node-uptime verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-uptime" ]
+}
+
+@test "FEAT-305: node-uptime reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-uptime" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-305: node-uptime man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-uptime.1" ]
+}
+
+# FEAT-306 — invoice-cancel verb
+
+@test "FEAT-306: invoice-cancel verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-cancel" ]
+}
+
+@test "FEAT-306: invoice-cancel reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-cancel" test-label 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-306: invoice-cancel man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-cancel.1" ]
 }

@@ -1,0 +1,20 @@
+.TH "LIGHTNING-NODE-UPTIME" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-uptime \- report node start time and uptime
+.SH SYNOPSIS
+.B lightning node-uptime
+.SH DESCRIPTION
+Returns the node start timestamp and uptime in seconds from
+.BR getinfo .
+.PP
+Output:
+.nf
+{"started_at":N,"uptime_seconds":N,"version":"..."}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-version (1),
+.BR lightning-node-health (1)

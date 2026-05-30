@@ -1,0 +1,27 @@
+#!/bin/bash
+# lightning node-uptime   (FEAT-305)
+#
+# Returns the node start time and uptime in seconds.
+# {started_at, uptime_seconds, version}
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+raw=$(lightning-cli $LD $NET getinfo 2>/dev/null) || {
+    echo '{"error":"getinfo_failed"}'; exit 0; }
+
+python3 -c "
+import sys, json, time
+d = json.loads(sys.argv[1])
+started = d.get('start_time', 0)
+now = int(time.time())
+print(json.dumps({
+    'started_at': started,
+    'uptime_seconds': now - started if started else 0,
+    'version': d.get('version', ''),
+}, separators=(',', ':')))
+" "$raw"
