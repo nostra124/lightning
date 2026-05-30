@@ -34011,3 +34011,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3210: node-pay-amount-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-max.1" ]
 }
+
+@test "FEAT-3211: peer-fee-base-max reports error or fee_base_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_max_peer"
+}
+@test "FEAT-3211: peer-fee-base-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-max.1" ]
+}
+
+@test "FEAT-3212: channel-htlc-value-range reports error or htlc_value_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_range_channel"
+}
+@test "FEAT-3212: channel-htlc-value-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-range.1" ]
+}
+
+@test "FEAT-3213: node-pay-amount-min reports error or amount_min_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_min_pay"
+}
+@test "FEAT-3213: node-pay-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-min.1" ]
+}
+
+@test "FEAT-3214: peer-fee-base-min reports error or fee_base_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_min_peer"
+}
+@test "FEAT-3214: peer-fee-base-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-min.1" ]
+}
+
+@test "FEAT-3215: channel-htlc-value-kurtosis reports error or htlc_value_kurtosis_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_kurtosis_channel"
+}
+@test "FEAT-3215: channel-htlc-value-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-kurtosis.1" ]
+}
+
+@test "FEAT-3216: node-pay-amount-stddev reports error or amount_stddev_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_stddev_pay"
+}
+@test "FEAT-3216: node-pay-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-stddev.1" ]
+}
+
+@test "FEAT-3217: peer-fee-base-stddev reports error or fee_base_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_stddev_peer"
+}
+@test "FEAT-3217: peer-fee-base-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-stddev.1" ]
+}
+
+@test "FEAT-3218: channel-htlc-value-skewness reports error or htlc_value_skewness_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_skewness_channel"
+}
+@test "FEAT-3218: channel-htlc-value-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-skewness.1" ]
+}
+
+@test "FEAT-3219: node-pay-amount-range reports error or amount_range_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_range_pay"
+}
+@test "FEAT-3219: node-pay-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-range.1" ]
+}
+
+@test "FEAT-3220: peer-fee-base-range reports error or fee_base_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_range_peer"
+}
+@test "FEAT-3220: peer-fee-base-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-range.1" ]
+}
