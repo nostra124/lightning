@@ -14944,3 +14944,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-770: channel-funding-status man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-status.1" ]
 }
+
+@test "FEAT-771: node-getroute requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-getroute" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-771: node-getroute man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-getroute.1" ]
+}
+
+@test "FEAT-772: channel-htlc-count requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-count" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-772: channel-htlc-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count.1" ]
+}
+
+@test "FEAT-773: wallet-export-csv requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-773: wallet-export-csv man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-csv.1" ]
+}
+
+@test "FEAT-774: node-payment-fees-total reports error or total_fees_paid_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-fees-total" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_fees_paid_msat"
+}
+
+@test "FEAT-774: node-payment-fees-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-payment-fees-total.1" ]
+}
+
+@test "FEAT-775: invoice-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-status" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-775: invoice-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-status.1" ]
+}
+
+@test "FEAT-776: channel-update-fee requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-update-fee" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-776: channel-update-fee man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-update-fee.1" ]
+}
+
+@test "FEAT-777: peer-gossip-info requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-gossip-info" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-777: peer-gossip-info man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-gossip-info.1" ]
+}
+
+@test "FEAT-778: wallet-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-status" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-778: wallet-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-status.1" ]
+}
+
+@test "FEAT-779: node-splice-count reports error or splicing gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-splice-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|splicing"
+}
+
+@test "FEAT-779: node-splice-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-splice-count.1" ]
+}
+
+@test "FEAT-780: channel-total-fees requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-total-fees" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-780: channel-total-fees man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-fees.1" ]
+}

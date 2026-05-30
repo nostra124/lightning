@@ -1,28 +1,15 @@
-.TH "LIGHTNING-CHANNEL-HTLC-COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-CHANNEL_HTLC_COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-channel-htlc-count \- count in-flight HTLCs per channel
+lightning-channel-htlc-count \- FEAT-772 channel-htlc-count verb
 .SH SYNOPSIS
 .B lightning channel-htlc-count
-.RI [ channel_id ]
 .SH DESCRIPTION
-Reports the number of in-flight HTLCs for each channel, split into
-.B offered
-(outbound) and
-.B received
-(inbound) counts.
-Without
-.IR channel_id ,
-reports all channels.
-Returns an empty array if the daemon is unreachable.
+channel-htlc-count verb for lightning CLI (FEAT-772).
 .PP
-Output:
-.nf
-[{channel_id, peer_id, htlc_count, offered, received}]
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-node-htlc-list (1),
-.BR lightning-channel-balance (1)
+.BR lightning(1)

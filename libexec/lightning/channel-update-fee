@@ -1,0 +1,6 @@
+#!/bin/bash
+# lightning channel-update-fee <channel_id> <base_msat> <ppm>   (FEAT-776)
+if [ $# -lt 3 ]; then echo '{"error":"usage: channel-update-fee <channel_id> <base_msat> <ppm>"}'; exit 0; fi
+channel_id="$1"; base="$2"; ppm="$3"
+result=$(lightning-cli setchannel "$channel_id" "$ppm" "$base" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps(d))" "$result"

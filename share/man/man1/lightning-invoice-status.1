@@ -1,27 +1,15 @@
-.TH "LIGHTNING-INVOICE-STATUS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-INVOICE_STATUS" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-invoice-status \- check whether a local invoice has been paid
+lightning-invoice-status \- FEAT-775 invoice-status verb
 .SH SYNOPSIS
 .B lightning invoice-status
-.I payment_hash|label
 .SH DESCRIPTION
-Looks up a local BOLT-11 invoice by payment hash or label and returns
-its payment status.
+invoice-status verb for lightning CLI (FEAT-775).
 .PP
-Output:
-.nf
-{"payment_hash":"...","label":"...","status":"paid|unpaid|expired",
- "amount_msat":N,"paid_at":"ISO8601|null"}
-.fi
-Returns
-.nf
-{"error":"not_found"}
-.fi
-when no matching invoice exists.
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-invoice-list (1),
-.BR lightning-invoice-decode (1)
+.BR lightning(1)

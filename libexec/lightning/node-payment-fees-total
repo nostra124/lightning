@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-payment-fees-total   (FEAT-774)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = [p for p in data.get('pays', []) if p.get('status') == 'complete']
+total_fees = sum((p.get('amount_sent_msat', 0) - p.get('amount_msat', 0)) for p in pays if isinstance(p.get('amount_sent_msat', 0), int) and isinstance(p.get('amount_msat', 0), int))
+print(json.dumps({'total_fees_paid_msat': total_fees, 'payments': len(pays)}))
+" "$result"
