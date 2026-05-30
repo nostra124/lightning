@@ -1,0 +1,21 @@
+.TH "LIGHTNING-NODE-PEER-COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-peer-count \- count total, connected, and disconnected peers
+.SH SYNOPSIS
+.B lightning node-peer-count
+.SH DESCRIPTION
+Returns peer counts from
+.BR listpeers .
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{"total":N,"connected":N,"disconnected":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-peer-list (1),
+.BR lightning-node-health (1)

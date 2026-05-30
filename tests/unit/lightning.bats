@@ -9864,3 +9864,48 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-336: wallet-pin-set man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-set.1" ]
 }
+
+# FEAT-337 — node-channel-count verb
+
+@test "FEAT-337: node-channel-count verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-count" ]
+}
+
+@test "FEAT-337: node-channel-count reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-337: node-channel-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-count.1" ]
+}
+
+# FEAT-338 — invoice-keysend verb
+
+@test "FEAT-338: invoice-keysend verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-keysend" ]
+}
+
+@test "FEAT-338: invoice-keysend reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-keysend" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-338: invoice-keysend man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-keysend.1" ]
+}
+
+# FEAT-339 — node-peer-count verb
+
+@test "FEAT-339: node-peer-count verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-count" ]
+}
+
+@test "FEAT-339: node-peer-count reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-339: node-peer-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-count.1" ]
+}
