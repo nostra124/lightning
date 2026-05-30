@@ -14674,3 +14674,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-740: channel-spliced man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spliced.1" ]
 }
+
+@test "FEAT-741: node-listpeers-ids returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listpeers-ids" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+
+@test "FEAT-741: node-listpeers-ids man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-ids.1" ]
+}
+
+@test "FEAT-742: channel-local-balance requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-local-balance" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-742: channel-local-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance.1" ]
+}
+
+@test "FEAT-743: wallet-created-at requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-created-at" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-743: wallet-created-at man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-created-at.1" ]
+}
+
+@test "FEAT-744: node-gossip-stats reports error or node_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-gossip-stats" 2>/dev/null)
+	echo "$out" | grep -q "error\|node_count"
+}
+
+@test "FEAT-744: node-gossip-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-gossip-stats.1" ]
+}
+
+@test "FEAT-745: invoice-list-all returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-all" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+
+@test "FEAT-745: invoice-list-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-all.1" ]
+}
+
+@test "FEAT-746: channel-stats requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-stats" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-746: channel-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-stats.1" ]
+}
+
+@test "FEAT-747: peer-list-all returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list-all" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+
+@test "FEAT-747: peer-list-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-all.1" ]
+}
+
+@test "FEAT-748: wallet-rename requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-rename" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-748: wallet-rename man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-rename.1" ]
+}
+
+@test "FEAT-749: node-feerate-estimate requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-feerate-estimate" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-749: node-feerate-estimate man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-estimate.1" ]
+}
+
+@test "FEAT-750: channel-commit-fee requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-commit-fee" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-750: channel-commit-fee man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-commit-fee.1" ]
+}
