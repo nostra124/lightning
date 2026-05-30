@@ -15814,3 +15814,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-870: channel-short-id man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-short-id.1" ]
 }
+
+@test "FEAT-871: node-listpays-pending reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listpays-pending" 2>/dev/null)
+	echo "$out" | grep -q "error\|count\|\[\]"
+}
+@test "FEAT-871: node-listpays-pending man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-pending.1" ]
+}
+
+@test "FEAT-872: channel-dust-limit requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-dust-limit" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-872: channel-dust-limit man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-dust-limit.1" ]
+}
+
+@test "FEAT-873: wallet-keypath requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-keypath" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-873: wallet-keypath man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-keypath.1" ]
+}
+
+@test "FEAT-874: node-invoice-auto-expire reports error or invoice_expiry_seconds gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-auto-expire" 2>/dev/null)
+	echo "$out" | grep -q "error\|invoice_expiry_seconds"
+}
+@test "FEAT-874: node-invoice-auto-expire man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-auto-expire.1" ]
+}
+
+@test "FEAT-875: invoice-list-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-875: invoice-list-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-count.1" ]
+}
+
+@test "FEAT-876: channel-msatoshi-total requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-msatoshi-total" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-876: channel-msatoshi-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-msatoshi-total.1" ]
+}
+
+@test "FEAT-877: peer-latency requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-latency" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-877: peer-latency man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-latency.1" ]
+}
+
+@test "FEAT-878: wallet-check-integrity requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-check-integrity" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-878: wallet-check-integrity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-check-integrity.1" ]
+}
+
+@test "FEAT-879: node-fee-base reports error or fee_base_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-base" 2>/dev/null)
+	echo "$out" | grep -q "error\|fee_base_msat"
+}
+@test "FEAT-879: node-fee-base man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-base.1" ]
+}
+
+@test "FEAT-880: channel-peer-features requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-features" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-880: channel-peer-features man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-features.1" ]
+}

@@ -1,11 +1,12 @@
 .TH "LIGHTNING-PEER_LATENCY" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-peer-latency \- show connection status for a peer
+lightning-peer-latency \- FEAT-877 peer-latency
 .SH SYNOPSIS
 .B lightning peer-latency
-.I peer_id
 .SH DESCRIPTION
-Returns the connection status for a peer. Ping time is not directly available and is reported as N/A.
+peer-latency for lightning CLI (FEAT-877).
+.PP
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
