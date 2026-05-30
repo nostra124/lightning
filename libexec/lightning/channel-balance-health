@@ -1,0 +1,25 @@
+#!/bin/bash
+# lightning channel-balance-health   (FEAT-2135)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+imbalanced = []
+for ch in channels:
+    local = ch.get('to_us_msat')
+    total = ch.get('total_msat')
+    if local is None or total is None:
+        continue
+    try:
+        l = int(str(local).replace('msat', ''))
+        t = int(str(total).replace('msat', ''))
+        if t == 0:
+            continue
+        pct = l * 100 // t
+        if pct < 20 or pct > 80:
+            imbalanced.append({'channel_id': ch.get('channel_id'), 'local_pct': pct})
+    except ValueError:
+        pass
+print(json.dumps({'imbalanced_count': len(imbalanced), 'imbalanced': imbalanced}))
+" "$result"

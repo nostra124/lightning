@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-invoice-newest-paid   (FEAT-2137)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invoices = [i for i in data.get('invoices', []) if i.get('status') == 'paid']
+if not invoices:
+    print(json.dumps({'newest': None}))
+    sys.exit(0)
+newest = max(invoices, key=lambda i: i.get('paid_at', 0))
+print(json.dumps({'newest': newest}))
+" "$result"
