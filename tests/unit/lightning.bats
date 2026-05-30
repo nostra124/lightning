@@ -10304,3 +10304,53 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-364: channel-stuck man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-stuck.1" ]
 }
+
+# FEAT-365 — node-alias-set verb
+
+@test "FEAT-365: node-alias-set verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-alias-set" ]
+}
+
+@test "FEAT-365: node-alias-set reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-alias-set" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-365: node-alias-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-alias-set.1" ]
+}
+
+# FEAT-366 — wallet-sweep verb
+
+@test "FEAT-366: wallet-sweep verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-sweep" ]
+}
+
+@test "FEAT-366: wallet-sweep reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-sweep" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-366: wallet-sweep reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-sweep" default bc1qtest 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-366: wallet-sweep man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-sweep.1" ]
+}
+
+# FEAT-367 — node-channel-summary verb
+
+@test "FEAT-367: node-channel-summary verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-summary" ]
+}
+
+@test "FEAT-367: node-channel-summary reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-summary" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_channels"
+}
+
+@test "FEAT-367: node-channel-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-summary.1" ]
+}

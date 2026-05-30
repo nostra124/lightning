@@ -1,0 +1,25 @@
+#!/bin/bash
+# lightning wallet-sweep <wallet> <destination_address>   (FEAT-366)
+set -e
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-sweep <wallet> <destination_address>"}'
+    exit 0
+fi
+wname="$1"
+dest="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"ok":false,"reason":"database_not_found"}'
+    exit 0
+fi
+# Ask clightning to sweep all on-chain funds
+result=$(lightning-cli withdraw "$dest" all 2>/dev/null) || {
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+}
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'ok': True, 'txid': data.get('txid', ''), 'tx': data.get('tx', '')}, separators=(',', ':')))
+" "$result"

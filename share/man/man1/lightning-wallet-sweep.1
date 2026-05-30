@@ -1,0 +1,28 @@
+.TH "LIGHTNING-WALLET-SWEEP" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-sweep \- sweep all on-chain wallet funds to an address
+.SH SYNOPSIS
+.B lightning wallet-sweep
+.I wallet
+.I destination_address
+.SH DESCRIPTION
+Calls
+.B lightning-cli withdraw
+with
+.B all
+to send the entire on-chain balance to
+.IR destination_address .
+Use with caution — this empties the on-chain wallet.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{"ok":true,"txid":...,"tx":...}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-onchain-balance (1),
+.BR lightning-wallet-backup (1)
