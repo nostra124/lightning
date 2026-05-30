@@ -29361,3 +29361,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2620: channel-receivable-bottom5 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-bottom5.1" ]
 }
+
+@test "FEAT-2621: node-listforwards-in-msat-sum reports error or in_msat_sum gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_sum"
+}
+@test "FEAT-2621: node-listforwards-in-msat-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-sum.1" ]
+}
+
+@test "FEAT-2622: channel-spendable-top5 reports error or top5_by_spendable gracefully" {
+    out=$(./libexec/lightning/channel-spendable-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_by_spendable"
+}
+@test "FEAT-2622: channel-spendable-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-top5.1" ]
+}
+
+@test "FEAT-2623: peer-channels-avg reports error or avg_channels_per_peer gracefully" {
+    out=$(./libexec/lightning/peer-channels-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_channels_per_peer"
+}
+@test "FEAT-2623: peer-channels-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channels-avg.1" ]
+}
+
+@test "FEAT-2624: node-pay-completed-today reports error or completed_today gracefully" {
+    out=$(./libexec/lightning/node-pay-completed-today 2>/dev/null)
+    echo "$out" | grep -q "error\|completed_today"
+}
+@test "FEAT-2624: node-pay-completed-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-completed-today.1" ]
+}
+
+@test "FEAT-2625: channel-spendable-bottom5 reports error or bottom5_by_spendable gracefully" {
+    out=$(./libexec/lightning/channel-spendable-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_by_spendable"
+}
+@test "FEAT-2625: channel-spendable-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-bottom5.1" ]
+}
+
+@test "FEAT-2626: node-listforwards-out-msat-sum reports error or out_msat_sum gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_sum"
+}
+@test "FEAT-2626: node-listforwards-out-msat-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-sum.1" ]
+}
+
+@test "FEAT-2627: channel-receivable-top5 reports error or top5_by_receivable gracefully" {
+    out=$(./libexec/lightning/channel-receivable-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_by_receivable"
+}
+@test "FEAT-2627: channel-receivable-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-top5.1" ]
+}
+
+@test "FEAT-2628: peer-local-balance-avg reports error or avg_local_balance_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_local_balance_msat\|local_balance_avg_msat_per_peer"
+}
+@test "FEAT-2628: peer-local-balance-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-avg.1" ]
+}
+
+@test "FEAT-2629: node-invoice-paid-amount-today reports error or paid_amount_today_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-today 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_today_msat"
+}
+@test "FEAT-2629: node-invoice-paid-amount-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-today.1" ]
+}
+
+@test "FEAT-2630: channel-capacity-top5 reports error or top5_by_capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_by_capacity\|top5_channels_by_capacity"
+}
+@test "FEAT-2630: channel-capacity-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-top5.1" ]
+}
