@@ -10399,3 +10399,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-370: invoice-summary man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-summary.1" ]
 }
+
+# FEAT-371 — channel-open-batch verb
+
+@test "FEAT-371: channel-open-batch verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-batch" ]
+}
+
+@test "FEAT-371: channel-open-batch reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-batch" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-371: channel-open-batch man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-batch.1" ]
+}
+
+# FEAT-372 — node-utxo-list verb
+
+@test "FEAT-372: node-utxo-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-utxo-list" ]
+}
+
+@test "FEAT-372: node-utxo-list returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-utxo-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-372: node-utxo-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-utxo-list.1" ]
+}
