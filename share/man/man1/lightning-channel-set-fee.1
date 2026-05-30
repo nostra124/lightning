@@ -1,0 +1,26 @@
+.TH "LIGHTNING-CHANNEL-SET-FEE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-set-fee \- set routing fee policy for a channel
+.SH SYNOPSIS
+.B lightning channel-set-fee
+.I channel_id
+.B --base
+.I msat
+.B --ppm
+.I ppm
+.SH DESCRIPTION
+Sets the base fee (in millisatoshis) and proportional fee rate
+(parts-per-million) for an outbound channel via
+.BR setchannel .
+.PP
+Output:
+.nf
+{"ok":true,"channel_id":"...","base_msat":N,"ppm":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-fee-policy (1),
+.BR lightning-api-fee-list (1)

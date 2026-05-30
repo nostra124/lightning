@@ -1,0 +1,45 @@
+#!/bin/bash
+# lightning channel-set-fee <channel_id> --base <msat> --ppm <ppm>   (FEAT-302)
+#
+# Sets the routing fee policy for a channel.
+# Returns {ok, channel_id, base_msat, ppm}
+
+set -e
+[ $# -ge 1 ] || {
+    printf 'usage: channel-set-fee <channel_id> --base <msat> --ppm <ppm>\n' >&2
+    exit 1
+}
+channel_id="$1"; shift
+
+base=""; ppm=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --base) base="$2"; shift 2 ;;
+        --ppm)  ppm="$2";  shift 2 ;;
+        *) shift ;;
+    esac
+done
+
+[ -n "$base" ] && [ -n "$ppm" ] || {
+    printf 'usage: channel-set-fee <channel_id> --base <msat> --ppm <ppm>\n' >&2
+    exit 1
+}
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+lightning-cli $LD $NET setchannel "$channel_id" "$base" "$ppm" >/dev/null 2>&1 || {
+    echo '{"error":"setchannel_failed"}'; exit 0; }
+
+python3 -c "
+import sys, json
+print(json.dumps({
+    'ok': True,
+    'channel_id': sys.argv[1],
+    'base_msat': int(sys.argv[2]),
+    'ppm': int(sys.argv[3]),
+}, separators=(',', ':')))
+" "$channel_id" "$base" "$ppm"

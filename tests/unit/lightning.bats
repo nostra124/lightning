@@ -9303,3 +9303,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-300: invoice-create man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-create.1" ]
 }
+
+# FEAT-301 — node-fee-revenue verb
+
+@test "FEAT-301: node-fee-revenue verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-revenue" ]
+}
+
+@test "FEAT-301: node-fee-revenue reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-revenue" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-301: node-fee-revenue man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-revenue.1" ]
+}
+
+# FEAT-302 — channel-set-fee verb
+
+@test "FEAT-302: channel-set-fee verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-set-fee" ]
+}
+
+@test "FEAT-302: channel-set-fee reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-set-fee" "abc" --base 1000 --ppm 500 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-302: channel-set-fee man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-set-fee.1" ]
+}

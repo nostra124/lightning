@@ -1,0 +1,23 @@
+.TH "LIGHTNING-NODE-FEE-REVENUE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-fee-revenue \- summarise routing fee revenue
+.SH SYNOPSIS
+.B lightning node-fee-revenue
+.RB [ --days
+.IR N ]
+.SH DESCRIPTION
+Aggregates routing fee revenue from forwarded payments over the last
+.I N
+days (default: 7).
+.PP
+Output:
+.nf
+{"period_days":N,"count":N,"earned_msat":N,"failed_count":N,"since_ts":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-api-forward-stats (1),
+.BR lightning-node-health (1)

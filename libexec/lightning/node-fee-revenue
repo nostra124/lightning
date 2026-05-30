@@ -1,0 +1,49 @@
+#!/bin/bash
+# lightning node-fee-revenue [--days N]   (FEAT-301)
+#
+# Summarises routing fee revenue from listforwards over the last N days.
+# Default: 7 days.
+# Returns {period_days, count, earned_msat, failed_count, since_ts}
+
+set -e
+days=7
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --days) days="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+raw=$(lightning-cli $LD $NET listforwards 2>/dev/null) || {
+    echo '{"error":"listforwards_failed"}'; exit 0; }
+
+python3 -c "
+import sys, json, time
+d = json.loads(sys.argv[1])
+days = int(sys.argv[2])
+since = time.time() - days * 86400
+fwds = d.get('forwards', [])
+count = 0; earned = 0; failed = 0
+for f in fwds:
+    ts = f.get('received_time', 0)
+    if ts < since:
+        continue
+    if f.get('status') == 'settled':
+        count += 1
+        earned += f.get('fee_msat', 0)
+    elif f.get('status') in ('failed', 'local_failed'):
+        failed += 1
+print(json.dumps({
+    'period_days': days,
+    'count': count,
+    'earned_msat': earned,
+    'failed_count': failed,
+    'since_ts': int(since),
+}, separators=(',', ':')))
+" "$raw" "$days"
