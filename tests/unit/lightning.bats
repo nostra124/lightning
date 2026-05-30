@@ -29211,3 +29211,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2600: channel-both-reserves-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-avg.1" ]
 }
+@test "FEAT-2601: node-listforwards-out-msat-min reports error or min_out_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_out_msat"
+}
+@test "FEAT-2601: node-listforwards-out-msat-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-min.1" ]
+}
+@test "FEAT-2602: channel-capacity-bottom3 reports error or bottom3_channels_by_capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-bottom3 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom3_channels_by_capacity"
+}
+@test "FEAT-2602: channel-capacity-bottom3 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-bottom3.1" ]
+}
+@test "FEAT-2603: peer-their-reserve-max reports error or their_reserve_msat gracefully" {
+    out=$(./libexec/lightning/peer-their-reserve-max 2>/dev/null)
+    echo "$out" | grep -q "error\|their_reserve_msat"
+}
+@test "FEAT-2603: peer-their-reserve-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-their-reserve-max.1" ]
+}
+@test "FEAT-2604: node-invoice-paid-last-1d reports error or paid_last_1d_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-last-1d 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_last_1d_count"
+}
+@test "FEAT-2604: node-invoice-paid-last-1d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-last-1d.1" ]
+}
+@test "FEAT-2605: channel-capacity-bottom10 reports error or bottom10_channels_by_capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_channels_by_capacity"
+}
+@test "FEAT-2605: channel-capacity-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-bottom10.1" ]
+}
+@test "FEAT-2606: node-pay-amount-variance reports error or amount_variance_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_variance_msat"
+}
+@test "FEAT-2606: node-pay-amount-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-variance.1" ]
+}
+@test "FEAT-2607: channel-remote-balance-bottom10 reports error or bottom10_channels_by_remote gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_channels_by_remote"
+}
+@test "FEAT-2607: channel-remote-balance-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-bottom10.1" ]
+}
+@test "FEAT-2608: peer-local-balance-max reports error or local_msat_total gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-max 2>/dev/null)
+    echo "$out" | grep -q "error\|local_msat_total"
+}
+@test "FEAT-2608: peer-local-balance-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-max.1" ]
+}
+@test "FEAT-2609: node-listinvoices-amount-max reports error or amount_msat gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_msat"
+}
+@test "FEAT-2609: node-listinvoices-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-amount-max.1" ]
+}
+@test "FEAT-2610: channel-spendable-bottom5 reports error or bottom5_by_spendable gracefully" {
+    out=$(./libexec/lightning/channel-spendable-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_by_spendable"
+}
+@test "FEAT-2610: channel-spendable-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-bottom5.1" ]
+}
