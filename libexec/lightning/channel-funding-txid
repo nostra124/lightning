@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning channel-funding-txid <channel_id>   (FEAT-1192)
+# lightning channel-funding-txid <channel_id>   (FEAT-1466)
 if [ $# -lt 1 ]; then echo '{"error":"usage: channel-funding-txid <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
@@ -9,7 +9,7 @@ data = json.loads(sys.argv[1])
 cid = sys.argv[2]
 for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'funding_txid': ch.get('funding_txid'), 'funding_outnum': ch.get('funding_outnum')}))
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'funding_txid': ch.get('funding_txid')}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"
