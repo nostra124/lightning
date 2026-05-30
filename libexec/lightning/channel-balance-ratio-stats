@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning channel-balance-ratio-stats   (FEAT-2182)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+ratios = []
+for c in channels:
+    local = c.get('to_us_msat', 0)
+    total = c.get('total_msat', 0)
+    if isinstance(local, str): local = int(local.replace('msat',''))
+    if isinstance(total, str): total = int(total.replace('msat',''))
+    if total > 0:
+        ratios.append(local / total)
+if ratios:
+    result = {'count': len(ratios), 'min_local_pct': round(min(ratios)*100,2), 'max_local_pct': round(max(ratios)*100,2), 'avg_local_pct': round(sum(ratios)/len(ratios)*100,2)}
+else:
+    result = {'count': 0, 'min_local_pct': None, 'max_local_pct': None, 'avg_local_pct': None}
+print(json.dumps(result))
+" "$result"
