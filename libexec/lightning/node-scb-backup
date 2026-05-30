@@ -6,15 +6,18 @@ if ! result=$(lightning-cli staticbackup 2>/dev/null); then
     exit 0
 fi
 python3 -c "
-import sys, json, base64, os
-data = json.loads(sys.argv[1])
-scb = data.get('scb', '')
-out = sys.argv[2]
-if scb:
-    raw = bytes.fromhex(scb)
-    with open(out, 'wb') as f:
-        f.write(raw)
-    print(json.dumps({'ok': True, 'path': out, 'size': len(raw)}, separators=(',', ':')))
-else:
-    print(json.dumps({'ok': False, 'reason': 'no_scb'}))
+import sys, json
+try:
+    data = json.loads(sys.argv[1])
+    scb = data.get('scb', '')
+    out = sys.argv[2]
+    if scb:
+        raw = bytes.fromhex(scb)
+        with open(out, 'wb') as f:
+            f.write(raw)
+        print(json.dumps({'ok': True, 'path': out, 'size': len(raw)}, separators=(',', ':')))
+    else:
+        print(json.dumps({'ok': False, 'reason': 'no_scb'}))
+except Exception as e:
+    print(json.dumps({'error': str(e)}))
 " "$result" "$out_path"

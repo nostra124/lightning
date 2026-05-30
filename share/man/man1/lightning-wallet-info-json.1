@@ -1,0 +1,20 @@
+.TH "LIGHTNING-WALLET-INFO-JSON" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-info-json \- show wallet metadata as JSON
+.SH SYNOPSIS
+.B lightning wallet-info-json
+.I wallet_name
+.SH DESCRIPTION
+Returns wallet metadata from the database as structured JSON.
+.PP
+Output:
+.nf
+{"wallet":"<name>", "meta":{...}, "db_path":"<path>"}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-info (1),
+.BR lightning-wallet-list (1)

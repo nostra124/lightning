@@ -1,0 +1,20 @@
+.TH "LIGHTNING-NODE-CHANNEL-POLICY-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-channel-policy-list \- list fee policies for all channels
+.SH SYNOPSIS
+.B lightning node-channel-policy-list
+.SH DESCRIPTION
+Returns fee base, ppm, and HTLC limits for every channel.
+.PP
+Output:
+.nf
+[{channel_id, peer_id, fee_base_msat, fee_proportional_millionths,
+  htlc_minimum_msat, htlc_maximum_msat}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-fee-policy (1),
+.BR lightning-channel-policy-check (1)

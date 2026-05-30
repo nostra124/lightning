@@ -1,0 +1,22 @@
+.TH "LIGHTNING-NODE-CHANNEL-OPEN-HISTORY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-channel-open-history \- list all channels ever opened
+.SH SYNOPSIS
+.B lightning node-channel-open-history
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Returns all channels (including closed) from
+.BR listpeerchannels .
+Default limit is 50.
+.PP
+Output:
+.nf
+[{channel_id, peer_id, state, funding_txid, total_msat}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-history (1)

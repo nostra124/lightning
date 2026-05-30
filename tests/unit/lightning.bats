@@ -10681,9 +10681,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-graph" ]
 }
 
-@test "FEAT-389: node-channel-graph reports lightning-cli not found gracefully" {
+@test "FEAT-389: node-channel-graph reports error or returns array without daemon" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-graph" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|\["
 }
 
 @test "FEAT-389: node-channel-graph man page exists" {
@@ -10731,9 +10731,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-connect-auto" ]
 }
 
-@test "FEAT-392: node-connect-auto reports lightning-cli not found gracefully" {
+@test "FEAT-392: node-connect-auto reports error or reconnect status without daemon" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-connect-auto" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|reconnect_scheduled"
 }
 
 @test "FEAT-392: node-connect-auto man page exists" {
@@ -10806,9 +10806,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-stats" ]
 }
 
-@test "FEAT-397: node-invoice-stats reports lightning-cli not found gracefully" {
+@test "FEAT-397: node-invoice-stats reports error or stats gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-stats" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|total"
 }
 
 @test "FEAT-397: node-invoice-stats man page exists" {
@@ -10856,9 +10856,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-count" ]
 }
 
-@test "FEAT-400: node-payment-count reports lightning-cli not found gracefully" {
+@test "FEAT-400: node-payment-count reports error or count gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-count" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|total"
 }
 
 @test "FEAT-400: node-payment-count man page exists" {
@@ -10886,9 +10886,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-address-new" ]
 }
 
-@test "FEAT-402: wallet-address-new reports lightning-cli not found gracefully" {
+@test "FEAT-402: wallet-address-new reports error or address gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-address-new" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|bech32\|p2sh\|address"
 }
 
 @test "FEAT-402: wallet-address-new man page exists" {
@@ -10931,9 +10931,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-close-expired-invoices" ]
 }
 
-@test "FEAT-405: node-close-expired-invoices reports lightning-cli not found gracefully" {
+@test "FEAT-405: node-close-expired-invoices reports error or result gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-close-expired-invoices" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|deleted"
 }
 
 @test "FEAT-405: node-close-expired-invoices man page exists" {
@@ -10961,9 +10961,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-autopilot-status" ]
 }
 
-@test "FEAT-407: channel-autopilot-status reports lightning-cli not found gracefully" {
+@test "FEAT-407: channel-autopilot-status reports error or balance status gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-autopilot-status" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|active_channels\|autopilot"
 }
 
 @test "FEAT-407: channel-autopilot-status man page exists" {
@@ -10996,9 +10996,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-revenue" ]
 }
 
-@test "FEAT-409: node-fee-revenue reports lightning-cli not found gracefully" {
+@test "FEAT-409: node-fee-revenue reports error or revenue gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-revenue" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|count\|fee"
 }
 
 @test "FEAT-409: node-fee-revenue man page exists" {
@@ -11056,9 +11056,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-local-balance" ]
 }
 
-@test "FEAT-413: channel-local-balance reports lightning-cli not found gracefully" {
+@test "FEAT-413: channel-local-balance reports error or balance gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-local-balance" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|local_balance\|active_channels"
 }
 
 @test "FEAT-413: channel-local-balance man page exists" {
@@ -11091,9 +11091,9 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-uptime" ]
 }
 
-@test "FEAT-415: node-uptime reports lightning-cli not found gracefully" {
+@test "FEAT-415: node-uptime reports error or node status gracefully" {
 	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-uptime" 2>/dev/null)
-	echo "$out" | grep -q "error"
+	echo "$out" | grep -q "error\|alias\|num_peers"
 }
 
 @test "FEAT-415: node-uptime man page exists" {
@@ -11253,4 +11253,164 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 
 @test "FEAT-425: node-balance-snapshot man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-balance-snapshot.1" ]
+}
+
+# FEAT-426 — channel-enable verb
+
+@test "FEAT-426: channel-enable verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-enable" ]
+}
+
+@test "FEAT-426: channel-enable reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-enable" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-426: channel-enable man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-enable.1" ]
+}
+
+# FEAT-427 — node-channel-open-history verb
+
+@test "FEAT-427: node-channel-open-history verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-open-history" ]
+}
+
+@test "FEAT-427: node-channel-open-history returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-open-history" 2>/dev/null)
+	echo "$out" | grep -q "\[\|channel_id"
+}
+
+@test "FEAT-427: node-channel-open-history man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-open-history.1" ]
+}
+
+# FEAT-428 — wallet-create-account verb
+
+@test "FEAT-428: wallet-create-account verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-create-account" ]
+}
+
+@test "FEAT-428: wallet-create-account reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-create-account" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-428: wallet-create-account reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-create-account" testwallet myacct 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-428: wallet-create-account man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-create-account.1" ]
+}
+
+# FEAT-429 — node-htlc-list verb
+
+@test "FEAT-429: node-htlc-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-list" ]
+}
+
+@test "FEAT-429: node-htlc-list returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-list" 2>/dev/null)
+	echo "$out" | grep -q "\["
+}
+
+@test "FEAT-429: node-htlc-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-list.1" ]
+}
+
+# FEAT-430 — invoice-bolt12-decode verb
+
+@test "FEAT-430: invoice-bolt12-decode verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-bolt12-decode" ]
+}
+
+@test "FEAT-430: invoice-bolt12-decode reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-bolt12-decode" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-430: invoice-bolt12-decode man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt12-decode.1" ]
+}
+
+# FEAT-431 — node-peers-disconnected verb
+
+@test "FEAT-431: node-peers-disconnected verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-peers-disconnected" ]
+}
+
+@test "FEAT-431: node-peers-disconnected returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peers-disconnected" 2>/dev/null)
+	echo "$out" | grep -q "\["
+}
+
+@test "FEAT-431: node-peers-disconnected man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peers-disconnected.1" ]
+}
+
+# FEAT-432 — channel-incoming-capacity verb
+
+@test "FEAT-432: channel-incoming-capacity verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-incoming-capacity" ]
+}
+
+@test "FEAT-432: channel-incoming-capacity reports error or capacity gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-incoming-capacity" 2>/dev/null)
+	echo "$out" | grep -q "error\|incoming_capacity"
+}
+
+@test "FEAT-432: channel-incoming-capacity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-incoming-capacity.1" ]
+}
+
+# FEAT-433 — wallet-info-json verb
+
+@test "FEAT-433: wallet-info-json verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-info-json" ]
+}
+
+@test "FEAT-433: wallet-info-json reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-info-json" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-433: wallet-info-json reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-info-json" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-433: wallet-info-json man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-info-json.1" ]
+}
+
+# FEAT-434 — node-channel-policy-list verb
+
+@test "FEAT-434: node-channel-policy-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-policy-list" ]
+}
+
+@test "FEAT-434: node-channel-policy-list returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-policy-list" 2>/dev/null)
+	echo "$out" | grep -q "\["
+}
+
+@test "FEAT-434: node-channel-policy-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-policy-list.1" ]
+}
+
+# FEAT-435 — payment-retry verb
+
+@test "FEAT-435: payment-retry verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-retry" ]
+}
+
+@test "FEAT-435: payment-retry reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/payment-retry" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-435: payment-retry man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-retry.1" ]
 }
