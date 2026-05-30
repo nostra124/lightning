@@ -20984,3 +20984,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1550: channel-local-reserve-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-msat.1" ]
 }
+@test "FEAT-1551: node-pay-success-rate reports error or total gracefully" {
+    out=$(./libexec/lightning/node-pay-success-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1551: node-pay-success-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-success-rate.1" ]
+}
+@test "FEAT-1552: channel-remote-reserve reports error gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1552: channel-remote-reserve man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve.1" ]
+}
+@test "FEAT-1553: wallet-notes-bulk-tag reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-bulk-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1553: wallet-notes-bulk-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-bulk-tag.1" ]
+}
+@test "FEAT-1554: node-listchannels-feerate-range reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-feerate-range 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1554: node-listchannels-feerate-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-feerate-range.1" ]
+}
+@test "FEAT-1555: invoice-bolt11-node reports error gracefully" {
+    out=$(./libexec/lightning/invoice-bolt11-node 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1555: invoice-bolt11-node man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-node.1" ]
+}
+@test "FEAT-1556: channel-htlc-min-msat reports error gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1556: channel-htlc-min-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat.1" ]
+}
+@test "FEAT-1557: peer-capacity-total reports error gracefully" {
+    out=$(./libexec/lightning/peer-capacity-total 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1557: peer-capacity-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-total.1" ]
+}
+@test "FEAT-1558: wallet-notes-grep reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-grep 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1558: wallet-notes-grep man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-grep.1" ]
+}
+@test "FEAT-1559: node-listforwards-local reports error or total_forwards gracefully" {
+    out=$(./libexec/lightning/node-listforwards-local 2>/dev/null)
+    echo "$out" | grep -q "error\|total_forwards"
+}
+@test "FEAT-1559: node-listforwards-local man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-local.1" ]
+}
+@test "FEAT-1560: channel-funding-confirms reports error gracefully" {
+    out=$(./libexec/lightning/channel-funding-confirms 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1560: channel-funding-confirms man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-confirms.1" ]
+}

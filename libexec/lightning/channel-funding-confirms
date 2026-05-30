@@ -1,6 +1,6 @@
 #!/bin/bash
-# lightning channel-remote-reserve <channel_id>   (FEAT-1552)
-if [ $# -lt 1 ]; then echo '{"error":"usage: channel-remote-reserve <channel_id>"}'; exit 0; fi
+# lightning channel-funding-confirms <channel_id>   (FEAT-1560)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-funding-confirms <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
@@ -9,7 +9,7 @@ data = json.loads(sys.argv[1])
 cid = sys.argv[2]
 for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'remote_reserve_msat': ch.get('their_reserve_msat')}))
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'confirmations': ch.get('confirmations'), 'minimum_depth': ch.get('minimum_depth')}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"
