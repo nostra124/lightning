@@ -20704,3 +20704,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1510: channel-funding-block man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-block.1" ]
 }
+@test "FEAT-1511: node-listpays-by-destination reports error gracefully" {
+    out=$(./libexec/lightning/node-listpays-by-destination 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1511: node-listpays-by-destination man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-by-destination.1" ]
+}
+@test "FEAT-1512: channel-fees-collected reports error gracefully" {
+    out=$(./libexec/lightning/channel-fees-collected 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1512: channel-fees-collected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fees-collected.1" ]
+}
+@test "FEAT-1513: wallet-notes-list-pinned reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-list-pinned 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1513: wallet-notes-list-pinned man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-list-pinned.1" ]
+}
+@test "FEAT-1514: node-graph-active-channels reports error or active_count gracefully" {
+    out=$(./libexec/lightning/node-graph-active-channels 2>/dev/null)
+    echo "$out" | grep -q "error\|active_count"
+}
+@test "FEAT-1514: node-graph-active-channels man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-active-channels.1" ]
+}
+@test "FEAT-1515: invoice-list-by-label reports error gracefully" {
+    out=$(./libexec/lightning/invoice-list-by-label 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1515: invoice-list-by-label man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-label.1" ]
+}
+@test "FEAT-1516: channel-active reports error gracefully" {
+    out=$(./libexec/lightning/channel-active 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1516: channel-active man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-active.1" ]
+}
+@test "FEAT-1517: peer-netaddr reports error gracefully" {
+    out=$(./libexec/lightning/peer-netaddr 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1517: peer-netaddr man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-netaddr.1" ]
+}
+@test "FEAT-1518: wallet-notes-oldest-key reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-oldest-key 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1518: wallet-notes-oldest-key man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-oldest-key.1" ]
+}
+@test "FEAT-1519: node-listforwards-pending reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-pending 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1519: node-listforwards-pending man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-pending.1" ]
+}
+@test "FEAT-1520: channel-close-height reports error gracefully" {
+    out=$(./libexec/lightning/channel-close-height 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1520: channel-close-height man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-height.1" ]
+}
