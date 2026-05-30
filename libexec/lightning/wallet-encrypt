@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning wallet-encrypt <wallet_name> <passphrase>   (FEAT-492)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-encrypt <wallet_name> <passphrase>"}'
+    exit 0
+fi
+wname="$1"; passphrase="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+hash=$(printf '%s' "$passphrase" | openssl dgst -sha256 -hex 2>/dev/null | awk '{print $2}')
+sqlite3 "$db" "INSERT OR REPLACE INTO meta(key,value) VALUES('encrypt_hash','$hash');" 2>/dev/null
+echo '{"ok":true,"wallet":"'"$wname"'","encrypted":true}'

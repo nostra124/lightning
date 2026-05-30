@@ -12209,3 +12209,163 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-485: channel-peer-alias man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-alias.1" ]
 }
+
+# FEAT-486 — node-alias-set verb
+
+@test "FEAT-486: node-alias-set verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-alias-set" ]
+}
+
+@test "FEAT-486: node-alias-set reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-alias-set" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-486: node-alias-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-alias-set.1" ]
+}
+
+# FEAT-487 — wallet-stats verb
+
+@test "FEAT-487: wallet-stats verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" ]
+}
+
+@test "FEAT-487: wallet-stats reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-487: wallet-stats reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-487: wallet-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-stats.1" ]
+}
+
+# FEAT-488 — node-max-payment verb
+
+@test "FEAT-488: node-max-payment verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-max-payment" ]
+}
+
+@test "FEAT-488: node-max-payment reports error or max payment gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-max-payment" 2>/dev/null)
+	echo "$out" | grep -q "error\|max_sendable"
+}
+
+@test "FEAT-488: node-max-payment man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-max-payment.1" ]
+}
+
+# FEAT-489 — invoice-webhook-send verb
+
+@test "FEAT-489: invoice-webhook-send verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-webhook-send" ]
+}
+
+@test "FEAT-489: invoice-webhook-send reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-webhook-send" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-489: invoice-webhook-send man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-webhook-send.1" ]
+}
+
+# FEAT-490 — channel-pending-htlcs verb
+
+@test "FEAT-490: channel-pending-htlcs verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-pending-htlcs" ]
+}
+
+@test "FEAT-490: channel-pending-htlcs returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-pending-htlcs" 2>/dev/null)
+	echo "$out" | grep -q "error\|\["
+}
+
+@test "FEAT-490: channel-pending-htlcs man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-pending-htlcs.1" ]
+}
+
+# FEAT-491 — node-check-funds verb
+
+@test "FEAT-491: node-check-funds verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-check-funds" ]
+}
+
+@test "FEAT-491: node-check-funds reports error or funds gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-check-funds" 2>/dev/null)
+	echo "$out" | grep -q "error\|onchain"
+}
+
+@test "FEAT-491: node-check-funds man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-check-funds.1" ]
+}
+
+# FEAT-492 — wallet-encrypt verb
+
+@test "FEAT-492: wallet-encrypt verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-encrypt" ]
+}
+
+@test "FEAT-492: wallet-encrypt reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-encrypt" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-492: wallet-encrypt reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-encrypt" testwallet passphrase 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-492: wallet-encrypt man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-encrypt.1" ]
+}
+
+# FEAT-493 — peer-info verb
+
+@test "FEAT-493: peer-info verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-info" ]
+}
+
+@test "FEAT-493: peer-info reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-info" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-493: peer-info man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-info.1" ]
+}
+
+# FEAT-494 — node-routing-table verb
+
+@test "FEAT-494: node-routing-table verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-routing-table" ]
+}
+
+@test "FEAT-494: node-routing-table returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-routing-table" 2>/dev/null)
+	echo "$out" | grep -q "error\|\["
+}
+
+@test "FEAT-494: node-routing-table man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-routing-table.1" ]
+}
+
+# FEAT-495 — channel-set-public verb
+
+@test "FEAT-495: channel-set-public verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-set-public" ]
+}
+
+@test "FEAT-495: channel-set-public reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-set-public" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-495: channel-set-public man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-set-public.1" ]
+}

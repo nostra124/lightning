@@ -1,10 +1,9 @@
 #!/bin/bash
-# lightning node-alias-set <alias>   (FEAT-365)
-set -e
-[ $# -ge 1 ] || { echo '{"error":"usage: node-alias-set <alias>"}'; exit 0; }
-alias_name="$1"
-result=$(lightning-cli setconfig alias "$alias_name" 2>/dev/null) || {
-    echo '{"error":"lightning-cli not found"}'
+# lightning node-alias-set <alias>   (FEAT-486)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: node-alias-set <alias>"}'
     exit 0
-}
-echo '{"ok":true}'
+fi
+alias="$1"
+result=$(lightning-cli setconfig alias "$alias" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

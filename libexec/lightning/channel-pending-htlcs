@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning channel-pending-htlcs [<channel_id>]   (FEAT-490)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+channels = json.loads(sys.argv[1]).get('channels', [])
+filter_id = sys.argv[2] if len(sys.argv) > 2 else None
+out = []
+for c in channels:
+    if filter_id and c.get('channel_id') != filter_id:
+        continue
+    htlcs = c.get('htlcs', [])
+    if htlcs:
+        out.append({'channel_id': c.get('channel_id',''), 'peer_id': c.get('peer_id',''),
+            'htlc_count': len(htlcs)})
+print(json.dumps(out, separators=(',', ':')))
+" "$result" "${1:-}"

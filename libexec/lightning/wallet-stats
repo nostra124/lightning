@@ -1,27 +1,23 @@
 #!/bin/bash
-# lightning wallet-stats   (FEAT-261)
-#
-# Prints a JSON summary of the active wallet for operator monitoring:
-#   {num_accounts, total_balance_sat, total_in_sat, total_out_sat,
-#    num_payments, first_ts, last_ts}
-
-set -e
-WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
-ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
-wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
-db="$WALLETS_ROOT/$wname/state.db"
-[ -f "$db" ] || { echo '{"num_accounts":0,"total_balance_sat":0,"total_in_sat":0,"total_out_sat":0,"num_payments":0,"first_ts":null,"last_ts":null}'; exit 0; }
-
-sqlite3 -json "$db" "
-SELECT
-    (SELECT COUNT(*) FROM accounts) AS num_accounts,
-    CAST(COALESCE((SELECT SUM(amount_msat) FROM ledger),0)/1000 AS INTEGER) AS total_balance_sat,
-    CAST(COALESCE((SELECT SUM(amount_msat) FROM ledger WHERE direction='in'),0)/1000 AS INTEGER) AS total_in_sat,
-    CAST(COALESCE((SELECT ABS(SUM(amount_msat)) FROM ledger WHERE direction='out'),0)/1000 AS INTEGER) AS total_out_sat,
-    (SELECT COUNT(*) FROM ledger) AS num_payments,
-    (SELECT MIN(ts) FROM ledger) AS first_ts,
-    (SELECT MAX(ts) FROM ledger) AS last_ts
-;" 2>/dev/null | python3 -c "
-import sys, json
-rows = json.load(sys.stdin)
-print(json.dumps(rows[0]) if rows else '{}')"
+# lightning wallet-stats <wallet_name>   (FEAT-487)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-stats <wallet_name>"}'
+    exit 0
+fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+python3 -c "
+import sqlite3, json, sys
+db = sys.argv[1]
+conn = sqlite3.connect(db)
+cur = conn.cursor()
+cur.execute('SELECT COUNT(*), COALESCE(SUM(CASE direction WHEN \'credit\' THEN amount_sat ELSE -amount_sat END),0) FROM ledger')
+count, balance = cur.fetchone()
+conn.close()
+print(json.dumps({'wallet': sys.argv[2], 'entry_count': count, 'balance_sat': balance}, separators=(',', ':')))
+" "$db" "$wname"

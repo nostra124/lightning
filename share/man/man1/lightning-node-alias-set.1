@@ -1,23 +1,14 @@
-.TH "LIGHTNING-NODE-ALIAS-SET" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-NODE_ALIAS_SET" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node-alias-set \- update the node's gossip alias at runtime
+lightning-node-alias-set \- set the node alias via setconfig
 .SH SYNOPSIS
 .B lightning node-alias-set
 .I alias
 .SH DESCRIPTION
-Calls
-.B lightning-cli setconfig alias
-to update the announced alias without restarting the daemon.
-Returns an error object if the daemon is unreachable or the command is unsupported.
-.PP
-Output:
-.nf
-{"ok":true}
-.fi
+Sets the node alias using CLN's setconfig command.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-node-alias (1),
-.BR lightning-node-config (1)
+.BR lightning(1)
