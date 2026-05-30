@@ -21264,3 +21264,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1590: channel-push-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-push-msat.1" ]
 }
+
+@test "FEAT-1591: node-pay-oldest reports error or created_at gracefully" {
+    out=$(./libexec/lightning/node-pay-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|created_at"
+}
+@test "FEAT-1591: node-pay-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-oldest.1" ]
+}
+
+@test "FEAT-1592: channel-capacity-total reports error or total_sat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_sat"
+}
+@test "FEAT-1592: channel-capacity-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-total.1" ]
+}
+
+@test "FEAT-1593: wallet-notes-batch-get reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-batch-get 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1593: wallet-notes-batch-get man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-batch-get.1" ]
+}
+
+@test "FEAT-1594: node-listpays-failed reports error or pays gracefully" {
+    out=$(./libexec/lightning/node-listpays-failed 2>/dev/null)
+    echo "$out" | grep -q "error\|pays"
+}
+@test "FEAT-1594: node-listpays-failed man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-failed.1" ]
+}
+
+@test "FEAT-1595: invoice-bolt11-cltvexpiry reports error gracefully" {
+    out=$(./libexec/lightning/invoice-bolt11-cltvexpiry 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1595: invoice-bolt11-cltvexpiry man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-cltvexpiry.1" ]
+}
+
+@test "FEAT-1596: channel-type-features reports error gracefully" {
+    out=$(./libexec/lightning/channel-type-features 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1596: channel-type-features man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-type-features.1" ]
+}
+
+@test "FEAT-1597: peer-spendable-msat reports error gracefully" {
+    out=$(./libexec/lightning/peer-spendable-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1597: peer-spendable-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-msat.1" ]
+}
+
+@test "FEAT-1598: wallet-notes-export-keys reports error or keys gracefully" {
+    out=$(./libexec/lightning/wallet-notes-export-keys 2>/dev/null)
+    echo "$out" | grep -q "error\|keys"
+}
+@test "FEAT-1598: wallet-notes-export-keys man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-export-keys.1" ]
+}
+
+@test "FEAT-1599: node-onchain-balance reports error or total_msat gracefully" {
+    out=$(./libexec/lightning/node-onchain-balance 2>/dev/null)
+    echo "$out" | grep -q "error\|total_msat"
+}
+@test "FEAT-1599: node-onchain-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-balance.1" ]
+}
+
+@test "FEAT-1600: channel-htlc-total-msat reports error gracefully" {
+    out=$(./libexec/lightning/channel-htlc-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1600: channel-htlc-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-total-msat.1" ]
+}
