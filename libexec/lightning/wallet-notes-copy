@@ -1,21 +1,12 @@
 #!/bin/bash
-# lightning wallet-notes-copy <src_wallet> <dest_wallet> <key>   (FEAT-1348)
-if [ $# -lt 3 ]; then echo '{"error":"usage: wallet-notes-copy <src_wallet> <dest_wallet> <key>"}'; exit 0; fi
-src="$1"; dest="$2"; key="$3"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-src_db="$root/$src/state.db"; dest_db="$root/$dest/state.db"
-if [ ! -f "$src_db" ]; then echo '{"error":"src_wallet_not_found"}'; exit 0; fi
-if [ ! -f "$dest_db" ]; then echo '{"error":"dest_wallet_not_found"}'; exit 0; fi
-python3 -c "
-import sys, sqlite3, json
-src_db = sys.argv[1]; dest_db = sys.argv[2]; key = sys.argv[3]
-conn_src = sqlite3.connect(src_db)
-row = conn_src.execute('SELECT value FROM notes WHERE key=?', (key,)).fetchone()
-conn_src.close()
-if not row:
-    print(json.dumps({'error': 'key_not_found'})); exit()
-conn_dest = sqlite3.connect(dest_db)
-conn_dest.execute('INSERT OR REPLACE INTO notes (key, value) VALUES (?, ?)', (key, row[0]))
-conn_dest.commit(); conn_dest.close()
-print(json.dumps({'copied': key, 'from': sys.argv[4], 'to': sys.argv[5]}))
-" "$src_db" "$dest_db" "$key" "$src" "$dest" 2>/dev/null || echo '{"error":"copy_failed"}'
+# lightning wallet-notes-copy <wallet> <src_key> <dst_key>   (FEAT-1683)
+if [ $# -lt 3 ]; then
+    echo '{"error":"usage: wallet-notes-copy <wallet> <src_key> <dst_key>"}'; exit 0
+fi
+wname="$1"; src_key="$2"; dst_key="$3"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+value=$(sqlite3 "$db" "SELECT value FROM notes WHERE key='$src_key';")
+if [ -z "$value" ]; then echo '{"error":"source key not found"}'; exit 0; fi
+sqlite3 "$db" "INSERT OR REPLACE INTO notes(key,value) VALUES('$dst_key','$value');" 2>/dev/null
+echo "{\"wallet\":\"$wname\",\"copied\":true,\"from\":\"$src_key\",\"to\":\"$dst_key\"}"

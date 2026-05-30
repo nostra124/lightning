@@ -21984,3 +21984,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1680: channel-min-depth-actual man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-depth-actual.1" ]
 }
+
+@test "FEAT-1681: node-pay-fee-avg reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1681: node-pay-fee-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-avg.1" ]
+}
+
+@test "FEAT-1682: channel-funding-depth requires arg" {
+    out=$(./libexec/lightning/channel-funding-depth 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1682: channel-funding-depth man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-depth.1" ]
+}
+
+@test "FEAT-1683: wallet-notes-copy requires args" {
+    out=$(./libexec/lightning/wallet-notes-copy 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1683: wallet-notes-copy man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-copy.1" ]
+}
+
+@test "FEAT-1684: node-invoice-expired-list reports error or count gracefully" {
+    out=$(./libexec/lightning/node-invoice-expired-list 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1684: node-invoice-expired-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expired-list.1" ]
+}
+
+@test "FEAT-1685: invoice-created-index requires arg" {
+    out=$(./libexec/lightning/invoice-created-index 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1685: invoice-created-index man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-created-index.1" ]
+}
+
+@test "FEAT-1686: channel-our-cltv-delta requires arg" {
+    out=$(./libexec/lightning/channel-our-cltv-delta 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1686: channel-our-cltv-delta man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-cltv-delta.1" ]
+}
+
+@test "FEAT-1687: peer-their-to-self-delay requires arg" {
+    out=$(./libexec/lightning/peer-their-to-self-delay 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1687: peer-their-to-self-delay man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-their-to-self-delay.1" ]
+}
+
+@test "FEAT-1688: wallet-notes-peek requires args" {
+    out=$(./libexec/lightning/wallet-notes-peek 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1688: wallet-notes-peek man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-peek.1" ]
+}
+
+@test "FEAT-1689: node-graph-fee-ppm-dist reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-fee-ppm-dist 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1689: node-graph-fee-ppm-dist man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-fee-ppm-dist.1" ]
+}
+
+@test "FEAT-1690: channel-funding-output-index requires arg" {
+    out=$(./libexec/lightning/channel-funding-output-index 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1690: channel-funding-output-index man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-output-index.1" ]
+}
