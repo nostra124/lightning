@@ -1,0 +1,20 @@
+.TH "LIGHTNING-NODE-PLUGIN-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-plugin-list \- list active CLN plugins
+.SH SYNOPSIS
+.B lightning node-plugin-list
+.SH DESCRIPTION
+Returns the list of active plugins from the Core Lightning daemon.
+.PP
+Output:
+.nf
+[{name, active, dynamic}]
+.fi
+Returns an empty array when the daemon is not reachable.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-info (1),
+.BR lightning-node-version (1)

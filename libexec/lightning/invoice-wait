@@ -1,0 +1,44 @@
+#!/bin/bash
+# lightning invoice-wait <label> [--timeout N]   (FEAT-315)
+#
+# Polls until a BOLT-11 invoice is paid or timeout (seconds) is reached.
+# Returns {label, status, paid_at} or {label, status: "timeout"}
+
+set -e
+[ $# -ge 1 ] || { printf 'usage: invoice-wait <label> [--timeout N]\n' >&2; exit 1; }
+label="$1"; shift
+timeout=60
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --timeout) timeout="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+# Use CLN's waitinvoice which blocks until paid or expired.
+raw=$(timeout "$timeout" lightning-cli $LD $NET waitinvoice "$label" 2>/dev/null) || {
+    # timed out or expired
+    python3 -c "
+import sys, json
+print(json.dumps({'label': sys.argv[1], 'status': 'timeout'}, separators=(',', ':')))
+" "$label"
+    exit 0
+}
+
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({
+    'label': d.get('label', sys.argv[2]),
+    'status': d.get('status', 'unknown'),
+    'paid_at': d.get('paid_at'),
+    'payment_hash': d.get('payment_hash', ''),
+}, separators=(',', ':')))
+" "$raw" "$label"

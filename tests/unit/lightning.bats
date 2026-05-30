@@ -9498,3 +9498,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-313: liquidity-report man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-liquidity-report.1" ]
 }
+
+# FEAT-314 — node-plugin-list verb
+
+@test "FEAT-314: node-plugin-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-plugin-list" ]
+}
+
+@test "FEAT-314: node-plugin-list returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-plugin-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-314: node-plugin-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-plugin-list.1" ]
+}
+
+# FEAT-315 — invoice-wait verb
+
+@test "FEAT-315: invoice-wait verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-wait" ]
+}
+
+@test "FEAT-315: invoice-wait reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-wait" test-label 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-315: invoice-wait man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-wait.1" ]
+}
