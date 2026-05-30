@@ -29281,3 +29281,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2610: channel-spendable-bottom5 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-bottom5.1" ]
 }
+
+@test "FEAT-2611: node-listforwards-out-msat-max reports error or max_out_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_out_msat"
+}
+@test "FEAT-2611: node-listforwards-out-msat-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-max.1" ]
+}
+
+@test "FEAT-2612: channel-capacity-bottom5 reports error or bottom5_channels_by_capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_channels_by_capacity"
+}
+@test "FEAT-2612: channel-capacity-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-bottom5.1" ]
+}
+
+@test "FEAT-2613: peer-spendable-avg reports error or spendable_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-spendable-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_avg_msat"
+}
+@test "FEAT-2613: peer-spendable-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-avg.1" ]
+}
+
+@test "FEAT-2614: node-invoice-unpaid-count-today reports error or unpaid_today_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|unpaid_today_count"
+}
+@test "FEAT-2614: node-invoice-unpaid-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-count-today.1" ]
+}
+
+@test "FEAT-2615: channel-local-balance-bottom5 reports error or bottom5_channels_by_local gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_channels_by_local"
+}
+@test "FEAT-2615: channel-local-balance-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-bottom5.1" ]
+}
+
+@test "FEAT-2616: node-pay-fee-variance reports error or fee_variance_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_variance_msat"
+}
+@test "FEAT-2616: node-pay-fee-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-variance.1" ]
+}
+
+@test "FEAT-2617: channel-remote-balance-bottom5 reports error or bottom5_channels_by_remote gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_channels_by_remote"
+}
+@test "FEAT-2617: channel-remote-balance-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-bottom5.1" ]
+}
+
+@test "FEAT-2618: peer-receivable-avg reports error or receivable_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-receivable-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_avg_msat"
+}
+@test "FEAT-2618: peer-receivable-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-avg.1" ]
+}
+
+@test "FEAT-2619: node-listinvoices-amount-avg reports error or avg_invoice_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_invoice_amount_msat"
+}
+@test "FEAT-2619: node-listinvoices-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-amount-avg.1" ]
+}
+
+@test "FEAT-2620: channel-receivable-bottom5 reports error or bottom5_by_receivable gracefully" {
+    out=$(./libexec/lightning/channel-receivable-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_by_receivable"
+}
+@test "FEAT-2620: channel-receivable-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-bottom5.1" ]
+}
