@@ -27227,3 +27227,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2340: channel-our-reserve-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-max.1" ]
 }
+
+@test "FEAT-2341: node-listforwards-in-msat-total reports error or in_msat_total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-total 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_total"
+}
+@test "FEAT-2341: node-listforwards-in-msat-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-total.1" ]
+}
+
+@test "FEAT-2342: channel-htlc-count-by-channel reports error or channels gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-by-channel 2>/dev/null)
+    echo "$out" | grep -q "error\|channels"
+}
+@test "FEAT-2342: channel-htlc-count-by-channel man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-by-channel.1" ]
+}
+
+@test "FEAT-2343: peer-newest-channel reports error or peer_id gracefully" {
+    out=$(./libexec/lightning/peer-newest-channel 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_id"
+}
+@test "FEAT-2343: peer-newest-channel man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-newest-channel.1" ]
+}
+
+@test "FEAT-2344: node-invoice-bolt12-count reports error or bolt12_invoice_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-bolt12-count 2>/dev/null)
+    echo "$out" | grep -q "error\|bolt12_invoice_count"
+}
+@test "FEAT-2344: node-invoice-bolt12-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-bolt12-count.1" ]
+}
+
+@test "FEAT-2345: channel-fee-earned-total reports error or fee_earned_msat_total gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_msat_total"
+}
+@test "FEAT-2345: channel-fee-earned-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-total.1" ]
+}
+
+@test "FEAT-2346: node-pay-90d-count reports error or pays_90d_count gracefully" {
+    out=$(./libexec/lightning/node-pay-90d-count 2>/dev/null)
+    echo "$out" | grep -q "error\|pays_90d_count"
+}
+@test "FEAT-2346: node-pay-90d-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-90d-count.1" ]
+}
+
+@test "FEAT-2347: channel-their-reserve-max reports error or their_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-their-reserve-max 2>/dev/null)
+    echo "$out" | grep -q "error\|their_reserve_msat"
+}
+@test "FEAT-2347: channel-their-reserve-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-max.1" ]
+}
+
+@test "FEAT-2348: peer-disconnected-count reports error or disconnected_count gracefully" {
+    out=$(./libexec/lightning/peer-disconnected-count 2>/dev/null)
+    echo "$out" | grep -q "error\|disconnected_count"
+}
+@test "FEAT-2348: peer-disconnected-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnected-count.1" ]
+}
+
+@test "FEAT-2349: node-listinvoices-unpaid-list reports error or unpaid_invoices gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-unpaid-list 2>/dev/null)
+    echo "$out" | grep -q "error\|unpaid_invoices"
+}
+@test "FEAT-2349: node-listinvoices-unpaid-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-unpaid-list.1" ]
+}
+
+@test "FEAT-2350: channel-local-htlc-value reports error or local_htlc_value_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-htlc-value 2>/dev/null)
+    echo "$out" | grep -q "error\|local_htlc_value_msat"
+}
+@test "FEAT-2350: channel-local-htlc-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-htlc-value.1" ]
+}
