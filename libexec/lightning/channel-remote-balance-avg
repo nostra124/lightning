@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning channel-remote-balance-avg   (FEAT-2410)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+if not channels:
+    print(json.dumps({'remote_balance_avg_msat': 0, 'channel_count': 0}))
+    sys.exit(0)
+remotes = [ch.get('to_them_msat', ch.get('remote_msat', 0)) for ch in channels]
+avg = sum(remotes) / len(remotes)
+print(json.dumps({'remote_balance_avg_msat': avg, 'channel_count': len(channels)}))
+" "$result"
