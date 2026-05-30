@@ -1,20 +1,15 @@
-.TH "LIGHTNING-WALLET-META-GET" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET_META_GET" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-meta-get \- read a metadata key from the wallet store
+lightning-wallet-meta-get \- FEAT-733 wallet-meta-get verb
 .SH SYNOPSIS
 .B lightning wallet-meta-get
-.I wallet_name key
 .SH DESCRIPTION
-Reads a key-value entry from the wallet's SQLite meta table.
-Returns
-.B {"error":"key_not_found"}
-if the key does not exist.
+wallet-meta-get verb for lightning CLI (FEAT-733).
 .PP
-Output: JSON object with wallet, key, value.
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-wallet-set-label (1),
-.BR lightning-wallet-info-json (1)
+.BR lightning(1)

@@ -1,8 +1,6 @@
 #!/bin/bash
-# lightning invoice-bolt12-decode <bolt12>   (FEAT-430)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: invoice-bolt12-decode <bolt12>"}'
-    exit 0
-fi
-result=$(lightning-cli decode "$1" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"
+# lightning invoice-bolt12-decode <bolt12>   (FEAT-735)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-bolt12-decode <bolt12>"}'; exit 0; fi
+bolt12="$1"
+result=$(lightning-cli decode "$bolt12" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps(d))" "$result"

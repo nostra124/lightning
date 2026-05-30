@@ -14584,3 +14584,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-730: channel-flags man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-flags.1" ]
 }
+
+@test "FEAT-731: node-invoices-total-msat reports error or total_invoiced_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoices-total-msat" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_invoiced_msat"
+}
+
+@test "FEAT-731: node-invoices-total-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoices-total-msat.1" ]
+}
+
+@test "FEAT-732: channel-htlc-out-count requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-out-count" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-732: channel-htlc-out-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-out-count.1" ]
+}
+
+@test "FEAT-733: wallet-meta-get requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-meta-get" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-733: wallet-meta-get man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-get.1" ]
+}
+
+@test "FEAT-734: node-funding-count reports error or channel_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-funding-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|channel_count"
+}
+
+@test "FEAT-734: node-funding-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-funding-count.1" ]
+}
+
+@test "FEAT-735: invoice-bolt12-decode requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-bolt12-decode" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-735: invoice-bolt12-decode man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt12-decode.1" ]
+}
+
+@test "FEAT-736: channel-close-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-status" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-736: channel-close-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-status.1" ]
+}
+
+@test "FEAT-737: peer-capacity-total requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-capacity-total" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-737: peer-capacity-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-total.1" ]
+}
+
+@test "FEAT-738: wallet-address-list returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-address-list" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+
+@test "FEAT-738: wallet-address-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-address-list.1" ]
+}
+
+@test "FEAT-739: node-rebalance-needed requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-rebalance-needed" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-739: node-rebalance-needed man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-rebalance-needed.1" ]
+}
+
+@test "FEAT-740: channel-spliced reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-spliced" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-740: channel-spliced man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spliced.1" ]
+}
