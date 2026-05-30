@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning node-listforwards-last   (FEAT-1964)
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+best = None
+best_time = None
+for f in forwards:
+    t = f.get('resolved_time') or f.get('received_time')
+    if t is not None and (best_time is None or t > best_time):
+        best_time = t
+        best = f
+print(json.dumps({'forward': best}))
+" "$result"

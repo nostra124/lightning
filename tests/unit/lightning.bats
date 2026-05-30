@@ -24222,3 +24222,163 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1960: channel-receivable-msat-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-msat-total.1" ]
 }
+
+@test "FEAT-1961: node-pay-fee-pct reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-pct 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1961: node-pay-fee-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-pct.1" ]
+}
+
+@test "FEAT-1962: channel-max-accepted-htlcs-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-max-accepted-htlcs-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1962: channel-max-accepted-htlcs-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-accepted-htlcs-total.1" ]
+}
+
+@test "FEAT-1963: wallet-notes-count-by-tag requires arg" {
+    out=$(./libexec/lightning/wallet-notes-count-by-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1963: wallet-notes-count-by-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-by-tag.1" ]
+}
+
+@test "FEAT-1964: node-listforwards-last reports error or forward gracefully" {
+    out=$(./libexec/lightning/node-listforwards-last 2>/dev/null)
+    echo "$out" | grep -q "error\|forward"
+}
+@test "FEAT-1964: node-listforwards-last man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-last.1" ]
+}
+
+@test "FEAT-1965: channel-stuckd-msat reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-stuckd-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1965: channel-stuckd-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-stuckd-msat.1" ]
+}
+
+@test "FEAT-1966: peer-total-balance reports error or peer_count gracefully" {
+    out=$(./libexec/lightning/peer-total-balance 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_count"
+}
+@test "FEAT-1966: peer-total-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-balance.1" ]
+}
+
+@test "FEAT-1967: node-invoice-total-msat reports error or total_invoices gracefully" {
+    out=$(./libexec/lightning/node-invoice-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|total_invoices"
+}
+@test "FEAT-1967: node-invoice-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-total-msat.1" ]
+}
+
+@test "FEAT-1968: channel-max-htlc-in-flight requires arg" {
+    out=$(./libexec/lightning/channel-max-htlc-in-flight 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1968: channel-max-htlc-in-flight man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-htlc-in-flight.1" ]
+}
+
+@test "FEAT-1969: node-graph-fee-ppm-avg reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/node-graph-fee-ppm-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1969: node-graph-fee-ppm-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-fee-ppm-avg.1" ]
+}
+
+@test "FEAT-1970: channel-balance-local-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-balance-local-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1970: channel-balance-local-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-local-total.1" ]
+}
+
+@test "FEAT-1961: node-pay-fee-pct reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-pct 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1961: node-pay-fee-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-pct.1" ]
+}
+
+@test "FEAT-1962: channel-max-accepted-htlcs-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-max-accepted-htlcs-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1962: channel-max-accepted-htlcs-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-accepted-htlcs-total.1" ]
+}
+
+@test "FEAT-1963: wallet-notes-count-by-tag requires arg" {
+    out=$(./libexec/lightning/wallet-notes-count-by-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1963: wallet-notes-count-by-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-by-tag.1" ]
+}
+
+@test "FEAT-1964: node-listforwards-last reports error or forward gracefully" {
+    out=$(./libexec/lightning/node-listforwards-last 2>/dev/null)
+    echo "$out" | grep -q "error\|forward"
+}
+@test "FEAT-1964: node-listforwards-last man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-last.1" ]
+}
+
+@test "FEAT-1965: channel-stuckd-msat reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-stuckd-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1965: channel-stuckd-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-stuckd-msat.1" ]
+}
+
+@test "FEAT-1966: peer-total-balance reports error or peer_count gracefully" {
+    out=$(./libexec/lightning/peer-total-balance 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_count"
+}
+@test "FEAT-1966: peer-total-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-balance.1" ]
+}
+
+@test "FEAT-1967: node-invoice-total-msat reports error or total_invoices gracefully" {
+    out=$(./libexec/lightning/node-invoice-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|total_invoices"
+}
+@test "FEAT-1967: node-invoice-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-total-msat.1" ]
+}
+
+@test "FEAT-1968: channel-max-htlc-in-flight requires arg" {
+    out=$(./libexec/lightning/channel-max-htlc-in-flight 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1968: channel-max-htlc-in-flight man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-htlc-in-flight.1" ]
+}
+
+@test "FEAT-1969: node-graph-fee-ppm-avg reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/node-graph-fee-ppm-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1969: node-graph-fee-ppm-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-fee-ppm-avg.1" ]
+}
+
+@test "FEAT-1970: channel-balance-local-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-balance-local-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1970: channel-balance-local-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-local-total.1" ]
+}
