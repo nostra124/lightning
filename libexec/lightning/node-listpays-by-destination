@@ -1,11 +1,12 @@
 #!/bin/bash
-# lightning node-listpays-by-destination <destination>   (FEAT-1511)
+# lightning node-listpays-by-destination <destination>   (FEAT-1947)
 if [ $# -lt 1 ]; then echo '{"error":"usage: node-listpays-by-destination <destination>"}'; exit 0; fi
 destination="$1"
-result=$(lightning-cli listpays destination="$destination" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-pays = data.get('pays', [])
-print(json.dumps({'destination': sys.argv[2], 'count': len(pays), 'pays': pays}))
+dest = sys.argv[2]
+pays = [p for p in data.get('pays', []) if p.get('destination') == dest]
+print(json.dumps({'destination': dest, 'count': len(pays), 'pays': pays}))
 " "$result" "$destination"
