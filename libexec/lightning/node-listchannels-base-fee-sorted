@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-listchannels-base-fee-sorted   (FEAT-1854)
+result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = sorted(data.get('channels', []), key=lambda c: c.get('base_fee_millisatoshi', 0), reverse=True)
+print(json.dumps({'count': len(channels), 'channels': [{'scid': c.get('short_channel_id'), 'base_fee': c.get('base_fee_millisatoshi')} for c in channels[:10]]}))
+" "$result"

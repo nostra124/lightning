@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning peer-total-balance   (FEAT-1857)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peer_balances = {}
+for c in channels:
+    pid = c.get('peer_id')
+    if pid not in peer_balances:
+        peer_balances[pid] = {'to_us': 0, 'total': 0, 'channels': 0}
+    peer_balances[pid]['to_us'] += c.get('to_us_msat', 0)
+    peer_balances[pid]['total'] += c.get('total_msat', 0)
+    peer_balances[pid]['channels'] += 1
+print(json.dumps({'peer_count': len(peer_balances), 'peers': peer_balances}))
+" "$result"

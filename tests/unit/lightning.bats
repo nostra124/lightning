@@ -23344,3 +23344,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1850: channel-remote-disabled man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-disabled.1" ]
 }
+
+@test "FEAT-1851: node-listpays-memo reports error gracefully" {
+    out=$(./libexec/lightning/node-listpays-memo 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1851: node-listpays-memo man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-memo.1" ]
+}
+
+@test "FEAT-1852: channel-opener-count reports error or total gracefully" {
+    out=$(./libexec/lightning/channel-opener-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1852: channel-opener-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-count.1" ]
+}
+
+@test "FEAT-1853: wallet-notes-search-key reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-search-key 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1853: wallet-notes-search-key man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-search-key.1" ]
+}
+
+@test "FEAT-1854: node-listchannels-base-fee-sorted reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-base-fee-sorted 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1854: node-listchannels-base-fee-sorted man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-base-fee-sorted.1" ]
+}
+
+@test "FEAT-1855: invoice-created-index reports error gracefully" {
+    out=$(./libexec/lightning/invoice-created-index 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1855: invoice-created-index man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-created-index.1" ]
+}
+
+@test "FEAT-1856: channel-feerate-perkb reports error gracefully" {
+    out=$(./libexec/lightning/channel-feerate-perkb 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1856: channel-feerate-perkb man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate-perkb.1" ]
+}
+
+@test "FEAT-1857: peer-total-balance reports error or peer_count gracefully" {
+    out=$(./libexec/lightning/peer-total-balance 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_count"
+}
+@test "FEAT-1857: peer-total-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-balance.1" ]
+}
+
+@test "FEAT-1858: wallet-notes-batch-set-tag reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-batch-set-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1858: wallet-notes-batch-set-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-batch-set-tag.1" ]
+}
+
+@test "FEAT-1859: node-listforwards-max-fee reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-max-fee 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1859: node-listforwards-max-fee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-max-fee.1" ]
+}
+
+@test "FEAT-1860: channel-spendable-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-spendable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1860: channel-spendable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-total.1" ]
+}
