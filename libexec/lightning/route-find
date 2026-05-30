@@ -1,0 +1,40 @@
+#!/bin/bash
+# lightning route-find <pubkey> <sat> [--riskfactor N]   (FEAT-266)
+#
+# Finds a route to a destination via lightning-cli getroute.
+# Returns {hops:[{id,channel,direction,amount_msat,delay}], total_msat, fee_msat}.
+
+set -e
+[ $# -ge 2 ] || { printf 'usage: route-find <pubkey> <sat> [--riskfactor N]\n' >&2; exit 1; }
+pubkey="$1"; sat="$2"; shift 2
+riskfactor=1
+while [ $# -gt 0 ]; do
+    case "$1" in --riskfactor) riskfactor="$2"; shift 2 ;; *) exit 2 ;; esac
+done
+case "$sat" in ''|*[!0-9]*) exit 2 ;; esac
+
+command -v lightning-cli >/dev/null || { echo '{"error":"lightning-cli not installed"}'; exit 127; }
+
+msat=$(( sat * 1000 ))
+raw=$(lightning-cli \
+    --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+    --network="${LIGHTNING_NETWORK:-bitcoin}" \
+    getroute "$pubkey" "${msat}msat" "$riskfactor" 2>/dev/null) || {
+    echo '{"error":"no_route"}'; exit 5; }
+
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+route = d.get('route', [])
+hops = []
+for h in route:
+    amt = h.get('amount_msat', 0)
+    if isinstance(amt, str): amt = int(amt.rstrip('msat') or 0)
+    hops.append({'id': h.get('id',''), 'channel': h.get('channel',''),
+                 'direction': h.get('direction',0),
+                 'amount_msat': amt, 'delay': h.get('delay', 0)})
+first = hops[0]['amount_msat'] if hops else 0
+last  = hops[-1]['amount_msat'] if hops else 0
+fee = first - last if first >= last else 0
+print(json.dumps({'hops': hops, 'total_msat': first, 'fee_msat': fee}))
+" "$raw"

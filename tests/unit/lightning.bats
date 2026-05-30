@@ -8758,3 +8758,17 @@ assert t['auth'] is None
 @test "FEAT-265: node-funds man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-funds.1" ]
 }
+
+# FEAT-266 — route-find verb
+
+@test "FEAT-266: route-find verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/route-find" ]
+}
+
+@test "FEAT-266: route-find man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-route-find.1" ]
+}
+
+@test "FEAT-266: route-find validates sat argument" {
+	grep -q "case.*sat.*0-9\|sat.*exit 2" "$BATS_TEST_DIRNAME/../../libexec/lightning/route-find"
+}
