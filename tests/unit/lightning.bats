@@ -16294,3 +16294,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-930: channel-last-update man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-last-update.1" ]
 }
+
+@test "FEAT-931: node-listfunds-channels reports error or channel_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listfunds-channels" 2>/dev/null)
+	echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-931: node-listfunds-channels man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listfunds-channels.1" ]
+}
+
+@test "FEAT-932: channel-spendable-total reports error or total_spendable_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-spendable-total" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_spendable_msat"
+}
+@test "FEAT-932: channel-spendable-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-total.1" ]
+}
+
+@test "FEAT-933: wallet-address-count requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-address-count" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-933: wallet-address-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-address-count.1" ]
+}
+
+@test "FEAT-934: node-channel-open-avg-size reports error or channel_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-open-avg-size" 2>/dev/null)
+	echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-934: node-channel-open-avg-size man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-open-avg-size.1" ]
+}
+
+@test "FEAT-935: invoice-delete requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-delete" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-935: invoice-delete man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-delete.1" ]
+}
+
+@test "FEAT-936: channel-initiated-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-initiated-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-936: channel-initiated-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-initiated-count.1" ]
+}
+
+@test "FEAT-937: peer-send-custom requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-send-custom" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-937: peer-send-custom man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-send-custom.1" ]
+}
+
+@test "FEAT-938: wallet-default reports default gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-default" 2>/dev/null)
+	echo "$out" | grep -q "default"
+}
+@test "FEAT-938: wallet-default man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-default.1" ]
+}
+
+@test "FEAT-939: node-graph-channel-count reports error or total_channels gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-graph-channel-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_channels"
+}
+@test "FEAT-939: node-graph-channel-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channel-count.1" ]
+}
+
+@test "FEAT-940: channel-balance-snapshot reports error or timestamp gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-balance-snapshot" 2>/dev/null)
+	echo "$out" | grep -q "error\|timestamp"
+}
+@test "FEAT-940: channel-balance-snapshot man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-snapshot.1" ]
+}
