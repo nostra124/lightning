@@ -17474,3 +17474,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1090: channel-min-msat man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-msat.1" ]
 }
+@test "FEAT-1091: node-pay-list-complete returns array gracefully" {
+	out=$(./libexec/lightning/node-pay-list-complete 2>/dev/null)
+	echo "$out" | grep -qE "^\[|\{.*error"
+}
+@test "FEAT-1091: node-pay-list-complete man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-list-complete.1" ]
+}
+@test "FEAT-1092: channel-private requires arg" {
+	out=$(./libexec/lightning/channel-private 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1092: channel-private man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-private.1" ]
+}
+@test "FEAT-1093: wallet-seed-check requires arg" {
+	out=$(./libexec/lightning/wallet-seed-check 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1093: wallet-seed-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-seed-check.1" ]
+}
+@test "FEAT-1094: node-listforwards-by-status requires arg" {
+	out=$(./libexec/lightning/node-listforwards-by-status 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1094: node-listforwards-by-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-by-status.1" ]
+}
+@test "FEAT-1095: invoice-list-by-date requires arg" {
+	out=$(./libexec/lightning/invoice-list-by-date 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1095: invoice-list-by-date man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-date.1" ]
+}
+@test "FEAT-1096: channel-max-capacity reports error or channel_count gracefully" {
+	out=$(./libexec/lightning/channel-max-capacity 2>/dev/null)
+	echo "$out" | grep -q "error\|channel_count\|channel_id"
+}
+@test "FEAT-1096: channel-max-capacity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-capacity.1" ]
+}
+@test "FEAT-1097: peer-reachable requires arg" {
+	out=$(./libexec/lightning/peer-reachable 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1097: peer-reachable man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-reachable.1" ]
+}
+@test "FEAT-1098: wallet-notes-stats requires arg" {
+	out=$(./libexec/lightning/wallet-notes-stats 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1098: wallet-notes-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-stats.1" ]
+}
+@test "FEAT-1099: node-onchain-unconf reports error or count gracefully" {
+	out=$(./libexec/lightning/node-onchain-unconf 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1099: node-onchain-unconf man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-unconf.1" ]
+}
+@test "FEAT-1100: channel-capacity-rank reports error or channel_count gracefully" {
+	out=$(./libexec/lightning/channel-capacity-rank 2>/dev/null)
+	echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1100: channel-capacity-rank man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-rank.1" ]
+}

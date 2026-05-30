@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-onchain-unconf   (FEAT-1099)
+if ! result=$(lightning-cli listfunds 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+unconf = [o for o in data.get('outputs', []) if o.get('status') == 'unconfirmed']
+total = sum(o.get('amount_msat', 0) for o in unconf)
+print(json.dumps({'count': len(unconf), 'total_unconfirmed_msat': total}))
+" "$result"

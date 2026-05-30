@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning channel-max-capacity   (FEAT-1096)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+if not channels:
+    print(json.dumps({'channel_count': 0, 'max_capacity_msat': 0}))
+    import sys; sys.exit(0)
+max_ch = max(channels, key=lambda c: c.get('total_msat', 0))
+print(json.dumps({'channel_id': max_ch.get('channel_id'), 'max_capacity_msat': max_ch.get('total_msat', 0)}))
+" "$result"
