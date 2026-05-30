@@ -1,18 +1,15 @@
 #!/bin/bash
-# lightning peer-node-id <peer_alias>   (FEAT-597)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: peer-node-id <peer_alias>"}'
-    exit 0
-fi
-alias_search="$1"
-result=$(lightning-cli listnodes 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+# lightning peer-node-id <pubkey>   (FEAT-1926)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-node-id <pubkey>"}'; exit 0; fi
+pubkey="$1"
+result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-alias = sys.argv[2].lower()
-for n in data.get('nodes', []):
-    if n.get('alias', '').lower() == alias:
-        print(json.dumps({'alias': n.get('alias'), 'nodeid': n.get('nodeid')}))
+pubkey = sys.argv[2]
+for p in data.get('peers', []):
+    if p.get('id') == pubkey:
+        print(json.dumps({'node_id': p.get('id'), 'connected': p.get('connected'), 'num_channels': len(p.get('channels', []))}))
         sys.exit(0)
-print(json.dumps({'error': 'node not found', 'alias': sys.argv[2]}))
-" "$result" "$alias_search"
+print(json.dumps({'error': 'peer not found'}))
+" "$result" "$pubkey"

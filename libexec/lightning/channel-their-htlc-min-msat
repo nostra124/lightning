@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning channel-their-htlc-min-msat <channel_id>   (FEAT-1928)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-their-htlc-min-msat <channel_id>"}'; exit 0; fi
+arg="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+cid = sys.argv[2]
+channels = data.get('channels', [])
+for ch in channels:
+    if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
+        val = ch.get('their_htlc_minimum_msat', ch.get('minimum_htlc_in_msat'))
+        print(json.dumps({'channel_id': cid, 'their_htlc_minimum_msat': val}))
+        sys.exit(0)
+print(json.dumps({'error': 'channel not found'}))
+" "$result" "$arg"
