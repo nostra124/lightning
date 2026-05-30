@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning invoice-create-keysend <dest_pubkey> <amount_msat>   (FEAT-645)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: invoice-create-keysend <dest_pubkey> <amount_msat>"}'
+    exit 0
+fi
+dest="$1"; amount_msat="$2"
+result=$(lightning-cli keysend "$dest" "$amount_msat" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

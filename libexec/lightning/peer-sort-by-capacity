@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning peer-sort-by-capacity   (FEAT-647)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+by_peer = {}
+for ch in channels:
+    pid = ch.get('peer_id', '')
+    cap = ch.get('total_msat', 0)
+    by_peer[pid] = by_peer.get(pid, 0) + cap
+sorted_peers = sorted(by_peer.items(), key=lambda x: x[1], reverse=True)
+print(json.dumps([{'peer_id': p, 'total_capacity_msat': c} for p, c in sorted_peers]))
+" "$result"

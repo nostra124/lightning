@@ -1,7 +1,7 @@
 #!/bin/bash
-# lightning channel-close-mutual <channel_id> [<destination_address>]   (FEAT-416)
+# lightning channel-close-mutual <channel_id> [<dest_addr>]   (FEAT-650)
 if [ $# -lt 1 ]; then
-    echo '{"error":"usage: channel-close-mutual <channel_id> [<destination_address>]"}'
+    echo '{"error":"usage: channel-close-mutual <channel_id> [<dest_addr>]"}'
     exit 0
 fi
 channel_id="$1"; dest="${2:-}"

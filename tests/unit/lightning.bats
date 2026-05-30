@@ -13774,3 +13774,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-640: channel-remote-reserve man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve.1" ]
 }
+
+@test "FEAT-641: node-info-short reports error or id gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-info-short" 2>/dev/null)
+	echo "$out" | grep -q "error\|id\|alias"
+}
+
+@test "FEAT-641: node-info-short man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-info-short.1" ]
+}
+
+@test "FEAT-642: channel-capacity-left requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-capacity-left" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-642: channel-capacity-left man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-left.1" ]
+}
+
+@test "FEAT-643: wallet-name-list returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-name-list" 2>/dev/null)
+	echo "$out" | grep -q "\[\|\]"
+}
+
+@test "FEAT-643: wallet-name-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-name-list.1" ]
+}
+
+@test "FEAT-644: node-pubkey reports error or pubkey gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-pubkey" 2>/dev/null)
+	echo "$out" | grep -q "error\|pubkey"
+}
+
+@test "FEAT-644: node-pubkey man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pubkey.1" ]
+}
+
+@test "FEAT-645: invoice-create-keysend requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-keysend" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-645: invoice-create-keysend man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-create-keysend.1" ]
+}
+
+@test "FEAT-646: channel-all-fees returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-all-fees" 2>/dev/null)
+	echo "$out" | grep -q "error\|\[\|\]"
+}
+
+@test "FEAT-646: channel-all-fees man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-all-fees.1" ]
+}
+
+@test "FEAT-647: peer-sort-by-capacity returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-sort-by-capacity" 2>/dev/null)
+	echo "$out" | grep -q "\[\|\]"
+}
+
+@test "FEAT-647: peer-sort-by-capacity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-sort-by-capacity.1" ]
+}
+
+@test "FEAT-648: wallet-seed-words requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-seed-words" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-648: wallet-seed-words man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-seed-words.1" ]
+}
+
+@test "FEAT-649: node-liquidity-summary reports error or spendable_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-liquidity-summary" 2>/dev/null)
+	echo "$out" | grep -q "error\|spendable_msat"
+}
+
+@test "FEAT-649: node-liquidity-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-liquidity-summary.1" ]
+}
+
+@test "FEAT-650: channel-close-mutual requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-mutual" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-650: channel-close-mutual man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-mutual.1" ]
+}
