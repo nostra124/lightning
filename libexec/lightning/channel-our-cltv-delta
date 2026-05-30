@@ -1,6 +1,6 @@
 #!/bin/bash
-# lightning channel-htlc-list <channel_id>   (FEAT-1456)
-if [ $# -lt 1 ]; then echo '{"error":"usage: channel-htlc-list <channel_id>"}'; exit 0; fi
+# lightning channel-our-cltv-delta <channel_id>   (FEAT-1460)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-our-cltv-delta <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
@@ -9,8 +9,7 @@ data = json.loads(sys.argv[1])
 cid = sys.argv[2]
 for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        htlcs = ch.get('htlcs', [])
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'htlc_count': len(htlcs), 'htlcs': htlcs}))
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'our_cltv_expiry_delta': ch.get('our_cltv_expiry_delta')}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"

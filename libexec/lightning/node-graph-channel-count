@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning node-graph-channel-count   (FEAT-1164)
+# lightning node-graph-channel-count   (FEAT-1459)
 result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json

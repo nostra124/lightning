@@ -20284,3 +20284,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1450: channel-dust-limit man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-dust-limit.1" ]
 }
+@test "FEAT-1451: node-channel-total-capacity reports error or total_capacity_msat gracefully" {
+    out=$(./libexec/lightning/node-channel-total-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|total_capacity_msat"
+}
+@test "FEAT-1451: node-channel-total-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-total-capacity.1" ]
+}
+@test "FEAT-1452: channel-initial-feerate reports error gracefully" {
+    out=$(./libexec/lightning/channel-initial-feerate 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1452: channel-initial-feerate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-initial-feerate.1" ]
+}
+@test "FEAT-1453: wallet-notes-pin reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-pin 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1453: wallet-notes-pin man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-pin.1" ]
+}
+@test "FEAT-1454: node-listpays-pending reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-pending 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1454: node-listpays-pending man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-pending.1" ]
+}
+@test "FEAT-1455: invoice-msatoshi-received reports error gracefully" {
+    out=$(./libexec/lightning/invoice-msatoshi-received 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1455: invoice-msatoshi-received man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-msatoshi-received.1" ]
+}
+@test "FEAT-1456: channel-htlc-list reports error gracefully" {
+    out=$(./libexec/lightning/channel-htlc-list 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1456: channel-htlc-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-list.1" ]
+}
+@test "FEAT-1457: peer-features reports error gracefully" {
+    out=$(./libexec/lightning/peer-features 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1457: peer-features man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-features.1" ]
+}
+@test "FEAT-1458: wallet-notes-unpin reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-unpin 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1458: wallet-notes-unpin man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-unpin.1" ]
+}
+@test "FEAT-1459: node-graph-channel-count reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/node-graph-channel-count 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1459: node-graph-channel-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channel-count.1" ]
+}
+@test "FEAT-1460: channel-our-cltv-delta reports error gracefully" {
+    out=$(./libexec/lightning/channel-our-cltv-delta 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1460: channel-our-cltv-delta man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-cltv-delta.1" ]
+}
