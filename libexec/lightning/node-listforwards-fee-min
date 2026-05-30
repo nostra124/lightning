@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-listforwards-fee-min   (FEAT-2501)
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+settled = [f.get('fee_msat') for f in forwards if f.get('status') == 'settled' and f.get('fee_msat') is not None]
+if settled:
+    print(json.dumps({'fee_min_msat': min(settled)}))
+else:
+    print(json.dumps({'fee_min_msat': None}))
+" "$result"

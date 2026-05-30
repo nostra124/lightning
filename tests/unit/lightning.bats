@@ -28411,3 +28411,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2500: channel-capacity-range man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-range.1" ]
 }
+
+@test "FEAT-2501: node-listforwards-fee-min reports error or fee_min_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_min_msat"
+}
+@test "FEAT-2501: node-listforwards-fee-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-min.1" ]
+}
+
+@test "FEAT-2502: channel-htlc-timeout-max reports error or htlc_cltv_expiry_max gracefully" {
+    out=$(./libexec/lightning/channel-htlc-timeout-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_cltv_expiry_max"
+}
+@test "FEAT-2502: channel-htlc-timeout-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout-max.1" ]
+}
+
+@test "FEAT-2503: peer-remote-reserve-total reports error or remote_reserve_total_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_total_msat"
+}
+@test "FEAT-2503: peer-remote-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-total.1" ]
+}
+
+@test "FEAT-2504: node-invoice-paid-count-today reports error or invoice_paid_count_today gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_paid_count_today"
+}
+@test "FEAT-2504: node-invoice-paid-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-today.1" ]
+}
+
+@test "FEAT-2505: channel-fee-ppm-range reports error or fee_ppm_min gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_min"
+}
+@test "FEAT-2505: channel-fee-ppm-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-range.1" ]
+}
+
+@test "FEAT-2506: node-pay-amount-max reports error or max_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_amount_msat"
+}
+@test "FEAT-2506: node-pay-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-max.1" ]
+}
+
+@test "FEAT-2507: channel-capacity-top5 reports error or top5_channels_by_capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_channels_by_capacity"
+}
+@test "FEAT-2507: channel-capacity-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-top5.1" ]
+}
+
+@test "FEAT-2508: peer-local-pct-max reports error or local_pct_max gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_max"
+}
+@test "FEAT-2508: peer-local-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-max.1" ]
+}
+
+@test "FEAT-2509: node-listinvoices-paid-amount-max reports error or paid_invoice_amount_max_msat gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_invoice_amount_max_msat"
+}
+@test "FEAT-2509: node-listinvoices-paid-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-amount-max.1" ]
+}
+
+@test "FEAT-2510: channel-fee-revenue-estimate reports error or fee_revenue_estimate_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-revenue-estimate 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_revenue_estimate_msat"
+}
+@test "FEAT-2510: channel-fee-revenue-estimate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-revenue-estimate.1" ]
+}

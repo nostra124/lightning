@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-listinvoices-paid-amount-max   (FEAT-2509)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+amounts = [inv.get('amount_received_msat') or inv.get('amount_msat') for inv in invoices if inv.get('status') == 'paid' and (inv.get('amount_received_msat') or inv.get('amount_msat')) is not None]
+if amounts:
+    print(json.dumps({'paid_invoice_amount_max_msat': max(amounts)}))
+else:
+    print(json.dumps({'paid_invoice_amount_max_msat': None}))
+" "$result"

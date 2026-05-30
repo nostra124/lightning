@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning channel-fee-revenue-estimate   (FEAT-2510)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+total = 0
+for c in channels:
+    base = c.get('fee_base_msat') or 0
+    ppm = c.get('fee_proportional_millionths') or 0
+    capacity = c.get('total_msat') or 0
+    total += base + ppm * capacity / 1_000_000
+print(json.dumps({'fee_revenue_estimate_msat': round(total, 3)}))
+" "$result"
