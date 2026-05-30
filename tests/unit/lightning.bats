@@ -9584,3 +9584,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-318: channel-history man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-history.1" ]
 }
+
+# FEAT-319 — node-gossip verb
+
+@test "FEAT-319: node-gossip verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-gossip" ]
+}
+
+@test "FEAT-319: node-gossip reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-gossip" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-319: node-gossip man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-gossip.1" ]
+}
+
+# FEAT-320 — wallet-ledger-search verb
+
+@test "FEAT-320: wallet-ledger-search verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-ledger-search" ]
+}
+
+@test "FEAT-320: wallet-ledger-search returns empty array without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-ledger-search" "test" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-320: wallet-ledger-search man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-ledger-search.1" ]
+}

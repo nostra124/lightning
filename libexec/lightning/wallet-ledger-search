@@ -1,0 +1,53 @@
+#!/bin/bash
+# lightning wallet-ledger-search <query> [--account <addr>] [--limit N]   (FEAT-320)
+#
+# Searches ledger notes for a substring.
+# Returns [{entry_id, account_id, direction, amount_sat, note, created_at}]
+
+set -e
+[ $# -ge 1 ] || { printf 'usage: wallet-ledger-search <query> [--account <addr>] [--limit N]\n' >&2; exit 1; }
+query="$1"; shift
+acct=""; limit=50
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --account) acct="$2"; shift 2 ;;
+        --limit)   limit="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+
+WALLETS_ROOT="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+wname="${WALLET:-default}"
+db="$WALLETS_ROOT/$wname/state.db"
+
+[ -f "$db" ] || { echo '[]'; exit 0; }
+
+python3 -c "
+import sqlite3, json, sys
+db = sys.argv[1]; query = sys.argv[2]; acct = sys.argv[3]; limit = int(sys.argv[4])
+conn = sqlite3.connect(db)
+conn.row_factory = sqlite3.Row
+try:
+    q = '''SELECT rowid, account_id, direction, amount_msat, note, created_at
+           FROM ledger
+           WHERE note LIKE :pat
+             AND (:acct = '' OR account_id = :acct)
+           ORDER BY created_at DESC LIMIT :limit'''
+    rows = conn.execute(q, {'pat': '%' + query + '%', 'acct': acct, 'limit': limit}).fetchall()
+    result = []
+    for r in rows:
+        result.append({
+            'entry_id': r['rowid'],
+            'account_id': r['account_id'],
+            'direction': r['direction'],
+            'amount_sat': r['amount_msat'] // 1000,
+            'note': r['note'],
+            'created_at': r['created_at'],
+        })
+    print(json.dumps(result, separators=(',', ':')))
+except Exception as e:
+    print(json.dumps([]))
+finally:
+    conn.close()
+" "$db" "$query" "$acct" "$limit"
