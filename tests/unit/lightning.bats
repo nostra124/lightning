@@ -32491,3 +32491,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3020: node-listforwards-success-rate-month man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-success-rate-month.1" ]
 }
+
+@test "FEAT-3021: channel-htlc-count-total reports error or htlc_count_total gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_total"
+}
+@test "FEAT-3021: channel-htlc-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-total.1" ]
+}
+
+@test "FEAT-3022: node-listforwards-fail-count-day reports error or fail_count_day gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fail-count-day 2>/dev/null)
+    echo "$out" | grep -q "error\|fail_count_day"
+}
+@test "FEAT-3022: node-listforwards-fail-count-day man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fail-count-day.1" ]
+}
+
+@test "FEAT-3023: peer-capacity-ratio-avg reports error or capacity_ratio_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-ratio-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_ratio_avg_peer"
+}
+@test "FEAT-3023: peer-capacity-ratio-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-ratio-avg.1" ]
+}
+
+@test "FEAT-3024: channel-reserve-local-total reports error or reserve_local_total gracefully" {
+    out=$(./libexec/lightning/channel-reserve-local-total 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_local_total"
+}
+@test "FEAT-3024: channel-reserve-local-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-local-total.1" ]
+}
+
+@test "FEAT-3025: node-listforwards-fail-count-week reports error or fail_count_week gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fail-count-week 2>/dev/null)
+    echo "$out" | grep -q "error\|fail_count_week"
+}
+@test "FEAT-3025: node-listforwards-fail-count-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fail-count-week.1" ]
+}
+
+@test "FEAT-3026: peer-capacity-ratio-stddev reports error or capacity_ratio_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-ratio-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_ratio_stddev_peer"
+}
+@test "FEAT-3026: peer-capacity-ratio-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-ratio-stddev.1" ]
+}
+
+@test "FEAT-3027: channel-reserve-remote-total reports error or reserve_remote_total gracefully" {
+    out=$(./libexec/lightning/channel-reserve-remote-total 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_remote_total"
+}
+@test "FEAT-3027: channel-reserve-remote-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-remote-total.1" ]
+}
+
+@test "FEAT-3028: node-listforwards-fail-count-month reports error or fail_count_month gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fail-count-month 2>/dev/null)
+    echo "$out" | grep -q "error\|fail_count_month"
+}
+@test "FEAT-3028: node-listforwards-fail-count-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fail-count-month.1" ]
+}
+
+@test "FEAT-3029: peer-capacity-ratio-median reports error or capacity_ratio_median_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-ratio-median 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_ratio_median_peer"
+}
+@test "FEAT-3029: peer-capacity-ratio-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-ratio-median.1" ]
+}
+
+@test "FEAT-3030: channel-reserve-local-avg reports error or reserve_local_avg gracefully" {
+    out=$(./libexec/lightning/channel-reserve-local-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_local_avg"
+}
+@test "FEAT-3030: channel-reserve-local-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-local-avg.1" ]
+}
