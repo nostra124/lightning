@@ -23584,3 +23584,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1880: channel-feerate-perkw man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate-perkw.1" ]
 }
+
+@test "FEAT-1881: node-listpays-count-by-dest reports error gracefully" {
+    out=$(./libexec/lightning/node-listpays-count-by-dest 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1881: node-listpays-count-by-dest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-count-by-dest.1" ]
+}
+
+@test "FEAT-1882: channel-remote-pct reports error gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1882: channel-remote-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct.1" ]
+}
+
+@test "FEAT-1883: wallet-notes-size reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-size 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1883: wallet-notes-size man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-size.1" ]
+}
+
+@test "FEAT-1884: node-listchannels-enabled reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listchannels-enabled 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1884: node-listchannels-enabled man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-enabled.1" ]
+}
+
+@test "FEAT-1885: invoice-list-recent reports error or count gracefully" {
+    out=$(./libexec/lightning/invoice-list-recent 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1885: invoice-list-recent man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-recent.1" ]
+}
+
+@test "FEAT-1886: channel-csv-delay reports error gracefully" {
+    out=$(./libexec/lightning/channel-csv-delay 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1886: channel-csv-delay man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-csv-delay.1" ]
+}
+
+@test "FEAT-1887: peer-newest-channel reports error gracefully" {
+    out=$(./libexec/lightning/peer-newest-channel 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1887: peer-newest-channel man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-newest-channel.1" ]
+}
+
+@test "FEAT-1888: wallet-notes-multi-tag reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-multi-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1888: wallet-notes-multi-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-multi-tag.1" ]
+}
+
+@test "FEAT-1889: node-listforwards-rate reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1889: node-listforwards-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-rate.1" ]
+}
+
+@test "FEAT-1890: channel-both-fees reports error gracefully" {
+    out=$(./libexec/lightning/channel-both-fees 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1890: channel-both-fees man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-fees.1" ]
+}

@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning peer-newest-channel <peer_id>   (FEAT-1887)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-newest-channel <peer_id>"}'; exit 0; fi
+peer_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pid = sys.argv[2]
+channels = [c for c in data.get('channels', []) if c.get('peer_id') == pid]
+if not channels: print(json.dumps({'error': 'no channels for peer'})); sys.exit(0)
+newest = max(channels, key=lambda c: c.get('open_block', 0))
+print(json.dumps({'channel_id': newest.get('channel_id'), 'open_block': newest.get('open_block')}))
+" "$result" "$peer_id"

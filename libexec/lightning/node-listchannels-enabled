@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-listchannels-enabled   (FEAT-1884)
+result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+enabled = [c for c in channels if c.get('active')]
+print(json.dumps({'total': len(channels), 'enabled': len(enabled), 'disabled': len(channels) - len(enabled)}))
+" "$result"
