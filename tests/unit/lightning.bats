@@ -9909,3 +9909,48 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-339: node-peer-count man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-count.1" ]
 }
+
+# FEAT-340 — channel-age verb
+
+@test "FEAT-340: channel-age verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-age" ]
+}
+
+@test "FEAT-340: channel-age returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-age" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-340: channel-age man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age.1" ]
+}
+
+# FEAT-341 — wallet-balance-history verb
+
+@test "FEAT-341: wallet-balance-history verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-balance-history" ]
+}
+
+@test "FEAT-341: wallet-balance-history returns empty array without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-balance-history" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-341: wallet-balance-history man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-history.1" ]
+}
+
+# FEAT-342 — node-payment-summary verb
+
+@test "FEAT-342: node-payment-summary verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-summary" ]
+}
+
+@test "FEAT-342: node-payment-summary reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-summary" 2>/dev/null)
+	echo "$out" | grep -q "error\|payments_sent"
+}
+
+@test "FEAT-342: node-payment-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-payment-summary.1" ]
+}
