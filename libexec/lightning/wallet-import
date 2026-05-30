@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning wallet-import <wallet_name> <backup_file>   (FEAT-563)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-import <wallet_name> <backup_file>"}'
+    exit 0
+fi
+wname="$1"; backup="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+dest="$root/$wname"
+if [ ! -f "$backup" ]; then
+    echo '{"error":"backup file not found"}'
+    exit 0
+fi
+mkdir -p "$dest"
+if cp "$backup" "$dest/state.db" 2>/dev/null; then
+    echo "{\"ok\":true,\"wallet\":\"$wname\",\"imported_from\":\"$backup\"}"
+else
+    echo '{"error":"import failed"}'
+fi

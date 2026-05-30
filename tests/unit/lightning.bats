@@ -13054,3 +13054,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-560: invoice-webhook-list man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-webhook-list.1" ]
 }
+
+@test "FEAT-561: node-channel-updates reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-updates" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_channel_updates"
+}
+
+@test "FEAT-561: node-channel-updates man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-updates.1" ]
+}
+
+@test "FEAT-562: channel-uptime requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-uptime" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-562: channel-uptime man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime.1" ]
+}
+
+@test "FEAT-563: wallet-import requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-import" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-563: wallet-import man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-import.1" ]
+}
+
+@test "FEAT-564: node-rebalance-status reports error or imbalanced_channels gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-rebalance-status" 2>/dev/null)
+	echo "$out" | grep -q "error\|imbalanced_channels"
+}
+
+@test "FEAT-564: node-rebalance-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-rebalance-status.1" ]
+}
+
+@test "FEAT-565: invoice-preimage-reveal requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-preimage-reveal" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-565: invoice-preimage-reveal man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-preimage-reveal.1" ]
+}
+
+@test "FEAT-566: channel-policy-get requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-policy-get" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-566: channel-policy-get man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-policy-get.1" ]
+}
+
+@test "FEAT-567: peer-reconnect requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-reconnect" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-567: peer-reconnect man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-reconnect.1" ]
+}
+
+@test "FEAT-568: wallet-unlock requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-unlock" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-568: wallet-unlock man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-unlock.1" ]
+}
+
+@test "FEAT-569: node-gossip-map reports error or node_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-gossip-map" 2>/dev/null)
+	echo "$out" | grep -q "error\|node_count"
+}
+
+@test "FEAT-569: node-gossip-map man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-gossip-map.1" ]
+}
+
+@test "FEAT-570: channel-short-id requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-short-id" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-570: channel-short-id man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-short-id.1" ]
+}
