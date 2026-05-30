@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning channel-both-reserves-max   (FEAT-2397)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+if not channels:
+    print(json.dumps({'channel_both_reserves_max': None}))
+    sys.exit(0)
+best = max(channels, key=lambda c: c.get('our_reserve_msat', 0) + c.get('their_reserve_msat', 0))
+total = best.get('our_reserve_msat', 0) + best.get('their_reserve_msat', 0)
+print(json.dumps({'channel_both_reserves_max': best, 'combined_reserve_msat': total}))
+" "$result"

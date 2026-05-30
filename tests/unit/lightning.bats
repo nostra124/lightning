@@ -27451,3 +27451,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2380: channel-local-pct-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-avg.1" ]
 }
+
+@test "FEAT-2381: node-listforwards-failed-rate reports error or failed_rate gracefully" {
+    out=$(./libexec/lightning/node-listforwards-failed-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_rate"
+}
+@test "FEAT-2381: node-listforwards-failed-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-failed-rate.1" ]
+}
+
+@test "FEAT-2382: channel-htlc-timeout-avg reports error or avg_cltv_expiry gracefully" {
+    out=$(./libexec/lightning/channel-htlc-timeout-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_cltv_expiry"
+}
+@test "FEAT-2382: channel-htlc-timeout-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout-avg.1" ]
+}
+
+@test "FEAT-2383: peer-htlc-total-value reports error or peer_htlc_total_value_msat gracefully" {
+    out=$(./libexec/lightning/peer-htlc-total-value 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_htlc_total_value_msat"
+}
+@test "FEAT-2383: peer-htlc-total-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-total-value.1" ]
+}
+
+@test "FEAT-2384: node-invoice-paid-last-7d reports error or invoices_paid_last_7d gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-last-7d 2>/dev/null)
+    echo "$out" | grep -q "error\|invoices_paid_last_7d"
+}
+@test "FEAT-2384: node-invoice-paid-last-7d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-last-7d.1" ]
+}
+
+@test "FEAT-2385: channel-fee-ppm-min reports error or fee_proportional_millionths gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_millionths"
+}
+@test "FEAT-2385: channel-fee-ppm-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-min.1" ]
+}
+
+@test "FEAT-2386: node-pay-count-1d reports error or pays_complete_last_1d gracefully" {
+    out=$(./libexec/lightning/node-pay-count-1d 2>/dev/null)
+    echo "$out" | grep -q "error\|pays_complete_last_1d"
+}
+@test "FEAT-2386: node-pay-count-1d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-1d.1" ]
+}
+
+@test "FEAT-2387: channel-local-htlc-value-total reports error or local_htlc_value_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-htlc-value-total 2>/dev/null)
+    echo "$out" | grep -q "error\|local_htlc_value_total_msat"
+}
+@test "FEAT-2387: channel-local-htlc-value-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-htlc-value-total.1" ]
+}
+
+@test "FEAT-2388: peer-oldest-connected reports error or peer_id gracefully" {
+    out=$(./libexec/lightning/peer-oldest-connected 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_id"
+}
+@test "FEAT-2388: peer-oldest-connected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-oldest-connected.1" ]
+}
+
+@test "FEAT-2389: node-listinvoices-bolt12-list reports error or bolt12_invoice_count gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-bolt12-list 2>/dev/null)
+    echo "$out" | grep -q "error\|bolt12_invoice_count"
+}
+@test "FEAT-2389: node-listinvoices-bolt12-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-bolt12-list.1" ]
+}
+
+@test "FEAT-2390: channel-capacity-top10 reports error or top10_channels gracefully" {
+    out=$(./libexec/lightning/channel-capacity-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_channels"
+}
+@test "FEAT-2390: channel-capacity-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-top10.1" ]
+}

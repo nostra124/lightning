@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning channel-fee-base-min   (FEAT-2395)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+if not channels:
+    print(json.dumps({'channel_fee_base_min': None}))
+    sys.exit(0)
+best = min(channels, key=lambda c: c.get('fee_base_msat', float('inf')))
+print(json.dumps({'channel_fee_base_min': best}))
+" "$result"
