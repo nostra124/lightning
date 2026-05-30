@@ -28091,3 +28091,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2460: channel-local-balance-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-total.1" ]
 }
+
+@test "FEAT-2461: node-listforwards-fee-total-14d reports error or fee_total_msat_14d gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-14d 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_msat_14d"
+}
+@test "FEAT-2461: node-listforwards-fee-total-14d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-14d.1" ]
+}
+
+@test "FEAT-2462: channel-htlc-count-avg reports error or htlc_count_avg gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_avg"
+}
+@test "FEAT-2462: channel-htlc-count-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-avg.1" ]
+}
+
+@test "FEAT-2463: peer-capacity-min reports error or capacity_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-min 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_msat"
+}
+@test "FEAT-2463: peer-capacity-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-min.1" ]
+}
+
+@test "FEAT-2464: node-invoice-paid-amount-total reports error or paid_amount_total_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_total_msat"
+}
+@test "FEAT-2464: node-invoice-paid-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-total.1" ]
+}
+
+@test "FEAT-2465: channel-fee-ppm-min reports error or fee_proportional_millionths gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_millionths"
+}
+@test "FEAT-2465: channel-fee-ppm-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-min.1" ]
+}
+
+@test "FEAT-2466: node-pay-complete-count-90d reports error or pay_complete_count_90d gracefully" {
+    out=$(./libexec/lightning/node-pay-complete-count-90d 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_complete_count_90d"
+}
+@test "FEAT-2466: node-pay-complete-count-90d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-complete-count-90d.1" ]
+}
+
+@test "FEAT-2467: channel-capacity-total reports error or total_sat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_sat"
+}
+@test "FEAT-2467: channel-capacity-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-total.1" ]
+}
+
+@test "FEAT-2468: peer-fee-ppm-min reports error or fee_ppm_min gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_min"
+}
+@test "FEAT-2468: peer-fee-ppm-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-min.1" ]
+}
+
+@test "FEAT-2469: node-listinvoices-paid-count-30d reports error or paid_count_30d gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-count-30d 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_30d"
+}
+@test "FEAT-2469: node-listinvoices-paid-count-30d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-count-30d.1" ]
+}
+
+@test "FEAT-2470: channel-remote-balance-total reports error or remote_balance_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_msat"
+}
+@test "FEAT-2470: channel-remote-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-total.1" ]
+}
