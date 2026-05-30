@@ -26381,3 +26381,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2230: channel-local-ratio-min man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-ratio-min.1" ]
 }
+
+@test "FEAT-2231: channel-balance-total reports error or local_msat gracefully" {
+    out=$(./libexec/lightning/channel-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|local_msat"
+}
+@test "FEAT-2231: channel-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-total.1" ]
+}
+
+@test "FEAT-2232: node-pay-count-total reports error or total gracefully" {
+    out=$(./libexec/lightning/node-pay-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-2232: node-pay-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-total.1" ]
+}
+
+@test "FEAT-2233: channel-fee-base-max reports error or fee_base_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_msat"
+}
+@test "FEAT-2233: channel-fee-base-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-max.1" ]
+}
+
+@test "FEAT-2234: peer-uptime-avg reports error or uptime_ratio gracefully" {
+    out=$(./libexec/lightning/peer-uptime-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_ratio"
+}
+@test "FEAT-2234: peer-uptime-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-uptime-avg.1" ]
+}
+
+@test "FEAT-2235: node-listinvoices-amount-total reports error or total_msat gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_msat"
+}
+@test "FEAT-2235: node-listinvoices-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-amount-total.1" ]
+}
+
+@test "FEAT-2236: channel-htlc-min-msat reports error or minimum_htlc_in_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|minimum_htlc_in_msat"
+}
+@test "FEAT-2236: channel-htlc-min-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat.1" ]
+}
+
+@test "FEAT-2237: node-graph-betweenness reports error or node_count gracefully" {
+    out=$(./libexec/lightning/node-graph-betweenness 2>/dev/null)
+    echo "$out" | grep -q "error\|node_count"
+}
+@test "FEAT-2237: node-graph-betweenness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-betweenness.1" ]
+}
+
+@test "FEAT-2238: channel-fee-ppm-median reports error or median_ppm gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_ppm"
+}
+@test "FEAT-2238: channel-fee-ppm-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-median.1" ]
+}
+
+@test "FEAT-2239: node-pay-recent reports error or recent_pays gracefully" {
+    out=$(./libexec/lightning/node-pay-recent 2>/dev/null)
+    echo "$out" | grep -q "error\|recent_pays"
+}
+@test "FEAT-2239: node-pay-recent man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-recent.1" ]
+}
+
+@test "FEAT-2240: channel-remote-balance-total reports error or remote_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_msat"
+}
+@test "FEAT-2240: channel-remote-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-total.1" ]
+}

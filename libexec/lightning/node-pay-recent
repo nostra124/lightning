@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-pay-recent   (FEAT-2239)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+complete = [p for p in pays if p.get('status') == 'complete']
+complete.sort(key=lambda p: p.get('created_at', 0), reverse=True)
+recent = complete[:5]
+out = [{'payment_hash': p.get('payment_hash', ''), 'amount_msat': p.get('amount_msat', 0), 'created_at': p.get('created_at', 0)} for p in recent]
+print(json.dumps({'recent_pays': out}))
+" "$result"

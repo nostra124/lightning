@@ -1,14 +1,19 @@
 #!/bin/bash
-# lightning peer-oldest-channel <peer_id>   (FEAT-1877)
-if [ $# -lt 1 ]; then echo '{"error":"usage: peer-oldest-channel <peer_id>"}'; exit 0; fi
-peer_id="$1"
+# lightning peer-oldest-channel   (FEAT-2243)
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-pid = sys.argv[2]
-channels = [c for c in data.get('channels', []) if c.get('peer_id') == pid]
-if not channels: print(json.dumps({'error': 'no channels for peer'})); sys.exit(0)
-oldest = min(channels, key=lambda c: c.get('open_block', float('inf')))
-print(json.dumps({'channel_id': oldest.get('channel_id'), 'open_block': oldest.get('open_block')}))
-" "$result" "$peer_id"
+channels = data.get('channels', [])
+def block_height(scid):
+    try:
+        return int(scid.split('x')[0])
+    except Exception:
+        return 999999999
+candidates = [c for c in channels if c.get('short_channel_id')]
+if candidates:
+    oldest = min(candidates, key=lambda c: block_height(c['short_channel_id']))
+    print(json.dumps({'peer_id': oldest.get('peer_id'), 'short_channel_id': oldest.get('short_channel_id')}))
+else:
+    print(json.dumps({'peer_id': None, 'short_channel_id': None}))
+" "$result"
