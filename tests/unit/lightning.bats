@@ -13234,3 +13234,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-580: channel-fee-set man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-set.1" ]
 }
+
+@test "FEAT-581: node-channel-count-active reports error or active gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-count-active" 2>/dev/null)
+	echo "$out" | grep -q "error\|active"
+}
+
+@test "FEAT-581: node-channel-count-active man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-count-active.1" ]
+}
+
+@test "FEAT-582: invoice-msatoshi requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-msatoshi" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-582: invoice-msatoshi man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-msatoshi.1" ]
+}
+
+@test "FEAT-583: channel-funding-txid requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-funding-txid" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-583: channel-funding-txid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-txid.1" ]
+}
+
+@test "FEAT-584: wallet-meta-set requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-meta-set" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-584: wallet-meta-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-set.1" ]
+}
+
+@test "FEAT-585: node-invoice-hook requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-hook" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-585: node-invoice-hook man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-hook.1" ]
+}
+
+@test "FEAT-586: channel-peer-id requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-id" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-586: channel-peer-id man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-id.1" ]
+}
+
+@test "FEAT-587: node-listpeers-compact returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listpeers-compact" 2>/dev/null)
+	echo "$out" | grep -q "\[\|\]"
+}
+
+@test "FEAT-587: node-listpeers-compact man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-compact.1" ]
+}
+
+@test "FEAT-588: wallet-id requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-id" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-588: wallet-id man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-id.1" ]
+}
+
+@test "FEAT-589: node-capacity-total reports error or total_capacity gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-capacity-total" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_capacity"
+}
+
+@test "FEAT-589: node-capacity-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-capacity-total.1" ]
+}
+
+@test "FEAT-590: invoice-expiry-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-expiry-check" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-590: invoice-expiry-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-expiry-check.1" ]
+}
