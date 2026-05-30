@@ -1,9 +1,18 @@
 #!/bin/bash
-# lightning wallet-balance-total <wallet_name>   (FEAT-783)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-balance-total <wallet_name>"}'; exit 0; fi
+# lightning wallet-balance-total <wallet_name>   (FEAT-1088)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-balance-total <wallet_name>"}'
+    exit 0
+fi
 wname="$1"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-balance=$(sqlite3 "$db" "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type='receive'" 2>/dev/null) || balance=0
-echo "{\"wallet\":\"$wname\",\"balance\":$balance}"
+if ! result=$(lightning-cli listfunds 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+onchain = sum(o.get('amount_msat', 0) for o in data.get('outputs', []) if o.get('status') == 'confirmed')
+lightning = sum(ch.get('our_amount_msat', 0) for ch in data.get('channels', []))
+print(json.dumps({'wallet': sys.argv[2], 'onchain_msat': onchain, 'lightning_msat': lightning, 'total_msat': onchain + lightning}))
+" "$result" "$wname"

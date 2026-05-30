@@ -17404,3 +17404,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1080: channel-htlcs-total man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlcs-total.1" ]
 }
+@test "FEAT-1081: node-graph-neighbors requires arg" {
+	out=$(./libexec/lightning/node-graph-neighbors 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1081: node-graph-neighbors man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-neighbors.1" ]
+}
+@test "FEAT-1082: channel-policy-update requires args" {
+	out=$(./libexec/lightning/channel-policy-update 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1082: channel-policy-update man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-policy-update.1" ]
+}
+@test "FEAT-1083: wallet-tag-get requires arg" {
+	out=$(./libexec/lightning/wallet-tag-get 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1083: wallet-tag-get man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-tag-get.1" ]
+}
+@test "FEAT-1084: node-listpays-by-dest requires arg" {
+	out=$(./libexec/lightning/node-listpays-by-dest 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1084: node-listpays-by-dest man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-by-dest.1" ]
+}
+@test "FEAT-1085: invoice-expiry requires arg" {
+	out=$(./libexec/lightning/invoice-expiry 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1085: invoice-expiry man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-expiry.1" ]
+}
+@test "FEAT-1086: channel-close-type requires arg" {
+	out=$(./libexec/lightning/channel-close-type 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1086: channel-close-type man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-type.1" ]
+}
+@test "FEAT-1087: peer-open-channel requires args" {
+	out=$(./libexec/lightning/peer-open-channel 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1087: peer-open-channel man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-open-channel.1" ]
+}
+@test "FEAT-1088: wallet-balance-total requires arg" {
+	out=$(./libexec/lightning/wallet-balance-total 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1088: wallet-balance-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-total.1" ]
+}
+@test "FEAT-1089: node-listchannels-by-state requires arg" {
+	out=$(./libexec/lightning/node-listchannels-by-state 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1089: node-listchannels-by-state man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-state.1" ]
+}
+@test "FEAT-1090: channel-min-msat requires arg" {
+	out=$(./libexec/lightning/channel-min-msat 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1090: channel-min-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-msat.1" ]
+}
