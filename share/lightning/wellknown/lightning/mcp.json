@@ -3,7 +3,7 @@
   "name": "lightning",
   "version": "0.1.0",
   "protocolVersion": "2025-03-26",
-  "description": "Account-centric Lightning Network operations: open and close accounts, top up on-chain, pay BOLT-11 invoices, mint BOLT-11 / BOLT-12 receive invoices, withdraw via submarine swap. Backed by Core Lightning (clightning).",
+  "description": "Account-centric Lightning Network operations: open and close accounts, top up on-chain, pay BOLT-11 invoices, mint BOLT-11 / BOLT-12 receive invoices, withdraw via submarine swap, transfer between accounts, and inspect node/channel state. Backed by Core Lightning (clightning).",
   "apiVersion": "v1",
   "transport": {
     "type": "http",
@@ -13,7 +13,8 @@
   "auth": {
     "type": "bearer",
     "scope": "per-account",
-    "obtain": "POST /.well-known/lightning/v1/accounts (no auth) — the response contains the account_id and the lt_-prefixed bearer token to use for every subsequent call."
+    "obtain": "POST /.well-known/lightning/v1/accounts (no auth) — the response contains the account_id and the lt_-prefixed bearer token to use for every subsequent call.",
+    "notes": "Tools marked 'no auth' (node_info, channel_list, node_funds, invoice_decode, price) do not require a bearer token."
   },
   "tools": [
     "account_create",
@@ -23,16 +24,24 @@
     "account_pay",
     "account_recv",
     "account_recv_reusable",
-    "account_close"
+    "account_history",
+    "account_transfer",
+    "account_close",
+    "invoice_decode",
+    "price",
+    "node_info",
+    "channel_list",
+    "node_funds"
   ],
   "resources": [
     "account://{id}",
     "account://{id}/ledger",
-    "account://{id}/topup"
+    "account://{id}/topup",
+    "node://info"
   ],
   "links": {
-    "spec": "https://github.com/nostra124/lightning/blob/master/issues/feature/done/212-account-centric-http-api.md",
     "rest": "/.well-known/lightning/v1/accounts",
+    "llms_txt": "/.well-known/lightning/docs/llms.txt",
     "versions": "/.well-known/lightning/versions.json"
   }
 }
