@@ -193,8 +193,12 @@ JSON-RPC 2.0 envelope:
 ```
 
 `tools/list` enumerates the available tools (balance, topup, pay, recv,
-transfer, …), each mirroring the REST endpoint above with the same
-inputs, outputs, and error codes.
+transfer, history, …), each mirroring the REST endpoint above with the
+same inputs, outputs, and error codes.
+
+The `account_history` tool returns paginated ledger entries; paginate
+backwards with `before_id`. The `account://id/ledger` MCP resource
+also returns the most recent entries via the same backend.
 
 To point an agent at this node: give it the base URL, the account's API
 key, and this `llms.txt`. One fetch of `/lightning/docs/llms.txt` is

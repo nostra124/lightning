@@ -103,7 +103,7 @@ def test_tools_list_returns_8_tools(api_dir, bin_shim, lightning_stub, cgi, pars
     assert names == {
         "account_create", "account_balance", "account_topup",
         "account_withdraw", "account_pay", "account_recv",
-        "account_recv_reusable", "account_close",
+        "account_recv_reusable", "account_history", "account_close",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -257,13 +257,28 @@ def test_resources_read_topup(api_dir, bin_shim, lightning_stub, cgi, parse):
     assert "bitcoin:" in j["result"]["contents"][0]["text"]
 
 
-def test_resources_read_ledger_placeholder(api_dir, bin_shim, lightning_stub, cgi, parse):
-    lightning_stub({"api-account-verify": (0, "")})
+def test_resources_read_ledger_returns_history(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"entries":[],"has_more":false}'
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-history": (0, body)})
     payload = rpc("resources/read", {"uri": f"account://{ID}/ledger"})
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload,
                                headers={"HTTP_AUTHORIZATION": "Bearer lt_x"})
     j = json.loads(body_out)
-    assert "not_implemented" in j["result"]["contents"][0]["text"]
+    assert "entries" in j["result"]["contents"][0]["text"]
+
+
+def test_tools_call_history(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"entries":[{"id":1,"ts":"2026-01-01","direction":"in","amount_msat":5000,"peer":"-","payment_hash":"-","message":"","note":""}],"has_more":false}'
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-history": (0, body)})
+    payload = rpc("tools/call",
+                  {"name": "account_history",
+                   "arguments": {"account_id": ID}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload,
+                               headers={"HTTP_AUTHORIZATION": "Bearer lt_x"})
+    j = json.loads(body_out)
+    assert j["result"]["structuredContent"]["entries"][0]["direction"] == "in"
 
 
 def test_resources_read_bad_uri_errors(api_dir, bin_shim, lightning_stub, cgi, parse):

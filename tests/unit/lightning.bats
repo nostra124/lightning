@@ -8354,3 +8354,29 @@ _acct243_teardown() {
 @test "FEAT-246: llms.txt documents the history endpoint" {
 	grep -q "history" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-247 — MCP account_history tool + ledger resource
+# ---------------------------------------------------------------------------
+
+@test "FEAT-247: mcp.py lists account_history tool" {
+	grep -q "account_history" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+}
+
+@test "FEAT-247: mcp.py ledger resource routes to api-account-history" {
+	grep -q "api-account-history" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+}
+
+@test "FEAT-247: account_history tool has correct inputSchema fields" {
+	py="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+	grep -q "before_id" "$py"
+	grep -q '"limit"' "$py"
+}
+
+@test "FEAT-247: llms.txt mentions account_history MCP tool" {
+	grep -q "account_history" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+}
+
+@test "FEAT-247: sudoers fragment lists api-account-history" {
+	grep -q "api-account-history" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}

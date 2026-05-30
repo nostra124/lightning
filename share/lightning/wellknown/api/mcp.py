@@ -222,6 +222,31 @@ TOOLS = [
                              else [a["account_id"], str(a["sat"])]),
     },
     {
+        "name": "account_history",
+        "description": "Return recent ledger entries for the account.  "
+                       "Each entry has id, ts, direction (\"in\"/\"out\"), "
+                       "amount_msat, peer, payment_hash, message, note.  "
+                       "Paginate backwards via before_id.  Default limit 50.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["account_id"],
+            "properties": {
+                "account_id": ID_PROP,
+                "limit": {"type": "integer", "minimum": 1, "maximum": 200,
+                          "default": 50},
+                "before_id": {"type": "integer", "minimum": 1},
+            },
+            "additionalProperties": False,
+        },
+        "auth": "account",
+        "verb": ["api-account-history"],
+        "argmap": lambda a: (
+            [a["account_id"]]
+            + (["--limit", str(a["limit"])] if a.get("limit") else [])
+            + (["--before", str(a["before_id"])] if a.get("before_id") else [])
+        ),
+    },
+    {
         "name": "account_close",
         "description": "Close the account.  Revokes its API key and "
                        "stamps closed_at.",
@@ -378,13 +403,8 @@ def _resource_read(uri, bearer):
         verb_args = [account_id]
         verb = "api-account-topup"
     elif sub == "ledger":
-        # No dedicated `ledger` HTTP verb yet — balance is the
-        # canonical read endpoint for now; PR-3 ships ledger as a
-        # placeholder so the resource URI stays stable.  Returning
-        # a 501-equivalent so clients can detect it.
-        return {"contents": [{"uri": uri, "mimeType": "application/json",
-                              "text": json.dumps({"error": "not_implemented",
-                                                  "note": "ledger resource lands in a follow-up"})}]}
+        verb_args = [account_id]
+        verb = "api-account-history"
     else:
         return jsonrpc_error(None, -32602, "bad_resource_uri", {"uri": uri})
 
