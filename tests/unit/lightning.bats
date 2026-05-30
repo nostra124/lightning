@@ -9059,3 +9059,17 @@ assert '_list_accounts' in src
 assert 'api-account-list' in src
 "
 }
+
+# FEAT-287 — api-account-describe verb + PATCH /v1/accounts/<id>/describe
+
+@test "FEAT-287: api-account-describe verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-describe" ]
+}
+
+@test "FEAT-287: accounts.py routes PATCH describe" {
+	grep -q '"describe"' share/lightning/wellknown/api/accounts.py
+}
+
+@test "FEAT-287: sudoers lists api-account-describe" {
+	grep -q "api-account-describe" share/lightning/sudoers.d/lightning
+}
