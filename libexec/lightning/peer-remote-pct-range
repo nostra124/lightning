@@ -1,8 +1,8 @@
 #!/bin/bash
-# lightning peer-remote-pct-stddev   (FEAT-2793)
+# lightning peer-remote-pct-range   (FEAT-2798)
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
-import sys, json, math
+import sys, json
 data = json.loads(sys.argv[1])
 channels = data.get('channels', [])
 vals = []
@@ -12,10 +12,8 @@ for c in channels:
     if total > 0:
         vals.append(remote / total * 100)
 if len(vals) >= 2:
-    mean = sum(vals) / len(vals)
-    variance = sum((v - mean) ** 2 for v in vals) / len(vals)
-    stddev = math.sqrt(variance)
+    remote_pct_range = max(vals) - min(vals)
 else:
-    stddev = 0.0
-print(json.dumps({'remote_pct_stddev_peer': round(stddev, 6), 'count': len(vals)}))
+    remote_pct_range = 0.0
+print(json.dumps({'remote_pct_range': round(remote_pct_range, 6), 'count': len(vals)}))
 " "$result"
