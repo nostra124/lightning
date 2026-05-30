@@ -8735,3 +8735,26 @@ assert t['auth'] is None
 @test "FEAT-264: payment-list man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-list.1" ]
 }
+
+# FEAT-265 — node-funds verb + PWA screen
+
+@test "FEAT-265: node-funds verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-funds" ]
+}
+
+@test "FEAT-265: node-funds returns zero totals without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-funds" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['total_sat']==0"
+}
+
+@test "FEAT-265: node_funds.py CGI exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/node_funds.py" ]
+}
+
+@test "FEAT-265: PWA has screenNodeFunds" {
+	grep -q "function screenNodeFunds" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-265: node-funds man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-funds.1" ]
+}

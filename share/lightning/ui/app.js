@@ -704,10 +704,35 @@ async function screenNode() {
          <dt>Local capacity</dt><dd>${(info.local_msat / 1000).toLocaleString()} sat</dd>
        </dl>
        <button id="channels">View channels</button>
+       <button id="node-funds-btn">Node funds</button>
        <a href="#picker">Back</a>`);
     document.getElementById("channels").onclick = () => go("channels");
+    document.getElementById("node-funds-btn").onclick = () => go("node-funds");
   } catch (e) {
     h(`<h2>Node info</h2><p class="error">${esc(e.message)}</p><a href="#picker">Back</a>`);
+  }
+}
+
+async function screenNodeFunds() {
+  const acctList = accounts();
+  const key = acctList.length ? acctList[0].key : null;
+  if (!key) return h(`<h2>Node funds</h2><p class="error">No account.</p><a href="#node">Back</a>`);
+  h(`<h2>Node funds</h2><p class="muted">Loading…</p>`);
+  try {
+    const f = await api("/node-funds", { key });
+    h(`<h2>Node funds</h2>
+       <dl>
+         <dt>On-chain (confirmed)</dt><dd>${f.onchain_sat.toLocaleString()} sat</dd>
+         <dt>In channels (local)</dt><dd>${f.channel_sat.toLocaleString()} sat</dd>
+         <dt>Total</dt><dd><strong>${f.total_sat.toLocaleString()} sat</strong></dd>
+       </dl>
+       ${f.utxos.length ? `<details><summary>UTXOs (${f.utxos.length})</summary><ul>
+         ${f.utxos.map(u => `<li><code>${esc(u.txid.slice(0,16))}…:${u.output}</code>
+           — ${u.sat.toLocaleString()} sat (${esc(u.status)})</li>`).join("")}
+       </ul></details>` : ""}
+       <a href="#node">Back</a>`);
+  } catch (e) {
+    h(`<h2>Node funds</h2><p class="error">${esc(e.message)}</p><a href="#node">Back</a>`);
   }
 }
 
@@ -1033,6 +1058,7 @@ function route() {
     case "mandates": return screenMandates(arg);
     case "node": return screenNode();
     case "channels": return screenChannels();
+    case "node-funds": return screenNodeFunds();
     case "user-register": return screenUserRegister();
     case "user-login": return screenUserLogin();
     case "user": return screenUser();

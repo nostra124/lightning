@@ -1,0 +1,46 @@
+#!/bin/bash
+# lightning node-funds   (FEAT-265)
+#
+# Shows the node's available funds (on-chain UTXOs + channel balances)
+# via lightning-cli listfunds.
+# Returns {"onchain_sat":<int>,"channel_sat":<int>,"total_sat":<int>,"utxos":[...]}
+
+set -e
+command -v lightning-cli >/dev/null || {
+    echo '{"onchain_sat":0,"channel_sat":0,"total_sat":0,"utxos":[]}'; exit 0; }
+
+raw=$(lightning-cli \
+    --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+    --network="${LIGHTNING_NETWORK:-bitcoin}" \
+    listfunds 2>/dev/null) || {
+    echo '{"onchain_sat":0,"channel_sat":0,"total_sat":0,"utxos":[]}'; exit 0; }
+
+python3 - "$raw" <<'EOF'
+import sys, json
+
+def to_sat(v):
+    if isinstance(v, int): return v // 1000
+    if isinstance(v, str): return int(v.rstrip("msat") or 0) // 1000
+    return 0
+
+try:
+    d = json.loads(sys.argv[1])
+except Exception:
+    print('{"onchain_sat":0,"channel_sat":0,"total_sat":0,"utxos":[]}')
+    sys.exit(0)
+
+utxos = d.get("outputs", [])
+channels = d.get("channels", [])
+
+onchain_sat = sum(to_sat(u.get("amount_msat", 0)) for u in utxos
+                  if u.get("status") == "confirmed")
+channel_sat = sum(to_sat(c.get("our_amount_msat", 0)) for c in channels)
+total_sat = onchain_sat + channel_sat
+
+utxo_list = [{"txid": u.get("txid",""), "output": u.get("output",0),
+               "sat": to_sat(u.get("amount_msat",0)),
+               "status": u.get("status","")} for u in utxos]
+
+print(json.dumps({"onchain_sat": onchain_sat, "channel_sat": channel_sat,
+                  "total_sat": total_sat, "utxos": utxo_list}))
+EOF
