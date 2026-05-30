@@ -9118,3 +9118,81 @@ assert 'api-account-list' in src
 @test "FEAT-290: payment-status man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-status.1" ]
 }
+
+# FEAT-291 — api-payment-status verb
+
+@test "FEAT-291: api-payment-status verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-payment-status" ]
+}
+
+@test "FEAT-291: api-payment-status reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/api-payment-status" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-291: MCP tools/list includes payment_status" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/lightning/mcp.json"
+	python3 -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+assert 'payment_status' in d['tools'], 'payment_status not in tools'
+" "$f"
+}
+
+@test "FEAT-291: sudoers lists api-payment-status" {
+	grep -q 'api-payment-status' \
+		"$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+# FEAT-292 — MCP payment_status tool
+
+@test "FEAT-292: payment_status tool has no auth" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+	python3 -c "
+import sys
+src=open(sys.argv[1]).read()
+i=src.find('\"payment_status\"')
+assert i >= 0, 'tool not found'
+window=src[i:i+500]
+assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
+" "$f"
+}
+
+# FEAT-293 — api-invoice-status verb
+
+@test "FEAT-293: api-invoice-status verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-invoice-status" ]
+}
+
+@test "FEAT-293: api-invoice-status reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/api-invoice-status" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-293: MCP tools/list includes invoice_status" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/lightning/mcp.json"
+	python3 -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+assert 'invoice_status' in d['tools'], 'invoice_status not in tools'
+" "$f"
+}
+
+@test "FEAT-293: sudoers lists api-invoice-status" {
+	grep -q 'api-invoice-status' \
+		"$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+# FEAT-294 — MCP invoice_status tool
+
+@test "FEAT-294: invoice_status tool has no auth" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+	python3 -c "
+import sys
+src=open(sys.argv[1]).read()
+i=src.find('\"invoice_status\"')
+assert i >= 0, 'tool not found'
+window=src[i:i+500]
+assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
+" "$f"
+}

@@ -338,6 +338,49 @@ TOOLS = [
         "argmap": lambda a: [],
     },
     {
+        "name": "payment_status",
+        "description": "Check the status of an outbound payment by payment hash. "
+                       "Returns payment_hash, status (complete|failed|pending), "
+                       "amount_msat, fee_msat, destination, created_at. "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["payment_hash"],
+            "properties": {
+                "payment_hash": {
+                    "type": "string",
+                    "description": "The payment hash (hex) to look up.",
+                },
+            },
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-payment-status"],
+        "argmap": lambda a: [a["payment_hash"]],
+    },
+    {
+        "name": "invoice_status",
+        "description": "Check whether a local BOLT-11 invoice has been paid. "
+                       "Accepts payment_hash or label. "
+                       "Returns payment_hash, label, status (unpaid|paid|expired), "
+                       "amount_msat, paid_at. "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["query"],
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Payment hash (hex) or label of the invoice.",
+                },
+            },
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-invoice-status"],
+        "argmap": lambda a: [a["query"]],
+    },
+    {
         "name": "price",
         "description": "Return the latest stored sat/fiat price tick. "
                        "Returns {base, sat_per_unit, price_fiat, ts} or "

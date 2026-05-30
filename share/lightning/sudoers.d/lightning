@@ -102,6 +102,8 @@ www-data ALL=(alice) NOPASSWD: \
     /usr/local/bin/lightning api-forward-stats, \
     /usr/local/bin/lightning api-peer-summary, \
     /usr/local/bin/lightning api-node-health, \
+    /usr/local/bin/lightning api-payment-status *, \
+    /usr/local/bin/lightning api-invoice-status *, \
     /usr/local/bin/lightning api-account-describe bc1* *, \
     /usr/local/bin/lightning api-account-describe tb1* *, \
     /usr/local/bin/lightning api-account-describe bcrt1* *
