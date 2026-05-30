@@ -8806,3 +8806,22 @@ assert t['auth'] is None
 @test "FEAT-268: node-config man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-config.1" ]
 }
+
+# FEAT-270 — MCP channel_list and node_funds tools
+
+@test "FEAT-270: MCP tools/list includes channel_list" {
+	grep -q '"channel_list"\|channel_list' share/lightning/wellknown/api/mcp.py
+}
+
+@test "FEAT-270: MCP tools/list includes node_funds" {
+	grep -q '"node_funds"\|node_funds' share/lightning/wellknown/api/mcp.py
+}
+
+@test "FEAT-270: channel_list tool has no auth" {
+	python3 -c "
+src = open('share/lightning/wellknown/api/mcp.py').read()
+idx = src.index('\"channel_list\"')
+snippet = src[idx:idx+600]
+assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
+"
+}

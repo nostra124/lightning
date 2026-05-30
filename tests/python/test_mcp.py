@@ -104,7 +104,7 @@ def test_tools_list_returns_tools(api_dir, bin_shim, lightning_stub, cgi, parse)
         "account_create", "account_balance", "account_topup",
         "account_withdraw", "account_pay", "account_recv",
         "account_recv_reusable", "account_history", "account_close",
-        "node_info",
+        "node_info", "channel_list", "node_funds",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -300,6 +300,26 @@ def test_resources_read_node_info(api_dir, bin_shim, lightning_stub, cgi, parse)
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
     j = json.loads(body_out)
     assert "pubkey" in j["result"]["contents"][0]["text"]
+
+
+def test_tools_call_channel_list(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '[{"peer_id":"02aaa","alias":"bob","channel_id":"abc","capacity_sat":1000000,"local_sat":500000,"remote_sat":500000,"state":"CHANNELD_NORMAL"}]'
+    lightning_stub({"api-channel-list": (0, body)})
+    payload = rpc("tools/call", {"name": "channel_list", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"][0]["alias"] == "bob"
+
+
+def test_tools_call_node_funds(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"total_sat":5000,"onchain_sat":1000,"offchain_sat":4000,"outputs":[],"channels":[]}'
+    lightning_stub({"node-funds": (0, body)})
+    payload = rpc("tools/call", {"name": "node_funds", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["total_sat"] == 5000
 
 
 def test_resources_read_bad_uri_errors(api_dir, bin_shim, lightning_stub, cgi, parse):

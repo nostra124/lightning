@@ -275,6 +275,38 @@ TOOLS = [
         "verb": ["api-node-info"],
         "argmap": lambda a: [],
     },
+    {
+        "name": "channel_list",
+        "description": "List all active Lightning channels on this node. "
+                       "Returns an array of {peer_id, alias, channel_id, "
+                       "capacity_sat, local_sat, remote_sat, state}.  "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-channel-list"],
+        "argmap": lambda a: [],
+    },
+    {
+        "name": "node_funds",
+        "description": "Return on-chain and off-chain fund totals for the "
+                       "node: total_sat, onchain_sat, offchain_sat, "
+                       "and detailed outputs/channels arrays.  "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["node-funds"],
+        "argmap": lambda a: [],
+    },
 ]
 
 TOOLS_BY_NAME = {t["name"]: t for t in TOOLS}
