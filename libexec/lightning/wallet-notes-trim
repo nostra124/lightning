@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning wallet-notes-trim <wallet>   (FEAT-1693)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-notes-trim <wallet>"}'; exit 0
+fi
+wname="$1"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+count=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes WHERE value='';" 2>/dev/null)
+sqlite3 "$db" "DELETE FROM notes WHERE value='';" 2>/dev/null
+echo "{\"wallet\":\"$wname\",\"trimmed\":$count}"
