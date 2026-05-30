@@ -33851,3 +33851,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3190: channel-htlc-timeout-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout-max.1" ]
 }
+
+@test "FEAT-3191: channel-htlc-count-avg reports error or htlc_count_avg_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_avg_channel"
+}
+@test "FEAT-3191: channel-htlc-count-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-avg.1" ]
+}
+
+@test "FEAT-3192: node-pay-fee-avg reports error or fee_avg_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_avg_pay"
+}
+@test "FEAT-3192: node-pay-fee-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-avg.1" ]
+}
+
+@test "FEAT-3193: peer-fee-ppm-avg reports error or fee_ppm_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_avg_peer"
+}
+@test "FEAT-3193: peer-fee-ppm-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-avg.1" ]
+}
+
+@test "FEAT-3194: channel-htlc-count-max reports error or htlc_count_max_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_max_channel"
+}
+@test "FEAT-3194: channel-htlc-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-max.1" ]
+}
+
+@test "FEAT-3195: node-pay-fee-max reports error or fee_max_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_max_pay"
+}
+@test "FEAT-3195: node-pay-fee-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-max.1" ]
+}
+
+@test "FEAT-3196: peer-fee-ppm-max reports error or fee_ppm_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_max_peer"
+}
+@test "FEAT-3196: peer-fee-ppm-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-max.1" ]
+}
+
+@test "FEAT-3197: channel-htlc-count-min reports error or htlc_count_min_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_min_channel"
+}
+@test "FEAT-3197: channel-htlc-count-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-min.1" ]
+}
+
+@test "FEAT-3198: node-pay-fee-min reports error or fee_min_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_min_pay"
+}
+@test "FEAT-3198: node-pay-fee-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-min.1" ]
+}
+
+@test "FEAT-3199: peer-fee-ppm-min reports error or fee_ppm_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_min_peer"
+}
+@test "FEAT-3199: peer-fee-ppm-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-min.1" ]
+}
+
+@test "FEAT-3200: channel-htlc-value-avg reports error or htlc_value_avg_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_avg_channel"
+}
+@test "FEAT-3200: channel-htlc-value-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-avg.1" ]
+}
