@@ -1,12 +1,11 @@
 #!/bin/bash
-# lightning invoice-list-recent [<limit>]   (FEAT-550)
-limit="${1:-10}"
+# lightning invoice-list-recent <limit>   (FEAT-945)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-list-recent <limit>"}'; exit 0; fi
+limit="$1"
 result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
 python3 -c "
 import sys, json
-data = json.loads(sys.argv[1])
-limit = int(sys.argv[2])
-invoices = data.get('invoices', [])
-recent = sorted(invoices, key=lambda i: i.get('expires_at', 0), reverse=True)[:limit]
-print(json.dumps(recent))
+data = json.loads(sys.argv[1]); lim = int(sys.argv[2])
+invs = sorted(data.get('invoices', []), key=lambda i: i.get('expires_at', 0), reverse=True)[:lim]
+print(json.dumps(invs))
 " "$result" "$limit"

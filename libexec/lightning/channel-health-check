@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning channel-health-check <channel_id>   (FEAT-950)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-health-check <channel_id>"}'; exit 0; fi
+channel_id="$1"
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); cid = sys.argv[2]
+for ch in data.get('channels', []):
+    if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
+        state = ch.get('state', '')
+        healthy = state == 'CHANNELD_NORMAL' and ch.get('peer_connected', False)
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'state': state, 'peer_connected': ch.get('peer_connected'), 'healthy': healthy})); sys.exit(0)
+print(json.dumps({'error': 'channel not found'}))
+" "$result" "$channel_id"

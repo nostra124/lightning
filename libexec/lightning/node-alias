@@ -1,11 +1,8 @@
 #!/bin/bash
-# lightning node-alias   (FEAT-634)
-if ! result=$(lightning-cli getinfo 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
+# lightning node-alias   (FEAT-941)
+if ! result=$(lightning-cli getinfo 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-print(json.dumps({'alias': data.get('alias'), 'color': data.get('color'), 'id': data.get('id')}))
+print(json.dumps({'alias': data.get('alias'), 'id': data.get('id')}))
 " "$result"

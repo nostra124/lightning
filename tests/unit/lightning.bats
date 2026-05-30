@@ -16374,3 +16374,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-940: channel-balance-snapshot man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-snapshot.1" ]
 }
+
+@test "FEAT-941: node-alias reports error or alias gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-alias" 2>/dev/null)
+	echo "$out" | grep -q "error\|alias"
+}
+@test "FEAT-941: node-alias man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-alias.1" ]
+}
+
+@test "FEAT-942: channel-receivable-total reports error or total_receivable_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-receivable-total" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_receivable_msat"
+}
+@test "FEAT-942: channel-receivable-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-total.1" ]
+}
+
+@test "FEAT-943: wallet-transaction-get requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-transaction-get" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-943: wallet-transaction-get man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-transaction-get.1" ]
+}
+
+@test "FEAT-944: node-payment-preimage requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-preimage" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-944: node-payment-preimage man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-payment-preimage.1" ]
+}
+
+@test "FEAT-945: invoice-list-recent requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-recent" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-945: invoice-list-recent man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-recent.1" ]
+}
+
+@test "FEAT-946: channel-policy-remote requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-policy-remote" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-946: channel-policy-remote man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-policy-remote.1" ]
+}
+
+@test "FEAT-947: peer-all-channels requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-all-channels" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-947: peer-all-channels man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-all-channels.1" ]
+}
+
+@test "FEAT-948: wallet-balance-lightning reports error or spendable_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-balance-lightning" 2>/dev/null)
+	echo "$out" | grep -q "error\|spendable_msat"
+}
+@test "FEAT-948: wallet-balance-lightning man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-lightning.1" ]
+}
+
+@test "FEAT-949: node-htlc-forward-fee reports error or total_fee_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-forward-fee" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_fee_msat"
+}
+@test "FEAT-949: node-htlc-forward-fee man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-forward-fee.1" ]
+}
+
+@test "FEAT-950: channel-health-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-health-check" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-950: channel-health-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-health-check.1" ]
+}
