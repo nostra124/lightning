@@ -31071,3 +31071,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2840: channel-their-reserve-stddev man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-stddev.1" ]
 }
+
+@test "FEAT-2841: node-listforwards-out-msat-stddev reports error or out_msat_stddev gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_stddev"
+}
+@test "FEAT-2841: node-listforwards-out-msat-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-stddev.1" ]
+}
+
+@test "FEAT-2842: channel-fee-base-stddev reports error or fee_base_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_stddev_msat"
+}
+@test "FEAT-2842: channel-fee-base-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-stddev.1" ]
+}
+
+@test "FEAT-2843: peer-fee-ppm-stddev reports error or fee_ppm_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_stddev_peer"
+}
+@test "FEAT-2843: peer-fee-ppm-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-stddev.1" ]
+}
+
+@test "FEAT-2844: node-pay-amount-kurtosis-weekly reports error or amount_kurtosis_weekly gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_kurtosis_weekly"
+}
+@test "FEAT-2844: node-pay-amount-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-2845: channel-both-reserves-stddev reports error or both_reserves_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_stddev_msat"
+}
+@test "FEAT-2845: channel-both-reserves-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-stddev.1" ]
+}
+
+@test "FEAT-2846: node-invoice-paid-count-stddev reports error or paid_count_stddev gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_stddev"
+}
+@test "FEAT-2846: node-invoice-paid-count-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-stddev.1" ]
+}
+
+@test "FEAT-2847: channel-fee-ppm-kurtosis reports error or fee_ppm_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_kurtosis"
+}
+@test "FEAT-2847: channel-fee-ppm-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-kurtosis.1" ]
+}
+
+@test "FEAT-2848: peer-capacity-kurtosis reports error or capacity_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_kurtosis_peer"
+}
+@test "FEAT-2848: peer-capacity-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-kurtosis.1" ]
+}
+
+@test "FEAT-2849: node-listforwards-fee-skewness-weekly reports error or fee_skewness_weekly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-skewness-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_skewness_weekly"
+}
+@test "FEAT-2849: node-listforwards-fee-skewness-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-skewness-weekly.1" ]
+}
+
+@test "FEAT-2850: channel-local-balance-kurtosis-weekly reports error or local_balance_kurtosis_weekly gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_kurtosis_weekly"
+}
+@test "FEAT-2850: channel-local-balance-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-kurtosis-weekly.1" ]
+}
