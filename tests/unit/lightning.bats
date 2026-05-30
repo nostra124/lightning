@@ -32971,3 +32971,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3080: channel-open-count-month man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-count-month.1" ]
 }
+
+@test "FEAT-3081: channel-open-count-week reports error or open_count_week gracefully" {
+    out=$(./libexec/lightning/channel-open-count-week 2>/dev/null)
+    echo "$out" | grep -q "error\|open_count_week"
+}
+@test "FEAT-3081: channel-open-count-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-count-week.1" ]
+}
+
+@test "FEAT-3082: node-listforwards-out-msat-total reports error or out_msat_total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-total 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_total"
+}
+@test "FEAT-3082: node-listforwards-out-msat-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-total.1" ]
+}
+
+@test "FEAT-3083: peer-fee-earned-median reports error or fee_earned_median_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_median_msat"
+}
+@test "FEAT-3083: peer-fee-earned-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-median.1" ]
+}
+
+@test "FEAT-3084: channel-open-count-day reports error or open_count_day gracefully" {
+    out=$(./libexec/lightning/channel-open-count-day 2>/dev/null)
+    echo "$out" | grep -q "error\|open_count_day"
+}
+@test "FEAT-3084: channel-open-count-day man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-count-day.1" ]
+}
+
+@test "FEAT-3085: node-pay-fee-max reports error or max_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_fee_msat"
+}
+@test "FEAT-3085: node-pay-fee-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-max.1" ]
+}
+
+@test "FEAT-3086: peer-balance-ratio-avg reports error or balance_ratio_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-ratio-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_avg_peer"
+}
+@test "FEAT-3086: peer-balance-ratio-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-avg.1" ]
+}
+
+@test "FEAT-3087: channel-close-count-month reports error or close_count_month gracefully" {
+    out=$(./libexec/lightning/channel-close-count-month 2>/dev/null)
+    echo "$out" | grep -q "error\|close_count_month"
+}
+@test "FEAT-3087: channel-close-count-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-count-month.1" ]
+}
+
+@test "FEAT-3088: node-pay-fee-stddev reports error or fee_stddev_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_stddev_msat"
+}
+@test "FEAT-3088: node-pay-fee-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-stddev.1" ]
+}
+
+@test "FEAT-3089: peer-balance-ratio-max reports error or balance_ratio_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-ratio-max 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_max_peer"
+}
+@test "FEAT-3089: peer-balance-ratio-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-max.1" ]
+}
+
+@test "FEAT-3090: channel-close-count-week reports error or close_count_week gracefully" {
+    out=$(./libexec/lightning/channel-close-count-week 2>/dev/null)
+    echo "$out" | grep -q "error\|close_count_week"
+}
+@test "FEAT-3090: channel-close-count-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-count-week.1" ]
+}
