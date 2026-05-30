@@ -29841,3 +29841,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2680: channel-capacity-stddev man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-stddev.1" ]
 }
+
+@test "FEAT-2681: node-listforwards-count-local reports error or local_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-local 2>/dev/null)
+    echo "$out" | grep -q "error\|local_count"
+}
+@test "FEAT-2681: node-listforwards-count-local man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-local.1" ]
+}
+
+@test "FEAT-2682: channel-fee-base-top5 reports error or top5_by_fee_base gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_by_fee_base"
+}
+@test "FEAT-2682: channel-fee-base-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-top5.1" ]
+}
+
+@test "FEAT-2683: peer-remote-reserve-avg reports error or avg_remote_reserve_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-reserve-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_remote_reserve_msat"
+}
+@test "FEAT-2683: peer-remote-reserve-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-avg.1" ]
+}
+
+@test "FEAT-2684: node-pay-amount-total reports error or total_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_amount_msat"
+}
+@test "FEAT-2684: node-pay-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-total.1" ]
+}
+
+@test "FEAT-2685: channel-fee-ppm-top5 reports error or top5_by_fee_ppm gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_by_fee_ppm"
+}
+@test "FEAT-2685: channel-fee-ppm-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-top5.1" ]
+}
+
+@test "FEAT-2686: node-listforwards-count-total reports error or total_forward_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_forward_count"
+}
+@test "FEAT-2686: node-listforwards-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-total.1" ]
+}
+
+@test "FEAT-2687: channel-fee-base-bottom5 reports error or bottom5_by_fee_base gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_by_fee_base"
+}
+@test "FEAT-2687: channel-fee-base-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-bottom5.1" ]
+}
+
+@test "FEAT-2688: peer-remote-reserve-total reports error or total_remote_reserve_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_remote_reserve_msat"
+}
+@test "FEAT-2688: peer-remote-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-total.1" ]
+}
+
+@test "FEAT-2689: node-invoice-paid-amount-max reports error or max_paid_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_paid_amount_msat"
+}
+@test "FEAT-2689: node-invoice-paid-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-max.1" ]
+}
+
+@test "FEAT-2690: channel-fee-ppm-bottom5 reports error or bottom5_by_fee_ppm gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_by_fee_ppm"
+}
+@test "FEAT-2690: channel-fee-ppm-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-bottom5.1" ]
+}
