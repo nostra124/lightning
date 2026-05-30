@@ -8840,3 +8840,18 @@ snippet = src[idx:idx+900]
 assert '\"auth\": \"account\"' in snippet or \"'auth': 'account'\" in snippet, repr(snippet)
 "
 }
+
+# FEAT-272 — MCP invoice_decode tool
+
+@test "FEAT-272: MCP tools/list includes invoice_decode" {
+	grep -q '"invoice_decode"' share/lightning/wellknown/api/mcp.py
+}
+
+@test "FEAT-272: invoice_decode tool has no auth" {
+	python3 -c "
+src = open('share/lightning/wellknown/api/mcp.py').read()
+idx = src.index('\"invoice_decode\"')
+snippet = src[idx:idx+800]
+assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
+"
+}

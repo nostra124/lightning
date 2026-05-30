@@ -276,6 +276,25 @@ TOOLS = [
         "argmap": lambda a: [],
     },
     {
+        "name": "invoice_decode",
+        "description": "Decode a BOLT-11 invoice without paying it. "
+                       "Returns {bolt11, amount_sat, description, "
+                       "payee, expires_at, payment_hash}.  "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["bolt11"],
+            "properties": {
+                "bolt11": {"type": "string", "minLength": 10,
+                           "description": "BOLT-11 invoice string."},
+            },
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["invoice-decode"],
+        "argmap": lambda a: [a["bolt11"]],
+    },
+    {
         "name": "account_transfer",
         "description": "Instantly move sats between two accounts on the "
                        "same node (atomic intra-node ledger transfer). "

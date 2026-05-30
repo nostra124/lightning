@@ -105,6 +105,7 @@ def test_tools_list_returns_tools(api_dir, bin_shim, lightning_stub, cgi, parse)
         "account_withdraw", "account_pay", "account_recv",
         "account_recv_reusable", "account_history", "account_close",
         "node_info", "channel_list", "node_funds", "account_transfer",
+        "invoice_decode",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -300,6 +301,18 @@ def test_resources_read_node_info(api_dir, bin_shim, lightning_stub, cgi, parse)
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
     j = json.loads(body_out)
     assert "pubkey" in j["result"]["contents"][0]["text"]
+
+
+def test_tools_call_invoice_decode(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"bolt11":"lnbc1pxx","amount_sat":1000,"description":"test","payee":"02aaa","expires_at":"2026-06-01T00:00:00Z","payment_hash":"deadbeef"}'
+    lightning_stub({"invoice-decode": (0, body)})
+    payload = rpc("tools/call",
+                  {"name": "invoice_decode",
+                   "arguments": {"bolt11": "lnbc1pxx"}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["payment_hash"] == "deadbeef"
 
 
 def test_tools_call_account_transfer(api_dir, bin_shim, lightning_stub, cgi, parse):
