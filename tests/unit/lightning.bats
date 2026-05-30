@@ -8434,3 +8434,21 @@ _acct243_teardown() {
 @test "FEAT-249: llms.txt documents the api-key endpoint" {
 	grep -q "api-key" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
 }
+
+# FEAT-250 — PWA import from backup blob
+
+@test "FEAT-250: picker screen has import-file input" {
+	grep -q "import-file" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-250: importBackup function validates account_id and api_key" {
+	grep -q "importBackup" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-250: import validates bech32 account_id prefix" {
+	grep -q "bc1.*tb1.*bcrt1\|bc1|tb1|bcrt1" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-250: successful import navigates to account view" {
+	grep -q 'go("account/' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}

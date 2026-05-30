@@ -292,8 +292,11 @@ function screenPicker() {
          <code>${esc(a.id.slice(0, 14))}…</code></a></li>`).join("")}
      </ul>
      <button id="add">+ New account</button>
+     <label class="file-label"><input type="file" id="import-file" accept=".json" hidden>
+       Import from backup</label>
      ${userLink}`);
   document.getElementById("add").onclick = () => go("create");
+  document.getElementById("import-file").onchange = importBackup;
 }
 
 function screenWelcome() {
@@ -301,10 +304,33 @@ function screenWelcome() {
      <p>A self-custodial-by-default Lightning wallet. Create your first
         account to get a top-up address and start paying / receiving.</p>
      <button id="create">Create my first account</button>
+     <label class="file-label"><input type="file" id="import-file-w" accept=".json" hidden>
+       Import from backup</label>
      <p class="muted">Have an invite code?
        <a href="#user-register">Register as a user</a> to manage multiple
        accounts under one passkey.</p>`);
   document.getElementById("create").onclick = () => go("create");
+  document.getElementById("import-file-w").onchange = importBackup;
+}
+
+function importBackup(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const obj = JSON.parse(reader.result);
+      if (!obj.account_id || !obj.api_key) throw new Error("missing fields");
+      const id = obj.account_id;
+      if (!/^(bc1|tb1|bcrt1)/.test(id)) throw new Error("invalid account_id");
+      upsertAccount({ id, label: obj.label || "account", key: obj.api_key });
+      toast("Account imported", "ok");
+      go("account/" + id);
+    } catch (e) {
+      toast("Import failed: " + e.message, "error");
+    }
+  };
+  reader.readAsText(file);
 }
 
 async function screenCreate() {
