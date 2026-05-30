@@ -7970,6 +7970,69 @@ _pr5_teardown() {
 }
 
 # ---------------------------------------------------------------------------
+# FEAT-222 PR-7: PWA user registration / login flow + Show API key.
+# ---------------------------------------------------------------------------
+
+@test "FEAT-222 PR-7: app.js has user registration screen (screenUserRegister)" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "screenUserRegister" "$f"
+	grep -q "user-register" "$f"
+	grep -q "register/begin" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js has user login screen (screenUserLogin)" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "screenUserLogin" "$f"
+	grep -q "user-login" "$f"
+	grep -q "login/begin" "$f"
+	grep -q "login/finish" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js has user accounts screen (screenUser)" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "screenUser\b" "$f"
+	grep -q "users/.*accounts" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js routes user-register, user-login, user" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q '"user-register"' "$f"
+	grep -q '"user-login"' "$f"
+	grep -q '"user".*screenUser\b' "$f"
+}
+
+@test "FEAT-222 PR-7: app.js has passkey WebAuthn helpers (passkeyCreate + passkeyGet)" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "passkeyCreate" "$f"
+	grep -q "passkeyGet" "$f"
+	grep -q "navigator.credentials.create" "$f"
+	grep -q "navigator.credentials.get" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js stores user_id + session separately (LS_USER_KEY)" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "LS_USER_KEY" "$f"
+	grep -q "storedUser\|saveUser" "$f"
+	grep -q "userSession\|saveSession\|clearSession" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js has 'Show API key' in settings screen" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "showkey\|Show API key" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js surfaces api-key retrieval for user-owned accounts" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "api-key\|apikey\|api_key" "$f"
+	grep -q "users/.*accounts.*/api-key" "$f"
+}
+
+@test "FEAT-222 PR-7: screenPicker links to user-register / user view" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "user-register\|user-login" "$f"
+}
+
+# ---------------------------------------------------------------------------
 # FEAT-222 PR-6: access control — require_referral + invite whitelist.
 # ---------------------------------------------------------------------------
 

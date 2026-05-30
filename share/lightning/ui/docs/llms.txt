@@ -31,10 +31,38 @@ work (crediting deposits, GC, rebalancing); the PWA just talks to it.
 
 ## Credentials
 
-- **API key** (`lt_…`): the bearer this PWA uses today, and what LLM
-  agents / CLI / server-to-server callers use. Long-lived; store safely.
-- **Passkey** (WebAuthn): no plaintext bearer on the device — a
-  follow-up backend (FEAT-209 PR-2b).
+- **API key** (`lt_…`): the bearer LLM agents / CLI / server-to-server
+  callers use. Long-lived; store safely. Retrievable in the PWA via
+  Settings → "Show API key" or via `GET /users/<id>/accounts/<acct>/api-key`.
+- **Passkey / user session** (FEAT-222): register at `#user-register`
+  with an invite code → one passkey gates all your accounts. Login at
+  `#user-login`; the PWA keeps the `sess_…` session token in
+  sessionStorage (never persisted to disk).
+
+## User layer (FEAT-222)
+
+The **user layer** sits above accounts — one human identity owns N accounts.
+Operators bootstrap via `lightning wallet-user create`; end-users register
+via the PWA at `#user-register`.
+
+### POST /users/register/begin
+Anonymous. Returns `{user_id, challenge, …}` for WebAuthn credential create.
+
+### POST /users
+Anonymous. Body: `{user_id, passkey_attestation, invite_code?, label?}`.
+Creates the user + registers the passkey. Returns `{user_id, session, expires_at}`.
+
+### POST /users/<id>/passkeys/login/begin + /finish
+Login flow; finish returns `{session, …}`.
+
+### GET /users/<id>/accounts
+Session-authed (`Bearer sess_…`). Lists accounts owned by this user.
+
+### POST /users/<id>/accounts
+Session-authed. Creates a new account owned by the user.
+
+### GET /users/<id>/accounts/<acct>/api-key
+Session-authed. Returns `{api_key}` so the user can hand the key to an LLM agent.
 
 ## Commerce (FEAT-231)
 

@@ -1,12 +1,12 @@
-// Lightning wallet PWA (FEAT-209) — a thin, same-origin client for the
-// FEAT-212 account HTTP API.  No framework, no build step.
+// Lightning wallet PWA (FEAT-209 + FEAT-222 PR-7) — a thin, same-origin
+// client for the FEAT-212 account HTTP API and the FEAT-222 user layer.
 //
-// Auth (this PR): the `lt_…` API key minted at account creation.  It is
-// shown once on the backup screen and then kept in localStorage so the
-// wallet works across launches.  Passkey/WebAuthn login (no plaintext
-// bearer on the device) is the follow-up backend (FEAT-209 PR-2b).
+// Auth: account-level `lt_…` bearer for API calls; user-level passkey /
+// session token (sess_…) for the user-registration and login flows.
 
 const LS_KEY = "lightning.accounts";
+// User store: {user_id, label} persisted; session kept only in sessionStorage.
+const LS_USER_KEY = "lightning.user";
 
 let CONFIG = { api_base: "/.well-known/lightning/v1" };
 
@@ -41,6 +41,79 @@ function upsertAccount(acct) {
   list.push(acct); saveAccounts(list);
 }
 function removeAccount(id) { saveAccounts(accounts().filter(a => a.id !== id)); }
+
+// --- user store (FEAT-222 PR-7) ------------------------------------------
+
+function storedUser() {
+  try { return JSON.parse(localStorage.getItem(LS_USER_KEY) || "null"); }
+  catch (_) { return null; }
+}
+function saveUser(u) {
+  if (u) localStorage.setItem(LS_USER_KEY, JSON.stringify(u));
+  else localStorage.removeItem(LS_USER_KEY);
+}
+function userSession() { return sessionStorage.getItem("lightning.session"); }
+function saveSession(s) { sessionStorage.setItem("lightning.session", s); }
+function clearSession() { sessionStorage.removeItem("lightning.session"); }
+
+// --- WebAuthn helpers (FEAT-222 PR-7) ------------------------------------
+
+function b64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+function b64urlDecode(s) {
+  const p = s.replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(p + "=".repeat((4 - p.length % 4) % 4)), c => c.charCodeAt(0));
+}
+
+// Build a credential create response JSON (attestation) for the server.
+async function passkeyCreate(options) {
+  const opts = {
+    publicKey: {
+      ...options,
+      challenge: b64urlDecode(options.challenge),
+      user: { ...options.user, id: b64urlDecode(options.user.id) },
+      rp: options.rp,
+    },
+  };
+  const cred = await navigator.credentials.create(opts);
+  return {
+    id: cred.id,
+    rawId: b64url(cred.rawId),
+    type: cred.type,
+    response: {
+      attestationObject: b64url(cred.response.attestationObject),
+      clientDataJSON:    b64url(cred.response.clientDataJSON),
+    },
+  };
+}
+
+// Build a credential get response JSON (assertion) for the server.
+async function passkeyGet(options) {
+  const allowCreds = (options.allowCredentials || []).map(c => ({
+    ...c, id: b64urlDecode(c.id),
+  }));
+  const opts = {
+    publicKey: {
+      ...options,
+      challenge: b64urlDecode(options.challenge),
+      allowCredentials: allowCreds,
+    },
+  };
+  const cred = await navigator.credentials.get(opts);
+  return {
+    id: cred.id,
+    rawId: b64url(cred.rawId),
+    type: cred.type,
+    response: {
+      authenticatorData: b64url(cred.response.authenticatorData),
+      clientDataJSON:    b64url(cred.response.clientDataJSON),
+      signature:         b64url(cred.response.signature),
+      userHandle: cred.response.userHandle ? b64url(cred.response.userHandle) : null,
+    },
+  };
+}
 
 // --- API ------------------------------------------------------------------
 
@@ -84,16 +157,142 @@ function renderNav() {
 
 // --- screens --------------------------------------------------------------
 
+// --- user registration / login screens (FEAT-222 PR-7) ------------------
+
+async function screenUserRegister() {
+  h(`<h2>Create user account</h2>
+     <p class="muted">Register with a passkey to manage multiple accounts
+        under one identity. An invite code is required if the operator has
+        enabled invite-only mode.</p>
+     <label>Invite code (if required)
+       <input id="invite" placeholder="optional" maxlength="32"></label>
+     <label>Your name / label
+       <input id="label" placeholder="e.g. Alice" maxlength="64"></label>
+     <button id="go" class="primary">Register with passkey</button>
+     <p class="muted"><a href="#user-login">Already registered? Log in</a></p>`);
+  const invite = sessionStorage.getItem("lightning.invite");
+  if (invite) document.getElementById("invite").value = invite;
+  document.getElementById("go").onclick = async () => {
+    document.getElementById("go").disabled = true;
+    const invite_code = document.getElementById("invite").value.trim();
+    const label       = document.getElementById("label").value.trim();
+    try {
+      // Step 1: get a challenge + provisional user_id.
+      const beginData = await api("/users/register/begin", { method: "POST" });
+      const { user_id, ...createOptions } = beginData;
+      // Step 2: browser creates the passkey.
+      const attestation = await passkeyCreate(createOptions);
+      // Step 3: finish registration — creates user + registers passkey.
+      const body = { user_id, passkey_attestation: { challenge: createOptions.challenge, attestation }, label };
+      if (invite_code) body.invite_code = invite_code;
+      const res = await api("/users", { method: "POST", body });
+      saveUser({ user_id: res.user_id, label: label || "user" });
+      saveSession(res.session);
+      sessionStorage.removeItem("lightning.invite");
+      toast("Registered! Loading your accounts…", "ok");
+      go("user");
+    } catch (e) {
+      toast("Registration failed: " + e.message, "error");
+      document.getElementById("go").disabled = false;
+    }
+  };
+}
+
+async function screenUserLogin() {
+  const stored = storedUser();
+  h(`<h2>Log in with passkey</h2>
+     ${stored ? `<p>Logging in as <strong>${esc(stored.label || stored.user_id)}</strong>.</p>` : ""}
+     <button id="go" class="primary">Authenticate</button>
+     <p class="muted"><a href="#user-register">New here? Register</a></p>
+     <p class="muted"><a href="#picker">Continue without user account</a></p>`);
+  if (!stored) { toast("No user registered on this device", "error"); return; }
+  document.getElementById("go").onclick = async () => {
+    document.getElementById("go").disabled = true;
+    const { user_id } = stored;
+    try {
+      const beginData = await api(`/users/${user_id}/passkeys/login/begin`, { method: "POST" });
+      const assertion = await passkeyGet(beginData);
+      const res = await api(`/users/${user_id}/passkeys/login/finish`, {
+        method: "POST",
+        body:   { challenge: beginData.challenge, assertion },
+      });
+      saveSession(res.session);
+      toast("Logged in", "ok");
+      go("user");
+    } catch (e) {
+      toast("Login failed: " + e.message, "error");
+      document.getElementById("go").disabled = false;
+    }
+  };
+}
+
+async function screenUser() {
+  const user = storedUser();
+  const session = userSession();
+  if (!user || !session) return go("user-login");
+  h(`<h2>${esc(user.label || "Your accounts")}</h2>
+     <div id="list"><p class="muted">Loading…</p></div>
+     <button id="newacct">+ New account</button>
+     <button id="logout" class="danger">Log out</button>`);
+  const apiUser = (path, opts = {}) =>
+    api(path, { ...opts, key: session });
+  document.getElementById("newacct").onclick = async () => {
+    try {
+      const res = await apiUser(`/users/${user.user_id}/accounts`, {
+        method: "POST", body: {},
+      });
+      upsertAccount({ id: res.account_id, label: "account", key: res.api_key });
+      toast("Account created", "ok");
+      screenUser();
+    } catch (e) { toast("Failed: " + e.message, "error"); }
+  };
+  document.getElementById("logout").onclick = () => {
+    clearSession(); toast("Logged out", "ok"); go("picker");
+  };
+  try {
+    const r = await apiUser(`/users/${user.user_id}/accounts`);
+    const list = r.accounts || [];
+    document.getElementById("list").innerHTML = list.length
+      ? `<ul class="cards">${list.map(a => {
+          const local = getAccount(a.account_id);
+          return `<li><a href="#account/${esc(a.account_id)}">
+            <strong>${esc(local ? local.label : "account")}</strong>
+            <code>${esc((a.account_id || "").slice(0, 14))}…</code>
+          </a>
+          ${!local ? `<button class="small" data-id="${esc(a.account_id)}">Load API key</button>` : ""}</li>`;
+        }).join("")}</ul>`
+      : '<p class="muted">No accounts yet. Create one above.</p>';
+    document.querySelectorAll("button[data-id]").forEach(b => b.onclick = async () => {
+      const aid = b.getAttribute("data-id");
+      try {
+        const kr = await apiUser(`/users/${user.user_id}/accounts/${aid}/api-key`);
+        upsertAccount({ id: aid, label: "account", key: kr.api_key });
+        toast("Account loaded", "ok"); screenUser();
+      } catch (e) { toast("Failed: " + e.message, "error"); }
+    });
+  } catch (e) {
+    document.getElementById("list").innerHTML = `<p class="error">${esc(e.message)}</p>`;
+    if (e.message.includes("401") || e.message.includes("session")) {
+      clearSession(); go("user-login");
+    }
+  }
+}
+
 function screenPicker() {
   const list = accounts();
-  if (list.length === 0) return screenWelcome();
+  const user = storedUser();
+  if (list.length === 0 && !user) return screenWelcome();
+  const userLink = user
+    ? `<p class="muted"><a href="#user">Switch to user view (${esc(user.label || user.user_id)})</a></p>`
+    : `<p class="muted"><a href="#user-register">Register / log in as user (multi-account)</a></p>`;
   h(`<h2>Your accounts</h2>
      <ul class="cards">${list.map(a => `
        <li><a href="#account/${esc(a.id)}">
          <strong>${esc(a.label || "account")}</strong>
          <code>${esc(a.id.slice(0, 14))}…</code></a></li>`).join("")}
      </ul>
-     <button id="add">+ New account</button>`);
+     <button id="add">+ New account</button>
+     ${userLink}`);
   document.getElementById("add").onclick = () => go("create");
 }
 
@@ -101,7 +300,10 @@ function screenWelcome() {
   h(`<h2>Welcome</h2>
      <p>A self-custodial-by-default Lightning wallet. Create your first
         account to get a top-up address and start paying / receiving.</p>
-     <button id="create">Create my first account</button>`);
+     <button id="create">Create my first account</button>
+     <p class="muted">Have an invite code?
+       <a href="#user-register">Register as a user</a> to manage multiple
+       accounts under one passkey.</p>`);
   document.getElementById("create").onclick = () => go("create");
 }
 
@@ -582,6 +784,9 @@ function route() {
     case "transfer": return screenTransfer(arg);
     case "so": return screenStandingOrders(arg);
     case "mandates": return screenMandates(arg);
+    case "user-register": return screenUserRegister();
+    case "user-login": return screenUserLogin();
+    case "user": return screenUser();
     default: return screenPicker();
   }
 }
