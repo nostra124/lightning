@@ -27307,3 +27307,67 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2350: channel-local-htlc-value man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-htlc-value.1" ]
 }
+
+@test "FEAT-2351: node-listforwards-out-msat-total reports error or out_msat_total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-total 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_total"
+}
+@test "FEAT-2351: node-listforwards-out-msat-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-total.1" ]
+}
+
+@test "FEAT-2352: channel-htlc-timeout-min reports error or min_htlc_expiry gracefully" {
+    out=$(./libexec/lightning/channel-htlc-timeout-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_htlc_expiry"
+}
+@test "FEAT-2352: channel-htlc-timeout-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout-min.1" ]
+}
+
+@test "FEAT-2353: peer-newest-connected reports error or peer_id gracefully" {
+    out=$(./libexec/lightning/peer-newest-connected 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_id"
+}
+@test "FEAT-2353: peer-newest-connected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-newest-connected.1" ]
+}
+
+@test "FEAT-2354: node-invoice-avg-expiry reports error or avg_expiry_seconds gracefully" {
+    out=$(./libexec/lightning/node-invoice-avg-expiry 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_expiry_seconds"
+}
+@test "FEAT-2354: node-invoice-avg-expiry man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-avg-expiry.1" ]
+}
+
+@test "FEAT-2355: channel-balance-ratio-avg reports error or avg_balance_ratio gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_balance_ratio"
+}
+@test "FEAT-2355: channel-balance-ratio-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio-avg.1" ]
+}
+
+@test "FEAT-2356: node-pay-180d-total reports error or amount_sent_msat_180d gracefully" {
+    out=$(./libexec/lightning/node-pay-180d-total 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_sent_msat_180d"
+}
+@test "FEAT-2356: node-pay-180d-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-180d-total.1" ]
+}
+
+@test "FEAT-2359: node-listinvoices-label-count reports error or distinct_label_count gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-label-count 2>/dev/null)
+    echo "$out" | grep -q "error\|distinct_label_count"
+}
+@test "FEAT-2359: node-listinvoices-label-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-label-count.1" ]
+}
+
+@test "FEAT-2360: channel-remote-htlc-value reports error or remote_htlc_value_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-htlc-value 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_htlc_value_msat"
+}
+@test "FEAT-2360: channel-remote-htlc-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-htlc-value.1" ]
+}

@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning channel-balance-ratio-avg   (FEAT-2355)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+ratios = []
+for ch in channels:
+    local = ch.get('to_us_msat', ch.get('local_msat', 0))
+    total = ch.get('total_msat', 0)
+    if total and total > 0:
+        ratios.append(local / total)
+avg = sum(ratios) / len(ratios) if ratios else 0
+print(json.dumps({'avg_balance_ratio': round(avg, 4), 'channel_count': len(ratios)}))
+" "$result"
