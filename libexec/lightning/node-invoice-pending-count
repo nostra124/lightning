@@ -1,13 +1,10 @@
 #!/bin/bash
-# lightning node-invoice-pending-count   (FEAT-457)
-if ! result=$(lightning-cli listinvoices 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
+# lightning node-invoice-pending-count   (FEAT-811)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
-invs = json.loads(sys.argv[1]).get('invoices', [])
-unpaid = [i for i in invs if i.get('status') == 'unpaid']
-paid = [i for i in invs if i.get('status') == 'paid']
-print(json.dumps({'total': len(invs), 'unpaid': len(unpaid), 'paid': len(paid)}, separators=(',', ':')))
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+pending = [i for i in invoices if i.get('status') == 'unpaid']
+print(json.dumps({'pending': len(pending), 'total': len(invoices)}))
 " "$result"

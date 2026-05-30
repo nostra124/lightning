@@ -15304,3 +15304,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-810: channel-capacity-percent man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-percent.1" ]
 }
+
+@test "FEAT-811: node-invoice-pending-count reports error or pending gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-pending-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|pending"
+}
+
+@test "FEAT-811: node-invoice-pending-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-count.1" ]
+}
+
+@test "FEAT-812: channel-local-msat-total reports error or total_local_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-local-msat-total" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_local_msat"
+}
+
+@test "FEAT-812: channel-local-msat-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-msat-total.1" ]
+}
+
+@test "FEAT-813: wallet-delete-all-notes requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-delete-all-notes" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-813: wallet-delete-all-notes man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-delete-all-notes.1" ]
+}
+
+@test "FEAT-814: node-pay-attempt-count reports error or total_attempts gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-pay-attempt-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_attempts"
+}
+
+@test "FEAT-814: node-pay-attempt-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-attempt-count.1" ]
+}
+
+@test "FEAT-815: invoice-route-hints requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-route-hints" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-815: invoice-route-hints man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-route-hints.1" ]
+}
+
+@test "FEAT-816: channel-push-msat requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-push-msat" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-816: channel-push-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-push-msat.1" ]
+}
+
+@test "FEAT-817: peer-shared-channels requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-shared-channels" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-817: peer-shared-channels man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-shared-channels.1" ]
+}
+
+@test "FEAT-818: wallet-tags-list requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-tags-list" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-818: wallet-tags-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-tags-list.1" ]
+}
+
+@test "FEAT-819: node-onchain-sweep requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-onchain-sweep" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-819: node-onchain-sweep man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-sweep.1" ]
+}
+
+@test "FEAT-820: channel-initiated-by requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-initiated-by" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-820: channel-initiated-by man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-initiated-by.1" ]
+}
