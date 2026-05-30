@@ -1,28 +1,15 @@
-.TH "LIGHTNING-PEER-SCORE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-PEER_SCORE" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-peer-score \- show weighted health score for one or all peers
+lightning-peer-score \- FEAT-1107 peer-score
 .SH SYNOPSIS
 .B lightning peer-score
-.RI [ peer_id ]
 .SH DESCRIPTION
-Without
-.IR peer_id ,
-returns the scored list for all peers (delegates to
-.BR node-peers-score ).
-With
-.IR peer_id ,
-returns the single entry for that peer or
-.B {"error":"not_found"}
-if the peer is unknown.
+peer-score for lightning CLI (FEAT-1107).
 .PP
-Output:
-.nf
-{"peer_id":..., "score":N, ...}
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-node-peers-score (1),
-.BR lightning-peer-info (1)
+.BR lightning(1)

@@ -1,7 +1,7 @@
 #!/bin/bash
-# lightning channel-state <channel_id>   (FEAT-1106)
+# lightning channel-balance-msat <channel_id>   (FEAT-1102)
 if [ $# -lt 1 ]; then
-    echo '{"error":"usage: channel-state <channel_id>"}'
+    echo '{"error":"usage: channel-balance-msat <channel_id>"}'
     exit 0
 fi
 channel_id="$1"
@@ -12,7 +12,7 @@ data = json.loads(sys.argv[1])
 cid = sys.argv[2]
 for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'state': ch.get('state')}))
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'to_us_msat': ch.get('to_us_msat'), 'total_msat': ch.get('total_msat')}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"

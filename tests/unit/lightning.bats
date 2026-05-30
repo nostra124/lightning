@@ -17544,3 +17544,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1100: channel-capacity-rank man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-rank.1" ]
 }
+@test "FEAT-1101: node-listpeers-count-connected reports error or total gracefully" {
+	out=$(./libexec/lightning/node-listpeers-count-connected 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1101: node-listpeers-count-connected man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-count-connected.1" ]
+}
+@test "FEAT-1102: channel-balance-msat requires arg" {
+	out=$(./libexec/lightning/channel-balance-msat 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1102: channel-balance-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-msat.1" ]
+}
+@test "FEAT-1103: wallet-notes-by-tag requires args" {
+	out=$(./libexec/lightning/wallet-notes-by-tag 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1103: wallet-notes-by-tag man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-by-tag.1" ]
+}
+@test "FEAT-1104: node-invoice-preimage requires arg" {
+	out=$(./libexec/lightning/node-invoice-preimage 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1104: node-invoice-preimage man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-preimage.1" ]
+}
+@test "FEAT-1105: invoice-list-pending returns array gracefully" {
+	out=$(./libexec/lightning/invoice-list-pending 2>/dev/null)
+	echo "$out" | grep -qE "^\[|\{.*error"
+}
+@test "FEAT-1105: invoice-list-pending man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-pending.1" ]
+}
+@test "FEAT-1106: channel-state requires arg" {
+	out=$(./libexec/lightning/channel-state 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1106: channel-state man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state.1" ]
+}
+@test "FEAT-1107: peer-score requires arg" {
+	out=$(./libexec/lightning/peer-score 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1107: peer-score man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-score.1" ]
+}
+@test "FEAT-1108: wallet-meta-all requires arg" {
+	out=$(./libexec/lightning/wallet-meta-all 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1108: wallet-meta-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-all.1" ]
+}
+@test "FEAT-1109: node-channel-local-count reports error or total gracefully" {
+	out=$(./libexec/lightning/node-channel-local-count 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1109: node-channel-local-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-local-count.1" ]
+}
+@test "FEAT-1110: channel-age requires arg" {
+	out=$(./libexec/lightning/channel-age 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1110: channel-age man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age.1" ]
+}

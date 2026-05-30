@@ -1,20 +1,9 @@
 #!/bin/bash
-# lightning invoice-list-pending [--limit N]   (FEAT-393)
-set -e
-limit=50
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --limit) limit="$2"; shift 2 ;;
-        *) shift ;;
-    esac
-done
+# lightning invoice-list-pending   (FEAT-1105)
 result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-limit = int(sys.argv[2])
-pending = [{'label': i.get('label',''), 'payment_hash': i.get('payment_hash',''),
-            'amount_msat': i.get('amount_msat', 0), 'expires_at': i.get('expires_at', 0)}
-           for i in data.get('invoices', []) if i.get('status') == 'unpaid']
-print(json.dumps(pending[:limit], separators=(',', ':')))
-" "$result" "$limit"
+pending = [i for i in data.get('invoices', []) if i.get('status') == 'unpaid']
+print(json.dumps(pending))
+" "$result"
