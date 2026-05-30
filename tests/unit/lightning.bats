@@ -31311,3 +31311,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2870: channel-their-reserve-sum man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-sum.1" ]
 }
+
+@test "FEAT-2871: node-listforwards-fee-total-monthly reports error or fee_total_monthly_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_monthly_msat"
+}
+@test "FEAT-2871: node-listforwards-fee-total-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-monthly.1" ]
+}
+
+@test "FEAT-2872: channel-both-reserves-sum reports error or both_reserves_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_sum_msat"
+}
+@test "FEAT-2872: channel-both-reserves-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-sum.1" ]
+}
+
+@test "FEAT-2873: peer-our-reserve-sum reports error or our_reserve_sum_peer_msat gracefully" {
+    out=$(./libexec/lightning/peer-our-reserve-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|our_reserve_sum_peer_msat"
+}
+@test "FEAT-2873: peer-our-reserve-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-our-reserve-sum.1" ]
+}
+
+@test "FEAT-2874: node-pay-amount-total-monthly reports error or amount_total_monthly_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-total-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_total_monthly_msat"
+}
+@test "FEAT-2874: node-pay-amount-total-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-total-monthly.1" ]
+}
+
+@test "FEAT-2875: channel-count-active reports error or active_channel_count gracefully" {
+    out=$(./libexec/lightning/channel-count-active 2>/dev/null)
+    echo "$out" | grep -q "error\|active_channel_count"
+}
+@test "FEAT-2875: channel-count-active man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-count-active.1" ]
+}
+
+@test "FEAT-2876: node-invoice-paid-amount-total-monthly reports error or paid_amount_total_monthly_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-total-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_total_monthly_msat"
+}
+@test "FEAT-2876: node-invoice-paid-amount-total-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-total-monthly.1" ]
+}
+
+@test "FEAT-2877: channel-count-inactive reports error or inactive_channel_count gracefully" {
+    out=$(./libexec/lightning/channel-count-inactive 2>/dev/null)
+    echo "$out" | grep -q "error\|inactive_channel_count"
+}
+@test "FEAT-2877: channel-count-inactive man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-count-inactive.1" ]
+}
+
+@test "FEAT-2878: peer-their-reserve-sum reports error or their_reserve_sum_peer_msat gracefully" {
+    out=$(./libexec/lightning/peer-their-reserve-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|their_reserve_sum_peer_msat"
+}
+@test "FEAT-2878: peer-their-reserve-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-their-reserve-sum.1" ]
+}
+
+@test "FEAT-2879: node-listforwards-count-daily reports error or forwards_count_daily gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_count_daily"
+}
+@test "FEAT-2879: node-listforwards-count-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-daily.1" ]
+}
+
+@test "FEAT-2880: channel-count-total reports error or total_channel_count gracefully" {
+    out=$(./libexec/lightning/channel-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_channel_count"
+}
+@test "FEAT-2880: channel-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-count-total.1" ]
+}
