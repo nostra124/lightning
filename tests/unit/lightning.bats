@@ -20914,3 +20914,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1540: channel-min-depth man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-depth.1" ]
 }
+@test "FEAT-1541: node-invoice-expired-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-invoice-expired-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1541: node-invoice-expired-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expired-count.1" ]
+}
+@test "FEAT-1542: channel-local-fee-ppm reports error gracefully" {
+    out=$(./libexec/lightning/channel-local-fee-ppm 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1542: channel-local-fee-ppm man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-fee-ppm.1" ]
+}
+@test "FEAT-1543: wallet-notes-keyword-search reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-keyword-search 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1543: wallet-notes-keyword-search man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-keyword-search.1" ]
+}
+@test "FEAT-1544: node-graph-nodes-with-channels reports error or node_count gracefully" {
+    out=$(./libexec/lightning/node-graph-nodes-with-channels 2>/dev/null)
+    echo "$out" | grep -q "error\|node_count"
+}
+@test "FEAT-1544: node-graph-nodes-with-channels man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-nodes-with-channels.1" ]
+}
+@test "FEAT-1545: invoice-bolt11-route-hints reports error gracefully" {
+    out=$(./libexec/lightning/invoice-bolt11-route-hints 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1545: invoice-bolt11-route-hints man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-route-hints.1" ]
+}
+@test "FEAT-1546: channel-local-ppm reports error gracefully" {
+    out=$(./libexec/lightning/channel-local-ppm 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1546: channel-local-ppm man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-ppm.1" ]
+}
+@test "FEAT-1547: peer-scid-list reports error gracefully" {
+    out=$(./libexec/lightning/peer-scid-list 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1547: peer-scid-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-scid-list.1" ]
+}
+@test "FEAT-1548: wallet-notes-find-tag reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-find-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1548: wallet-notes-find-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-find-tag.1" ]
+}
+@test "FEAT-1549: node-listforwards-total-msat reports error or settled_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|settled_count"
+}
+@test "FEAT-1549: node-listforwards-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-total-msat.1" ]
+}
+@test "FEAT-1550: channel-local-reserve-msat reports error gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1550: channel-local-reserve-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-msat.1" ]
+}

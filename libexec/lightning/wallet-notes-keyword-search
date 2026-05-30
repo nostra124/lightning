@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning wallet-notes-keyword-search <wallet> <keyword>   (FEAT-1543)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-keyword-search <wallet> <keyword>"}'; exit 0; fi
+wname="$1"; keyword="$2"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+rows=$(sqlite3 "$db" "SELECT key||'='||value FROM notes WHERE value LIKE '%$keyword%' ORDER BY key;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+python3 -c "
+import sys, json
+pairs = {}
+for r in sys.argv[1].split('\n'):
+    if '=' in r:
+        k, v = r.split('=', 1)
+        pairs[k] = v
+print(json.dumps({'wallet': sys.argv[2], 'keyword': sys.argv[3], 'matches': pairs}))
+" "$rows" "$wname" "$keyword"
