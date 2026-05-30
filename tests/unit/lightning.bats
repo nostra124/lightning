@@ -18294,3 +18294,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1200: channel-our-to-self-delay man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-to-self-delay.1" ]
 }
+
+@test "FEAT-1201: node-pay-route-count reports error or total_pays gracefully" {
+    out=$(./libexec/lightning/node-pay-route-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total_pays"
+}
+@test "FEAT-1201: node-pay-route-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-route-count.1" ]
+}
+
+@test "FEAT-1202: channel-close-height requires arg" {
+    out=$(./libexec/lightning/channel-close-height 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1202: channel-close-height man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-height.1" ]
+}
+
+@test "FEAT-1203: wallet-meta-get requires args" {
+    out=$(./libexec/lightning/wallet-meta-get 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1203: wallet-meta-get man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-get.1" ]
+}
+
+@test "FEAT-1204: node-listforwards-failed reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-failed 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1204: node-listforwards-failed man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-failed.1" ]
+}
+
+@test "FEAT-1205: invoice-list-recent requires arg" {
+    out=$(./libexec/lightning/invoice-list-recent 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1205: invoice-list-recent man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-recent.1" ]
+}
+
+@test "FEAT-1206: channel-total-msat requires arg" {
+    out=$(./libexec/lightning/channel-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1206: channel-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-msat.1" ]
+}
+
+@test "FEAT-1207: peer-reachable-count reports error or total gracefully" {
+    out=$(./libexec/lightning/peer-reachable-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1207: peer-reachable-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-reachable-count.1" ]
+}
+
+@test "FEAT-1208: wallet-notes-replace requires args" {
+    out=$(./libexec/lightning/wallet-notes-replace 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1208: wallet-notes-replace man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-replace.1" ]
+}
+
+@test "FEAT-1209: node-listchannels-inactive reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-inactive 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1209: node-listchannels-inactive man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-inactive.1" ]
+}
+
+@test "FEAT-1210: channel-their-reserve requires arg" {
+    out=$(./libexec/lightning/channel-their-reserve 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1210: channel-their-reserve man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve.1" ]
+}
