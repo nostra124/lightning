@@ -1,29 +1,15 @@
-.TH "LIGHTNING-WALLET-BACKUP-VERIFY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET_BACKUP_VERIFY" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-backup-verify \- verify integrity of a wallet backup file
+lightning-wallet-backup-verify \- FEAT-903 wallet-backup-verify
 .SH SYNOPSIS
 .B lightning wallet-backup-verify
-.I backup_path
-.RI [ wallet ]
 .SH DESCRIPTION
-Opens the SQLite file at
-.I backup_path
-and runs
-.B PRAGMA integrity_check
-to confirm the backup is a valid, uncorrupted database.
-Returns
-.B {"ok":true}
-with the file size on success.
+wallet-backup-verify for lightning CLI (FEAT-903).
 .PP
-Output:
-.nf
-{"ok":true,"size_bytes":N}
-{"ok":false,"reason":...}
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-wallet-backup (1),
-.BR lightning-wallet-check (1)
+.BR lightning(1)

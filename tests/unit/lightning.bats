@@ -16054,3 +16054,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-900: channel-open-blocks man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-blocks.1" ]
 }
+
+@test "FEAT-901: node-invoice-max-amount reports error or max_invoice_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-max-amount" 2>/dev/null)
+	echo "$out" | grep -q "error\|max_invoice_msat"
+}
+@test "FEAT-901: node-invoice-max-amount man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-max-amount.1" ]
+}
+
+@test "FEAT-902: channel-htlc-fee requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-fee" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-902: channel-htlc-fee man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-fee.1" ]
+}
+
+@test "FEAT-903: wallet-backup-verify requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-backup-verify" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-903: wallet-backup-verify man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup-verify.1" ]
+}
+
+@test "FEAT-904: node-listpeers-connected returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listpeers-connected" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+@test "FEAT-904: node-listpeers-connected man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-connected.1" ]
+}
+
+@test "FEAT-905: invoice-list-unpaid returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-unpaid" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+@test "FEAT-905: invoice-list-unpaid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-unpaid.1" ]
+}
+
+@test "FEAT-906: channel-self-delay requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-self-delay" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-906: channel-self-delay man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-self-delay.1" ]
+}
+
+@test "FEAT-907: peer-total-received requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-total-received" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-907: peer-total-received man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-received.1" ]
+}
+
+@test "FEAT-908: wallet-encryption-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-encryption-status" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-908: wallet-encryption-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-encryption-status.1" ]
+}
+
+@test "FEAT-909: node-onchain-balance reports error or confirmed_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-onchain-balance" 2>/dev/null)
+	echo "$out" | grep -q "error\|confirmed_msat"
+}
+@test "FEAT-909: node-onchain-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-balance.1" ]
+}
+
+@test "FEAT-910: channel-policy-local requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-policy-local" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-910: channel-policy-local man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-policy-local.1" ]
+}
