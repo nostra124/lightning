@@ -467,10 +467,24 @@ function screenSend(id) {
   h(`<h2>Send</h2>
      <label>Invoice / Lightning address / offer
        <textarea id="bolt11" rows="3" placeholder="lnbc… · lno… · user@domain.com"></textarea></label>
+     <p id="pay-preview" class="muted" style="min-height:1.2em"></p>
      <label>Note (optional, stored locally with the transaction)
        <input id="note" maxlength="200" placeholder="e.g. rent, coffee"></label>
      <button id="pay" class="primary">Pay</button>
      <a href="#account/${esc(id)}">Cancel</a>`);
+  const showDecodePreview = async (target) => {
+    if (!target.toLowerCase().startsWith("lnbc") && !target.toLowerCase().startsWith("lntb")) return;
+    try {
+      const info = await fetch(
+        `${CONFIG.api_base}/decode?invoice=${encodeURIComponent(target)}`
+      ).then(r => r.json());
+      if (info.error || !info.amount_sat) return;
+      const pre = document.getElementById("pay-preview");
+      if (pre) pre.textContent = `${info.amount_sat.toLocaleString()} sat — ${info.description || "no description"}`;
+    } catch (_) { /* best-effort */ }
+  };
+  document.getElementById("bolt11").addEventListener("blur", ev =>
+    showDecodePreview(ev.target.value.trim()));
   document.getElementById("pay").onclick = async () => {
     const target = document.getElementById("bolt11").value.trim();
     if (!target) return toast("Paste an invoice, Lightning address, or offer", "error");

@@ -1,0 +1,31 @@
+.TH "LIGHTNING-INVOICE-DECODE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-invoice-decode \- decode a BOLT-11 invoice
+.SH SYNOPSIS
+.B lightning invoice-decode
+.I bolt11
+.SH DESCRIPTION
+Decodes a BOLT-11 invoice via
+.BR lightning-cli (1)
+.BR decodepay
+and returns a stable JSON subset:
+.nf
+{
+  "amount_msat": <int>,
+  "amount_sat": <int>,
+  "description": "...",
+  "payee": "<pubkey>",
+  "payment_hash": "<hex>",
+  "expiry": <seconds>,
+  "created_at": <unix-ts>
+}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Decode successful.
+.TP
+.B 5
+Decode failed (invalid invoice or daemon unavailable).
+.SH SEE ALSO
+.BR lightning-account-pay (1)

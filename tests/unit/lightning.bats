@@ -8683,3 +8683,25 @@ assert t['auth'] is None
 @test "FEAT-261: wallet-stats man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-stats.1" ]
 }
+
+# FEAT-262 — invoice-decode verb + preview
+
+@test "FEAT-262: invoice-decode verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-decode" ]
+}
+
+@test "FEAT-262: decode.py CGI exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/decode.py" ]
+}
+
+@test "FEAT-262: Apache conf has ScriptAlias for /v1/decode" {
+	grep -q "v1/decode" "$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+}
+
+@test "FEAT-262: PWA Send screen has invoice decode preview" {
+	grep -q "pay-preview" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-262: PWA Send screen calls decode endpoint on blur" {
+	grep -q "showDecodePreview\|v1/decode" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
