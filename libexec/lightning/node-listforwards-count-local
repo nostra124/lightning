@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-listforwards-count-local   (FEAT-2681)
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+local_count = sum(1 for f in forwards if f.get('style') == 'tlv' or f.get('in_channel', '').startswith('local'))
+print(json.dumps({'local_count': local_count}))
+" "$result"
