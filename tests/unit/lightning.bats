@@ -27900,17 +27900,17 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-failed-count-30d.1" ]
 }
 
-@test "FEAT-2437: channel-htlc-incoming-value reports error or incoming_htlc_value_msat gracefully" {
+@test "FEAT-2437: channel-htlc-incoming-value reports error or total_incoming_htlc_msat gracefully" {
     out=$(./libexec/lightning/channel-htlc-incoming-value 2>/dev/null)
-    echo "$out" | grep -q "error\|incoming_htlc_value_msat"
+    echo "$out" | grep -q "error\|total_incoming_htlc_msat"
 }
 @test "FEAT-2437: channel-htlc-incoming-value man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-incoming-value.1" ]
 }
 
-@test "FEAT-2438: peer-fee-ppm-max reports error or fee_proportional_millionths gracefully" {
+@test "FEAT-2438: peer-fee-ppm-max reports error or fee_ppm gracefully" {
     out=$(./libexec/lightning/peer-fee-ppm-max 2>/dev/null)
-    echo "$out" | grep -q "error\|fee_proportional_millionths"
+    echo "$out" | grep -q "error\|fee_ppm"
 }
 @test "FEAT-2438: peer-fee-ppm-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-max.1" ]
