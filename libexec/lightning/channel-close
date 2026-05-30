@@ -1,0 +1,33 @@
+#!/bin/bash
+# lightning channel-close <channel_id> [--force]   (FEAT-260)
+#
+# Cooperatively closes (or force-closes with --force) a channel.
+# Returns {"txid":"...","type":"mutual"|"unilateral"}.
+
+set -e
+[ $# -ge 1 ] || { printf 'usage: channel-close <channel_id> [--force]\n' >&2; exit 1; }
+channel_id="$1"; shift
+force=""
+while [ $# -gt 0 ]; do
+    case "$1" in --force) force=1; shift ;; *) exit 2 ;; esac
+done
+
+command -v lightning-cli >/dev/null || { echo '{"error":"lightning-cli not installed"}'; exit 127; }
+
+if [ -n "$force" ]; then
+    out=$(lightning-cli \
+        --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+        --network="${LIGHTNING_NETWORK:-bitcoin}" \
+        close "$channel_id" 1 2>/dev/null) || { echo '{"error":"close_failed"}'; exit 5; }
+else
+    out=$(lightning-cli \
+        --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+        --network="${LIGHTNING_NETWORK:-bitcoin}" \
+        close "$channel_id" 2>/dev/null) || { echo '{"error":"close_failed"}'; exit 5; }
+fi
+
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'txid': d.get('txid',''), 'type': d.get('type','unknown')}))
+" "$out"

@@ -8648,3 +8648,22 @@ assert t['auth'] is None
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect.1" ]
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list.1" ]
 }
+
+# FEAT-260 — channel-open / channel-close verbs
+
+@test "FEAT-260: channel-open verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open" ]
+}
+
+@test "FEAT-260: channel-close verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close" ]
+}
+
+@test "FEAT-260: man pages exist for channel-open and channel-close" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open.1" ]
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close.1" ]
+}
+
+@test "FEAT-260: channel-open validates sat argument" {
+	grep -q "case.*sat.*\*\[!\*0-9\]\*\|NOT_A_NUMBER\|0-9.*exit 2" "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open"
+}
