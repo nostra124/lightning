@@ -1,9 +1,10 @@
 #!/bin/bash
-# lightning node-listchannels-public   (FEAT-1184)
+# lightning node-listchannels-public   (FEAT-1524)
 result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-public = [c for c in data.get('channels', []) if c.get('public')]
-print(json.dumps({'count': len(public), 'channels': [c.get('short_channel_id') for c in public]}))
+channels = data.get('channels', [])
+public = [c for c in channels if not c.get('private')]
+print(json.dumps({'total': len(channels), 'public': len(public)}))
 " "$result"

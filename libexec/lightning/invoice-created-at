@@ -1,15 +1,15 @@
 #!/bin/bash
-# lightning invoice-created-at <label>   (FEAT-1175)
+# lightning invoice-created-at <label>   (FEAT-1525)
 if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-created-at <label>"}'; exit 0; fi
 label="$1"
 result=$(lightning-cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-invoices = data.get('invoices', [])
-if invoices:
-    inv = invoices[0]
-    print(json.dumps({'label': inv.get('label'), 'created_index': inv.get('created_index'), 'expires_at': inv.get('expires_at')}))
-else:
+invs = data.get('invoices', [])
+if not invs:
     print(json.dumps({'error': 'invoice not found'}))
+    sys.exit(0)
+i = invs[0]
+print(json.dumps({'label': i.get('label'), 'created_index': i.get('created_index'), 'expires_at': i.get('expires_at')}))
 " "$result"
