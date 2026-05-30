@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning channel-local-reserve-top5   (FEAT-2695)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+top5 = sorted(channels, key=lambda c: c.get('local_reserve_msat', 0), reverse=True)[:5]
+print(json.dumps({'top5_by_local_reserve': [{'peer_id': c.get('peer_id',''), 'channel_id': c.get('channel_id',''), 'local_reserve_msat': c.get('local_reserve_msat', 0)} for c in top5]}))
+" "$result"
