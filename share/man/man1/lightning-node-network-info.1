@@ -1,23 +1,14 @@
-.TH "LIGHTNING-NODE-NETWORK-INFO" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-NODE_NETWORK_INFO" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node-network-info \- show node identity and network addresses
+lightning-node-network-info \- show node network and version info
 .SH SYNOPSIS
 .B lightning node-network-info
+
 .SH DESCRIPTION
-Returns the node's public key, alias, colour, announced addresses,
-local bindings, peer count, and active channel count from
-.BR getinfo .
-Returns an error object if the daemon is unreachable.
-.PP
-Output:
-.nf
-{id, alias, color, addresses, bindings,
- num_peers, num_active_channels}
-.fi
+Returns network name, CLN version, block height, node ID, and peer count.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-node-version (1),
-.BR lightning-node-health (1)
+.BR lightning(1)

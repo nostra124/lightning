@@ -1,20 +1,19 @@
 #!/bin/bash
-# lightning wallet-seed-verify <wallet>   (FEAT-332)
-set -e
-wname="${1:-default}"
+# lightning wallet-seed-verify <wallet_name> <seed_hash>   (FEAT-474)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-seed-verify <wallet_name> <seed_hash>"}'
+    exit 0
+fi
+wname="$1"; seed_hash="$2"
 root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
 db="$root/$wname/state.db"
 if [ ! -f "$db" ]; then
-    echo '{"ok":false,"reason":"database_not_found"}'
+    echo '{"error":"database_not_found"}'
     exit 0
 fi
-# Check that the seed key exists in the db
-count=$(sqlite3 "$db" "SELECT COUNT(*) FROM secrets WHERE key='seed';" 2>/dev/null) || {
-    echo '{"ok":false,"reason":"query_failed"}'
-    exit 0
-}
-if [ "$count" -gt 0 ]; then
-    echo '{"ok":true,"seed_present":true}'
+stored=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='seed_hash' LIMIT 1;" 2>/dev/null)
+if [ "$stored" = "$seed_hash" ]; then
+    echo '{"ok":true,"wallet":"'"$wname"'"}'
 else
-    echo '{"ok":true,"seed_present":false}'
+    echo '{"ok":false,"wallet":"'"$wname"'"}'
 fi

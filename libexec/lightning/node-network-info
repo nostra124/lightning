@@ -1,19 +1,13 @@
 #!/bin/bash
-# lightning node-network-info   (FEAT-328)
-set -e
-result=$(lightning-cli getinfo 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+# lightning node-network-info   (FEAT-470)
+if ! result=$(lightning-cli getinfo 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
 python3 -c "
 import sys, json
-data = json.loads(sys.argv[1])
-addrs = data.get('address', [])
-bindings = data.get('binding', [])
-print(json.dumps({
-    'id': data.get('id', ''),
-    'alias': data.get('alias', ''),
-    'color': data.get('color', ''),
-    'addresses': addrs,
-    'bindings': bindings,
-    'num_peers': data.get('num_peers', 0),
-    'num_active_channels': data.get('num_active_channels', 0),
-}, separators=(',', ':')))
+info = json.loads(sys.argv[1])
+print(json.dumps({'network': info.get('network', ''), 'version': info.get('version', ''),
+    'blockheight': info.get('blockheight', 0), 'id': info.get('id', ''),
+    'num_peers': info.get('num_peers', 0)}, separators=(',', ':')))
 " "$result"

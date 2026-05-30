@@ -1,24 +1,13 @@
 #!/bin/bash
-# lightning invoice-list-expired [--limit N]   (FEAT-359)
-set -e
-limit=50
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --limit) limit="$2"; shift 2 ;;
-        *) shift ;;
-    esac
-done
-result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
+# lightning invoice-list-expired   (FEAT-467)
+if ! result=$(lightning-cli listinvoices 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
 python3 -c "
 import sys, json
-data = json.loads(sys.argv[1])
-limit = int(sys.argv[2])
-expired = [
-    {'label': i.get('label', ''), 'payment_hash': i.get('payment_hash', ''),
-     'amount_msat': i.get('amount_msat', 0), 'expires_at': i.get('expires_at', 0)}
-    for i in data.get('invoices', [])
-    if i.get('status') == 'expired'
-]
-expired.sort(key=lambda x: x['expires_at'], reverse=True)
-print(json.dumps(expired[:limit], separators=(',', ':')))
-" "$result" "$limit"
+invs = json.loads(sys.argv[1]).get('invoices', [])
+expired = [{'label': i.get('label',''), 'description': i.get('description',''),
+    'expires_at': i.get('expires_at', 0)} for i in invs if i.get('status') == 'expired']
+print(json.dumps(expired, separators=(',', ':')))
+" "$result"

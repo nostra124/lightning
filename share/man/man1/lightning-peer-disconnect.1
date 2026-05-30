@@ -1,24 +1,14 @@
-.TH "LIGHTNING-PEER-DISCONNECT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-PEER_DISCONNECT" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-peer-disconnect \- disconnect from a Lightning network peer
+lightning-peer-disconnect \- disconnect from a peer
 .SH SYNOPSIS
 .B lightning peer-disconnect
-.I pubkey
+.I peer_id
 .SH DESCRIPTION
-Disconnects from a Lightning peer identified by its pubkey.
-Returns JSON
-.B {"ok":true}
-on success.
-Disconnecting a peer does not close its channels; channels remain
-open but temporarily offline until reconnected.
+Disconnects from the specified peer.
 .SH EXIT STATUS
 .TP
 .B 0
-Disconnect request sent.
-.TP
-.B 5
-Disconnect failed.
+Always.
 .SH SEE ALSO
-.BR lightning-peer (1),
-.BR lightning-peer-connect (1),
-.BR lightning-peer-list (1)
+.BR lightning(1)

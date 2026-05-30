@@ -11889,3 +11889,163 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-465: payment-summary man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-summary.1" ]
 }
+
+# FEAT-466 — node-funding-txids verb
+
+@test "FEAT-466: node-funding-txids verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-funding-txids" ]
+}
+
+@test "FEAT-466: node-funding-txids returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-funding-txids" 2>/dev/null)
+	echo "$out" | grep -q "error\|\["
+}
+
+@test "FEAT-466: node-funding-txids man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-funding-txids.1" ]
+}
+
+# FEAT-467 — invoice-list-expired verb
+
+@test "FEAT-467: invoice-list-expired verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-expired" ]
+}
+
+@test "FEAT-467: invoice-list-expired returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-expired" 2>/dev/null)
+	echo "$out" | grep -q "error\|\["
+}
+
+@test "FEAT-467: invoice-list-expired man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-expired.1" ]
+}
+
+# FEAT-468 — wallet-accounts-list verb
+
+@test "FEAT-468: wallet-accounts-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-accounts-list" ]
+}
+
+@test "FEAT-468: wallet-accounts-list reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-accounts-list" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-468: wallet-accounts-list reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-accounts-list" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-468: wallet-accounts-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-accounts-list.1" ]
+}
+
+# FEAT-469 — channel-force-close verb
+
+@test "FEAT-469: channel-force-close verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-force-close" ]
+}
+
+@test "FEAT-469: channel-force-close reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-force-close" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-469: channel-force-close man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-force-close.1" ]
+}
+
+# FEAT-470 — node-network-info verb
+
+@test "FEAT-470: node-network-info verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-network-info" ]
+}
+
+@test "FEAT-470: node-network-info reports error or network info gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-network-info" 2>/dev/null)
+	echo "$out" | grep -q "error\|network"
+}
+
+@test "FEAT-470: node-network-info man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-network-info.1" ]
+}
+
+# FEAT-471 — peer-disconnect verb
+
+@test "FEAT-471: peer-disconnect verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect" ]
+}
+
+@test "FEAT-471: peer-disconnect reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-471: peer-disconnect man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect.1" ]
+}
+
+# FEAT-472 — node-keysend-status verb
+
+@test "FEAT-472: node-keysend-status verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-keysend-status" ]
+}
+
+@test "FEAT-472: node-keysend-status reports error or status gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-keysend-status" 2>/dev/null)
+	echo "$out" | grep -q "error\|keysend"
+}
+
+@test "FEAT-472: node-keysend-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-keysend-status.1" ]
+}
+
+# FEAT-473 — invoice-cancel verb
+
+@test "FEAT-473: invoice-cancel verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-cancel" ]
+}
+
+@test "FEAT-473: invoice-cancel reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-cancel" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-473: invoice-cancel man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-cancel.1" ]
+}
+
+# FEAT-474 — wallet-seed-verify verb
+
+@test "FEAT-474: wallet-seed-verify verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-seed-verify" ]
+}
+
+@test "FEAT-474: wallet-seed-verify reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-seed-verify" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-474: wallet-seed-verify reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-seed-verify" testwallet abc123 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-474: wallet-seed-verify man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-seed-verify.1" ]
+}
+
+# FEAT-475 — channel-open-rate verb
+
+@test "FEAT-475: channel-open-rate verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-rate" ]
+}
+
+@test "FEAT-475: channel-open-rate reports error or rate gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-rate" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_channels"
+}
+
+@test "FEAT-475: channel-open-rate man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-rate.1" ]
+}

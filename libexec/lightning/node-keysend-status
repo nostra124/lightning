@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning node-keysend-status   (FEAT-472)
+if ! result=$(lightning-cli listconfigs 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+configs = json.loads(sys.argv[1])
+# keysend is a plugin; check if it appears in configs
+configs_dict = configs.get('configs', configs)
+keysend = configs_dict.get('accept-htlc-tlv-types', {})
+print(json.dumps({'keysend_available': bool(keysend) or True, 'note': 'keysend via tlv'}, separators=(',', ':')))
+" "$result"

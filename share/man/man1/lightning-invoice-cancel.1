@@ -1,24 +1,14 @@
-.TH "LIGHTNING-INVOICE-CANCEL" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-INVOICE_CANCEL" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-invoice-cancel \- cancel a pending BOLT-11 invoice
+lightning-invoice-cancel \- cancel an unpaid invoice
 .SH SYNOPSIS
 .B lightning invoice-cancel
 .I label
 .SH DESCRIPTION
-Cancels a pending (unpaid) BOLT-11 invoice by its label via
-.BR delinvoice .
-Only unpaid invoices can be cancelled; paid or expired invoices
-will return an error.
-.PP
-Output:
-.nf
-{"ok":true,"label":"..."}
-.fi
+Cancels an unpaid invoice by label using CLN delinvoice.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-invoice-create (1),
-.BR lightning-invoice-status (1),
-.BR lightning-invoice-list (1)
+.BR lightning(1)

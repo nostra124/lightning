@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning wallet-accounts-list <wallet_name>   (FEAT-468)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-accounts-list <wallet_name>"}'
+    exit 0
+fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+accounts=$(sqlite3 "$db" "SELECT DISTINCT account FROM ledger;" 2>/dev/null)
+python3 -c "
+import sys, json
+lines = [l for l in sys.argv[1].strip().split('\n') if l] if sys.argv[1].strip() else []
+print(json.dumps(lines, separators=(',', ':')))
+" "$accounts"
