@@ -12049,3 +12049,163 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-475: channel-open-rate man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-rate.1" ]
 }
+
+# FEAT-476 — node-liquidity-ads verb
+
+@test "FEAT-476: node-liquidity-ads verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-liquidity-ads" ]
+}
+
+@test "FEAT-476: node-liquidity-ads reports error or liquidity ads status gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-liquidity-ads" 2>/dev/null)
+	echo "$out" | grep -q "error\|liquidity_ads"
+}
+
+@test "FEAT-476: node-liquidity-ads man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-liquidity-ads.1" ]
+}
+
+# FEAT-477 — channel-splicing-in verb
+
+@test "FEAT-477: channel-splicing-in verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-splicing-in" ]
+}
+
+@test "FEAT-477: channel-splicing-in reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-splicing-in" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-477: channel-splicing-in man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-splicing-in.1" ]
+}
+
+# FEAT-478 — wallet-export-csv verb
+
+@test "FEAT-478: wallet-export-csv verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" ]
+}
+
+@test "FEAT-478: wallet-export-csv reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-478: wallet-export-csv reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-478: wallet-export-csv man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-csv.1" ]
+}
+
+# FEAT-479 — peer-connect verb
+
+@test "FEAT-479: peer-connect verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-connect" ]
+}
+
+@test "FEAT-479: peer-connect reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-connect" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-479: peer-connect man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connect.1" ]
+}
+
+# FEAT-480 — node-version verb
+
+@test "FEAT-480: node-version verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-version" ]
+}
+
+@test "FEAT-480: node-version reports error or version gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-version" 2>/dev/null)
+	echo "$out" | grep -q "error\|version"
+}
+
+@test "FEAT-480: node-version man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-version.1" ]
+}
+
+# FEAT-481 — channel-capacity-check verb
+
+@test "FEAT-481: channel-capacity-check verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-capacity-check" ]
+}
+
+@test "FEAT-481: channel-capacity-check reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-capacity-check" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-481: channel-capacity-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-check.1" ]
+}
+
+# FEAT-482 — invoice-list-by-label verb
+
+@test "FEAT-482: invoice-list-by-label verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-by-label" ]
+}
+
+@test "FEAT-482: invoice-list-by-label reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-by-label" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-482: invoice-list-by-label man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-label.1" ]
+}
+
+# FEAT-483 — wallet-archive verb
+
+@test "FEAT-483: wallet-archive verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-archive" ]
+}
+
+@test "FEAT-483: wallet-archive reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-archive" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-483: wallet-archive reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-archive" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-483: wallet-archive man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-archive.1" ]
+}
+
+# FEAT-484 — node-fee-base verb
+
+@test "FEAT-484: node-fee-base verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-base" ]
+}
+
+@test "FEAT-484: node-fee-base reports error or fee gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-base" 2>/dev/null)
+	echo "$out" | grep -q "error\|fee_base"
+}
+
+@test "FEAT-484: node-fee-base man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-base.1" ]
+}
+
+# FEAT-485 — channel-peer-alias verb
+
+@test "FEAT-485: channel-peer-alias verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-alias" ]
+}
+
+@test "FEAT-485: channel-peer-alias reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-alias" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-485: channel-peer-alias man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-alias.1" ]
+}

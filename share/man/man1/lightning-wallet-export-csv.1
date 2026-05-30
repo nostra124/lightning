@@ -1,31 +1,14 @@
-.TH "LIGHTNING-WALLET-EXPORT-CSV" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET_EXPORT_CSV" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-export-csv \- export ledger entries as CSV
+lightning-wallet-export-csv \- export wallet ledger to CSV
 .SH SYNOPSIS
 .B lightning wallet-export-csv
-.RB [ --limit
-.IR N ]
-.RB [ --account
-.IR address ]
+.I wallet_name
 .SH DESCRIPTION
-Writes ledger entries from the active wallet to stdout in CSV format.
-Entries are sorted oldest-first.
-.PP
-Columns:
-.nf
-id, account, ts, direction, amount_msat, amount_sat,
-peer, payment_hash, message, note
-.fi
-.TP
-.B --limit N
-Maximum number of rows to export (default 10000).
-.TP
-.B --account ADDRESS
-Filter to a single account by its on-chain address.
+Exports the wallet ledger as CSV to stdout.
 .SH EXIT STATUS
 .TP
 .B 0
-Success (outputs header-only CSV if the database is absent).
+Always.
 .SH SEE ALSO
-.BR lightning-wallet-backup (1),
-.BR lightning-wallet-stats (1)
+.BR lightning(1)

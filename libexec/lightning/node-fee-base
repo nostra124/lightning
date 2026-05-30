@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning node-fee-base   (FEAT-484)
+if ! result=$(lightning-cli listconfigs 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+configs = json.loads(sys.argv[1])
+cfg = configs.get('configs', configs)
+feebase = cfg.get('fee-base', {})
+feeppm = cfg.get('fee-per-satoshi', {})
+val_base = feebase.get('value_msat', 0) if isinstance(feebase, dict) else 0
+val_ppm = feeppm.get('value', 0) if isinstance(feeppm, dict) else 0
+print(json.dumps({'fee_base_msat': val_base, 'fee_ppm': val_ppm}, separators=(',', ':')))
+" "$result"

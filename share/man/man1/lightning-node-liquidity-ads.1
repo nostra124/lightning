@@ -1,22 +1,14 @@
-.TH "LIGHTNING-NODE-LIQUIDITY-ADS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-NODE_LIQUIDITY_ADS" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node-liquidity-ads \- list nodes advertising liquidity via option_will_fund
+lightning-node-liquidity-ads \- show liquidity ads configuration
 .SH SYNOPSIS
 .B lightning node-liquidity-ads
+
 .SH DESCRIPTION
-Scans the local gossip graph for nodes that advertise the
-.B option_will_fund
-field (liquidity ads per BOLT-12 extension).
-Returns an empty array if no nodes advertise liquidity or the daemon is unreachable.
-.PP
-Output:
-.nf
-[{nodeid, alias, option_will_fund:{...}}]
-.fi
+Reports whether liquidity ads are configured on this node.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-node-gossip (1),
-.BR lightning-channel-open (1)
+.BR lightning(1)

@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-archive <wallet_name> [<archive_path>]   (FEAT-483)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-archive <wallet_name> [<archive_path>]"}'
+    exit 0
+fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+archive="${2:-$wname-$(date +%Y%m%d_%H%M%S).db}"
+cp "$db" "$archive" 2>/dev/null && echo '{"ok":true,"archive":"'"$archive"'"}' || echo '{"error":"archive_failed"}'
