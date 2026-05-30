@@ -18854,3 +18854,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1270: channel-in-payments-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-in-payments-count.1" ]
 }
+
+@test "FEAT-1271: node-invoice-amount-total reports error or total gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1271: node-invoice-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-total.1" ]
+}
+
+@test "FEAT-1272: channel-out-payments-count requires arg" {
+    out=$(./libexec/lightning/channel-out-payments-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1272: channel-out-payments-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-out-payments-count.1" ]
+}
+
+@test "FEAT-1273: wallet-meta-delete requires args" {
+    out=$(./libexec/lightning/wallet-meta-delete 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1273: wallet-meta-delete man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-delete.1" ]
+}
+
+@test "FEAT-1274: node-listchannels-by-capacity requires arg" {
+    out=$(./libexec/lightning/node-listchannels-by-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1274: node-listchannels-by-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-capacity.1" ]
+}
+
+@test "FEAT-1275: invoice-description-hash requires arg" {
+    out=$(./libexec/lightning/invoice-description-hash 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1275: invoice-description-hash man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-description-hash.1" ]
+}
+
+@test "FEAT-1276: channel-htlc-max requires arg" {
+    out=$(./libexec/lightning/channel-htlc-max 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1276: channel-htlc-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max.1" ]
+}
+
+@test "FEAT-1277: peer-invoice-total requires arg" {
+    out=$(./libexec/lightning/peer-invoice-total 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1277: peer-invoice-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-invoice-total.1" ]
+}
+
+@test "FEAT-1278: wallet-notes-pinned requires arg" {
+    out=$(./libexec/lightning/wallet-notes-pinned 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1278: wallet-notes-pinned man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-pinned.1" ]
+}
+
+@test "FEAT-1279: node-channel-pending-count reports error or pending_count gracefully" {
+    out=$(./libexec/lightning/node-channel-pending-count 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_count"
+}
+@test "FEAT-1279: node-channel-pending-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-pending-count.1" ]
+}
+
+@test "FEAT-1280: channel-close-txid requires arg" {
+    out=$(./libexec/lightning/channel-close-txid 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1280: channel-close-txid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-txid.1" ]
+}

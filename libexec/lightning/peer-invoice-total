@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning peer-invoice-total <peer_id>   (FEAT-1277)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-invoice-total <peer_id>"}'; exit 0; fi
+peer_id="$1"
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pid = sys.argv[2]
+pays = [p for p in data.get('pays', []) if p.get('destination') == pid and p.get('status') == 'complete']
+total = sum(p.get('amount_sent_msat', 0) for p in pays if isinstance(p.get('amount_sent_msat'), int))
+print(json.dumps({'peer_id': pid, 'pay_count': len(pays), 'total_sent_msat': total}))
+" "$result" "$peer_id"

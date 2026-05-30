@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-invoice-amount-total   (FEAT-1271)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+total_req = sum(i.get('amount_msat', 0) for i in invoices if isinstance(i.get('amount_msat'), int))
+print(json.dumps({'total': len(invoices), 'total_requested_msat': total_req}))
+" "$result"
