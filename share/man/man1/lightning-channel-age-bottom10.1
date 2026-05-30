@@ -1,0 +1,15 @@
+.TH "LIGHTNING-CHANNEL-AGE-BOTTOM10" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-age-bottom10 \- FEAT-2735 channel-age-bottom10 verb
+.SH SYNOPSIS
+.B lightning channel-age-bottom10
+.SH DESCRIPTION
+Show the bottom 10 newest channels sorted by short channel ID descending (which encodes block height).
+.PP
+Output: JSON from CLN with key \fBbottom10_newest\fR containing an array of channel objects.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)
