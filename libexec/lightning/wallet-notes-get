@@ -1,19 +1,18 @@
 #!/bin/bash
-# lightning wallet-notes-get <wallet_name> <note_id>   (FEAT-1038)
-if [ $# -lt 2 ]; then
-    echo '{"error":"usage: wallet-notes-get <wallet_name> <note_id>"}'
-    exit 0
-fi
-wname="$1"; nid="$2"
+# lightning wallet-notes-get <wallet_name> <key>   (FEAT-1423)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-get <wallet_name> <key>"}'; exit 0; fi
+wname="$1"; key="$2"
 root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
 db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"wallet_not_found"}'
-    exit 0
-fi
-note=$(sqlite3 "$db" "SELECT body FROM notes WHERE id='$nid';" 2>/dev/null || echo "")
-if [ -z "$note" ]; then
-    echo '{"error":"note_not_found"}'
-else
-    python3 -c "import json,sys; print(json.dumps({'id':sys.argv[1],'body':sys.argv[2]}))" "$nid" "$note"
-fi
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+python3 -c "
+import sys, sqlite3, json
+db = sys.argv[1]; key = sys.argv[2]; wname = sys.argv[3]
+conn = sqlite3.connect(db)
+row = conn.execute('SELECT value FROM notes WHERE key=?', (key,)).fetchone()
+conn.close()
+if row:
+    print(json.dumps({'wallet': wname, 'key': key, 'value': row[0]}))
+else:
+    print(json.dumps({'error': 'key_not_found'}))
+" "$db" "$key" "$wname" 2>/dev/null || echo '{"error":"db_error"}'

@@ -20054,3 +20054,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1420: channel-closingd-state man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-closingd-state.1" ]
 }
+
+@test "FEAT-1421: node-invoice-preimage-list reports error or count gracefully" {
+    out=$(./libexec/lightning/node-invoice-preimage-list 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1421: node-invoice-preimage-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-preimage-list.1" ]
+}
+
+@test "FEAT-1422: channel-htlc-min-remote requires arg" {
+    out=$(./libexec/lightning/channel-htlc-min-remote 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1422: channel-htlc-min-remote man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-remote.1" ]
+}
+
+@test "FEAT-1423: wallet-notes-get requires args" {
+    out=$(./libexec/lightning/wallet-notes-get 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1423: wallet-notes-get man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-get.1" ]
+}
+
+@test "FEAT-1424: node-listpeers-node-id reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpeers-node-id 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1424: node-listpeers-node-id man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-node-id.1" ]
+}
+
+@test "FEAT-1425: invoice-amount-sat requires arg" {
+    out=$(./libexec/lightning/invoice-amount-sat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1425: invoice-amount-sat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-amount-sat.1" ]
+}
+
+@test "FEAT-1426: channel-commitment-type requires arg" {
+    out=$(./libexec/lightning/channel-commitment-type 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1426: channel-commitment-type man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-commitment-type.1" ]
+}
+
+@test "FEAT-1427: peer-gossip-queries requires arg" {
+    out=$(./libexec/lightning/peer-gossip-queries 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1427: peer-gossip-queries man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-gossip-queries.1" ]
+}
+
+@test "FEAT-1428: wallet-notes-update requires args" {
+    out=$(./libexec/lightning/wallet-notes-update 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1428: wallet-notes-update man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-update.1" ]
+}
+
+@test "FEAT-1429: node-feerate-min reports error or feerate_min_perkw gracefully" {
+    out=$(./libexec/lightning/node-feerate-min 2>/dev/null)
+    echo "$out" | grep -q "error\|feerate_min_perkw"
+}
+@test "FEAT-1429: node-feerate-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-min.1" ]
+}
+
+@test "FEAT-1430: channel-state-summary reports error or total gracefully" {
+    out=$(./libexec/lightning/channel-state-summary 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1430: channel-state-summary man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state-summary.1" ]
+}

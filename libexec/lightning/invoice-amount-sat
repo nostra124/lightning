@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning invoice-amount-sat <label>   (FEAT-1425)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-amount-sat <label>"}'; exit 0; fi
+label="$1"
+result=$(lightning-cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invs = data.get('invoices', [])
+if invs:
+    i = invs[0]
+    msat = i.get('amount_msat', 0)
+    sat = msat // 1000 if msat else None
+    print(json.dumps({'label': i.get('label'), 'amount_sat': sat, 'amount_msat': msat}))
+else:
+    print(json.dumps({'error': 'invoice not found'}))
+" "$result"

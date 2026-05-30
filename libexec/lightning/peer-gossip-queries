@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning peer-gossip-queries <peer_id>   (FEAT-1427)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-gossip-queries <peer_id>"}'; exit 0; fi
+peer_id="$1"
+result=$(lightning-cli listpeers "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+peers = data.get('peers', [])
+if peers:
+    p = peers[0]
+    print(json.dumps({'id': p.get('id'), 'num_peerconnections': p.get('num_peerconnections')}))
+else:
+    print(json.dumps({'error': 'peer not found'}))
+" "$result"

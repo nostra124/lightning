@@ -1,15 +1,19 @@
 #!/bin/bash
-# lightning wallet-notes-update <wallet_name> <note_id> <body>   (FEAT-1063)
-if [ $# -lt 3 ]; then
-    echo '{"error":"usage: wallet-notes-update <wallet_name> <note_id> <body>"}'
-    exit 0
-fi
-wname="$1"; nid="$2"; body="$3"
+# lightning wallet-notes-update <wallet_name> <key> <value>   (FEAT-1428)
+if [ $# -lt 3 ]; then echo '{"error":"usage: wallet-notes-update <wallet_name> <key> <value>"}'; exit 0; fi
+wname="$1"; key="$2"; value="$3"
 root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
 db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"wallet_not_found"}'
-    exit 0
-fi
-sqlite3 "$db" "UPDATE notes SET body='$body' WHERE id='$nid';" 2>/dev/null
-echo "{\"ok\":true,\"wallet\":\"$wname\",\"updated\":\"$nid\"}"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+python3 -c "
+import sys, sqlite3, json
+db = sys.argv[1]; key = sys.argv[2]; val = sys.argv[3]; wname = sys.argv[4]
+conn = sqlite3.connect(db)
+row = conn.execute('SELECT key FROM notes WHERE key=?', (key,)).fetchone()
+if not row:
+    print(json.dumps({'error': 'key_not_found'}))
+    conn.close(); exit()
+conn.execute('UPDATE notes SET value=? WHERE key=?', (val, key))
+conn.commit(); conn.close()
+print(json.dumps({'wallet': wname, 'key': key, 'value': val, 'ok': True}))
+" "$db" "$key" "$value" "$wname" 2>/dev/null || echo '{"error":"db_error"}'
