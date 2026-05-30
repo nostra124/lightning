@@ -1164,6 +1164,37 @@ EOF
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
 
+@test "FEAT-185: channel scb emit writes to the active (non-default) wallet" {
+	# Regression for the .active path bug: channel's wallet_scb_dir()
+	# resolved the active wallet from $LIGHTNING_DIR/wallet/.active — a
+	# file nothing writes — so the scb landed in a phantom
+	# wallet/default/scb on any wallet not named 'default'.
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" channel scb emit
+	[ "$status" -eq 0 ]
+	scb=$(ls "$LIGHTNING_WALLETS_ROOT/alice/scb/"scb-*.json)
+	[ -s "$scb" ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
+@test "FEAT-176: api-lnurlp resolves the active (non-default) wallet's DB" {
+	# Regression for the .active path bug: api-lnurlp resolved the
+	# active wallet from $LIGHTNING_DIR/wallet/.active and silently
+	# failed (no wallet database) on any wallet not named 'default'.
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" account create acct >/dev/null
+	db="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	sqlite3 "$db" "INSERT INTO users(user, account, min_sat, max_sat, comment_max) VALUES('bob','acct',1,100000000,256);"
+
+	run "$LIGHTNING_BIN" api-lnurlp bob
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"bob"* ]]
+	[[ "$output" == *"acct"* ]]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
+}
+
 @test "FEAT-185: lightning seed (no args) prints usage" {
 	run "$LIGHTNING_BIN" seed
 	[ "$status" -ne 0 ]
