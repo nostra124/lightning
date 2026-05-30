@@ -22544,3 +22544,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1750: channel-htlc-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count.1" ]
 }
+
+@test "FEAT-1751: node-listpays-pending reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-pending 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1751: node-listpays-pending man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-pending.1" ]
+}
+
+@test "FEAT-1752: channel-dust-limit reports error gracefully" {
+    out=$(./libexec/lightning/channel-dust-limit 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1752: channel-dust-limit man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-dust-limit.1" ]
+}
+
+@test "FEAT-1753: wallet-notes-by-key reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-by-key 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1753: wallet-notes-by-key man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-by-key.1" ]
+}
+
+@test "FEAT-1754: node-invoice-unpaid-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1754: node-invoice-unpaid-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-count.1" ]
+}
+
+@test "FEAT-1755: channel-max-accepted-htlcs reports error gracefully" {
+    out=$(./libexec/lightning/channel-max-accepted-htlcs 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1755: channel-max-accepted-htlcs man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-accepted-htlcs.1" ]
+}
+
+@test "FEAT-1756: peer-feature-bits reports error gracefully" {
+    out=$(./libexec/lightning/peer-feature-bits 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1756: peer-feature-bits man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-feature-bits.1" ]
+}
+
+@test "FEAT-1757: wallet-notes-update reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-update 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1757: wallet-notes-update man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-update.1" ]
+}
+
+@test "FEAT-1758: node-listforwards-settled-msat reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-settled-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1758: node-listforwards-settled-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-settled-msat.1" ]
+}
+
+@test "FEAT-1759: channel-funding-address reports error gracefully" {
+    out=$(./libexec/lightning/channel-funding-address 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1759: channel-funding-address man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-address.1" ]
+}
+
+@test "FEAT-1760: node-channel-open-count reports error or total gracefully" {
+    out=$(./libexec/lightning/node-channel-open-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1760: node-channel-open-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-open-count.1" ]
+}

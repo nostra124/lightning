@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-notes-by-key <key>   (FEAT-1753)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-by-key <key>"}'; exit 0; fi
+key="$1"
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+row=$(sqlite3 "$db" "SELECT value, tag FROM notes WHERE key='$key' LIMIT 1;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+python3 -c "
+import sys, json
+row = sys.argv[1]
+if not row: print(json.dumps({'error': 'key not found'})); exit()
+parts = row.split('|')
+print(json.dumps({'key': sys.argv[2], 'value': parts[0], 'tag': parts[1] if len(parts)>1 else ''}))
+" "$row" "$key"
