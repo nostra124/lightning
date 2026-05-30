@@ -32731,3 +32731,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3050: channel-reserve-local-median man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-local-median.1" ]
 }
+
+@test "FEAT-3051: channel-reserve-remote-median reports error or reserve_remote_median gracefully" {
+    out=$(./libexec/lightning/channel-reserve-remote-median 2>/dev/null)
+    echo "$out" | grep -q "error\|reserve_remote_median"
+}
+@test "FEAT-3051: channel-reserve-remote-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-remote-median.1" ]
+}
+
+@test "FEAT-3052: node-listforwards-volume-avg reports error or volume_msat_avg gracefully" {
+    out=$(./libexec/lightning/node-listforwards-volume-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|volume_msat_avg"
+}
+@test "FEAT-3052: node-listforwards-volume-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-volume-avg.1" ]
+}
+
+@test "FEAT-3053: peer-htlc-value-max reports error or htlc_value_max_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_max_msat_peer"
+}
+@test "FEAT-3053: peer-htlc-value-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-max.1" ]
+}
+
+@test "FEAT-3054: channel-uptime-avg reports error or uptime_avg gracefully" {
+    out=$(./libexec/lightning/channel-uptime-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_avg"
+}
+@test "FEAT-3054: channel-uptime-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime-avg.1" ]
+}
+
+@test "FEAT-3055: node-listforwards-count-total reports error or forward_count_total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|forward_count_total"
+}
+@test "FEAT-3055: node-listforwards-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-total.1" ]
+}
+
+@test "FEAT-3056: peer-htlc-value-min reports error or htlc_value_min_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_min_msat_peer"
+}
+@test "FEAT-3056: peer-htlc-value-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-min.1" ]
+}
+
+@test "FEAT-3057: channel-uptime-min reports error or uptime_min gracefully" {
+    out=$(./libexec/lightning/channel-uptime-min 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_min"
+}
+@test "FEAT-3057: channel-uptime-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime-min.1" ]
+}
+
+@test "FEAT-3058: node-listforwards-count-day reports error or forward_count_day gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-day 2>/dev/null)
+    echo "$out" | grep -q "error\|forward_count_day"
+}
+@test "FEAT-3058: node-listforwards-count-day man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-day.1" ]
+}
+
+@test "FEAT-3059: peer-htlc-value-total reports error or htlc_value_total_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_total_msat_peer"
+}
+@test "FEAT-3059: peer-htlc-value-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-total.1" ]
+}
+
+@test "FEAT-3060: channel-uptime-max reports error or uptime_max gracefully" {
+    out=$(./libexec/lightning/channel-uptime-max 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_max"
+}
+@test "FEAT-3060: channel-uptime-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime-max.1" ]
+}
