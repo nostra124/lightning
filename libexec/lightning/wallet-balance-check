@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-balance-check <wallet_name>   (FEAT-450)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-balance-check <wallet_name>"}'
+    exit 0
+fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+balance=$(sqlite3 "$db" "SELECT COALESCE(SUM(CASE direction WHEN 'credit' THEN amount_sat WHEN 'debit' THEN -amount_sat ELSE 0 END), 0) FROM ledger;" 2>/dev/null) || balance=0
+echo '{"wallet":"'"$wname"'","balance_sat":'"$balance"'}'

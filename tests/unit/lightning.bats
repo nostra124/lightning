@@ -11569,3 +11569,163 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-445: node-channel-stats man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-stats.1" ]
 }
+
+# FEAT-446 — channel-peer-summary verb
+
+@test "FEAT-446: channel-peer-summary verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-summary" ]
+}
+
+@test "FEAT-446: channel-peer-summary returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-summary" 2>/dev/null)
+	echo "$out" | grep -q "\["
+}
+
+@test "FEAT-446: channel-peer-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-summary.1" ]
+}
+
+# FEAT-447 — node-mempool-fees verb
+
+@test "FEAT-447: node-mempool-fees verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-mempool-fees" ]
+}
+
+@test "FEAT-447: node-mempool-fees reports error or fee rates gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-mempool-fees" 2>/dev/null)
+	echo "$out" | grep -q "error\|urgent\|normal"
+}
+
+@test "FEAT-447: node-mempool-fees man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-mempool-fees.1" ]
+}
+
+# FEAT-448 — invoice-create-zeroconf verb
+
+@test "FEAT-448: invoice-create-zeroconf verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-zeroconf" ]
+}
+
+@test "FEAT-448: invoice-create-zeroconf reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-zeroconf" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-448: invoice-create-zeroconf man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-create-zeroconf.1" ]
+}
+
+# FEAT-449 — node-peer-features verb
+
+@test "FEAT-449: node-peer-features verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-features" ]
+}
+
+@test "FEAT-449: node-peer-features reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-features" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-449: node-peer-features man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-features.1" ]
+}
+
+# FEAT-450 — wallet-balance-check verb
+
+@test "FEAT-450: wallet-balance-check verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-balance-check" ]
+}
+
+@test "FEAT-450: wallet-balance-check reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-balance-check" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-450: wallet-balance-check reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-balance-check" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-450: wallet-balance-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-check.1" ]
+}
+
+# FEAT-451 — node-gossip-stats verb
+
+@test "FEAT-451: node-gossip-stats verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-gossip-stats" ]
+}
+
+@test "FEAT-451: node-gossip-stats reports error or stats gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-gossip-stats" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_channels"
+}
+
+@test "FEAT-451: node-gossip-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-gossip-stats.1" ]
+}
+
+# FEAT-452 — channel-set-private verb
+
+@test "FEAT-452: channel-set-private verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-set-private" ]
+}
+
+@test "FEAT-452: channel-set-private reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-set-private" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-452: channel-set-private man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-set-private.1" ]
+}
+
+# FEAT-453 — invoice-expiry-set verb
+
+@test "FEAT-453: invoice-expiry-set verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-expiry-set" ]
+}
+
+@test "FEAT-453: invoice-expiry-set reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-expiry-set" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-453: invoice-expiry-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-expiry-set.1" ]
+}
+
+# FEAT-454 — node-forward-stats verb
+
+@test "FEAT-454: node-forward-stats verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-forward-stats" ]
+}
+
+@test "FEAT-454: node-forward-stats reports error or stats gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-forward-stats" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-454: node-forward-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-forward-stats.1" ]
+}
+
+# FEAT-455 — wallet-meta-get verb
+
+@test "FEAT-455: wallet-meta-get verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-meta-get" ]
+}
+
+@test "FEAT-455: wallet-meta-get reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-meta-get" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-455: wallet-meta-get reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-meta-get" testwallet mykey 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-455: wallet-meta-get man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-get.1" ]
+}

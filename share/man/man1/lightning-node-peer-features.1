@@ -1,0 +1,20 @@
+.TH "LIGHTNING-NODE-PEER-FEATURES" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-peer-features \- show feature bits for a peer
+.SH SYNOPSIS
+.B lightning node-peer-features
+.I peer_id
+.SH DESCRIPTION
+Returns the feature bits advertised by the specified peer along with connection status.
+.PP
+Output: JSON object with peer_id, features (hex string), connected (bool).
+Returns
+.B {"error":"peer_not_found"}
+if the peer_id is not known.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-peer-reputation (1),
+.BR lightning-peer-info (1)

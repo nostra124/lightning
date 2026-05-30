@@ -1,0 +1,17 @@
+.TH "LIGHTNING-WALLET-BALANCE-CHECK" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-balance-check \- compute ledger balance for a wallet
+.SH SYNOPSIS
+.B lightning wallet-balance-check
+.I wallet_name
+.SH DESCRIPTION
+Reads the wallet's SQLite ledger and computes the net balance by summing credits minus debits.
+.PP
+Output: JSON object with wallet name and balance_sat.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-info (1),
+.BR lightning-wallet-history-export (1)

@@ -1,0 +1,16 @@
+.TH "LIGHTNING-NODE-GOSSIP-STATS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-gossip-stats \- show gossip channel statistics
+.SH SYNOPSIS
+.B lightning node-gossip-stats
+.SH DESCRIPTION
+Returns counts of total, active, and inactive channels from the gossip graph.
+.PP
+Output: JSON object with total_channels, active, inactive.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-channel-graph (1),
+.BR lightning-node-channel-stats (1)

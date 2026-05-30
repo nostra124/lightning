@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning node-mempool-fees   (FEAT-447)
+result=$(lightning-cli feerates perkw 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+rates = data.get('perkw', data)
+print(json.dumps({'urgent': rates.get('urgent', 0), 'normal': rates.get('normal', 0),
+    'slow': rates.get('slow', 0), 'min_acceptable': rates.get('min_acceptable', 0),
+    'max_acceptable': rates.get('max_acceptable', 0)}, separators=(',', ':')))
+" "$result"
