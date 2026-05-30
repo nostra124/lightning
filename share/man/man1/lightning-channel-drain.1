@@ -1,0 +1,27 @@
+.TH "LIGHTNING-CHANNEL-DRAIN" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-drain \- check how much can be pushed out of a channel
+.SH SYNOPSIS
+.B lightning channel-drain
+.I channel_id
+.SH DESCRIPTION
+Returns the drain capacity of a channel: the local balance minus the
+channel reserve, which is the maximum amount that can be pushed out
+in a single payment.
+.PP
+Output:
+.nf
+{"channel_id":"...","local_sat":N,"pushable_sat":N,"local_ratio":F}
+.fi
+Returns
+.nf
+{"error":"not_found"}
+.fi
+when the channel is unknown.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-balance (1),
+.BR lightning-channel-list (1)

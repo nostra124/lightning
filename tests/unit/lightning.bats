@@ -9423,3 +9423,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-308: node-mempool man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-mempool.1" ]
 }
+
+# FEAT-309 — channel-drain verb
+
+@test "FEAT-309: channel-drain verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-drain" ]
+}
+
+@test "FEAT-309: channel-drain reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-drain" "abc123" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-309: channel-drain man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-drain.1" ]
+}
+
+# FEAT-310 — node-reachability verb
+
+@test "FEAT-310: node-reachability verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-reachability" ]
+}
+
+@test "FEAT-310: node-reachability reports reachable false without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-reachability" "02aaa" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d or d.get('reachable') == False"
+}
+
+@test "FEAT-310: node-reachability man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-reachability.1" ]
+}
