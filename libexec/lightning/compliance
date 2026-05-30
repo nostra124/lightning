@@ -150,10 +150,30 @@ cmd_status() {
 		printf "  default_profile:       %s\n" "$dp"
 		printf "  own-funds accounts:    %s\n" "${n_own:-0}"
 		printf "  foreign-funds accounts: %s\n" "${n_foreign:-0}"
+		# FEAT-222 PR-6 link — registration policy is a meaningful
+		# regulatory signal: an invite-only deployment is typically
+		# family/friends or a small sponsor-vouched group (much lower
+		# MSB-style exposure even with foreign funds), while open
+		# registration is classic custodial money-service territory.
+		local reg="open" rr
+		if [ -f "$WALLETS_ROOT/$wname/access.recfile" ]; then
+			rr=$(sed -n 's/^require_referral:[[:space:]]*//p' "$WALLETS_ROOT/$wname/access.recfile" | head -1 | tr -d '[:space:]')
+			[ "$rr" = "on" ] && reg="invite-only"
+		fi
+		printf "  registration:          %s\n" "$reg"
 		if [ "${n_foreign:-0}" -gt 0 ]; then
-			echo "  rating: HIGH — you hold third-party funds (custodial money service)."
-			echo "          Recommended modules: kyc, screening, monitoring, travel_rule,"
-			echo "          retention, reporting.  Get licensed / consult a lawyer."
+			if [ "$reg" = "invite-only" ]; then
+				echo "  rating: MEDIUM — third-party funds in a closed (invite-only)"
+				echo "          deployment.  Lower MSB exposure than open custody, but"
+				echo "          still consult a lawyer once the user pool grows beyond"
+				echo "          a family / friends scope."
+			else
+				echo "  rating: HIGH — third-party funds under open registration"
+				echo "          (anyone can land an account).  Classic custodial money"
+				echo "          service.  Recommended modules: kyc, screening,"
+				echo "          monitoring, travel_rule, retention, reporting.  Get"
+				echo "          licensed / consult a lawyer."
+			fi
 		else
 			echo "  rating: LOW — own-funds only; minimal money-transmission exposure."
 		fi
