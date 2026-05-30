@@ -26301,3 +26301,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2220: channel-local-reserve-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-total.1" ]
 }
+
+@test "FEAT-2221: channel-fee-revenue-total reports error or fee_revenue_potential_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-revenue-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_revenue_potential_msat"
+}
+@test "FEAT-2221: channel-fee-revenue-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-revenue-total.1" ]
+}
+
+@test "FEAT-2222: node-pay-amount-percentile reports error or p50 gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-percentile 2>/dev/null)
+    echo "$out" | grep -q "error\|p50"
+}
+@test "FEAT-2222: node-pay-amount-percentile man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-percentile.1" ]
+}
+
+@test "FEAT-2223: channel-dust-limit-check reports error or dust_channels gracefully" {
+    out=$(./libexec/lightning/channel-dust-limit-check 2>/dev/null)
+    echo "$out" | grep -q "error\|dust_channels"
+}
+@test "FEAT-2223: channel-dust-limit-check man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-dust-limit-check.1" ]
+}
+
+@test "FEAT-2224: peer-channel-count reports error or channels gracefully" {
+    out=$(./libexec/lightning/peer-channel-count 2>/dev/null)
+    echo "$out" | grep -q "error\|channels\|peers"
+}
+@test "FEAT-2224: peer-channel-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count.1" ]
+}
+
+@test "FEAT-2225: node-listpays-failed-count reports error or failed_count gracefully" {
+    out=$(./libexec/lightning/node-listpays-failed-count 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_count\|count"
+}
+@test "FEAT-2225: node-listpays-failed-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-failed-count.1" ]
+}
+
+@test "FEAT-2226: channel-age-oldest reports error or short_channel_id gracefully" {
+    out=$(./libexec/lightning/channel-age-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|short_channel_id\|oldest"
+}
+@test "FEAT-2226: channel-age-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-oldest.1" ]
+}
+
+@test "FEAT-2227: node-invoice-expiry-avg reports error or avg_expiry_seconds gracefully" {
+    out=$(./libexec/lightning/node-invoice-expiry-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_expiry_seconds"
+}
+@test "FEAT-2227: node-invoice-expiry-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expiry-avg.1" ]
+}
+
+@test "FEAT-2228: channel-htlc-count-max reports error or htlc_count gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count"
+}
+@test "FEAT-2228: channel-htlc-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-max.1" ]
+}
+
+@test "FEAT-2229: node-pay-volume-daily reports error or daily_volume_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-volume-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|daily_volume_msat"
+}
+@test "FEAT-2229: node-pay-volume-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-volume-daily.1" ]
+}
+
+@test "FEAT-2230: channel-local-ratio-min reports error or local_ratio gracefully" {
+    out=$(./libexec/lightning/channel-local-ratio-min 2>/dev/null)
+    echo "$out" | grep -q "error\|local_ratio"
+}
+@test "FEAT-2230: channel-local-ratio-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-ratio-min.1" ]
+}
