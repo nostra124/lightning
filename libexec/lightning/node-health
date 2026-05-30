@@ -1,0 +1,67 @@
+#!/bin/bash
+# lightning node-health   (FEAT-281)
+#
+# Returns a compact health snapshot for the node operator:
+#   {ok, daemon, block_height, num_channels, balanced,
+#    pending_htlcs, warnings:[]}
+#
+# "balanced" is true when no channel has < 10% local satoshis.
+# "ok" is true when daemon is reachable, synced, and all channels
+# are in state CHANNELD_NORMAL or CHANNELD_AWAITING_LOCKIN.
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || {
+    echo '{"ok":false,"daemon":false,"block_height":null,"num_channels":0,"balanced":true,"pending_htlcs":0,"warnings":["lightning-cli not found"]}'; exit 0; }
+
+info=$(lightning-cli $LD $NET getinfo 2>/dev/null) || {
+    echo '{"ok":false,"daemon":false,"block_height":null,"num_channels":0,"balanced":true,"pending_htlcs":0,"warnings":["daemon unreachable"]}'; exit 0; }
+
+chans=$(lightning-cli $LD $NET listpeerchannels 2>/dev/null) || chans='{"channels":[]}'
+
+python3 -c "
+import sys, json
+info  = json.loads(sys.argv[1])
+chans = json.loads(sys.argv[2]).get('channels', [])
+
+warnings = []
+
+# Sync check
+if not info.get('warning_bitcoind_sync') is None and info.get('warning_bitcoind_sync'):
+    warnings.append('bitcoind_not_synced')
+if not info.get('warning_lightningd_sync') is None and info.get('warning_lightningd_sync'):
+    warnings.append('lightningd_not_synced')
+
+# Channel health
+active = [c for c in chans if c.get('state') in ('CHANNELD_NORMAL', 'CHANNELD_AWAITING_LOCKIN')]
+bad_states = [c.get('state') for c in chans if c.get('state') not in
+              ('CHANNELD_NORMAL', 'CHANNELD_AWAITING_LOCKIN', 'CLOSINGD_SIGEXCHANGE',
+               'CLOSINGD_COMPLETE', 'FUNDING_SPEND_SEEN', 'ONCHAIN')]
+if bad_states:
+    warnings.append('unusual_channel_states:' + ','.join(set(bad_states)))
+
+# Balance check (< 10% local = unbalanced)
+balanced = True
+for c in active:
+    total = c.get('total_msat', 0)
+    local = c.get('to_us_msat', 0)
+    if total > 0 and local / total < 0.10:
+        balanced = False
+        break
+
+pending_htlcs = sum(len(c.get('htlcs', [])) for c in chans)
+
+ok = len(warnings) == 0 and info.get('blockheight') is not None
+
+print(json.dumps({
+    'ok': ok,
+    'daemon': True,
+    'block_height': info.get('blockheight'),
+    'num_channels': len(active),
+    'balanced': balanced,
+    'pending_htlcs': pending_htlcs,
+    'warnings': warnings,
+}, separators=(',', ':')))
+" "$info" "$chans"

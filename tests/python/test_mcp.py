@@ -106,6 +106,7 @@ def test_tools_list_returns_tools(api_dir, bin_shim, lightning_stub, cgi, parse)
         "account_recv_reusable", "account_history", "account_close",
         "node_info", "channel_list", "node_funds", "account_transfer",
         "invoice_decode", "price", "fee_list", "forward_stats", "peer_summary",
+        "node_health",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -301,6 +302,17 @@ def test_resources_read_node_info(api_dir, bin_shim, lightning_stub, cgi, parse)
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
     j = json.loads(body_out)
     assert "pubkey" in j["result"]["contents"][0]["text"]
+
+
+def test_tools_call_node_health(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"ok":true,"daemon":true,"block_height":900000,"num_channels":3,"balanced":true,"pending_htlcs":0,"warnings":[]}'
+    lightning_stub({"api-node-health": (0, body)})
+    payload = rpc("tools/call", {"name": "node_health", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["ok"] is True
+    assert j["result"]["structuredContent"]["block_height"] == 900000
 
 
 def test_tools_call_peer_summary(api_dir, bin_shim, lightning_stub, cgi, parse):

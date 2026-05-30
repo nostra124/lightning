@@ -8967,3 +8967,22 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-280: MCP tools/list includes peer_summary" {
 	grep -q '"peer_summary"' share/lightning/wellknown/api/mcp.py
 }
+
+# FEAT-281 — node-health verb + MCP node_health tool
+
+@test "FEAT-281: node-health verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-health" ]
+}
+
+@test "FEAT-281: node-health returns valid JSON without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-health" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'ok' in d"
+}
+
+@test "FEAT-281: node-health man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-health.1" ]
+}
+
+@test "FEAT-281: MCP tools/list includes node_health" {
+	grep -q '"node_health"' share/lightning/wellknown/api/mcp.py
+}

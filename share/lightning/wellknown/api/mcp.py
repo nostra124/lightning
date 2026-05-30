@@ -276,6 +276,22 @@ TOOLS = [
         "argmap": lambda a: [],
     },
     {
+        "name": "node_health",
+        "description": "Return a compact health snapshot: ok (bool), "
+                       "daemon reachability, block_height, num_channels, "
+                       "balanced (no channel < 10% local), pending_htlcs, "
+                       "and a warnings array.  No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-node-health"],
+        "argmap": lambda a: [],
+    },
+    {
         "name": "peer_summary",
         "description": "Return a per-peer summary combining peer connectivity "
                        "and channel totals: peer_id, alias, connected, "
