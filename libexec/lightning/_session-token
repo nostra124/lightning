@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""Session-token helper (FEAT-222 PR-3).
+
+HMAC-SHA256 signed bearer tokens for the user-layer HTTP API.  Format:
+
+    sess_<b64url(payload_json)>.<b64url(hmac_hex)>
+
+Where payload_json = {"user_id": "...", "exp": <unix_seconds>}.  Tokens
+are self-contained — no server-side session table — so verification is
+a pure HMAC check + expiry check, and `mint`/`verify`/`refresh` are
+the only operations.
+
+Subcommands:
+  mint    --user-id <id> [--ttl <sec>]
+              stdout: sess_...
+
+  verify  --token <token>
+              stdout: JSON {user_id, exp} (when valid).
+              exit 0 success; exit 6 bad signature / malformed; 7 expired.
+
+  refresh --token <token> [--ttl <sec>]
+              Verifies, then mints a fresh token for the same user_id.
+              stdout: sess_...
+
+The HMAC key is stored via the rpk `secret` tool under
+`lightning.session.hmac_key` and generated lazily on first mint.
+"""
+
+import argparse
+import base64
+import hashlib
+import hmac
+import json
+import secrets
+import subprocess
+import sys
+import time
+
+DEFAULT_TTL = 86400
+SECRET_KEY_PATH = "lightning.session.hmac_key"
+
+
+def die(msg, code=1):
+    sys.stderr.write(json.dumps({"error": "fatal", "message": msg}) + "\n")
+    sys.exit(code)
+
+
+def b64url_encode(b):
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode("ascii")
+
+
+def b64url_decode(s):
+    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+def get_hmac_key():
+    """Fetch from `secret`; generate + store on first use."""
+    try:
+        out = subprocess.run(
+            ["secret", "get", SECRET_KEY_PATH],
+            capture_output=True, text=True, check=True,
+        )
+        v = out.stdout.strip()
+        if v:
+            return v.encode()
+    except FileNotFoundError:
+        die("`secret` tool not installed (rpk dep); see .rpk/depends", 127)
+    except subprocess.CalledProcessError:
+        pass  # not stored yet — fall through to lazy-create
+    key_hex = secrets.token_hex(32)
+    try:
+        subprocess.run(
+            ["secret", "set", SECRET_KEY_PATH],
+            input=key_hex, text=True, check=True, capture_output=True,
+        )
+    except subprocess.CalledProcessError as e:
+        die("could not store HMAC key via `secret`: " +
+            (e.stderr or str(e)).strip(), 1)
+    return key_hex.encode()
+
+
+def _mint_with_key(key, user_id, ttl):
+    payload = {"user_id": user_id, "exp": int(time.time()) + ttl}
+    body = json.dumps(payload, separators=(",", ":")).encode()
+    body_b64 = b64url_encode(body)
+    mac = hmac.new(key, body_b64.encode(), hashlib.sha256).hexdigest()
+    return "sess_" + body_b64 + "." + mac
+
+
+def _verify_with_key(key, token):
+    if not token.startswith("sess_") or "." not in token:
+        die("malformed token", 6)
+    rest = token[len("sess_"):]
+    body_b64, mac_supplied = rest.split(".", 1)
+    expected = hmac.new(key, body_b64.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(mac_supplied, expected):
+        die("bad signature", 6)
+    try:
+        payload = json.loads(b64url_decode(body_b64))
+    except Exception:
+        die("bad payload", 6)
+    if int(time.time()) >= int(payload.get("exp", 0)):
+        die("token expired", 7)
+    return payload
+
+
+def cmd_mint(args):
+    print(_mint_with_key(get_hmac_key(), args.user_id, args.ttl))
+
+
+def cmd_verify(args):
+    payload = _verify_with_key(get_hmac_key(), args.token)
+    print(json.dumps(payload))
+
+
+def cmd_refresh(args):
+    key = get_hmac_key()
+    payload = _verify_with_key(key, args.token)
+    print(_mint_with_key(key, payload["user_id"], args.ttl))
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="_session-token")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    m = sub.add_parser("mint")
+    m.add_argument("--user-id", required=True)
+    m.add_argument("--ttl", type=int, default=DEFAULT_TTL)
+    m.set_defaults(func=cmd_mint)
+    v = sub.add_parser("verify")
+    v.add_argument("--token", required=True)
+    v.set_defaults(func=cmd_verify)
+    r = sub.add_parser("refresh")
+    r.add_argument("--token", required=True)
+    r.add_argument("--ttl", type=int, default=DEFAULT_TTL)
+    r.set_defaults(func=cmd_refresh)
+    args = ap.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

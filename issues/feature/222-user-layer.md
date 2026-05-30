@@ -165,10 +165,77 @@ Combined with `require_referral`, this gives the operator a
 two-level admission control: a small set of trusted sponsors,
 and nobody gets in without one of them vouching.
 
+### 4. Hierarchical invite governance (implicit KYC)
+
+Under invite-only the `referrer_user` chain forms a tree rooted at
+the operator (root) — Bob (operator) invites Alice, Alice invites
+Tim, etc.  That chain is more than informational: each inviter
+implicitly **vouches for** their downstream, and so it makes sense
+to grant them governance authority over it.
+
+Concretely: a user may set a **per-user cap on the size of any
+downstream user's subtree**.  Each user picks the risk they're
+comfortable with — Bob trusts Alice but caps her at 10 transitive
+descendants; Alice in turn caps Tim at 3.  When a user mints an
+invite the system walks up the inviter chain and verifies the new
+descendant wouldn't push *anyone* over their cap.  Bob's cap on
+Alice therefore still binds Tim's invites: Tim sits inside Alice's
+subtree.
+
+This is the elegant part: the social vouch chain IS the trust
+chain.  Every user has a known sponsor up to the root; if a bad
+actor sneaks in via Alice, the operator (or Alice) can cull the
+rotten subtree in one operation, and the chain identifies who let
+them in.  You get the regulator-comfort properties of KYC without
+the formal KYC module — **as long as `require_referral` is on**.
+In open registration this signal disappears (rated HIGH in
+`compliance status` per the FEAT-243 / FEAT-222 PR-6 link).
+
+Surface:
+
+* Schema: `wallet_users.max_downline INTEGER NULL` (additive
+  migration).  `NULL` = unlimited (default, equivalent to the
+  pre-FEAT-222-governance behaviour), `0` = blocked entirely (the
+  "may not invite at all" case), `N` = at most N transitive
+  descendants.  One knob does both the on/off switch and the
+  quota.
+* Write rule: any ancestor of user `U` may set `U.max_downline`
+  (operator may set anyone's); last writer wins.  A user **cannot
+  raise their own cap** — caps come from above.
+* CLI:
+  ```
+  wallet-user cap <id> <N|unlimited|none>   set the cap on <id>
+  wallet-user tree [<id>]                   print the subtree
+                                            (defaults to self)
+  wallet-user lineage <id>                  print the ancestor
+                                            chain up to the root
+  ```
+* HTTP (PR-5 surface, passkey-session-authed):
+  ```
+  POST /api/users/<id>/downstream/<sub>/cap   { "max": N|null }
+  GET  /api/users/<id>/downstream              { tree, sizes }
+  ```
+* Enforcement on invite mint: the user-level invite-code mint
+  endpoint (`POST /api/users/<id>/invite-codes` per PR-5) walks
+  from the minting user up to the root.  For each ancestor `A`
+  (including the minter), if `A.max_downline IS NOT NULL` and
+  `count(transitive_downstream(A)) + 1 > A.max_downline`, refuse
+  with `403 cap_exceeded` + the offending ancestor's id.  The CLI
+  `wallet-user create` operator-bootstrap path is exempt (the
+  operator sits above the tree).
+* Lowering a cap below the user's current subtree size does **not**
+  cull existing descendants — it only blocks *new* invites
+  anywhere in the affected subtree.  A full cull is `wallet-user
+  delete <id>` (downstream is orphaned per the existing
+  `ON DELETE SET NULL`; orphans either get re-assigned or
+  eventually reaped by the GC + the future per-account fee).
+
 Config lives in `fees.recfile` (rates + discount) +
 a sibling `access.recfile` (require_referral flag + invite
 whitelist) under the wallet repo — both git-tracked, plain
-text, operator-edited.
+text, operator-edited.  Per-user `may_invite` lives in the DB
+(not a recfile) because it's dynamic and inviter-governed, not
+operator-edited.
 
 ### Referral pass-through for users
 
@@ -409,12 +476,19 @@ this one) introduces it; the other reuses it.
    /api/users/<id>/accounts`, `GET /api/users/<id>/accounts/
    <acct>/api-key`, `POST /api/users/<id>/session/refresh`.
    Invite-gated registration enforced here.
-5. **PR-5 (user-level invite codes + referral routing)** —
+5. **PR-5 (user-level invite codes + referral routing +
+   hierarchical governance)** —
    `lightning user invite-code create/list/revoke` + the
    matching HTTP endpoints + the resolution change in
    `api-accounts-create` (prefer `owner_user.credit_account`
    over the legacy `account` column).  FEAT-219's referrer
-   stamping inherits naturally.
+   stamping inherits naturally.  Also wires the
+   **hierarchical invite governance** primitives from the
+   "Access control" section above: `wallet_users.max_downline`
+   column, the walk-up enforcement check on every invite
+   mint, the CLI verbs (`cap`, `tree`, `lineage`), and the
+   downstream HTTP endpoints.  Reviewable as two sub-pieces
+   (5a invite-codes / 5b governance) — they're orthogonal.
 6. **PR-6 (access control + fee tiers)** — the admin/security
    layer: `referral_discount_pct` in fees.recfile (referred
    accounts pay less; extends FEAT-213/219 skim math),
