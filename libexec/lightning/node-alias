@@ -1,0 +1,28 @@
+#!/bin/bash
+# lightning node-alias [<new-alias>]   (FEAT-299)
+#
+# Without argument: returns the current node alias from getinfo.
+# With argument: sets the alias via setconfig (CLN 23.11+).
+# Returns {alias} or {ok, alias} after set.
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+if [ $# -eq 0 ]; then
+    raw=$(lightning-cli $LD $NET getinfo 2>/dev/null) || {
+        echo '{"error":"getinfo_failed"}'; exit 0; }
+    python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'alias': d.get('alias', '')}, separators=(',', ':')))
+" "$raw"
+else
+    new_alias="$1"
+    lightning-cli $LD $NET setconfig alias "$new_alias" >/dev/null 2>&1 || {
+        echo '{"error":"setconfig_failed"}'; exit 0; }
+    echo "{\"ok\":true,\"alias\":$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$new_alias")}"
+fi
