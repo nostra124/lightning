@@ -19654,3 +19654,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1370: channel-in-payments-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-in-payments-msat.1" ]
 }
+
+@test "FEAT-1371: node-listpays-complete-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-complete-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1371: node-listpays-complete-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-complete-count.1" ]
+}
+
+@test "FEAT-1372: channel-out-payments-msat requires arg" {
+    out=$(./libexec/lightning/channel-out-payments-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1372: channel-out-payments-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-out-payments-msat.1" ]
+}
+
+@test "FEAT-1373: wallet-notes-newest requires arg" {
+    out=$(./libexec/lightning/wallet-notes-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1373: wallet-notes-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-newest.1" ]
+}
+
+@test "FEAT-1374: node-listchannels-with-alias reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-with-alias 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1374: node-listchannels-with-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-with-alias.1" ]
+}
+
+@test "FEAT-1375: invoice-expiry-time requires arg" {
+    out=$(./libexec/lightning/invoice-expiry-time 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1375: invoice-expiry-time man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-expiry-time.1" ]
+}
+
+@test "FEAT-1376: channel-feerate-floor reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-feerate-floor 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1376: channel-feerate-floor man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate-floor.1" ]
+}
+
+@test "FEAT-1377: peer-list-with-channels reports error or count gracefully" {
+    out=$(./libexec/lightning/peer-list-with-channels 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1377: peer-list-with-channels man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-with-channels.1" ]
+}
+
+@test "FEAT-1378: wallet-notes-value-search requires args" {
+    out=$(./libexec/lightning/wallet-notes-value-search 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1378: wallet-notes-value-search man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-value-search.1" ]
+}
+
+@test "FEAT-1379: node-feerate-fast reports error or feerate_fast_perkw gracefully" {
+    out=$(./libexec/lightning/node-feerate-fast 2>/dev/null)
+    echo "$out" | grep -q "error\|feerate_fast_perkw"
+}
+@test "FEAT-1379: node-feerate-fast man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-fast.1" ]
+}
+
+@test "FEAT-1380: channel-out-fees-msat requires arg" {
+    out=$(./libexec/lightning/channel-out-fees-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1380: channel-out-fees-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-out-fees-msat.1" ]
+}
