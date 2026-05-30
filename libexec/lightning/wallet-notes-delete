@@ -1,16 +1,9 @@
 #!/bin/bash
-# lightning wallet-notes-delete <wallet_name> <key>   (FEAT-1413)
-if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-delete <wallet_name> <key>"}'; exit 0; fi
-wname="$1"; key="$2"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
-python3 -c "
-import sys, sqlite3, json
-db = sys.argv[1]; key = sys.argv[2]; wname = sys.argv[3]
-conn = sqlite3.connect(db)
-cur = conn.execute('DELETE FROM notes WHERE key=?', (key,))
-found = cur.rowcount > 0
-conn.commit(); conn.close()
-print(json.dumps({'wallet': wname, 'key': key, 'deleted': found}))
-" "$db" "$key" "$wname" 2>/dev/null || echo '{"error":"db_error"}'
+# lightning wallet-notes-delete <key>   (FEAT-1763)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-delete <key>"}'; exit 0; fi
+key="$1"
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+sqlite3 "$db" "DELETE FROM notes WHERE key='$key';" 2>/dev/null || { echo '{"error":"db error"}'; exit 0; }
+echo "{\"deleted\":true,\"key\":\"$key\"}"

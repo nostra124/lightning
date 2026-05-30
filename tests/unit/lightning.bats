@@ -22624,3 +22624,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1760: node-channel-open-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-open-count.1" ]
 }
+
+@test "FEAT-1761: node-listpays-amount-avg reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1761: node-listpays-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-amount-avg.1" ]
+}
+
+@test "FEAT-1762: channel-peer-alias reports error gracefully" {
+    out=$(./libexec/lightning/channel-peer-alias 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1762: channel-peer-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-alias.1" ]
+}
+
+@test "FEAT-1763: wallet-notes-delete reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-delete 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1763: wallet-notes-delete man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-delete.1" ]
+}
+
+@test "FEAT-1764: node-graph-node-info reports error gracefully" {
+    out=$(./libexec/lightning/node-graph-node-info 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1764: node-graph-node-info man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-node-info.1" ]
+}
+
+@test "FEAT-1765: invoice-expire-time reports error gracefully" {
+    out=$(./libexec/lightning/invoice-expire-time 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1765: invoice-expire-time man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-expire-time.1" ]
+}
+
+@test "FEAT-1766: channel-unilateral-close-info reports error gracefully" {
+    out=$(./libexec/lightning/channel-unilateral-close-info 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1766: channel-unilateral-close-info man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-unilateral-close-info.1" ]
+}
+
+@test "FEAT-1767: peer-gossip-queries reports error gracefully" {
+    out=$(./libexec/lightning/peer-gossip-queries 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1767: peer-gossip-queries man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-gossip-queries.1" ]
+}
+
+@test "FEAT-1768: wallet-balance-sat reports error or balance_sat gracefully" {
+    out=$(./libexec/lightning/wallet-balance-sat 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_sat"
+}
+@test "FEAT-1768: wallet-balance-sat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-sat.1" ]
+}
+
+@test "FEAT-1769: node-listforwards-fee-total reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1769: node-listforwards-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total.1" ]
+}
+
+@test "FEAT-1770: channel-our-htlc-count reports error gracefully" {
+    out=$(./libexec/lightning/channel-our-htlc-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1770: channel-our-htlc-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-htlc-count.1" ]
+}
