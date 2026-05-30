@@ -32171,3 +32171,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2980: node-listforwards-fee-total-weekly man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-weekly.1" ]
 }
+
+@test "FEAT-2981: channel-spendable-pct-avg reports error or spendable_pct_avg gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_avg"
+}
+@test "FEAT-2981: channel-spendable-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-avg.1" ]
+}
+
+@test "FEAT-2982: node-listforwards-fee-total-monthly reports error or fee_total_monthly_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_monthly_msat"
+}
+@test "FEAT-2982: node-listforwards-fee-total-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-monthly.1" ]
+}
+
+@test "FEAT-2983: channel-receivable-pct-avg reports error or receivable_pct_avg gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_avg"
+}
+@test "FEAT-2983: channel-receivable-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-avg.1" ]
+}
+
+@test "FEAT-2984: peer-local-pct-variance reports error or local_pct_variance_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_variance_peer"
+}
+@test "FEAT-2984: peer-local-pct-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-variance.1" ]
+}
+
+@test "FEAT-2985: channel-balance-ratio-avg reports error or balance_ratio_avg gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_avg"
+}
+@test "FEAT-2985: channel-balance-ratio-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio-avg.1" ]
+}
+
+@test "FEAT-2986: node-pay-count-today reports error or pay_count_today gracefully" {
+    out=$(./libexec/lightning/node-pay-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_today"
+}
+@test "FEAT-2986: node-pay-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-today.1" ]
+}
+
+@test "FEAT-2987: channel-balance-ratio-max reports error or balance_ratio_max gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio-max 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_max"
+}
+@test "FEAT-2987: channel-balance-ratio-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio-max.1" ]
+}
+
+@test "FEAT-2988: peer-remote-pct-variance reports error or remote_pct_variance_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-pct-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_variance_peer"
+}
+@test "FEAT-2988: peer-remote-pct-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-pct-variance.1" ]
+}
+
+@test "FEAT-2989: channel-balance-ratio-min reports error or balance_ratio_min gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio-min 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_min"
+}
+@test "FEAT-2989: channel-balance-ratio-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio-min.1" ]
+}
+
+@test "FEAT-2990: node-invoice-unpaid-amount-total reports error or unpaid_amount_total_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|unpaid_amount_total_msat"
+}
+@test "FEAT-2990: node-invoice-unpaid-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-amount-total.1" ]
+}

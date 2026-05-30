@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning peer-local-pct-variance   (FEAT-2984)
+# lightning peer-remote-pct-variance   (FEAT-2988)
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
@@ -12,11 +12,12 @@ for ch in channels:
     if isinstance(total, str): total = int(total.replace('msat',''))
     if isinstance(local, str): local = int(local.replace('msat',''))
     if total > 0:
-        pcts.append(local / total * 100)
+        remote_pct = (total - local) / total * 100
+        pcts.append(remote_pct)
 if len(pcts) < 2:
     variance = 0.0
 else:
     mean = sum(pcts) / len(pcts)
     variance = sum((p - mean) ** 2 for p in pcts) / len(pcts)
-print(json.dumps({'local_pct_variance_peer': round(variance, 4), 'sample_size': len(pcts)}))
+print(json.dumps({'remote_pct_variance_peer': round(variance, 4), 'sample_size': len(pcts)}))
 " "$result"

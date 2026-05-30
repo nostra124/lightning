@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning node-invoice-unpaid-amount-total   (FEAT-2990)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+total = 0
+count = 0
+for inv in invoices:
+    if inv.get('status') == 'unpaid':
+        amt = inv.get('amount_msat', 0)
+        if isinstance(amt, str): amt = int(amt.replace('msat',''))
+        total += amt
+        count += 1
+print(json.dumps({'unpaid_amount_total_msat': total, 'unpaid_invoice_count': count}))
+" "$result"
