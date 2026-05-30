@@ -674,9 +674,37 @@ async function screenNode() {
          <dt>Active channels</dt><dd>${info.num_channels}</dd>
          <dt>Local capacity</dt><dd>${(info.local_msat / 1000).toLocaleString()} sat</dd>
        </dl>
+       <button id="channels">View channels</button>
        <a href="#picker">Back</a>`);
+    document.getElementById("channels").onclick = () => go("channels");
   } catch (e) {
     h(`<h2>Node info</h2><p class="error">${esc(e.message)}</p><a href="#picker">Back</a>`);
+  }
+}
+
+async function screenChannels() {
+  const acctList = accounts();
+  const key = acctList.length ? acctList[0].key : null;
+  if (!key) return h(`<h2>Channels</h2><p class="error">No account — need a bearer key.</p><a href="#picker">Back</a>`);
+  h(`<h2>Channels</h2><p class="muted">Loading…</p>`);
+  try {
+    const chans = await api("/channels", { key });
+    if (!Array.isArray(chans) || chans.length === 0) {
+      h(`<h2>Channels</h2><p class="muted">No channels found.</p><a href="#node">Back</a>`);
+      return;
+    }
+    const rows = chans.map(c => {
+      const pct = c.capacity_sat ? Math.round(c.local_sat / c.capacity_sat * 100) : 0;
+      return `<div class="card" style="padding:.4em .8em">
+        <strong>${esc(c.alias || c.peer_id.slice(0, 16) + "…")}</strong>
+        <span class="muted" style="float:right">${esc(c.state)}</span>
+        <br><small>Cap: ${c.capacity_sat.toLocaleString()} sat
+          · Local: ${c.local_sat.toLocaleString()} sat (${pct}%)</small>
+      </div>`;
+    }).join("");
+    h(`<h2>Channels (${chans.length})</h2>${rows}<a href="#node">Back</a>`);
+  } catch (e) {
+    h(`<h2>Channels</h2><p class="error">${esc(e.message)}</p><a href="#node">Back</a>`);
   }
 }
 
@@ -975,6 +1003,7 @@ function route() {
     case "so": return screenStandingOrders(arg);
     case "mandates": return screenMandates(arg);
     case "node": return screenNode();
+    case "channels": return screenChannels();
     case "user-register": return screenUserRegister();
     case "user-login": return screenUserLogin();
     case "user": return screenUser();

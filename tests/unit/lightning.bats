@@ -8509,8 +8509,7 @@ _acct243_teardown() {
 }
 
 @test "FEAT-253: accounts.py passes note to verb" {
-	grep -A5 "def _pay" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py" \
-		| grep -q "note"
+	grep -q '"--note"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
 }
 
 @test "FEAT-253: PWA Send screen has note input" {
@@ -8579,4 +8578,30 @@ assert t['auth'] is None
 
 @test "FEAT-256: api-account-list --limit caps results" {
 	grep -q "\-\-limit" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-list"
+}
+
+# FEAT-257 — channel list verb + endpoint
+
+@test "FEAT-257: api-channel-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-channel-list" ]
+}
+
+@test "FEAT-257: channels.py CGI script exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/channels.py" ]
+}
+
+@test "FEAT-257: Apache conf has ScriptAlias for /v1/channels" {
+	grep -q "v1/channels" "$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+}
+
+@test "FEAT-257: sudoers lists api-channel-list" {
+	grep -q "api-channel-list" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+@test "FEAT-257: PWA has screenChannels function" {
+	grep -q "function screenChannels" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-257: llms.txt documents GET /channels" {
+	grep -q "GET /channels" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
 }
