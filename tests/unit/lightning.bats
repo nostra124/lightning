@@ -33691,3 +33691,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3170: channel-local-pct-median man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-median.1" ]
 }
+
+@test "FEAT-3171: channel-remote-pct-median reports error or remote_pct_median_channel gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-median 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_median_channel"
+}
+@test "FEAT-3171: channel-remote-pct-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-median.1" ]
+}
+
+@test "FEAT-3172: node-invoice-paid-count-today reports error or paid_count_today gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_today"
+}
+@test "FEAT-3172: node-invoice-paid-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-today.1" ]
+}
+
+@test "FEAT-3173: peer-fee-ppm-max reports error or fee_ppm_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_max_peer"
+}
+@test "FEAT-3173: peer-fee-ppm-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-max.1" ]
+}
+
+@test "FEAT-3174: channel-local-pct-min reports error or local_pct_min_channel gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-min 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_min_channel"
+}
+@test "FEAT-3174: channel-local-pct-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-min.1" ]
+}
+
+@test "FEAT-3175: node-invoice-expired-count reports error or expired_invoice_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-expired-count 2>/dev/null)
+    echo "$out" | grep -q "error\|expired_invoice_count"
+}
+@test "FEAT-3175: node-invoice-expired-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expired-count.1" ]
+}
+
+@test "FEAT-3176: peer-channel-count-avg reports error or channel_count_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count_avg_peer"
+}
+@test "FEAT-3176: peer-channel-count-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-avg.1" ]
+}
+
+@test "FEAT-3177: channel-local-pct-max reports error or local_pct_max_channel gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_max_channel"
+}
+@test "FEAT-3177: channel-local-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-max.1" ]
+}
+
+@test "FEAT-3178: node-invoice-pending-oldest reports error or oldest_pending_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|oldest_pending_invoice"
+}
+@test "FEAT-3178: node-invoice-pending-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-oldest.1" ]
+}
+
+@test "FEAT-3179: peer-channel-count-total reports error or channel_count_total_peer gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count_total_peer"
+}
+@test "FEAT-3179: peer-channel-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-total.1" ]
+}
+
+@test "FEAT-3180: channel-remote-pct-min reports error or remote_pct_min_channel gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-min 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_min_channel"
+}
+@test "FEAT-3180: channel-remote-pct-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-min.1" ]
+}
