@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning wallet-tag <wallet> <entry_id> <tag>   (FEAT-352)
+set -e
+if [ $# -lt 3 ]; then
+    echo '{"error":"usage: wallet-tag <wallet> <entry_id> <tag>"}'
+    exit 0
+fi
+wname="$1"
+entry_id="$2"
+tag="$3"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"ok":false,"reason":"database_not_found"}'
+    exit 0
+fi
+sqlite3 "$db" "UPDATE ledger SET note = CASE WHEN note IS NULL OR note = '' THEN '$tag' ELSE note || ' ' || '$tag' END WHERE entry_id = $entry_id;" 2>/dev/null && \
+    echo '{"ok":true}' || echo '{"ok":false,"reason":"update_failed"}'

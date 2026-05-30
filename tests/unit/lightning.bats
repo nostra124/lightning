@@ -10079,3 +10079,38 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-350: channel-close-all-peers man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-all-peers.1" ]
 }
+
+# FEAT-351 — node-liquidity-ads verb
+
+@test "FEAT-351: node-liquidity-ads verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-liquidity-ads" ]
+}
+
+@test "FEAT-351: node-liquidity-ads returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-liquidity-ads" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-351: node-liquidity-ads man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-liquidity-ads.1" ]
+}
+
+# FEAT-352 — wallet-tag verb
+
+@test "FEAT-352: wallet-tag verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-tag" ]
+}
+
+@test "FEAT-352: wallet-tag reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-tag" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-352: wallet-tag reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-tag" default 1 mytag 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-352: wallet-tag man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-tag.1" ]
+}
