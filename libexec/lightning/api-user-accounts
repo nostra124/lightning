@@ -1,0 +1,46 @@
+#!/bin/bash
+# lightning api-user-accounts — list accounts owned by a wallet-user (FEAT-222 PR-4).
+#
+# usage: lightning api-user-accounts list <uid>
+# stdout: JSON array [{account_id, address, referrer, closed_at}...]
+
+set -e
+
+subcmd="${1:-}"
+[ "$subcmd" = "list" ] || { printf '{"error":"unknown_subcmd"}\n'; exit 1; }
+shift
+
+[ $# -ge 1 ] || { printf '{"error":"missing_user_id"}\n'; exit 1; }
+user_id="$1"
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+
+[ -f "$db" ] || { printf '{"error":"no_wallet"}\n'; exit 2; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+uid_q=$(sql_quote "$user_id")
+
+# Emit TSV rows: name, address, referrer, closed_at
+rows=$(sqlite3 -separator $'\t' "$db" \
+	"SELECT name, COALESCE(address,''), COALESCE(referrer,''), COALESCE(closed_at,'') \
+	 FROM accounts WHERE owner_user = $uid_q ORDER BY created_at;" 2>/dev/null)
+
+# Build JSON array from TSV.
+result="["
+first=1
+while IFS=$'\t' read -r name address referrer closed_at; do
+	[ "$first" = "1" ] && first=0 || result="$result,"
+	result="$result$(jq -nc \
+		--arg n "$name" \
+		--arg a "$address" \
+		--arg r "$referrer" \
+		--arg c "$closed_at" \
+		'{account_id: $n, address: $a, referrer: $r, closed_at: (if $c == "" then null else ($c | tonumber) end)}')"
+done <<<"$rows"
+result="$result]"
+
+printf '%s\n' "$result"

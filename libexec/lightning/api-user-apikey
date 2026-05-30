@@ -1,0 +1,43 @@
+#!/bin/bash
+# lightning api-user-apikey — retrieve API key for an account owned by a user (FEAT-222 PR-4).
+#
+# usage: lightning api-user-apikey <uid> <account_address>
+# stdout: JSON {account_id, api_key}
+# exit 4: account not found or not owned by user
+
+set -e
+
+[ $# -ge 2 ] || { printf '{"error":"bad_args"}\n'; exit 1; }
+user_id="$1"
+address="$2"
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+
+[ -f "$db" ] || { printf '{"error":"no_wallet"}\n'; exit 2; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+uid_q=$(sql_quote "$user_id")
+addr_q=$(sql_quote "$address")
+
+# Verify ownership.
+name=$(sqlite3 "$db" \
+	"SELECT name FROM accounts WHERE address = $addr_q AND owner_user = $uid_q LIMIT 1;" 2>/dev/null)
+
+[ -n "$name" ] || { printf '{"error":"not_found"}\n'; exit 4; }
+
+# Fetch the API key from the secret store.
+api_key=$(secret get "lightning.account.$address.apikey" 2>/dev/null || true)
+
+if [ -z "$api_key" ]; then
+	printf '{"error":"apikey_not_found"}\n'
+	exit 4
+fi
+
+jq -nc \
+	--arg id "$address" \
+	--arg key "$api_key" \
+	'{account_id: $id, api_key: $key}'

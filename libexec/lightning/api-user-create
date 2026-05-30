@@ -1,0 +1,107 @@
+#!/bin/bash
+# lightning api-user-create — HTTP-bridge: create a wallet-user (FEAT-222 PR-4).
+#
+# Validates invite code (respects require_referral from access.recfile),
+# inserts into wallet_users, resolves the invite code to a referrer_user,
+# and increments the code's uses counter.  Does NOT run _webauthn-verify —
+# that's the caller's (users.py) responsibility.
+#
+# usage: lightning api-user-create --user-id <uid> [--label <text>] [--invite-code <code>]
+#
+# stdout: JSON {user_id, referrer_user}   (referrer_user may be null)
+# exit 1: bad args
+# exit 4: invite not found (when require_referral requires one)
+# exit 6: require_referral + no invite
+
+set -e
+
+user_id=""
+label=""
+invite_code=""
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--user-id)     user_id="$2";    shift 2 ;;
+		--label)       label="$2";      shift 2 ;;
+		--invite-code) invite_code="$2"; shift 2 ;;
+		*) printf '{"error":"bad_args","arg":%s}\n' "$(jq -Rs . <<<"$1")"; exit 1 ;;
+	esac
+done
+
+[ -n "$user_id" ] || { printf '{"error":"missing_user_id"}\n'; exit 1; }
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+
+[ -f "$db" ] || { printf '{"error":"no_wallet"}\n'; exit 2; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+# Ensure the wallet_users table exists (idempotent — cheap).
+sqlite3 "$db" "CREATE TABLE IF NOT EXISTS wallet_users ( \
+	id              TEXT PRIMARY KEY, \
+	created_at      INTEGER NOT NULL, \
+	referrer_user   TEXT, \
+	label           TEXT NOT NULL DEFAULT '', \
+	max_downline    INTEGER \
+);" 2>/dev/null || true
+# Additive migration: add max_downline if the table pre-dates PR-5.
+sqlite3 "$db" "ALTER TABLE wallet_users ADD COLUMN max_downline INTEGER;" 2>/dev/null || true
+
+# FEAT-222 PR-6 — require_referral gate.
+access_file="$WALLETS_ROOT/$wname/access.recfile"
+if [ -f "$access_file" ]; then
+	require_referral=$(sed -n 's/^require_referral:[[:space:]]*//p' "$access_file" | head -1 | tr -d '[:space:]')
+	if [ "$require_referral" = "on" ]; then
+		if [ -z "$invite_code" ]; then
+			printf '{"error":"invite_required"}\n'
+			exit 6
+		fi
+		acc_valid=0
+		if [ -f "$db" ]; then
+			acc_q=$(sql_quote "$invite_code")
+			[ "$(sqlite3 "$db" "SELECT 1 FROM invite_codes WHERE code = $acc_q LIMIT 1;" 2>/dev/null)" = "1" ] && acc_valid=1
+		fi
+		if [ "$acc_valid" != "1" ]; then
+			printf '{"error":"invite_not_found"}\n'
+			exit 4
+		fi
+	fi
+fi
+
+# Resolve invite code to referrer_user via owner_user → credit_account chain.
+referrer_user="null"
+if [ -n "$invite_code" ] && [ -f "$db" ]; then
+	ic_q=$(sql_quote "$invite_code")
+	# owner_user on the invite code row is the wallet-user who minted the code.
+	looked_up=$(sqlite3 "$db" \
+		"SELECT COALESCE(owner_user,'') FROM invite_codes WHERE code = $ic_q LIMIT 1;" 2>/dev/null)
+	if [ -n "$looked_up" ]; then
+		referrer_user=$(jq -rn --arg v "$looked_up" '$v')
+		# Bump uses counter.
+		sqlite3 "$db" "UPDATE invite_codes SET uses = uses + 1 WHERE code = $ic_q;" 2>/dev/null || true
+	fi
+fi
+
+# Sanitise label: strip control chars, cap at 128 chars.
+if [ -n "$label" ]; then
+	label=$(printf '%s' "$label" | tr -d '\000-\037' | cut -c1-128)
+fi
+
+now=$(date -u +%s)
+uid_q=$(sql_quote "$user_id")
+label_q=$(sql_quote "$label")
+ref_sql=$([ "$referrer_user" = "null" ] && echo "NULL" || sql_quote "$referrer_user")
+
+sqlite3 "$db" "INSERT INTO wallet_users(id, created_at, referrer_user, label) \
+	VALUES($uid_q, $now, $ref_sql, $label_q);" 2>/dev/null || {
+	printf '{"error":"insert_failed","hint":"user_id may already exist"}\n'
+	exit 5
+}
+
+jq -nc \
+	--arg uid "$user_id" \
+	--argjson ref "$referrer_user" \
+	'{user_id: $uid, referrer_user: $ref}'

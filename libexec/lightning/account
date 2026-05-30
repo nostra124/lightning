@@ -82,6 +82,28 @@ migrate_accounts_schema() {
 		sqlite3 "$db" "ALTER TABLE invite_codes ADD COLUMN owner_user TEXT;" 2>/dev/null || true
 	echo "$ic_cols" | grep -qx "credit_account" || \
 		sqlite3 "$db" "ALTER TABLE invite_codes ADD COLUMN credit_account TEXT;" 2>/dev/null || true
+	# Make `account` nullable for user-owned invite codes (FEAT-222 PR-5).
+	local acct_notnull
+	acct_notnull=$(sqlite3 "$db" \
+		"SELECT [notnull] FROM pragma_table_info('invite_codes') WHERE name='account';" 2>/dev/null)
+	if [ "$acct_notnull" = "1" ]; then
+		sqlite3 "$db" "PRAGMA foreign_keys=OFF;
+BEGIN;
+CREATE TABLE invite_codes_new (
+	code           TEXT PRIMARY KEY,
+	account        TEXT REFERENCES accounts(name) ON DELETE CASCADE,
+	created_at     INTEGER NOT NULL,
+	uses           INTEGER NOT NULL DEFAULT 0,
+	owner_user     TEXT,
+	credit_account TEXT
+);
+INSERT INTO invite_codes_new SELECT code, account, created_at, uses,
+	COALESCE(owner_user,NULL), COALESCE(credit_account,NULL) FROM invite_codes;
+DROP TABLE invite_codes;
+ALTER TABLE invite_codes_new RENAME TO invite_codes;
+COMMIT;
+PRAGMA foreign_keys=ON;" 2>/dev/null || true
+	fi
 
 	# FEAT-222 PR-3 — passkey credential storage + challenge pool.  Only
 	# the public half of each credential is stored; sign_count is the
