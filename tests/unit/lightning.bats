@@ -27851,3 +27851,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2430: channel-local-reserve-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-avg.1" ]
 }
+
+@test "FEAT-2431: node-listforwards-fee-total-24h reports error or fee_total_msat_24h gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-24h 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_msat_24h"
+}
+@test "FEAT-2431: node-listforwards-fee-total-24h man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-24h.1" ]
+}
+
+@test "FEAT-2432: channel-htlc-incoming-count reports error or incoming_htlc_count gracefully" {
+    out=$(./libexec/lightning/channel-htlc-incoming-count 2>/dev/null)
+    echo "$out" | grep -q "error\|incoming_htlc_count"
+}
+@test "FEAT-2432: channel-htlc-incoming-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-incoming-count.1" ]
+}
+
+@test "FEAT-2433: peer-remote-balance-avg reports error or remote_balance_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_avg_msat"
+}
+@test "FEAT-2433: peer-remote-balance-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-avg.1" ]
+}
+
+@test "FEAT-2434: node-invoice-paid-rate reports error or paid_rate gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_rate"
+}
+@test "FEAT-2434: node-invoice-paid-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-rate.1" ]
+}
+
+@test "FEAT-2435: channel-fee-ppm-variance reports error or fee_ppm_variance gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_variance"
+}
+@test "FEAT-2435: channel-fee-ppm-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-variance.1" ]
+}
+
+@test "FEAT-2436: node-pay-failed-count-30d reports error or failed_pay_count_30d gracefully" {
+    out=$(./libexec/lightning/node-pay-failed-count-30d 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_pay_count_30d"
+}
+@test "FEAT-2436: node-pay-failed-count-30d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-failed-count-30d.1" ]
+}
+
+@test "FEAT-2437: channel-htlc-incoming-value reports error or incoming_htlc_value_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-incoming-value 2>/dev/null)
+    echo "$out" | grep -q "error\|incoming_htlc_value_msat"
+}
+@test "FEAT-2437: channel-htlc-incoming-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-incoming-value.1" ]
+}
+
+@test "FEAT-2438: peer-fee-ppm-max reports error or fee_proportional_millionths gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_millionths"
+}
+@test "FEAT-2438: peer-fee-ppm-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-max.1" ]
+}
+
+@test "FEAT-2439: node-listinvoices-expired-oldest reports error or expires_at gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-expired-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|expires_at"
+}
+@test "FEAT-2439: node-listinvoices-expired-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-expired-oldest.1" ]
+}
+
+@test "FEAT-2440: channel-remote-reserve-avg reports error or remote_reserve_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_avg_msat"
+}
+@test "FEAT-2440: channel-remote-reserve-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-avg.1" ]
+}
