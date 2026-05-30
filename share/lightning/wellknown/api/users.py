@@ -64,7 +64,7 @@ def _safe_json(s):
         return None
 
 
-def _run(args, stdin=None, parse_json=True):
+def _run(args, stdin=None, parse_json=True, exit6_is_403=False):
     """Run `sudo -n -u <op> lightning <args>`; map exit codes to HTTP."""
     r = subprocess.run(
         ["sudo", "-n", "-u", OPERATOR, "lightning", *args],
@@ -77,6 +77,9 @@ def _run(args, stdin=None, parse_json=True):
         _lib.respond("404 Not Found",
                      _safe_json(r.stderr) or {"error": "not_found"})
     if rc == 6:
+        if exit6_is_403:
+            _lib.respond("403 Forbidden",
+                         _safe_json(r.stderr) or {"error": "cap_exceeded_or_not_authorised"})
         _lib.respond("400 Bad Request",
                      _safe_json(r.stderr) or {"error": "verification_failed"})
     if rc == 7:
@@ -327,6 +330,82 @@ def user_session_refresh(uid):
     _lib.respond("200 OK", {"session": out})
 
 
+# --- PR-5 endpoint handlers ---
+
+def user_invite_codes_list(uid):
+    """Session-authed — list invite codes owned by this user."""
+    auth_user(uid)
+    tsv = _run(["wallet-user", "invite-code", "list", uid], parse_json=False)
+    lines = [ln for ln in tsv.strip().split("\n") if ln]
+    if not lines:
+        _lib.respond("200 OK", {"invite_codes": []})
+    header = lines[0].split("\t")
+    items = [dict(zip(header, ln.split("\t"))) for ln in lines[1:]]
+    _lib.respond("200 OK", {"invite_codes": items})
+
+
+def user_invite_codes_create(uid):
+    """Session-authed — mint an invite code for this user."""
+    auth_user(uid)
+    body = _lib.read_body()
+    credit_account = str(body.get("credit_account", ""))
+    vanity = str(body.get("code", ""))
+    if not credit_account:
+        _lib.respond("400 Bad Request", {"error": "missing_credit_account"})
+    args = ["wallet-user", "invite-code", "create", uid,
+            "--credit-account", credit_account]
+    if vanity:
+        args += ["--code", vanity]
+    out = _run(args, parse_json=False, exit6_is_403=True)
+    # parse "code: <val>\ncredit_account: <val>\n"
+    result = {}
+    for line in out.strip().split("\n"):
+        if ": " in line:
+            k, v = line.split(": ", 1)
+            result[k.strip()] = v.strip()
+    _lib.respond("201 Created", result)
+
+
+def user_invite_codes_revoke(uid, code):
+    """Session-authed — revoke an invite code belonging to this user."""
+    auth_user(uid)
+    # Verify ownership: list the user's codes and confirm this one is theirs.
+    tsv = _run(["wallet-user", "invite-code", "list", uid], parse_json=False)
+    owned = set()
+    for ln in (tsv or "").strip().split("\n"):
+        if ln:
+            owned.add(ln.split("\t")[0])
+    if code not in owned:
+        _lib.respond("403 Forbidden", {"error": "not_owner_of_code"})
+    _run(["wallet-user", "invite-code", "revoke", code], parse_json=False)
+    _lib.respond("200 OK", {"revoked": code})
+
+
+def user_downstream_tree(uid):
+    """Session-authed — return subtree rooted at this user."""
+    auth_user(uid)
+    tree_text = _run(["wallet-user", "tree", uid], parse_json=False)
+    _lib.respond("200 OK", {"user_id": uid, "tree": tree_text.strip()})
+
+
+def user_downstream_cap(uid, sub):
+    """Session-authed — set max_downline cap on a downstream user."""
+    auth_user(uid)
+    if not USER_ID_RE.match(sub):
+        _lib.respond("400 Bad Request", {"error": "bad_sub_user_id"})
+    # Per spec: a user cannot set their own cap via HTTP.
+    if uid == sub:
+        _lib.respond("403 Forbidden", {"error": "cannot_set_own_cap"})
+    body = _lib.read_body()
+    max_val = body.get("max")
+    if max_val is None:
+        cap_arg = "unlimited"
+    else:
+        cap_arg = str(int(max_val))
+    _run(["wallet-user", "cap", sub, cap_arg], parse_json=False, exit6_is_403=True)
+    _lib.respond("200 OK", {"user_id": sub, "max_downline": max_val})
+
+
 # --- dispatcher ---
 
 def dispatch():
@@ -399,6 +478,34 @@ def dispatch():
         if method == "POST":
             return user_session_refresh(uid)
         _lib.respond("405 Method Not Allowed", {"error": "method_not_allowed"})
+
+    # /<id>/invite-codes[/<code>]
+    if tail[0] == "invite-codes":
+        rest = tail[1:]
+        if not rest:
+            if method == "GET":
+                return user_invite_codes_list(uid)
+            if method == "POST":
+                return user_invite_codes_create(uid)
+            _lib.respond("405 Method Not Allowed", {"error": "method_not_allowed"})
+        if len(rest) == 1:
+            if method == "DELETE":
+                return user_invite_codes_revoke(uid, rest[0])
+            _lib.respond("405 Method Not Allowed", {"error": "method_not_allowed"})
+        _lib.respond("404 Not Found", {"error": "no_route"})
+
+    # /<id>/downstream[/<sub>/cap]
+    if tail[0] == "downstream":
+        rest = tail[1:]
+        if not rest:
+            if method == "GET":
+                return user_downstream_tree(uid)
+            _lib.respond("405 Method Not Allowed", {"error": "method_not_allowed"})
+        if len(rest) == 2 and rest[1] == "cap":
+            if method == "POST":
+                return user_downstream_cap(uid, rest[0])
+            _lib.respond("405 Method Not Allowed", {"error": "method_not_allowed"})
+        _lib.respond("404 Not Found", {"error": "no_route"})
 
     _lib.respond("404 Not Found", {"error": "no_route"})
 

@@ -7836,6 +7836,140 @@ _acct231_teardown() {
 }
 
 # ---------------------------------------------------------------------------
+# FEAT-222 PR-5: user invite-codes + hierarchical governance.
+# ---------------------------------------------------------------------------
+
+_pr5_setup() {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.pr5.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.pr5.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	# Create two users: root + child.
+	ROOT_UID=$("$LIGHTNING_BIN" wallet-user create --label root 2>/dev/null | awk '/^lightning wallet-user: created/{print $NF}')
+	CHILD_UID=$("$LIGHTNING_BIN" wallet-user create --label child --referrer "$ROOT_UID" 2>/dev/null | awk '/^lightning wallet-user: created/{print $NF}')
+}
+
+_pr5_teardown() {
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-222 PR-5: max_downline column exists in wallet_users" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.pr5b.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.pr5b.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	"$LIGHTNING_BIN" wallet-user create --label test >/dev/null
+	wname="default"; [ -f "$HOME/.lightning/active" ] && wname=$(cat "$HOME/.lightning/active")
+	db="$LIGHTNING_WALLETS_ROOT/$wname/state.db"
+	sqlite3 "$db" "SELECT max_downline FROM wallet_users LIMIT 1;" >/dev/null
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+@test "FEAT-222 PR-5: wallet-user cap sets max_downline" {
+	_pr5_setup
+	"$LIGHTNING_BIN" wallet-user cap "$CHILD_UID" 5
+	wname="default"; [ -f "$HOME/.lightning/active" ] && wname=$(cat "$HOME/.lightning/active")
+	db="$LIGHTNING_WALLETS_ROOT/$wname/state.db"
+	val=$(sqlite3 "$db" "SELECT max_downline FROM wallet_users WHERE id='$CHILD_UID';")
+	[ "$val" = "5" ]
+	_pr5_teardown
+}
+
+@test "FEAT-222 PR-5: wallet-user cap unlimited clears to NULL" {
+	_pr5_setup
+	"$LIGHTNING_BIN" wallet-user cap "$CHILD_UID" 5
+	"$LIGHTNING_BIN" wallet-user cap "$CHILD_UID" unlimited
+	wname="default"; [ -f "$HOME/.lightning/active" ] && wname=$(cat "$HOME/.lightning/active")
+	db="$LIGHTNING_WALLETS_ROOT/$wname/state.db"
+	val=$(sqlite3 "$db" "SELECT COALESCE(max_downline,'NULL') FROM wallet_users WHERE id='$CHILD_UID';")
+	[ "$val" = "NULL" ]
+	_pr5_teardown
+}
+
+@test "FEAT-222 PR-5: wallet-user lineage walks up to root" {
+	_pr5_setup
+	out=$("$LIGHTNING_BIN" wallet-user lineage "$CHILD_UID")
+	echo "$out" | grep -q "$CHILD_UID"
+	echo "$out" | grep -q "$ROOT_UID"
+	_pr5_teardown
+}
+
+@test "FEAT-222 PR-5: wallet-user tree shows root + child" {
+	_pr5_setup
+	out=$("$LIGHTNING_BIN" wallet-user tree "$ROOT_UID")
+	echo "$out" | grep -q "$ROOT_UID"
+	echo "$out" | grep -q "$CHILD_UID"
+	_pr5_teardown
+}
+
+@test "FEAT-222 PR-5: wallet-user invite-code create mints a code" {
+	_pr5_setup
+	# Create an account owned by ROOT_UID.
+	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create --owner-user "$ROOT_UID" 2>/dev/null)
+	acct=$(echo "$acct_json" | jq -r '.account_id')
+	out=$("$LIGHTNING_BIN" wallet-user invite-code create "$ROOT_UID" --credit-account "$acct")
+	echo "$out" | grep -q "^code:"
+	_pr5_teardown
+}
+
+@test "FEAT-222 PR-5: wallet-user invite-code list shows the minted code" {
+	_pr5_setup
+	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create --owner-user "$ROOT_UID" 2>/dev/null)
+	acct=$(echo "$acct_json" | jq -r '.account_id')
+	"$LIGHTNING_BIN" wallet-user invite-code create "$ROOT_UID" --credit-account "$acct" >/dev/null
+	out=$("$LIGHTNING_BIN" wallet-user invite-code list "$ROOT_UID")
+	echo "$out" | grep -q "$acct"
+	_pr5_teardown
+}
+
+@test "FEAT-222 PR-5: wallet-user invite-code revoke removes the code" {
+	_pr5_setup
+	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create --owner-user "$ROOT_UID" 2>/dev/null)
+	acct=$(echo "$acct_json" | jq -r '.account_id')
+	code_line=$("$LIGHTNING_BIN" wallet-user invite-code create "$ROOT_UID" --credit-account "$acct" | grep "^code:")
+	code=${code_line#code: }
+	"$LIGHTNING_BIN" wallet-user invite-code revoke "$code"
+	out=$("$LIGHTNING_BIN" wallet-user invite-code list "$ROOT_UID")
+	! echo "$out" | grep -q "$code"
+	_pr5_teardown
+}
+
+@test "FEAT-222 PR-5: cap enforcement blocks invite mint when ancestor cap exceeded" {
+	_pr5_setup
+	# Cap root to 0 transitive descendants — child cannot invite anyone.
+	"$LIGHTNING_BIN" wallet-user cap "$ROOT_UID" 0
+	# Create an account owned by CHILD_UID.
+	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create --owner-user "$CHILD_UID" 2>/dev/null)
+	acct=$(echo "$acct_json" | jq -r '.account_id')
+	run "$LIGHTNING_BIN" wallet-user invite-code create "$CHILD_UID" --credit-account "$acct"
+	[ "$status" -ne 0 ]
+	_pr5_teardown
+}
+
+@test "FEAT-222 PR-5: api-accounts-create prefers credit_account for user-owned invite codes" {
+	_pr5_setup
+	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create --owner-user "$ROOT_UID" 2>/dev/null)
+	acct=$(echo "$acct_json" | jq -r '.account_id')
+	code_line=$("$LIGHTNING_BIN" wallet-user invite-code create "$ROOT_UID" --credit-account "$acct" | grep "^code:")
+	code=${code_line#code: }
+	# Create an account using the user-owned invite code.
+	result=$(REMOTE_ADDR=1.2.3.5 "$LIGHTNING_BIN" api-accounts-create --invite-code "$code" 2>/dev/null)
+	referrer=$(echo "$result" | jq -r '.referrer')
+	[ "$referrer" = "$acct" ]
+	_pr5_teardown
+}
+
+@test "FEAT-222 PR-5: wallet-user cap on unknown user exits non-zero" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.pr5c.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.pr5c.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	run "$LIGHTNING_BIN" wallet-user cap "usr_doesnotexist00" 5
+	[ "$status" -ne 0 ]
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
+}
+
+# ---------------------------------------------------------------------------
 # FEAT-222 PR-6: access control — require_referral + invite whitelist.
 # ---------------------------------------------------------------------------
 

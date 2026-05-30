@@ -41,11 +41,14 @@ sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
 
 # Ensure the wallet_users table exists (idempotent — cheap).
 sqlite3 "$db" "CREATE TABLE IF NOT EXISTS wallet_users ( \
-	id            TEXT PRIMARY KEY, \
-	created_at    INTEGER NOT NULL, \
-	referrer_user TEXT, \
-	label         TEXT NOT NULL DEFAULT '' \
+	id              TEXT PRIMARY KEY, \
+	created_at      INTEGER NOT NULL, \
+	referrer_user   TEXT, \
+	label           TEXT NOT NULL DEFAULT '', \
+	max_downline    INTEGER \
 );" 2>/dev/null || true
+# Additive migration: add max_downline if the table pre-dates PR-5.
+sqlite3 "$db" "ALTER TABLE wallet_users ADD COLUMN max_downline INTEGER;" 2>/dev/null || true
 
 # FEAT-222 PR-6 — require_referral gate.
 access_file="$WALLETS_ROOT/$wname/access.recfile"

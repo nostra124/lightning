@@ -140,7 +140,10 @@ if [ -n "$invite_code" ]; then
 	sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
 	if [ -f "$db" ]; then
 		looked_up=$(sqlite3 "$db" \
-			"SELECT account FROM invite_codes WHERE code = $(sql_quote "$invite_code") LIMIT 1;" 2>/dev/null)
+			"SELECT COALESCE(
+			   CASE WHEN owner_user IS NOT NULL THEN credit_account ELSE NULL END,
+			   account
+			 ) FROM invite_codes WHERE code = $(sql_quote "$invite_code") LIMIT 1;" 2>/dev/null)
 		if [ -n "$looked_up" ]; then
 			referrer="$looked_up"
 			# Stamp the new account's referrer + bump the code's uses.

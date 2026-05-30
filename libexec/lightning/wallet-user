@@ -47,11 +47,14 @@ active_db() {
 ensure_user_schema() {
 	local db="$1"
 	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS wallet_users ( \
-		id            TEXT PRIMARY KEY, \
-		created_at    INTEGER NOT NULL, \
-		referrer_user TEXT, \
-		label         TEXT NOT NULL DEFAULT '' \
+		id              TEXT PRIMARY KEY, \
+		created_at      INTEGER NOT NULL, \
+		referrer_user   TEXT, \
+		label           TEXT NOT NULL DEFAULT '', \
+		max_downline    INTEGER \
 	);" 2>/dev/null || true
+	# Additive migration: add max_downline if the table pre-dates PR-5.
+	sqlite3 "$db" "ALTER TABLE wallet_users ADD COLUMN max_downline INTEGER;" 2>/dev/null || true
 }
 
 sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
@@ -70,6 +73,12 @@ usage: lightning wallet-user <subcommand>
    list                                              TSV: id, label, accounts
    show <id>                                         profile + owned accounts
    delete <id>                                       remove (orphans accounts)
+   invite-code create <user_id> --credit-account <acct> [--code <vanity>]
+   invite-code list <user_id>
+   invite-code revoke <code>
+   cap <user_id> <N|unlimited|none>                  set max_downline cap
+   tree [<user_id>]                                  print subtree
+   lineage <user_id>                                 print ancestor chain
 EOF
 }
 
@@ -154,11 +163,207 @@ cmd_delete() {
 	echo "lightning wallet-user: deleted $id (owned accounts orphaned, not removed)"
 }
 
+mint_invite_code() {
+	echo "$(head -c 10 /dev/urandom | base32 | tr 'A-Z' 'a-z' | tr -d '=\n' | head -c 16)"
+}
+
+# Count all transitive downstream users of a given user id.
+count_downstream() {
+	local db="$1" uid="$2"
+	sqlite3 "$db" "
+WITH RECURSIVE downstream(id) AS (
+	SELECT id FROM wallet_users WHERE referrer_user = $(sql_quote "$uid")
+	UNION ALL
+	SELECT w.id FROM wallet_users w JOIN downstream d ON w.referrer_user = d.id
+)
+SELECT COUNT(*) FROM downstream;" 2>/dev/null || echo 0
+}
+
+cmd_invite_code_create() {
+	local user_id="" credit_account="" vanity_code=""
+	[ $# -lt 1 ] && { echo "usage: lightning wallet-user invite-code create <user_id> --credit-account <acct> [--code <vanity>]" >&2; exit 1; }
+	user_id="$1"; shift
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--credit-account) credit_account="$2"; shift 2 ;;
+			--code)           vanity_code="$2"; shift 2 ;;
+			*) echo "lightning wallet-user invite-code create: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	[ -n "$credit_account" ] || { echo "lightning wallet-user invite-code create: --credit-account required" >&2; exit 1; }
+
+	local db; db=$(active_db)
+
+	# Validate user_id exists.
+	local found; found=$(sqlite3 "$db" "SELECT 1 FROM wallet_users WHERE id = $(sql_quote "$user_id") LIMIT 1;")
+	[ "$found" = "1" ] || { echo "lightning wallet-user invite-code create: user '$user_id' not found" >&2; exit 2; }
+
+	# Validate credit_account is owned by user_id.
+	local acct_owner; acct_owner=$(sqlite3 "$db" "SELECT COALESCE(owner_user,'') FROM accounts WHERE address = $(sql_quote "$credit_account") LIMIT 1;" 2>/dev/null)
+	[ "$acct_owner" = "$user_id" ] || { echo "lightning wallet-user invite-code create: account '$credit_account' not owned by user '$user_id'" >&2; exit 2; }
+
+	# Validate invite whitelist from access.recfile.
+	local wname; wname=$(active_wallet_name)
+	local access_file="$WALLETS_ROOT/$wname/access.recfile"
+	if [ -f "$access_file" ]; then
+		local whitelist; whitelist=$(sed -n 's/^invite_whitelist:[[:space:]]*//p' "$access_file" | head -1 | tr -d '[:space:]')
+		if [ -n "$whitelist" ]; then
+			local allowed=0
+			IFS=',' read -ra wl_items <<< "$whitelist"
+			for item in "${wl_items[@]}"; do
+				item=$(echo "$item" | tr -d '[:space:]')
+				[ "$item" = "$user_id" ] && allowed=1 && break
+			done
+			[ "$allowed" = "1" ] || { printf '{"error":"not_authorised_to_invite","user_id":"%s"}\n' "$user_id" >&2; exit 6; }
+		fi
+	fi
+
+	# Ensure invite_codes table has owner_user + credit_account columns.
+	sqlite3 "$db" "ALTER TABLE invite_codes ADD COLUMN owner_user TEXT;" 2>/dev/null || true
+	sqlite3 "$db" "ALTER TABLE invite_codes ADD COLUMN credit_account TEXT;" 2>/dev/null || true
+
+	# Cap enforcement: walk up the referrer_user chain.
+	local current_uid="$user_id"
+	while true; do
+		local row; row=$(sqlite3 -separator $'\t' "$db" \
+			"SELECT COALESCE(referrer_user,''), COALESCE(max_downline,'NULL') FROM wallet_users WHERE id = $(sql_quote "$current_uid") LIMIT 1;" 2>/dev/null)
+		[ -n "$row" ] || break
+		local parent cap_val
+		IFS=$'\t' read -r parent cap_val <<< "$row"
+		if [ "$cap_val" != "NULL" ] && [ "$cap_val" != "" ]; then
+			local cur_size; cur_size=$(count_downstream "$db" "$current_uid")
+			if [ $(( cur_size + 1 )) -gt "$cap_val" ]; then
+				printf '{"error":"cap_exceeded","ancestor":"%s"}\n' "$current_uid" >&2
+				exit 6
+			fi
+		fi
+		[ -n "$parent" ] || break
+		current_uid="$parent"
+	done
+
+	local code
+	if [ -n "$vanity_code" ]; then
+		code="$vanity_code"
+	else
+		code=$(mint_invite_code)
+	fi
+	local now; now=$(date -u +%s)
+
+	sqlite3 "$db" "INSERT INTO invite_codes(code, owner_user, credit_account, uses, created_at) \
+		VALUES($(sql_quote "$code"), $(sql_quote "$user_id"), $(sql_quote "$credit_account"), 0, $now);"
+	printf "code: %s\ncredit_account: %s\n" "$code" "$credit_account"
+}
+
+cmd_invite_code_list() {
+	[ $# -lt 1 ] && { echo "usage: lightning wallet-user invite-code list <user_id>" >&2; exit 1; }
+	local user_id="$1"
+	local db; db=$(active_db)
+	sqlite3 -separator $'\t' "$db" \
+		"SELECT code, COALESCE(credit_account,''), uses, created_at FROM invite_codes WHERE owner_user = $(sql_quote "$user_id") ORDER BY created_at DESC;" 2>/dev/null
+}
+
+cmd_invite_code_revoke() {
+	[ $# -lt 1 ] && { echo "usage: lightning wallet-user invite-code revoke <code>" >&2; exit 1; }
+	local code="$1"
+	local db; db=$(active_db)
+	local found; found=$(sqlite3 "$db" "SELECT 1 FROM invite_codes WHERE code = $(sql_quote "$code") LIMIT 1;" 2>/dev/null)
+	[ "$found" = "1" ] || { echo "lightning wallet-user invite-code revoke: code '$code' not found" >&2; exit 2; }
+	sqlite3 "$db" "DELETE FROM invite_codes WHERE code = $(sql_quote "$code");"
+	echo "lightning wallet-user: revoked invite code '$code'"
+}
+
+cmd_cap() {
+	[ $# -lt 2 ] && { echo "usage: lightning wallet-user cap <user_id> <N|unlimited|none>" >&2; exit 1; }
+	local user_id="$1" cap_arg="$2"
+	local db; db=$(active_db)
+	local found; found=$(sqlite3 "$db" "SELECT 1 FROM wallet_users WHERE id = $(sql_quote "$user_id") LIMIT 1;")
+	[ "$found" = "1" ] || { echo "lightning wallet-user cap: user '$user_id' not found" >&2; exit 2; }
+	local cap_sql
+	case "$cap_arg" in
+		unlimited|none) cap_sql="NULL" ;;
+		*)
+			# Validate it's a non-negative integer.
+			[[ "$cap_arg" =~ ^[0-9]+$ ]] || { echo "lightning wallet-user cap: '$cap_arg' is not a valid cap (use N, 'unlimited', or 'none')" >&2; exit 1; }
+			cap_sql="$cap_arg"
+			;;
+	esac
+	sqlite3 "$db" "UPDATE wallet_users SET max_downline = $cap_sql WHERE id = $(sql_quote "$user_id");"
+	echo "lightning wallet-user: cap for '$user_id' set to ${cap_arg}"
+}
+
+cmd_tree() {
+	local start_uid="${1:-}"
+	local db; db=$(active_db)
+	if [ -z "$start_uid" ]; then
+		start_uid=$(sqlite3 "$db" "SELECT id FROM wallet_users WHERE referrer_user IS NULL ORDER BY created_at LIMIT 1;" 2>/dev/null)
+		[ -n "$start_uid" ] || { echo "lightning wallet-user tree: no users found" >&2; exit 2; }
+	fi
+	# Use recursive CTE to walk the tree.
+	sqlite3 -separator $'\t' "$db" "
+WITH RECURSIVE subtree(id, label, max_downline, depth, path) AS (
+	SELECT id, label, max_downline, 0, id
+	FROM wallet_users WHERE id = $(sql_quote "$start_uid")
+	UNION ALL
+	SELECT w.id, w.label, w.max_downline, s.depth + 1, s.path || '/' || w.id
+	FROM wallet_users w JOIN subtree s ON w.referrer_user = s.id
+)
+SELECT id, label, COALESCE(max_downline, -1), depth FROM subtree ORDER BY path;" 2>/dev/null | \
+	while IFS=$'\t' read -r uid label cap depth; do
+		local indent="" i
+		for (( i=0; i<depth; i++ )); do indent="  $indent"; done
+		local cap_str size
+		if [ "$cap" = "-1" ]; then
+			cap_str="none"
+		else
+			cap_str="$cap"
+		fi
+		size=$(count_downstream "$db" "$uid")
+		printf "%s%s (%s) [cap: %s, size: %s]\n" "$indent" "$uid" "${label:-(none)}" "$cap_str" "$size"
+	done
+}
+
+cmd_lineage() {
+	[ $# -lt 1 ] && { echo "usage: lightning wallet-user lineage <user_id>" >&2; exit 1; }
+	local user_id="$1"
+	local db; db=$(active_db)
+	# Walk up from user_id to root.
+	local uid="$user_id"
+	local role="self"
+	while true; do
+		local row; row=$(sqlite3 -separator $'\t' "$db" \
+			"SELECT label, COALESCE(referrer_user,'') FROM wallet_users WHERE id = $(sql_quote "$uid") LIMIT 1;")
+		[ -n "$row" ] || { echo "lightning wallet-user lineage: user '$uid' not found" >&2; exit 2; }
+		local label parent
+		IFS=$'\t' read -r label parent <<< "$row"
+		printf "%s (%s)\n" "$uid" "$role"
+		[ -n "$parent" ] || break
+		uid="$parent"
+		role="parent"
+		# If we're walking further than one level, label it appropriately.
+		# Use "root" when there's no further ancestor.
+		local next_parent; next_parent=$(sqlite3 "$db" \
+			"SELECT COALESCE(referrer_user,'') FROM wallet_users WHERE id = $(sql_quote "$uid") LIMIT 1;")
+		[ -n "$next_parent" ] || role="root"
+	done
+}
+
 case "${1:-}" in
 	create)  shift; cmd_create "$@" ;;
 	list)    shift; cmd_list "$@" ;;
 	show)    shift; cmd_show "$@" ;;
 	delete)  shift; cmd_delete "$@" ;;
+	invite-code)
+		shift
+		case "${1:-}" in
+			create) shift; cmd_invite_code_create "$@" ;;
+			list)   shift; cmd_invite_code_list "$@" ;;
+			revoke) shift; cmd_invite_code_revoke "$@" ;;
+			*) echo "lightning wallet-user invite-code: unknown subcommand '${1:-}'" >&2; exit 1 ;;
+		esac
+		;;
+	cap)     shift; cmd_cap "$@" ;;
+	tree)    shift; cmd_tree "$@" ;;
+	lineage) shift; cmd_lineage "$@" ;;
 	"")      usage; exit 1 ;;
 	*)       echo "lightning wallet-user: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac
