@@ -12784,3 +12784,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-530: channel-htlc-list man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-list.1" ]
 }
+
+@test "FEAT-531: node-channel-balance-total reports error or local_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-balance-total" 2>/dev/null)
+	echo "$out" | grep -q "error\|local_msat"
+}
+
+@test "FEAT-531: node-channel-balance-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-balance-total.1" ]
+}
+
+@test "FEAT-532: invoice-pay-local requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-pay-local" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-532: invoice-pay-local man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-pay-local.1" ]
+}
+
+@test "FEAT-533: wallet-history requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-history" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-533: wallet-history man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-history.1" ]
+}
+
+@test "FEAT-534: node-peer-score requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-score" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-534: node-peer-score man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-score.1" ]
+}
+
+@test "FEAT-535: channel-min-htlc requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-min-htlc" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-535: channel-min-htlc man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-htlc.1" ]
+}
+
+@test "FEAT-536: node-block-height reports error or blockheight gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-block-height" 2>/dev/null)
+	echo "$out" | grep -q "error\|blockheight"
+}
+
+@test "FEAT-536: node-block-height man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-block-height.1" ]
+}
+
+@test "FEAT-537: invoice-description-set requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-description-set" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-537: invoice-description-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-description-set.1" ]
+}
+
+@test "FEAT-538: wallet-verify requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-verify" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-538: wallet-verify man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-verify.1" ]
+}
+
+@test "FEAT-539: node-invoice-stats reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-stats" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-539: node-invoice-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-stats.1" ]
+}
+
+@test "FEAT-540: channel-fees-earned requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-fees-earned" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-540: channel-fees-earned man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fees-earned.1" ]
+}

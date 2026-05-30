@@ -1,0 +1,23 @@
+#!/bin/bash
+# lightning wallet-history <wallet_name>   (FEAT-533)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-history <wallet_name>"}'
+    exit 0
+fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+result=$(sqlite3 "$db" "SELECT json_object('ts',created_at,'type',type,'amount_msat',amount_msat) FROM transactions ORDER BY created_at DESC LIMIT 50;" 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+lines = sys.stdin.read().strip().splitlines()
+rows = []
+for l in lines:
+    try: rows.append(json.loads(l))
+    except: pass
+print(json.dumps(rows))
+" <<< "$result"

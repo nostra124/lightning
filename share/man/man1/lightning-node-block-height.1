@@ -1,23 +1,15 @@
-.TH "LIGHTNING-NODE-BLOCK-HEIGHT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-NODE_BLOCK_HEIGHT" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node-block-height \- show current Bitcoin block height seen by the node
+lightning-node-block-height \- show current block height
 .SH SYNOPSIS
 .B lightning node-block-height
 .SH DESCRIPTION
-Returns the most recent Bitcoin block height reported by
-.B lightning-cli getinfo
-as
-.BR blockheight .
-Returns an error object if the daemon is unreachable.
+Show current block height.
 .PP
-Output:
-.nf
-{"blockheight":N}
-.fi
+Output: JSON object from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-node-version (1),
-.BR lightning-node-health (1)
+.BR lightning(1)

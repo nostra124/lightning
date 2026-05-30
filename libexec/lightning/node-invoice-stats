@@ -1,13 +1,12 @@
 #!/bin/bash
-# lightning node-invoice-stats   (FEAT-397)
+# lightning node-invoice-stats   (FEAT-539)
 result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
-invoices = json.loads(sys.argv[1]).get('invoices', [])
-paid = [i for i in invoices if i.get('status') == 'paid']
-unpaid = [i for i in invoices if i.get('status') == 'unpaid']
-expired = [i for i in invoices if i.get('status') == 'expired']
-total_received = sum(i.get('amount_received_msat', 0) for i in paid)
-print(json.dumps({'total': len(invoices), 'paid': len(paid), 'unpaid': len(unpaid),
-    'expired': len(expired), 'total_received_msat': total_received}, separators=(',', ':')))
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+paid = sum(1 for i in invoices if i.get('status') == 'paid')
+unpaid = sum(1 for i in invoices if i.get('status') == 'unpaid')
+expired = sum(1 for i in invoices if i.get('status') == 'expired')
+print(json.dumps({'total': len(invoices), 'paid': paid, 'unpaid': unpaid, 'expired': expired}))
 " "$result"
