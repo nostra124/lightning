@@ -1,0 +1,23 @@
+.TH "LIGHTNING-CHANNEL-FORCE-CLOSE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-force-close \- force-close a channel unilaterally
+.SH SYNOPSIS
+.B lightning channel-force-close
+.I channel_id
+.SH DESCRIPTION
+Calls
+.B lightning-cli close
+with a timeout of 0 to trigger an immediate unilateral close.
+Use only when the peer is unresponsive and a mutual close is impossible.
+.PP
+Output:
+.nf
+{"ok":true,"type":..., "tx":...}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-close (1),
+.BR lightning-channel-drain (1)

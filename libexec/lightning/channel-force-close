@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning channel-force-close <channel_id>   (FEAT-327)
+set -e
+[ $# -ge 1 ] || { echo '{"error":"usage: channel-force-close <channel_id>"}'; exit 0; }
+channel_id="$1"
+result=$(lightning-cli close "$channel_id" 0 2>/dev/null) || {
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+}
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'ok': True, 'type': data.get('type', ''), 'tx': data.get('tx', '')}, separators=(',', ':')))
+" "$result"

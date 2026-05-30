@@ -9709,3 +9709,63 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-326: payment-probe man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-probe.1" ]
 }
+
+# FEAT-327 — channel-force-close verb
+
+@test "FEAT-327: channel-force-close verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-force-close" ]
+}
+
+@test "FEAT-327: channel-force-close reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-force-close" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-327: channel-force-close man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-force-close.1" ]
+}
+
+# FEAT-328 — node-network-info verb
+
+@test "FEAT-328: node-network-info verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-network-info" ]
+}
+
+@test "FEAT-328: node-network-info reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-network-info" 2>/dev/null)
+	echo "$out" | grep -q "error\|id"
+}
+
+@test "FEAT-328: node-network-info man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-network-info.1" ]
+}
+
+# FEAT-329 — invoice-expire verb
+
+@test "FEAT-329: invoice-expire verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-expire" ]
+}
+
+@test "FEAT-329: invoice-expire reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-expire" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-329: invoice-expire man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-expire.1" ]
+}
+
+# FEAT-330 — channel-rebalance-report verb
+
+@test "FEAT-330: channel-rebalance-report verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-rebalance-report" ]
+}
+
+@test "FEAT-330: channel-rebalance-report returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-rebalance-report" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-330: channel-rebalance-report man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-rebalance-report.1" ]
+}

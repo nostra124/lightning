@@ -1,0 +1,27 @@
+.TH "LIGHTNING-INVOICE-EXPIRE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-invoice-expire \- manually expire an unpaid invoice
+.SH SYNOPSIS
+.B lightning invoice-expire
+.I label
+.SH DESCRIPTION
+Deletes an unpaid invoice identified by
+.I label
+via
+.BR "lightning-cli delinvoice" .
+Equivalent to expiring it immediately.
+Only works on invoices in
+.B unpaid
+state.
+.PP
+Output:
+.nf
+{"ok":true}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-invoice-cancel (1),
+.BR lightning-invoice-list (1)
