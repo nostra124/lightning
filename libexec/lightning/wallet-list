@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning wallet-list   (FEAT-325)
+set -e
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+if [ ! -d "$root" ]; then
+    echo '[]'
+    exit 0
+fi
+python3 -c "
+import sys, json, os
+root = sys.argv[1]
+wallets = []
+for name in sorted(os.listdir(root)):
+    db = os.path.join(root, name, 'state.db')
+    wallets.append({'name': name, 'has_db': os.path.isfile(db)})
+print(json.dumps(wallets, separators=(',', ':')))
+" "$root"

@@ -1,0 +1,28 @@
+.TH "LIGHTNING-WALLET-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-list \- list all wallets under WALLETS_ROOT
+.SH SYNOPSIS
+.B lightning wallet-list
+.SH DESCRIPTION
+Scans
+.B WALLETS_ROOT
+(default
+.IR ~/.lightning/wallets )
+and returns each sub-directory as a wallet entry with a
+.B has_db
+flag indicating whether a
+.I state.db
+file is present.
+Returns an empty array if the root directory does not exist.
+.PP
+Output:
+.nf
+[{name, has_db}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-stats (1),
+.BR lightning-wallet-check (1)

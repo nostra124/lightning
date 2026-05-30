@@ -9634,3 +9634,78 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-321: peer-score man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-score.1" ]
 }
+
+# FEAT-322 — channel-pending verb
+
+@test "FEAT-322: channel-pending verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-pending" ]
+}
+
+@test "FEAT-322: channel-pending returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-pending" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-322: channel-pending man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-pending.1" ]
+}
+
+# FEAT-323 — node-block-height verb
+
+@test "FEAT-323: node-block-height verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-block-height" ]
+}
+
+@test "FEAT-323: node-block-height reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-block-height" 2>/dev/null)
+	echo "$out" | grep -q "error\|blockheight"
+}
+
+@test "FEAT-323: node-block-height man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-block-height.1" ]
+}
+
+# FEAT-324 — invoice-list-paid verb
+
+@test "FEAT-324: invoice-list-paid verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-paid" ]
+}
+
+@test "FEAT-324: invoice-list-paid returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-paid" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-324: invoice-list-paid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-paid.1" ]
+}
+
+# FEAT-325 — wallet-list verb
+
+@test "FEAT-325: wallet-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-list" ]
+}
+
+@test "FEAT-325: wallet-list returns empty array when WALLETS_ROOT missing" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-325: wallet-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-list.1" ]
+}
+
+# FEAT-326 — payment-probe verb
+
+@test "FEAT-326: payment-probe verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-probe" ]
+}
+
+@test "FEAT-326: payment-probe reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/payment-probe" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-326: payment-probe man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-probe.1" ]
+}

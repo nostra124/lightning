@@ -1,0 +1,29 @@
+#!/bin/bash
+# lightning invoice-list-paid [--limit N]   (FEAT-324)
+set -e
+limit=50
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --limit) limit="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+limit = int(sys.argv[2])
+paid = [
+    {
+        'label': inv.get('label', ''),
+        'payment_hash': inv.get('payment_hash', ''),
+        'amount_msat': inv.get('amount_msat', 0),
+        'paid_at': inv.get('paid_at', 0),
+        'description': inv.get('description', ''),
+    }
+    for inv in data.get('invoices', [])
+    if inv.get('status') == 'paid'
+]
+paid.sort(key=lambda x: x.get('paid_at', 0), reverse=True)
+print(json.dumps(paid[:limit], separators=(',', ':')))
+" "$result" "$limit"
