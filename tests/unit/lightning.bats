@@ -25181,3 +25181,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2080: channel-opener-remote-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-remote-count.1" ]
 }
+
+@test "FEAT-2081: node-listpays-amount-total reports error or amount_sent_total gracefully" {
+    out=$(./libexec/lightning/node-listpays-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_sent_total"
+}
+@test "FEAT-2081: node-listpays-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-amount-total.1" ]
+}
+
+@test "FEAT-2082: channel-their-fee-summary reports error or their_fee_summary gracefully" {
+    out=$(./libexec/lightning/channel-their-fee-summary 2>/dev/null)
+    echo "$out" | grep -q "error\|their_fee_summary"
+}
+@test "FEAT-2082: channel-their-fee-summary man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-fee-summary.1" ]
+}
+
+@test "FEAT-2083: wallet-notes-count reports error or notes_count gracefully" {
+    out=$(./libexec/lightning/wallet-notes-count 2>/dev/null)
+    echo "$out" | grep -q "error\|notes_count"
+}
+@test "FEAT-2083: wallet-notes-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count.1" ]
+}
+
+@test "FEAT-2084: node-graph-ppm-stats reports error or ppm_min gracefully" {
+    out=$(./libexec/lightning/node-graph-ppm-stats 2>/dev/null)
+    echo "$out" | grep -q "error\|ppm_min"
+}
+@test "FEAT-2084: node-graph-ppm-stats man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-ppm-stats.1" ]
+}
+
+@test "FEAT-2085: channel-receivable-pct reports error or receivable_pct gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct\|channels"
+}
+@test "FEAT-2085: channel-receivable-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct.1" ]
+}
+
+@test "FEAT-2086: peer-remote-balance-total reports error or peer_remote_balances gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_remote_balances"
+}
+@test "FEAT-2086: peer-remote-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-total.1" ]
+}
+
+@test "FEAT-2087: node-invoice-largest reports error or largest_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-largest 2>/dev/null)
+    echo "$out" | grep -q "error\|largest_invoice"
+}
+@test "FEAT-2087: node-invoice-largest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-largest.1" ]
+}
+
+@test "FEAT-2088: channel-spendable-rank reports error or channels gracefully" {
+    out=$(./libexec/lightning/channel-spendable-rank 2>/dev/null)
+    echo "$out" | grep -q "error\|channels"
+}
+@test "FEAT-2088: channel-spendable-rank man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-rank.1" ]
+}
+
+@test "FEAT-2089: node-pay-max-msat reports error or max_amount_sent_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-max-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|max_amount_sent_msat"
+}
+@test "FEAT-2089: node-pay-max-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-max-msat.1" ]
+}
+
+@test "FEAT-2090: channel-capacity-total-sat reports error or capacity_total_sat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-total-sat 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_total_sat"
+}
+@test "FEAT-2090: channel-capacity-total-sat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-total-sat.1" ]
+}
