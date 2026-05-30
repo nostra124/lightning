@@ -1,0 +1,30 @@
+#!/bin/bash
+# lightning api-forward-stats   (FEAT-278)
+#
+# Returns forwarding totals for the node: count, earned_msat,
+# failed_count, and (if available) per-channel breakdown.
+# Output: {count, earned_msat, failed_count}
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || {
+    echo '{"count":0,"earned_msat":0,"failed_count":0}'; exit 0; }
+
+raw=$(lightning-cli $LD $NET listforwards 2>/dev/null) || {
+    echo '{"count":0,"earned_msat":0,"failed_count":0}'; exit 0; }
+
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+fwds = d.get('forwards', [])
+settled = [f for f in fwds if f.get('status') == 'settled']
+failed  = [f for f in fwds if f.get('status') in ('failed', 'local_failed')]
+earned  = sum(f.get('fee_msat', 0) for f in settled)
+print(json.dumps({
+    'count': len(settled),
+    'earned_msat': earned,
+    'failed_count': len(failed),
+}, separators=(',', ':')))
+" "$raw"

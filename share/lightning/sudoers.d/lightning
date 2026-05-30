@@ -98,4 +98,5 @@ www-data ALL=(alice) NOPASSWD: \
     /usr/local/bin/lightning node-funds, \
     /usr/local/bin/lightning api-price, \
     /usr/local/bin/lightning api-price --base *, \
-    /usr/local/bin/lightning api-fee-list
+    /usr/local/bin/lightning api-fee-list, \
+    /usr/local/bin/lightning api-forward-stats

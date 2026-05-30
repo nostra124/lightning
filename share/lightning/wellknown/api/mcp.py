@@ -276,6 +276,21 @@ TOOLS = [
         "argmap": lambda a: [],
     },
     {
+        "name": "forward_stats",
+        "description": "Return forwarding totals for this routing node: "
+                       "settled count, total fees earned (msat), and "
+                       "failed count.  No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-forward-stats"],
+        "argmap": lambda a: [],
+    },
+    {
         "name": "fee_list",
         "description": "List per-channel routing fee policy: base_msat and "
                        "ppm (parts-per-million) for each active channel. "

@@ -105,7 +105,7 @@ def test_tools_list_returns_tools(api_dir, bin_shim, lightning_stub, cgi, parse)
         "account_withdraw", "account_pay", "account_recv",
         "account_recv_reusable", "account_history", "account_close",
         "node_info", "channel_list", "node_funds", "account_transfer",
-        "invoice_decode", "price", "fee_list",
+        "invoice_decode", "price", "fee_list", "forward_stats",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -301,6 +301,16 @@ def test_resources_read_node_info(api_dir, bin_shim, lightning_stub, cgi, parse)
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
     j = json.loads(body_out)
     assert "pubkey" in j["result"]["contents"][0]["text"]
+
+
+def test_tools_call_forward_stats(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"count":5,"earned_msat":2500,"failed_count":1}'
+    lightning_stub({"api-forward-stats": (0, body)})
+    payload = rpc("tools/call", {"name": "forward_stats", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["earned_msat"] == 2500
 
 
 def test_tools_call_fee_list(api_dir, bin_shim, lightning_stub, cgi, parse):

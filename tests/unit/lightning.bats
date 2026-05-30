@@ -8921,3 +8921,18 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-277: MCP tools/list includes fee_list" {
 	grep -q '"fee_list"' share/lightning/wellknown/api/mcp.py
 }
+
+# FEAT-278 — api-forward-stats verb + MCP forward_stats tool
+
+@test "FEAT-278: api-forward-stats verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-forward-stats" ]
+}
+
+@test "FEAT-278: api-forward-stats returns zero totals without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-forward-stats" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['count']==0"
+}
+
+@test "FEAT-278: MCP tools/list includes forward_stats" {
+	grep -q '"forward_stats"' share/lightning/wellknown/api/mcp.py
+}
