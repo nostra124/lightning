@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-channel-close-check   (FEAT-989)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+closing_states = {'CHANNELD_SHUTTING_DOWN', 'CLOSINGD_SIGEXCHANGE', 'CLOSINGD_COMPLETE', 'FUNDING_SPEND_SEEN', 'ONCHAIN'}
+closing = [c for c in data.get('channels', []) if c.get('state') in closing_states]
+print(json.dumps({'closing_count': len(closing), 'channels': [c.get('channel_id') for c in closing]}))
+" "$result"

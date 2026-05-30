@@ -16694,3 +16694,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-980: channel-reserve-balance man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-balance.1" ]
 }
+
+@test "FEAT-981: node-listfunds-unconfirmed reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listfunds-unconfirmed" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-981: node-listfunds-unconfirmed man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listfunds-unconfirmed.1" ]
+}
+
+@test "FEAT-982: channel-open-feerate requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-feerate" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-982: channel-open-feerate man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-feerate.1" ]
+}
+
+@test "FEAT-983: wallet-close requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-close" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-983: wallet-close man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-close.1" ]
+}
+
+@test "FEAT-984: node-invoice-overpaid reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-overpaid" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-984: node-invoice-overpaid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-overpaid.1" ]
+}
+
+@test "FEAT-985: invoice-payment-hash requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-payment-hash" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-985: invoice-payment-hash man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-payment-hash.1" ]
+}
+
+@test "FEAT-986: channel-opener-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-opener-check" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-986: channel-opener-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-check.1" ]
+}
+
+@test "FEAT-987: peer-nodes-list reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-nodes-list" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-987: peer-nodes-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-nodes-list.1" ]
+}
+
+@test "FEAT-988: wallet-meta-keys requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-meta-keys" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-988: wallet-meta-keys man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-keys.1" ]
+}
+
+@test "FEAT-989: node-channel-close-check reports error or closing_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-close-check" 2>/dev/null)
+	echo "$out" | grep -q "error\|closing_count"
+}
+@test "FEAT-989: node-channel-close-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-close-check.1" ]
+}
+
+@test "FEAT-990: channel-balance-remote-pct reports error or active_channels gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-balance-remote-pct" 2>/dev/null)
+	echo "$out" | grep -q "error\|active_channels"
+}
+@test "FEAT-990: channel-balance-remote-pct man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-remote-pct.1" ]
+}

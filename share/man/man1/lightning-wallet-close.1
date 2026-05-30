@@ -1,11 +1,12 @@
 .TH "LIGHTNING-WALLET_CLOSE" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-close \- flush and close the wallet WAL
+lightning-wallet-close \- FEAT-983 wallet-close
 .SH SYNOPSIS
 .B lightning wallet-close
-.I wallet_name
 .SH DESCRIPTION
-Runs WAL checkpoint to flush pending writes and close the wallet cleanly.
+wallet-close for lightning CLI (FEAT-983).
+.PP
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
