@@ -18694,3 +18694,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1250: channel-peer-node man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-node.1" ]
 }
+
+@test "FEAT-1251: node-htlc-total-msat reports error or total_htlc_msat gracefully" {
+    out=$(./libexec/lightning/node-htlc-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|total_htlc_msat"
+}
+@test "FEAT-1251: node-htlc-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-total-msat.1" ]
+}
+
+@test "FEAT-1252: channel-type requires arg" {
+    out=$(./libexec/lightning/channel-type 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1252: channel-type man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-type.1" ]
+}
+
+@test "FEAT-1253: wallet-label-count requires arg" {
+    out=$(./libexec/lightning/wallet-label-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1253: wallet-label-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-label-count.1" ]
+}
+
+@test "FEAT-1254: node-graph-channels-total reports error or total gracefully" {
+    out=$(./libexec/lightning/node-graph-channels-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1254: node-graph-channels-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channels-total.1" ]
+}
+
+@test "FEAT-1255: invoice-local-offer-id requires arg" {
+    out=$(./libexec/lightning/invoice-local-offer-id 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1255: invoice-local-offer-id man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-local-offer-id.1" ]
+}
+
+@test "FEAT-1256: channel-scid-alias requires arg" {
+    out=$(./libexec/lightning/channel-scid-alias 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1256: channel-scid-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-scid-alias.1" ]
+}
+
+@test "FEAT-1257: peer-total-sent requires arg" {
+    out=$(./libexec/lightning/peer-total-sent 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1257: peer-total-sent man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-sent.1" ]
+}
+
+@test "FEAT-1258: wallet-backup-create requires arg" {
+    out=$(./libexec/lightning/wallet-backup-create 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1258: wallet-backup-create man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup-create.1" ]
+}
+
+@test "FEAT-1259: node-channel-receivable-total reports error or receivable_total_msat gracefully" {
+    out=$(./libexec/lightning/node-channel-receivable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_total_msat"
+}
+@test "FEAT-1259: node-channel-receivable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-receivable-total.1" ]
+}
+
+@test "FEAT-1260: channel-feerate-per-kbyte requires arg" {
+    out=$(./libexec/lightning/channel-feerate-per-kbyte 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1260: channel-feerate-per-kbyte man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate-per-kbyte.1" ]
+}
