@@ -28171,3 +28171,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2470: channel-remote-balance-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-total.1" ]
 }
+
+@test "FEAT-2471: node-listforwards-fee-total-60d reports error or fee_total_msat_60d gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-60d 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_msat_60d"
+}
+@test "FEAT-2471: node-listforwards-fee-total-60d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-60d.1" ]
+}
+
+@test "FEAT-2472: channel-htlc-value-avg reports error or htlc_value_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_avg_msat"
+}
+@test "FEAT-2472: channel-htlc-value-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-avg.1" ]
+}
+
+@test "FEAT-2473: peer-local-balance-total reports error or peer_local_balance gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_local_balance"
+}
+@test "FEAT-2473: peer-local-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-total.1" ]
+}
+
+@test "FEAT-2474: node-invoice-pending-count reports error or pending_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-count 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_count"
+}
+@test "FEAT-2474: node-invoice-pending-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-count.1" ]
+}
+
+@test "FEAT-2475: channel-fee-base-median reports error or fee_base_median_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_median_msat"
+}
+@test "FEAT-2475: channel-fee-base-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-median.1" ]
+}
+
+@test "FEAT-2476: node-pay-complete-count-1y reports error or pay_complete_count_1y gracefully" {
+    out=$(./libexec/lightning/node-pay-complete-count-1y 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_complete_count_1y"
+}
+@test "FEAT-2476: node-pay-complete-count-1y man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-complete-count-1y.1" ]
+}
+
+@test "FEAT-2477: channel-capacity-total-btc reports error or capacity_total_btc gracefully" {
+    out=$(./libexec/lightning/channel-capacity-total-btc 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_total_btc"
+}
+@test "FEAT-2477: channel-capacity-total-btc man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-total-btc.1" ]
+}
+
+@test "FEAT-2478: peer-fee-base-max reports error or fee_base_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_msat"
+}
+@test "FEAT-2478: peer-fee-base-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-max.1" ]
+}
+
+@test "FEAT-2479: node-listinvoices-paid-count-90d reports error or paid_count_90d gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-count-90d 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_90d"
+}
+@test "FEAT-2479: node-listinvoices-paid-count-90d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-count-90d.1" ]
+}
+
+@test "FEAT-2480: channel-local-balance-median reports error or median_local_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_local_msat"
+}
+@test "FEAT-2480: channel-local-balance-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-median.1" ]
+}
