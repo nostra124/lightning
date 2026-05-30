@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning wallet-notes [<wallet>] [--limit N]   (FEAT-355)
+set -e
+wname="default"
+limit=50
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --limit) limit="$2"; shift 2 ;;
+        *) wname="$1"; shift ;;
+    esac
+done
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '[]'
+    exit 0
+fi
+sqlite3 -json "$db" \
+    "SELECT entry_id, note, created_at FROM ledger WHERE note IS NOT NULL AND note != '' ORDER BY created_at DESC LIMIT $limit;" \
+    2>/dev/null || echo '[]'

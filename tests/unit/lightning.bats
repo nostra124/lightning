@@ -10114,3 +10114,48 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-352: wallet-tag man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-tag.1" ]
 }
+
+# FEAT-353 — channel-open-dual verb
+
+@test "FEAT-353: channel-open-dual verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-dual" ]
+}
+
+@test "FEAT-353: channel-open-dual reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-dual" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-353: channel-open-dual man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-dual.1" ]
+}
+
+# FEAT-354 — node-htlc-stats verb
+
+@test "FEAT-354: node-htlc-stats verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-stats" ]
+}
+
+@test "FEAT-354: node-htlc-stats reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-stats" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_htlcs"
+}
+
+@test "FEAT-354: node-htlc-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-stats.1" ]
+}
+
+# FEAT-355 — wallet-notes verb
+
+@test "FEAT-355: wallet-notes verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-notes" ]
+}
+
+@test "FEAT-355: wallet-notes returns empty array without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-notes" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-355: wallet-notes man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes.1" ]
+}

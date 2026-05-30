@@ -1,0 +1,26 @@
+.TH "LIGHTNING-WALLET-NOTES" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-notes \- list ledger entries that have notes
+.SH SYNOPSIS
+.B lightning wallet-notes
+.RI [ wallet ]
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Returns all ledger entries with a non-empty
+.B note
+field, newest first.
+Default limit is 50.
+Returns an empty array if the wallet database does not exist.
+.PP
+Output:
+.nf
+[{entry_id, note, created_at}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-tag (1),
+.BR lightning-wallet-ledger-search (1)
