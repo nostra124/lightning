@@ -1,11 +1,11 @@
 #!/bin/bash
-# lightning channel-total-capacity   (FEAT-421)
-result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+# lightning channel-total-capacity   (FEAT-1000)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
 python3 -c "
 import sys, json
-channels = json.loads(sys.argv[1]).get('channels', [])
-normal = [c for c in channels if c.get('state') == 'CHANNELD_NORMAL']
-total_msat = sum(c.get('total_msat', 0) for c in normal)
-print(json.dumps({'total_capacity_msat': total_msat, 'total_capacity_sat': total_msat // 1000,
-    'active_channels': len(normal)}, separators=(',', ':')))
+data = json.loads(sys.argv[1])
+chs = data.get('channels', [])
+total = sum(c.get('total_msat', 0) for c in chs)
+active = sum(c.get('total_msat', 0) for c in chs if c.get('state') == 'CHANNELD_NORMAL')
+print(json.dumps({'total_capacity_msat': total, 'active_capacity_msat': active, 'channel_count': len(chs)}))
 " "$result"

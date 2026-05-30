@@ -16774,3 +16774,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-990: channel-balance-remote-pct man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-remote-pct.1" ]
 }
+@test "FEAT-991: node-invoices-pending-msat reports error or pending_msat gracefully" {
+	out=$(./libexec/lightning/node-invoices-pending-msat 2>/dev/null)
+	echo "$out" | grep -q "error\|pending_msat"
+}
+@test "FEAT-991: node-invoices-pending-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoices-pending-msat.1" ]
+}
+@test "FEAT-992: channel-outgoing-count requires arg" {
+	out=$(./libexec/lightning/channel-outgoing-count 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-992: channel-outgoing-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-outgoing-count.1" ]
+}
+@test "FEAT-993: wallet-notes-export requires arg" {
+	out=$(./libexec/lightning/wallet-notes-export 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-993: wallet-notes-export man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-export.1" ]
+}
+@test "FEAT-994: node-channel-total-msat reports error or total_msat gracefully" {
+	out=$(./libexec/lightning/node-channel-total-msat 2>/dev/null)
+	echo "$out" | grep -q "error\|total_msat"
+}
+@test "FEAT-994: node-channel-total-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-total-msat.1" ]
+}
+@test "FEAT-995: invoice-create-zeroamt requires arg" {
+	out=$(./libexec/lightning/invoice-create-zeroamt 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-995: invoice-create-zeroamt man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-create-zeroamt.1" ]
+}
+@test "FEAT-996: channel-incoming-count requires arg" {
+	out=$(./libexec/lightning/channel-incoming-count 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-996: channel-incoming-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-incoming-count.1" ]
+}
+@test "FEAT-997: peer-routing-score requires arg" {
+	out=$(./libexec/lightning/peer-routing-score 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-997: peer-routing-score man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-routing-score.1" ]
+}
+@test "FEAT-998: wallet-backup-list requires arg" {
+	out=$(./libexec/lightning/wallet-backup-list 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-998: wallet-backup-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup-list.1" ]
+}
+@test "FEAT-999: node-feerate-current reports error or feerate gracefully" {
+	out=$(./libexec/lightning/node-feerate-current 2>/dev/null)
+	echo "$out" | grep -q "error\|feerate"
+}
+@test "FEAT-999: node-feerate-current man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-current.1" ]
+}
+@test "FEAT-1000: channel-total-capacity reports error or total_capacity_msat gracefully" {
+	out=$(./libexec/lightning/channel-total-capacity 2>/dev/null)
+	echo "$out" | grep -q "error\|total_capacity_msat"
+}
+@test "FEAT-1000: channel-total-capacity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-capacity.1" ]
+}

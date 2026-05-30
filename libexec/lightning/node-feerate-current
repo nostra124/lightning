@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-feerate-current   (FEAT-999)
+if ! result=$(lightning-cli feerates perkb 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+rates = data.get('perkb', {})
+print(json.dumps({'perkb': rates, 'min_acceptable': data.get('min_acceptable'), 'max_acceptable': data.get('max_acceptable')}))
+" "$result"
