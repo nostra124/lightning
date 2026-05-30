@@ -10354,3 +10354,48 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-367: node-channel-summary man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-summary.1" ]
 }
+
+# FEAT-368 — payment-mpp-status verb
+
+@test "FEAT-368: payment-mpp-status verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-mpp-status" ]
+}
+
+@test "FEAT-368: payment-mpp-status reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/payment-mpp-status" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-368: payment-mpp-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-mpp-status.1" ]
+}
+
+# FEAT-369 — node-feerate verb
+
+@test "FEAT-369: node-feerate verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-feerate" ]
+}
+
+@test "FEAT-369: node-feerate reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-feerate" 2>/dev/null)
+	echo "$out" | grep -q "error\|urgency"
+}
+
+@test "FEAT-369: node-feerate man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate.1" ]
+}
+
+# FEAT-370 — invoice-summary verb
+
+@test "FEAT-370: invoice-summary verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-summary" ]
+}
+
+@test "FEAT-370: invoice-summary reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-summary" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-370: invoice-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-summary.1" ]
+}
