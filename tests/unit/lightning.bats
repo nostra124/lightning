@@ -31621,3 +31621,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2910: node-listforwards-count-offered man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-offered.1" ]
 }
+
+@test "FEAT-2911: channel-remote-balance-sum reports error or remote_balance_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_sum_msat"
+}
+@test "FEAT-2911: channel-remote-balance-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-sum.1" ]
+}
+
+@test "FEAT-2912: node-listforwards-fee-total reports error or fee_total_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_msat"
+}
+@test "FEAT-2912: node-listforwards-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total.1" ]
+}
+
+@test "FEAT-2913: channel-both-balances-avg reports error or both_balances_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_avg_msat"
+}
+@test "FEAT-2913: channel-both-balances-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-avg.1" ]
+}
+
+@test "FEAT-2914: peer-remote-balance-avg reports error or remote_balance_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_avg_msat"
+}
+@test "FEAT-2914: peer-remote-balance-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-avg.1" ]
+}
+
+@test "FEAT-2915: channel-both-reserves-sum reports error or both_reserves_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_sum_msat"
+}
+@test "FEAT-2915: channel-both-reserves-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-sum.1" ]
+}
+
+@test "FEAT-2916: node-listforwards-fee-stddev reports error or fee_stddev_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_stddev_msat"
+}
+@test "FEAT-2916: node-listforwards-fee-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-stddev.1" ]
+}
+
+@test "FEAT-2917: channel-both-balances-max reports error or both_balances_max_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-max 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_max_msat"
+}
+@test "FEAT-2917: channel-both-balances-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-max.1" ]
+}
+
+@test "FEAT-2918: peer-remote-balance-max reports error or remote_balance_max_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-max 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_max_msat"
+}
+@test "FEAT-2918: peer-remote-balance-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-max.1" ]
+}
+
+@test "FEAT-2919: channel-both-balances-min reports error or both_balances_min_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-min 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_min_msat"
+}
+@test "FEAT-2919: channel-both-balances-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-min.1" ]
+}
+
+@test "FEAT-2920: node-listforwards-fee-variance reports error or fee_variance_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_variance_msat"
+}
+@test "FEAT-2920: node-listforwards-fee-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-variance.1" ]
+}
