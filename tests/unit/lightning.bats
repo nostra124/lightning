@@ -19254,3 +19254,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1320: channel-receivable-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-msat.1" ]
 }
+
+@test "FEAT-1321: node-pay-total-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-total-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1321: node-pay-total-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-total-count.1" ]
+}
+
+@test "FEAT-1322: channel-alias-local requires arg" {
+    out=$(./libexec/lightning/channel-alias-local 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1322: channel-alias-local man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-alias-local.1" ]
+}
+
+@test "FEAT-1323: wallet-notes-count-by-tag requires args" {
+    out=$(./libexec/lightning/wallet-notes-count-by-tag 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1323: wallet-notes-count-by-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-by-tag.1" ]
+}
+
+@test "FEAT-1324: node-listpeers-features reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpeers-features 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1324: node-listpeers-features man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-features.1" ]
+}
+
+@test "FEAT-1325: invoice-list-expired reports error or count gracefully" {
+    out=$(./libexec/lightning/invoice-list-expired 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1325: invoice-list-expired man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-expired.1" ]
+}
+
+@test "FEAT-1326: channel-to-them-msat requires arg" {
+    out=$(./libexec/lightning/channel-to-them-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1326: channel-to-them-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-to-them-msat.1" ]
+}
+
+@test "FEAT-1327: peer-feerate requires arg" {
+    out=$(./libexec/lightning/peer-feerate 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1327: peer-feerate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-feerate.1" ]
+}
+
+@test "FEAT-1328: wallet-balance-onchain reports error or onchain_confirmed_msat gracefully" {
+    out=$(./libexec/lightning/wallet-balance-onchain 2>/dev/null)
+    echo "$out" | grep -q "error\|onchain_confirmed_msat"
+}
+@test "FEAT-1328: wallet-balance-onchain man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-onchain.1" ]
+}
+
+@test "FEAT-1329: node-channel-disabled-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-channel-disabled-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1329: node-channel-disabled-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-disabled-count.1" ]
+}
+
+@test "FEAT-1330: channel-opener requires arg" {
+    out=$(./libexec/lightning/channel-opener 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1330: channel-opener man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener.1" ]
+}
