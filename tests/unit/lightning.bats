@@ -13684,3 +13684,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-630: channel-announce man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-announce.1" ]
 }
+
+@test "FEAT-631: node-pending-payments reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-pending-payments" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-631: node-pending-payments man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pending-payments.1" ]
+}
+
+@test "FEAT-632: channel-feebase-set requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-feebase-set" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-632: channel-feebase-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feebase-set.1" ]
+}
+
+@test "FEAT-633: wallet-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-status" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-633: wallet-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-status.1" ]
+}
+
+@test "FEAT-634: node-alias reports error or alias gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-alias" 2>/dev/null)
+	echo "$out" | grep -q "error\|alias"
+}
+
+@test "FEAT-634: node-alias man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-alias.1" ]
+}
+
+@test "FEAT-635: invoice-settle requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-settle" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-635: invoice-settle man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-settle.1" ]
+}
+
+@test "FEAT-636: channel-disabled-check reports error or disabled_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-disabled-check" 2>/dev/null)
+	echo "$out" | grep -q "error\|disabled_count"
+}
+
+@test "FEAT-636: channel-disabled-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-disabled-check.1" ]
+}
+
+@test "FEAT-637: peer-channel-ids requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-channel-ids" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-637: peer-channel-ids man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-ids.1" ]
+}
+
+@test "FEAT-638: wallet-created-list returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-created-list" 2>/dev/null)
+	echo "$out" | grep -q "\[\|\]"
+}
+
+@test "FEAT-638: wallet-created-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-created-list.1" ]
+}
+
+@test "FEAT-639: node-synced reports error or synced_to_chain gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-synced" 2>/dev/null)
+	echo "$out" | grep -q "error\|synced_to_chain"
+}
+
+@test "FEAT-639: node-synced man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-synced.1" ]
+}
+
+@test "FEAT-640: channel-remote-reserve requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-remote-reserve" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-640: channel-remote-reserve man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve.1" ]
+}

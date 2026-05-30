@@ -1,28 +1,15 @@
-.TH "LIGHTNING-NODE-ALIAS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-NODE_ALIAS" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node-alias \- get or set the node alias
+lightning-node-alias \- show node alias and color
 .SH SYNOPSIS
 .B lightning node-alias
-.RI [ new-alias ]
 .SH DESCRIPTION
-Without an argument, returns the current node alias from
-.BR getinfo .
-With an argument, sets the alias via
-.B setconfig
-(requires Core Lightning 23.11 or later).
+Show node alias and color.
 .PP
-Get output:
-.nf
-{"alias":"..."}
-.fi
-Set output:
-.nf
-{"ok":true,"alias":"..."}
-.fi
+Output: JSON object or array from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-node-info (1),
-.BR lightning-node-config (1)
+.BR lightning(1)
