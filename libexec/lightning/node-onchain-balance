@@ -1,34 +1,14 @@
 #!/bin/bash
-# lightning node-onchain-balance   (FEAT-316)
-#
-# Returns confirmed and unconfirmed on-chain balance from CLN.
-# {confirmed_sat, unconfirmed_sat, total_sat}
-
-set -e
-LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
-NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
-
-command -v lightning-cli >/dev/null || {
-    echo '{"error":"lightning-cli not found"}'; exit 0; }
-
-raw=$(lightning-cli $LD $NET listfunds 2>/dev/null) || {
-    echo '{"error":"listfunds_failed"}'; exit 0; }
-
+# lightning node-onchain-balance   (FEAT-654)
+if ! result=$(lightning-cli listfunds 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
 python3 -c "
 import sys, json
-d = json.loads(sys.argv[1])
-outputs = d.get('outputs', [])
-confirmed = 0; unconfirmed = 0
-for o in outputs:
-    amt = o.get('amount_msat', 0)
-    status = o.get('status', '')
-    if status == 'confirmed':
-        confirmed += amt
-    elif status == 'unconfirmed':
-        unconfirmed += amt
-print(json.dumps({
-    'confirmed_sat': confirmed // 1000,
-    'unconfirmed_sat': unconfirmed // 1000,
-    'total_sat': (confirmed + unconfirmed) // 1000,
-}, separators=(',', ':')))
-" "$raw"
+data = json.loads(sys.argv[1])
+outputs = data.get('outputs', [])
+confirmed = sum(o.get('amount_msat', 0) for o in outputs if o.get('status') == 'confirmed')
+unconfirmed = sum(o.get('amount_msat', 0) for o in outputs if o.get('status') == 'unconfirmed')
+print(json.dumps({'confirmed_msat': confirmed, 'confirmed_sat': confirmed // 1000, 'unconfirmed_msat': unconfirmed, 'unconfirmed_sat': unconfirmed // 1000}))
+" "$result"

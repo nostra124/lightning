@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning wallet-count   (FEAT-653)
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+if [ ! -d "$root" ]; then
+    echo '{"count":0}'
+    exit 0
+fi
+count=$(find "$root" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+echo "{\"count\":$count}"

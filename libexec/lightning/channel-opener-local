@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning channel-opener-local   (FEAT-660)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+local_opened = [{'channel_id': c.get('channel_id'), 'peer_id': c.get('peer_id')} for c in channels if c.get('opener') == 'local']
+print(json.dumps({'count': len(local_opened), 'channels': local_opened}))
+" "$result"

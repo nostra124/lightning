@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning wallet-backup-db <wallet_name> <dest_path>   (FEAT-658)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-backup-db <wallet_name> <dest_path>"}'
+    exit 0
+fi
+wname="$1"; dest="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+if cp "$db" "$dest" 2>/dev/null; then
+    echo "{\"ok\":true,\"wallet\":\"$wname\",\"backup\":\"$dest\"}"
+else
+    echo '{"error":"backup failed"}'
+fi

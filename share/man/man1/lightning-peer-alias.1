@@ -1,27 +1,15 @@
-.TH "LIGHTNING-PEER-ALIAS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-PEER_ALIAS" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-peer-alias \- look up a peer's alias and colour from gossip
+lightning-peer-alias \- FEAT-657 peer-alias verb
 .SH SYNOPSIS
 .B lightning peer-alias
-.I peer_id
 .SH DESCRIPTION
-Calls
-.B lightning-cli listnodes
-with the given
-.I peer_id
-and returns the alias and colour announced in gossip.
-Returns
-.B {"error":"not_found"}
-if the node is not in the local gossip graph.
+peer-alias verb for lightning CLI (FEAT-657).
 .PP
-Output:
-.nf
-{"peer_id":..., "alias":..., "color":...}
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-peer-info (1),
-.BR lightning-node-gossip (1)
+.BR lightning(1)

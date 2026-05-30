@@ -13864,3 +13864,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-650: channel-close-mutual man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-mutual.1" ]
 }
+
+@test "FEAT-651: node-version reports error or version gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-version" 2>/dev/null)
+	echo "$out" | grep -q "error\|version"
+}
+
+@test "FEAT-651: node-version man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-version.1" ]
+}
+
+@test "FEAT-652: channel-to-self-delay requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-to-self-delay" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-652: channel-to-self-delay man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-to-self-delay.1" ]
+}
+
+@test "FEAT-653: wallet-count reports count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-count" 2>/dev/null)
+	echo "$out" | grep -q "count"
+}
+
+@test "FEAT-653: wallet-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-count.1" ]
+}
+
+@test "FEAT-654: channel-state requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-state" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-654: channel-state man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state.1" ]
+}
+
+@test "FEAT-655: invoice-list-by-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-by-status" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-655: invoice-list-by-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-status.1" ]
+}
+
+@test "FEAT-656: channel-feerate requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-feerate" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-656: channel-feerate man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate.1" ]
+}
+
+@test "FEAT-657: peer-alias requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-alias" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-657: peer-alias man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-alias.1" ]
+}
+
+@test "FEAT-658: wallet-backup-db requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-backup-db" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-658: wallet-backup-db man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup-db.1" ]
+}
+
+@test "FEAT-659: node-htlc-forward-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-forward-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-659: node-htlc-forward-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-forward-count.1" ]
+}
+
+@test "FEAT-660: channel-opener-local reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-opener-local" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-660: channel-opener-local man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opener-local.1" ]
+}
