@@ -1,6 +1,6 @@
 #!/bin/bash
-# lightning channel-funding-output <channel_id>   (FEAT-1350)
-if [ $# -lt 1 ]; then echo '{"error":"usage: channel-funding-output <channel_id>"}'; exit 0; fi
+# lightning channel-max-htlc-msat <channel_id>   (FEAT-1342)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-max-htlc-msat <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
@@ -9,7 +9,8 @@ data = json.loads(sys.argv[1])
 cid = sys.argv[2]
 for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'funding_txid': ch.get('funding_txid'), 'funding_outnum': ch.get('funding_outnum')}))
+        updates = ch.get('updates', {}).get('local', {})
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'htlc_maximum_msat': updates.get('htlc_maximum_msat')}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"

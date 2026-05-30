@@ -19414,3 +19414,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1340: channel-min-htlc-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-htlc-msat.1" ]
 }
+
+@test "FEAT-1341: node-listpays-preimages reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-preimages 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1341: node-listpays-preimages man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-preimages.1" ]
+}
+
+@test "FEAT-1342: channel-max-htlc-msat requires arg" {
+    out=$(./libexec/lightning/channel-max-htlc-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1342: channel-max-htlc-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-htlc-msat.1" ]
+}
+
+@test "FEAT-1343: wallet-notes-move requires args" {
+    out=$(./libexec/lightning/wallet-notes-move 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1343: wallet-notes-move man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-move.1" ]
+}
+
+@test "FEAT-1344: node-graph-node-count reports error or node_count gracefully" {
+    out=$(./libexec/lightning/node-graph-node-count 2>/dev/null)
+    echo "$out" | grep -q "error\|node_count"
+}
+@test "FEAT-1344: node-graph-node-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-node-count.1" ]
+}
+
+@test "FEAT-1345: invoice-status requires arg" {
+    out=$(./libexec/lightning/invoice-status 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1345: invoice-status man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-status.1" ]
+}
+
+@test "FEAT-1346: channel-push-msat-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-push-msat-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1346: channel-push-msat-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-push-msat-total.1" ]
+}
+
+@test "FEAT-1347: peer-net-address requires arg" {
+    out=$(./libexec/lightning/peer-net-address 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1347: peer-net-address man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-net-address.1" ]
+}
+
+@test "FEAT-1348: wallet-notes-copy requires args" {
+    out=$(./libexec/lightning/wallet-notes-copy 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1348: wallet-notes-copy man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-copy.1" ]
+}
+
+@test "FEAT-1349: node-invoice-paid-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1349: node-invoice-paid-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count.1" ]
+}
+
+@test "FEAT-1350: channel-funding-output requires arg" {
+    out=$(./libexec/lightning/channel-funding-output 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1350: channel-funding-output man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-output.1" ]
+}

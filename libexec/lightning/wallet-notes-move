@@ -1,0 +1,23 @@
+#!/bin/bash
+# lightning wallet-notes-move <src_wallet> <dest_wallet> <key>   (FEAT-1343)
+if [ $# -lt 3 ]; then echo '{"error":"usage: wallet-notes-move <src_wallet> <dest_wallet> <key>"}'; exit 0; fi
+src="$1"; dest="$2"; key="$3"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+src_db="$root/$src/state.db"; dest_db="$root/$dest/state.db"
+if [ ! -f "$src_db" ]; then echo '{"error":"src_wallet_not_found"}'; exit 0; fi
+if [ ! -f "$dest_db" ]; then echo '{"error":"dest_wallet_not_found"}'; exit 0; fi
+python3 -c "
+import sys, sqlite3, json
+src_db = sys.argv[1]; dest_db = sys.argv[2]; key = sys.argv[3]
+conn_src = sqlite3.connect(src_db)
+row = conn_src.execute('SELECT value FROM notes WHERE key=?', (key,)).fetchone()
+if not row:
+    print(json.dumps({'error': 'key_not_found'}))
+    conn_src.close(); exit()
+conn_dest = sqlite3.connect(dest_db)
+conn_dest.execute('INSERT OR REPLACE INTO notes (key, value) VALUES (?, ?)', (key, row[0]))
+conn_dest.commit(); conn_dest.close()
+conn_src.execute('DELETE FROM notes WHERE key=?', (key,))
+conn_src.commit(); conn_src.close()
+print(json.dumps({'moved': key, 'from': sys.argv[4], 'to': sys.argv[5]}))
+" "$src_db" "$dest_db" "$key" "$src" "$dest" 2>/dev/null || echo '{"error":"move_failed"}'
