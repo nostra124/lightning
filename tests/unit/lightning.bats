@@ -18934,3 +18934,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1280: channel-close-txid man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-txid.1" ]
 }
+
+@test "FEAT-1281: node-listpays-latest reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-latest 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1281: node-listpays-latest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-latest.1" ]
+}
+
+@test "FEAT-1282: channel-updates-count requires arg" {
+    out=$(./libexec/lightning/channel-updates-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1282: channel-updates-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-updates-count.1" ]
+}
+
+@test "FEAT-1283: wallet-backup-list-all requires arg" {
+    out=$(./libexec/lightning/wallet-backup-list-all 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1283: wallet-backup-list-all man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup-list-all.1" ]
+}
+
+@test "FEAT-1284: node-pay-count-by-status reports error or total gracefully" {
+    out=$(./libexec/lightning/node-pay-count-by-status 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1284: node-pay-count-by-status man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-by-status.1" ]
+}
+
+@test "FEAT-1285: invoice-bolt11-amount requires arg" {
+    out=$(./libexec/lightning/invoice-bolt11-amount 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1285: invoice-bolt11-amount man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-amount.1" ]
+}
+
+@test "FEAT-1286: channel-local-base-fee requires arg" {
+    out=$(./libexec/lightning/channel-local-base-fee 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1286: channel-local-base-fee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-base-fee.1" ]
+}
+
+@test "FEAT-1287: peer-connected-duration requires arg" {
+    out=$(./libexec/lightning/peer-connected-duration 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1287: peer-connected-duration man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connected-duration.1" ]
+}
+
+@test "FEAT-1288: wallet-notes-archive requires arg" {
+    out=$(./libexec/lightning/wallet-notes-archive 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1288: wallet-notes-archive man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-archive.1" ]
+}
+
+@test "FEAT-1289: node-listchannels-total-capacity reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-total-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1289: node-listchannels-total-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-total-capacity.1" ]
+}
+
+@test "FEAT-1290: channel-remote-base-fee requires arg" {
+    out=$(./libexec/lightning/channel-remote-base-fee 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1290: channel-remote-base-fee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-base-fee.1" ]
+}
