@@ -1,36 +1,21 @@
 .TH "LIGHTNING-NODE-PEERS-SCORE" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node-peers-score \- rank peers by channel health score
+lightning-node-peers-score \- show weighted health score for all peers
 .SH SYNOPSIS
 .B lightning node-peers-score
 .SH DESCRIPTION
-Scores all peers by a weighted channel health metric and returns them
-sorted descending by score (0\(en100).
+Returns a scored list of all peers based on connectivity, channel count,
+and balance ratio. Also used as the backend for
+.BR lightning-peer-score (1).
 .PP
-Scoring components:
-.TP 4
-40 pts
-Balance score — peaks at 50% local ratio; lower when a channel is
-fully drained toward either side.
-.TP 4
-20 pts
-Connectivity — peer is currently connected.
-.TP 4
-20 pts
-Channel count — full score for 2 or more channels, partial for 1.
-.PP
-Output format (JSON array):
+Output:
 .nf
-[{peer_id, alias, score, num_channels,
-  local_sat, remote_sat, connected, local_ratio}]
+[{peer_id, score, connected, num_channels, balance_ratio}]
 .fi
-.PP
-Returns an empty array when the daemon is not reachable.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-node-health (1),
-.BR lightning-peer-list (1),
-.BR lightning-channel-list (1)
+.BR lightning-peer-score (1),
+.BR lightning-peer-reputation (1)

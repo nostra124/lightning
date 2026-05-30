@@ -11414,3 +11414,158 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-435: payment-retry man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-retry.1" ]
 }
+
+# FEAT-436 — node-peers-score verb
+
+@test "FEAT-436: node-peers-score verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-peers-score" ]
+}
+
+@test "FEAT-436: node-peers-score returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peers-score" 2>/dev/null)
+	echo "$out" | grep -q "\["
+}
+
+@test "FEAT-436: node-peers-score man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peers-score.1" ]
+}
+
+# FEAT-437 — invoice-create-lnurl verb
+
+@test "FEAT-437: invoice-create-lnurl verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-lnurl" ]
+}
+
+@test "FEAT-437: invoice-create-lnurl reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-lnurl" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-437: invoice-create-lnurl man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-create-lnurl.1" ]
+}
+
+# FEAT-438 — channel-rebalance-check verb
+
+@test "FEAT-438: channel-rebalance-check verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-rebalance-check" ]
+}
+
+@test "FEAT-438: channel-rebalance-check returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-rebalance-check" 2>/dev/null)
+	echo "$out" | grep -q "\["
+}
+
+@test "FEAT-438: channel-rebalance-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-rebalance-check.1" ]
+}
+
+# FEAT-439 — node-lnurl-info verb
+
+@test "FEAT-439: node-lnurl-info verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-lnurl-info" ]
+}
+
+@test "FEAT-439: node-lnurl-info reports error or node info gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-lnurl-info" 2>/dev/null)
+	echo "$out" | grep -q "error\|node_id\|alias"
+}
+
+@test "FEAT-439: node-lnurl-info man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-lnurl-info.1" ]
+}
+
+# FEAT-440 — wallet-set-label verb
+
+@test "FEAT-440: wallet-set-label verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-set-label" ]
+}
+
+@test "FEAT-440: wallet-set-label reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-set-label" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-440: wallet-set-label reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-set-label" testwallet mylabel 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-440: wallet-set-label man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-set-label.1" ]
+}
+
+# FEAT-441 — channel-last-forward verb
+
+@test "FEAT-441: channel-last-forward verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-last-forward" ]
+}
+
+@test "FEAT-441: channel-last-forward reports error or forward gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-last-forward" 2>/dev/null)
+	echo "$out" | grep -q "error\|no_forwards_found\|resolved_time"
+}
+
+@test "FEAT-441: channel-last-forward man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-last-forward.1" ]
+}
+
+# FEAT-442 — node-short-channel-id verb
+
+@test "FEAT-442: node-short-channel-id verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-short-channel-id" ]
+}
+
+@test "FEAT-442: node-short-channel-id reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-short-channel-id" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-442: node-short-channel-id man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-short-channel-id.1" ]
+}
+
+# FEAT-443 — invoice-list-recent verb
+
+@test "FEAT-443: invoice-list-recent verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-recent" ]
+}
+
+@test "FEAT-443: invoice-list-recent returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-recent" 2>/dev/null)
+	echo "$out" | grep -q "\["
+}
+
+@test "FEAT-443: invoice-list-recent man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-recent.1" ]
+}
+
+# FEAT-444 — channel-rebalance-history verb
+
+@test "FEAT-444: channel-rebalance-history verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-rebalance-history" ]
+}
+
+@test "FEAT-444: channel-rebalance-history returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-rebalance-history" 2>/dev/null)
+	echo "$out" | grep -q "\["
+}
+
+@test "FEAT-444: channel-rebalance-history man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-rebalance-history.1" ]
+}
+
+# FEAT-445 — node-channel-stats verb
+
+@test "FEAT-445: node-channel-stats verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-stats" ]
+}
+
+@test "FEAT-445: node-channel-stats reports error or stats gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-stats" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_channels"
+}
+
+@test "FEAT-445: node-channel-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-stats.1" ]
+}

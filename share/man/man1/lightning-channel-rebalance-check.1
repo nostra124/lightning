@@ -1,0 +1,22 @@
+.TH "LIGHTNING-CHANNEL-REBALANCE-CHECK" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-rebalance-check \- list channels that need rebalancing
+.SH SYNOPSIS
+.B lightning channel-rebalance-check
+.RB [ --threshold
+.IR ratio ]
+.SH DESCRIPTION
+Returns channels whose balance ratio is outside the acceptable range
+(default threshold: 0.3).
+.PP
+Output:
+.nf
+[{channel_id, peer_id, balance_ratio, local_msat, total_msat, direction}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-rebalance (1),
+.BR lightning-channel-balance-ratio (1)
