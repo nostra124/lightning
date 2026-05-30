@@ -1,15 +1,16 @@
 #!/bin/bash
-# lightning wallet-label-list <wallet_name>   (FEAT-1033)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: wallet-label-list <wallet_name>"}'
-    exit 0
-fi
+# lightning wallet-label-list <wallet_name>   (FEAT-1383)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-label-list <wallet_name>"}'; exit 0; fi
 wname="$1"
 root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
 db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"wallet_not_found"}'
-    exit 0
-fi
-labels=$(sqlite3 "$db" "SELECT label FROM labels;" 2>/dev/null | python3 -c "import sys,json; print(json.dumps([l.strip() for l in sys.stdin.readlines()]))" 2>/dev/null || echo '[]')
-echo "{\"wallet\":\"$wname\",\"labels\":$labels}"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+python3 -c "
+import sys, sqlite3, json
+db = sys.argv[1]; wname = sys.argv[2]
+conn = sqlite3.connect(db)
+rows = conn.execute('SELECT key, value FROM labels ORDER BY key').fetchall()
+conn.close()
+labels = [{'key': r[0], 'value': r[1]} for r in rows]
+print(json.dumps({'wallet': wname, 'count': len(labels), 'labels': labels}))
+" "$db" "$wname" 2>/dev/null || echo '{"error":"db_error"}'
