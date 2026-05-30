@@ -18374,3 +18374,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1210: channel-their-reserve man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve.1" ]
 }
+
+@test "FEAT-1211: node-invoice-expired-count reports error or expired_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-expired-count 2>/dev/null)
+    echo "$out" | grep -q "error\|expired_count"
+}
+@test "FEAT-1211: node-invoice-expired-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expired-count.1" ]
+}
+
+@test "FEAT-1212: channel-to-us-msat requires arg" {
+    out=$(./libexec/lightning/channel-to-us-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1212: channel-to-us-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-to-us-msat.1" ]
+}
+
+@test "FEAT-1213: wallet-meta-list requires arg" {
+    out=$(./libexec/lightning/wallet-meta-list 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1213: wallet-meta-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-list.1" ]
+}
+
+@test "FEAT-1214: node-pay-bolt11-list reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-bolt11-list 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1214: node-pay-bolt11-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-bolt11-list.1" ]
+}
+
+@test "FEAT-1215: invoice-bolt12 requires arg" {
+    out=$(./libexec/lightning/invoice-bolt12 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1215: invoice-bolt12 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt12.1" ]
+}
+
+@test "FEAT-1216: channel-inflight requires arg" {
+    out=$(./libexec/lightning/channel-inflight 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1216: channel-inflight man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-inflight.1" ]
+}
+
+@test "FEAT-1217: peer-last-connected requires arg" {
+    out=$(./libexec/lightning/peer-last-connected 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1217: peer-last-connected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-last-connected.1" ]
+}
+
+@test "FEAT-1218: wallet-seed-show requires arg" {
+    out=$(./libexec/lightning/wallet-seed-show 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1218: wallet-seed-show man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-seed-show.1" ]
+}
+
+@test "FEAT-1219: node-listforwards-by-out-channel requires arg" {
+    out=$(./libexec/lightning/node-listforwards-by-out-channel 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1219: node-listforwards-by-out-channel man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-by-out-channel.1" ]
+}
+
+@test "FEAT-1220: channel-last-stable-connection requires arg" {
+    out=$(./libexec/lightning/channel-last-stable-connection 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1220: channel-last-stable-connection man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-last-stable-connection.1" ]
+}

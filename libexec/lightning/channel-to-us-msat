@@ -1,6 +1,6 @@
 #!/bin/bash
-# lightning channel-inflight <channel_id>   (FEAT-1216)
-if [ $# -lt 1 ]; then echo '{"error":"usage: channel-inflight <channel_id>"}'; exit 0; fi
+# lightning channel-to-us-msat <channel_id>   (FEAT-1212)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-to-us-msat <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
@@ -9,8 +9,7 @@ data = json.loads(sys.argv[1])
 cid = sys.argv[2]
 for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        inflight = ch.get('inflight', [])
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'inflight_count': len(inflight), 'inflight': inflight}))
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'to_us_msat': ch.get('to_us_msat')}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"
