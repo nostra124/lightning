@@ -194,20 +194,165 @@ def passkey_delete(uid, cred_id):
     _lib.respond("200 OK", out)
 
 
+# --- PR-4 endpoint handlers ---
+
+def register_begin():
+    """Anonymous — mint a provisional user_id + issue a WebAuthn challenge."""
+    _require_rp_config()
+    import secrets as _secrets
+    import base64 as _b64
+    # Generate a provisional user_id (usr_<16 lowercase alnum>).
+    alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+    suffix = "".join(_secrets.choice(alphabet) for _ in range(16))
+    user_id = f"usr_{suffix}"
+    out = _run(["_webauthn-verify", "register-begin",
+                "--user-id", user_id,
+                "--rp-id", RP_ID,
+                "--rp-name", RP_NAME])
+    out["user_id"] = user_id
+    _lib.respond("200 OK", out)
+
+
+def user_register_finish():
+    """Anonymous — finish registration: validate invite, create user, register passkey, mint session."""
+    body = _lib.read_body()
+    user_id = body.get("user_id", "")
+    invite_code = body.get("invite_code", "")
+    passkey_attestation = body.get("passkey_attestation")
+    label = body.get("label", "")
+
+    if not USER_ID_RE.match(user_id):
+        _lib.respond("400 Bad Request", {"error": "bad_user_id"})
+
+    if not isinstance(passkey_attestation, dict):
+        _lib.respond("400 Bad Request", {"error": "missing_passkey_attestation"})
+
+    # a. + b. Create user (validates invite code).
+    create_args = ["api-user-create", "--user-id", user_id]
+    if label:
+        create_args += ["--label", label]
+    if invite_code:
+        create_args += ["--invite-code", invite_code]
+
+    r = subprocess.run(
+        ["sudo", "-n", "-u", OPERATOR, "lightning", *create_args],
+        capture_output=True, text=True,
+    )
+    if r.returncode == 6:
+        _lib.respond("401 Unauthorized", {"error": "invite_required"})
+    if r.returncode == 4:
+        _lib.respond("401 Unauthorized", {"error": "invite_not_found"})
+    if r.returncode != 0:
+        _lib.respond("502 Bad Gateway",
+                     {"error": "create_failed", "detail": (r.stderr or "").strip()[:200]})
+
+    # c. Finish WebAuthn registration.
+    _require_rp_config()
+    webauthn_out = _run(["_webauthn-verify", "register-finish",
+                         "--user-id", user_id,
+                         "--rp-id", RP_ID,
+                         "--expected-origin", EXPECTED_ORIGIN],
+                        stdin=json.dumps(passkey_attestation))
+
+    # d. Mint session.
+    sess = _run(["_session-token", "mint", "--user-id", user_id],
+                parse_json=False).strip()
+
+    # e. Return user_id + session.
+    import re as _re
+    sess_parts = sess.split(".")
+    # expires_at: parse from token payload if possible, else opaque
+    try:
+        import base64 as _b64
+        padded = sess_parts[1] + "==="
+        payload = json.loads(_b64.urlsafe_b64decode(padded))
+        expires_at = payload.get("exp")
+    except Exception:
+        expires_at = None
+
+    _lib.respond("200 OK", {
+        "user_id": user_id,
+        "session": sess,
+        "expires_at": expires_at,
+    })
+
+
+def user_show(uid):
+    """Session-authed — return JSON user profile."""
+    auth_user(uid)
+    out = _run(["api-user-show", uid])
+    _lib.respond("200 OK", out)
+
+
+def user_accounts_list(uid):
+    """Session-authed — list accounts owned by this user."""
+    auth_user(uid)
+    tsv_out = _run(["api-user-accounts", "list", uid], parse_json=False)
+    try:
+        data = json.loads(tsv_out)
+    except json.JSONDecodeError:
+        _lib.respond("502 Bad Gateway", {"error": "bad_json"})
+    _lib.respond("200 OK", {"accounts": data})
+
+
+def user_accounts_create(uid):
+    """Session-authed — create an account owned by this user."""
+    auth_user(uid)
+    body = _lib.read_body()
+    hint = body.get("hint", "")
+    invite_code = body.get("invite_code", "")
+    args = ["api-accounts-create", "--owner-user", uid]
+    if hint:
+        args += ["--hint", hint]
+    if invite_code:
+        args += ["--invite-code", invite_code]
+    out = _run(args)
+    _lib.respond("201 Created", out)
+
+
+def user_account_apikey(uid, acct):
+    """Session-authed — retrieve API key for an account owned by this user."""
+    auth_user(uid)
+    out = _run(["api-user-apikey", uid, acct])
+    _lib.respond("200 OK", out)
+
+
+def user_session_refresh(uid):
+    """Session-authed — refresh the session token."""
+    token = _lib.read_bearer()
+    # verify first (auth_user will fail early if invalid)
+    auth_user(uid)
+    out = _run(["_session-token", "refresh", "--token", token],
+               parse_json=False).strip()
+    _lib.respond("200 OK", {"session": out})
+
+
 # --- dispatcher ---
 
 def dispatch():
     method = os.environ.get("REQUEST_METHOD", "").upper()
     path = os.environ.get("PATH_INFO", "")
     parts = [p for p in path.split("/") if p]
+
+    # POST /register/begin — anonymous, no user_id segment
+    if method == "POST" and parts == ["register", "begin"]:
+        return register_begin()
+
+    # POST / — anonymous finish registration
+    if method == "POST" and not parts:
+        return user_register_finish()
+
     if not parts:
         _lib.respond("404 Not Found", {"error": "no_user_id"})
     uid, tail = parts[0], parts[1:]
     if not USER_ID_RE.match(uid):
         _lib.respond("404 Not Found", {"error": "bad_user_id"})
 
+    # GET /<id> — user profile
     if not tail:
-        _lib.respond("404 Not Found", {"error": "no_route"})
+        if method == "GET":
+            return user_show(uid)
+        _lib.respond("405 Method Not Allowed", {"error": "method_not_allowed"})
 
     # /<id>/passkeys/...
     if tail[0] == "passkeys":
@@ -231,6 +376,29 @@ def dispatch():
         if method == "DELETE" and len(rest) == 1:
             return passkey_delete(uid, rest[0])
         _lib.respond("405 Method Not Allowed", {"error": "no_route"})
+
+    # /<id>/accounts/...
+    if tail[0] == "accounts":
+        rest = tail[1:]
+        # GET/POST /<id>/accounts
+        if not rest:
+            if method == "GET":
+                return user_accounts_list(uid)
+            if method == "POST":
+                return user_accounts_create(uid)
+            _lib.respond("405 Method Not Allowed", {"error": "method_not_allowed"})
+        # GET /<id>/accounts/<acct>/api-key
+        if len(rest) == 2 and rest[1] == "api-key":
+            if method == "GET":
+                return user_account_apikey(uid, rest[0])
+            _lib.respond("405 Method Not Allowed", {"error": "method_not_allowed"})
+        _lib.respond("404 Not Found", {"error": "no_route"})
+
+    # /<id>/session/refresh
+    if tail[0] == "session" and len(tail) == 2 and tail[1] == "refresh":
+        if method == "POST":
+            return user_session_refresh(uid)
+        _lib.respond("405 Method Not Allowed", {"error": "method_not_allowed"})
 
     _lib.respond("404 Not Found", {"error": "no_route"})
 
