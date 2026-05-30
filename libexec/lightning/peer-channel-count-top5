@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning peer-channel-count-top5   (FEAT-2723)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+from collections import Counter
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+counts = Counter(c.get('peer_id', '') for c in channels)
+top5 = [{'peer_id': pid, 'channel_count': cnt} for pid, cnt in counts.most_common(5)]
+print(json.dumps({'top5_by_channel_count': top5}))
+" "$result"

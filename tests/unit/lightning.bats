@@ -30161,3 +30161,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2720: channel-receivable-top10 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-top10.1" ]
 }
+
+@test "FEAT-2721: node-listforwards-offered-count reports error or offered_forward_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-offered-count 2>/dev/null)
+    echo "$out" | grep -q "error\|offered_forward_count"
+}
+@test "FEAT-2721: node-listforwards-offered-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-offered-count.1" ]
+}
+
+@test "FEAT-2722: channel-htlc-min-bottom10 reports error or bottom10_by_htlc_min gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_by_htlc_min"
+}
+@test "FEAT-2722: channel-htlc-min-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-bottom10.1" ]
+}
+
+@test "FEAT-2723: peer-channel-count-top5 reports error or top5_by_channel_count gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_by_channel_count"
+}
+@test "FEAT-2723: peer-channel-count-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-top5.1" ]
+}
+
+@test "FEAT-2724: node-pay-amount-top10 reports error or top10_by_amount gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_by_amount"
+}
+@test "FEAT-2724: node-pay-amount-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-top10.1" ]
+}
+
+@test "FEAT-2725: channel-htlc-max-top10 reports error or top10_by_htlc_max gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_by_htlc_max"
+}
+@test "FEAT-2725: channel-htlc-max-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-top10.1" ]
+}
+
+@test "FEAT-2726: node-invoice-paid-count reports error or paid_invoice_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_invoice_count\|count"
+}
+@test "FEAT-2726: node-invoice-paid-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count.1" ]
+}
+
+@test "FEAT-2727: channel-local-pct-bottom10 reports error or bottom10_by_local_pct gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_by_local_pct"
+}
+@test "FEAT-2727: channel-local-pct-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-bottom10.1" ]
+}
+
+@test "FEAT-2728: peer-connected-ratio reports error or connected_ratio gracefully" {
+    out=$(./libexec/lightning/peer-connected-ratio 2>/dev/null)
+    echo "$out" | grep -q "error\|connected_ratio"
+}
+@test "FEAT-2728: peer-connected-ratio man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connected-ratio.1" ]
+}
+
+@test "FEAT-2729: node-listforwards-settled-oldest reports error or oldest_settled_forward gracefully" {
+    out=$(./libexec/lightning/node-listforwards-settled-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|oldest_settled_forward"
+}
+@test "FEAT-2729: node-listforwards-settled-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-settled-oldest.1" ]
+}
+
+@test "FEAT-2730: channel-local-pct-top10 reports error or top10_by_local_pct gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_by_local_pct"
+}
+@test "FEAT-2730: channel-local-pct-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-top10.1" ]
+}

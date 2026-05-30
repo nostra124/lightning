@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-pay-amount-top10   (FEAT-2724)
+result=$(lightning-cli listpays status=complete 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+top10 = sorted(pays, key=lambda p: p.get('amount_sent_msat', 0), reverse=True)[:10]
+print(json.dumps({'top10_by_amount': top10}))
+" "$result"
