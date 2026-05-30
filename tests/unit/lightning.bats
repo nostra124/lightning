@@ -16134,3 +16134,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-910: channel-policy-local man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-policy-local.1" ]
 }
+
+@test "FEAT-911: node-listchannels-private reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listchannels-private" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-911: node-listchannels-private man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-private.1" ]
+}
+
+@test "FEAT-912: channel-unilateral-fee requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-unilateral-fee" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-912: channel-unilateral-fee man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-unilateral-fee.1" ]
+}
+
+@test "FEAT-913: wallet-sync-status requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-sync-status" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-913: wallet-sync-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-sync-status.1" ]
+}
+
+@test "FEAT-914: node-invoice-total-msat reports error or total_received_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-total-msat" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_received_msat"
+}
+@test "FEAT-914: node-invoice-total-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-total-msat.1" ]
+}
+
+@test "FEAT-915: invoice-list-by-amount requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-by-amount" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-915: invoice-list-by-amount man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-amount.1" ]
+}
+
+@test "FEAT-916: channel-balance-history requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-balance-history" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-916: channel-balance-history man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-history.1" ]
+}
+
+@test "FEAT-917: peer-connection-time requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-connection-time" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-917: peer-connection-time man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connection-time.1" ]
+}
+
+@test "FEAT-918: wallet-last-activity requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-last-activity" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-918: wallet-last-activity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-last-activity.1" ]
+}
+
+@test "FEAT-919: node-listpays-failed reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listpays-failed" 2>/dev/null)
+	echo "$out" | grep -q "error\|count\|\[\]"
+}
+@test "FEAT-919: node-listpays-failed man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-failed.1" ]
+}
+
+@test "FEAT-920: channel-htlc-max-local requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-max-local" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-920: channel-htlc-max-local man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-local.1" ]
+}
