@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning node-pay-count-year   (FEAT-2794)
+result=$(lightning-cli listpays status=complete 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+now = time.time()
+year_start = now - 365 * 24 * 3600
+count = sum(1 for p in pays if p.get('created_at', 0) >= year_start)
+print(json.dumps({'pay_count_year': count}))
+" "$result"
