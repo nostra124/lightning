@@ -31851,3 +31851,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2940: node-pay-fee-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-avg.1" ]
 }
+
+@test "FEAT-2941: channel-receivable-variance reports error or receivable_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_variance_msat"
+}
+@test "FEAT-2941: channel-receivable-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-variance.1" ]
+}
+
+@test "FEAT-2942: node-pay-fee-median reports error or fee_median_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_median_msat"
+}
+@test "FEAT-2942: node-pay-fee-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-median.1" ]
+}
+
+@test "FEAT-2943: channel-local-reserve-variance reports error or local_reserve_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_variance_msat"
+}
+@test "FEAT-2943: channel-local-reserve-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-variance.1" ]
+}
+
+@test "FEAT-2944: peer-capacity-max reports error or capacity_max_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-max 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_max_msat"
+}
+@test "FEAT-2944: peer-capacity-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-max.1" ]
+}
+
+@test "FEAT-2945: channel-remote-reserve-variance reports error or remote_reserve_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_variance_msat"
+}
+@test "FEAT-2945: channel-remote-reserve-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-variance.1" ]
+}
+
+@test "FEAT-2946: node-listforwards-in-msat-median reports error or in_msat_median gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-median 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_median"
+}
+@test "FEAT-2946: node-listforwards-in-msat-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-median.1" ]
+}
+
+@test "FEAT-2947: channel-fee-base-variance reports error or fee_base_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_variance_msat"
+}
+@test "FEAT-2947: channel-fee-base-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-variance.1" ]
+}
+
+@test "FEAT-2948: peer-capacity-stddev reports error or capacity_stddev_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_stddev_msat"
+}
+@test "FEAT-2948: peer-capacity-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-stddev.1" ]
+}
+
+@test "FEAT-2949: channel-fee-ppm-variance reports error or fee_ppm_variance gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_variance"
+}
+@test "FEAT-2949: channel-fee-ppm-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-variance.1" ]
+}
+
+@test "FEAT-2950: node-listforwards-out-msat-median reports error or out_msat_median gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-median 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_median"
+}
+@test "FEAT-2950: node-listforwards-out-msat-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-median.1" ]
+}
