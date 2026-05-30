@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-notes-update <wallet_name> <note_id> <body>   (FEAT-1063)
+if [ $# -lt 3 ]; then
+    echo '{"error":"usage: wallet-notes-update <wallet_name> <note_id> <body>"}'
+    exit 0
+fi
+wname="$1"; nid="$2"; body="$3"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"wallet_not_found"}'
+    exit 0
+fi
+sqlite3 "$db" "UPDATE notes SET body='$body' WHERE id='$nid';" 2>/dev/null
+echo "{\"ok\":true,\"wallet\":\"$wname\",\"updated\":\"$nid\"}"

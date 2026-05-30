@@ -1,23 +1,15 @@
-.TH "LIGHTNING-NODE-CHANNEL-COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-NODE_CHANNEL_COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node-channel-count \- count channels grouped by state
+lightning-node-channel-count \- FEAT-1064 node-channel-count
 .SH SYNOPSIS
 .B lightning node-channel-count
 .SH DESCRIPTION
-Returns the total channel count and a breakdown by state (e.g.\&
-.BR CHANNELD_NORMAL ,
-.BR CHANNELD_AWAITING_LOCKIN ,
-etc.).
-Returns an error object if the daemon is unreachable.
+node-channel-count for lightning CLI (FEAT-1064).
 .PP
-Output:
-.nf
-{"total":N,"by_state":{"CHANNELD_NORMAL":N,...}}
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-channel-list (1),
-.BR lightning-channel-pending (1)
+.BR lightning(1)

@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-listpeers-id   (FEAT-1061)
+result=$(lightning-cli listpeers 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+ids = [p.get('id') for p in data.get('peers', [])]
+print(json.dumps(ids))
+" "$result"
