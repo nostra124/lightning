@@ -1,22 +1,15 @@
-.TH "LIGHTNING-INVOICE-LIST-RECENT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-INVOICE_LIST_RECENT" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-invoice-list-recent \- list most recently created invoices
+lightning-invoice-list-recent \- list most recent invoices
 .SH SYNOPSIS
 .B lightning invoice-list-recent
-.RB [ --limit
-.IR N ]
 .SH DESCRIPTION
-Returns the most recently created invoices sorted by expiry time.
-Default limit is 10.
+List most recent invoices.
 .PP
-Output:
-.nf
-[{label, status, amount_msat, expires_at}]
-.fi
+Output: JSON object or array from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-invoice-list-pending (1),
-.BR lightning-invoice-list-paid (1)
+.BR lightning(1)

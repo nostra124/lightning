@@ -12874,3 +12874,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-540: channel-fees-earned man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fees-earned.1" ]
 }
+
+@test "FEAT-541: node-spendable-msat reports error or spendable_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-spendable-msat" 2>/dev/null)
+	echo "$out" | grep -q "error\|spendable_msat"
+}
+
+@test "FEAT-541: node-spendable-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-spendable-msat.1" ]
+}
+
+@test "FEAT-542: channel-reserve-msat requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-reserve-msat" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-542: channel-reserve-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-msat.1" ]
+}
+
+@test "FEAT-543: wallet-pin-check requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-check" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-543: wallet-pin-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-check.1" ]
+}
+
+@test "FEAT-544: node-forwards-pending reports error or pending_forwards gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-forwards-pending" 2>/dev/null)
+	echo "$out" | grep -q "error\|pending_forwards"
+}
+
+@test "FEAT-544: node-forwards-pending man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-forwards-pending.1" ]
+}
+
+@test "FEAT-545: invoice-bolt12-create reports error or bolt12 gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-bolt12-create" 2>/dev/null)
+	echo "$out" | grep -q "error\|bolt12\|offer_id"
+}
+
+@test "FEAT-545: invoice-bolt12-create man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt12-create.1" ]
+}
+
+@test "FEAT-546: channel-dust-limit requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-dust-limit" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-546: channel-dust-limit man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-dust-limit.1" ]
+}
+
+@test "FEAT-547: peer-features-list requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-features-list" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-547: peer-features-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-features-list.1" ]
+}
+
+@test "FEAT-548: wallet-created-at requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-created-at" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-548: wallet-created-at man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-created-at.1" ]
+}
+
+@test "FEAT-549: node-cltv-delta reports error or cltv_delta gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-cltv-delta" 2>/dev/null)
+	echo "$out" | grep -q "error\|cltv_delta"
+}
+
+@test "FEAT-549: node-cltv-delta man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-cltv-delta.1" ]
+}
+
+@test "FEAT-550: invoice-list-recent returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-recent" 2>/dev/null)
+	echo "$out" | grep -q "\[\|\]"
+}
+
+@test "FEAT-550: invoice-list-recent man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-recent.1" ]
+}

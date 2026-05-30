@@ -1,32 +1,15 @@
-.TH "LIGHTNING-WALLET-PIN-CHECK" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET_PIN_CHECK" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-pin-check \- verify a PIN against the stored hash
+lightning-wallet-pin-check \- verify a wallet PIN
 .SH SYNOPSIS
 .B lightning wallet-pin-check
-.I wallet
-.I pin
 .SH DESCRIPTION
-Hashes
-.I pin
-with SHA-256 and compares it to the stored
-.B pin_hash
-in the wallet database.
-Returns
-.B {"ok":true,"match":true}
-on success or
-.B {"ok":true,"match":false}
-on mismatch.
-The PIN is never stored in plain text.
+Verify a wallet PIN.
 .PP
-Output:
-.nf
-{"ok":true,"match":true|false}
-{"ok":false,"reason":...}
-.fi
+Output: JSON object or array from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-wallet-pin-set (1),
-.BR lightning-wallet-check (1)
+.BR lightning(1)
