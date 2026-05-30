@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning peer-their-reserve-max   (FEAT-2603)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+totals = {}
+for c in channels:
+    pid = c.get('peer_id', '')
+    totals[pid] = totals.get(pid, 0) + c.get('their_reserve_msat', 0)
+if not totals:
+    print(json.dumps({'their_reserve_msat': None, 'peer_id': None}))
+else:
+    best = max(totals, key=lambda k: totals[k])
+    print(json.dumps({'peer_id': best, 'their_reserve_msat': totals[best]}))
+" "$result"
