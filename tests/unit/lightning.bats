@@ -12369,3 +12369,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-495: channel-set-public man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-set-public.1" ]
 }
+
+# FEAT-496 — node-pending-forwards verb
+
+@test "FEAT-496: node-pending-forwards verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-pending-forwards" ]
+}
+
+@test "FEAT-496: node-pending-forwards reports error or forwards gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-pending-forwards" 2>/dev/null)
+	echo "$out" | grep -q "error\|pending_count"
+}
+
+@test "FEAT-496: node-pending-forwards man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pending-forwards.1" ]
+}
+
+# FEAT-497 — wallet-ledger-summary verb
+
+@test "FEAT-497: wallet-ledger-summary verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-ledger-summary" ]
+}
+
+@test "FEAT-497: wallet-ledger-summary reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-ledger-summary" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-497: wallet-ledger-summary reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-ledger-summary" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-497: wallet-ledger-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-ledger-summary.1" ]
+}
+
+# FEAT-498 — node-route-find verb
+
+@test "FEAT-498: node-route-find verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-route-find" ]
+}
+
+@test "FEAT-498: node-route-find reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-route-find" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-498: node-route-find man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-route-find.1" ]
+}
+
+# FEAT-499 — channel-close-all verb
+
+@test "FEAT-499: channel-close-all verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-all" ]
+}
+
+@test "FEAT-499: channel-close-all reports error without --force gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-all" 2>/dev/null)
+	echo "$out" | grep -q "error\|refusing\|lightning-cli"
+}
+
+@test "FEAT-499: channel-close-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-all.1" ]
+}
+
+# FEAT-500 — node-backup-state verb
+
+@test "FEAT-500: node-backup-state verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-backup-state" ]
+}
+
+@test "FEAT-500: node-backup-state reports error or backup status gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-backup-state" /tmp 2>/dev/null)
+	echo "$out" | grep -q "error\|ok"
+}
+
+@test "FEAT-500: node-backup-state man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-backup-state.1" ]
+}
