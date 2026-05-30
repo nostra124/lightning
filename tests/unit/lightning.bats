@@ -8825,3 +8825,18 @@ snippet = src[idx:idx+600]
 assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 "
 }
+
+# FEAT-271 — MCP account_transfer tool
+
+@test "FEAT-271: MCP tools/list includes account_transfer" {
+	grep -q '"account_transfer"' share/lightning/wellknown/api/mcp.py
+}
+
+@test "FEAT-271: account_transfer tool requires account auth" {
+	python3 -c "
+src = open('share/lightning/wellknown/api/mcp.py').read()
+idx = src.index('\"account_transfer\"')
+snippet = src[idx:idx+900]
+assert '\"auth\": \"account\"' in snippet or \"'auth': 'account'\" in snippet, repr(snippet)
+"
+}

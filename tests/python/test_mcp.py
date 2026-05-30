@@ -104,7 +104,7 @@ def test_tools_list_returns_tools(api_dir, bin_shim, lightning_stub, cgi, parse)
         "account_create", "account_balance", "account_topup",
         "account_withdraw", "account_pay", "account_recv",
         "account_recv_reusable", "account_history", "account_close",
-        "node_info", "channel_list", "node_funds",
+        "node_info", "channel_list", "node_funds", "account_transfer",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -300,6 +300,21 @@ def test_resources_read_node_info(api_dir, bin_shim, lightning_stub, cgi, parse)
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
     j = json.loads(body_out)
     assert "pubkey" in j["result"]["contents"][0]["text"]
+
+
+def test_tools_call_account_transfer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    ID2 = "bcrt1qtestaddress000000000000000000000000000088yyyy"
+    body = f'{{"transfer_id":"xfer:1","from":"{ID}","to":"{ID2}","amount_sat":10}}'
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-transfer": (0, body)})
+    payload = rpc("tools/call",
+                  {"name": "account_transfer",
+                   "arguments": {"account_id": ID, "to": ID2, "sat": 10}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload,
+                               headers={"HTTP_AUTHORIZATION": "Bearer lt_x"})
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["amount_sat"] == 10
 
 
 def test_tools_call_channel_list(api_dir, bin_shim, lightning_stub, cgi, parse):

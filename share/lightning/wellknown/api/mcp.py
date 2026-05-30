@@ -276,6 +276,31 @@ TOOLS = [
         "argmap": lambda a: [],
     },
     {
+        "name": "account_transfer",
+        "description": "Instantly move sats between two accounts on the "
+                       "same node (atomic intra-node ledger transfer). "
+                       "`to` may be another account ID or a label. "
+                       "Returns {transfer_id, from, to, amount_sat}.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["account_id", "to", "sat"],
+            "properties": {
+                "account_id": ID_PROP,
+                "to": {"type": "string", "minLength": 1,
+                       "description": "Destination account ID or label."},
+                "sat": {"type": "integer", "minimum": 1},
+                "note": {"type": "string", "maxLength": 200},
+            },
+            "additionalProperties": False,
+        },
+        "auth": "account",
+        "verb": ["api-account-transfer"],
+        "argmap": lambda a: (
+            [a["account_id"], a["to"], str(a["sat"])]
+            + (["--note", a["note"]] if a.get("note") else [])
+        ),
+    },
+    {
         "name": "channel_list",
         "description": "List all active Lightning channels on this node. "
                        "Returns an array of {peer_id, alias, channel_id, "
