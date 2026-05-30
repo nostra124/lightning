@@ -34251,3 +34251,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3240: node-invoice-pending-amount-min man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-amount-min.1" ]
 }
+
+@test "FEAT-3241: peer-capacity-range reports error or capacity_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-range 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_range_peer"
+}
+@test "FEAT-3241: peer-capacity-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-range.1" ]
+}
+
+@test "FEAT-3242: channel-fee-base-kurtosis-weekly reports error or fee_base_kurtosis_weekly gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_kurtosis_weekly"
+}
+@test "FEAT-3242: channel-fee-base-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-3243: node-invoice-pending-amount-stddev reports error or pending_amount_stddev gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_amount_stddev"
+}
+@test "FEAT-3243: node-invoice-pending-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-amount-stddev.1" ]
+}
+
+@test "FEAT-3244: peer-local-balance-range reports error or local_balance_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_range_peer"
+}
+@test "FEAT-3244: peer-local-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-range.1" ]
+}
+
+@test "FEAT-3245: channel-fee-ppm-skewness-weekly reports error or fee_ppm_skewness_weekly gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-skewness-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_skewness_weekly"
+}
+@test "FEAT-3245: channel-fee-ppm-skewness-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-skewness-weekly.1" ]
+}
+
+@test "FEAT-3246: node-invoice-pending-amount-range reports error or pending_amount_range gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_amount_range"
+}
+@test "FEAT-3246: node-invoice-pending-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-amount-range.1" ]
+}
+
+@test "FEAT-3247: peer-remote-balance-range reports error or remote_balance_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_range_peer"
+}
+@test "FEAT-3247: peer-remote-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-range.1" ]
+}
+
+@test "FEAT-3248: channel-local-balance-range reports error or local_balance_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_range_channel"
+}
+@test "FEAT-3248: channel-local-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-range.1" ]
+}
+
+@test "FEAT-3249: node-pay-amount-range-weekly reports error or amount_range_weekly gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-range-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_range_weekly"
+}
+@test "FEAT-3249: node-pay-amount-range-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-range-weekly.1" ]
+}
+
+@test "FEAT-3250: peer-htlc-count-max reports error or htlc_count_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_max_peer"
+}
+@test "FEAT-3250: peer-htlc-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-max.1" ]
+}
