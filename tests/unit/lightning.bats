@@ -32091,3 +32091,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2970: node-listforwards-in-msat-stddev man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-stddev.1" ]
 }
+
+@test "FEAT-2971: channel-both-reserves-stddev reports error or both_reserves_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_stddev_msat"
+}
+@test "FEAT-2971: channel-both-reserves-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-stddev.1" ]
+}
+
+@test "FEAT-2972: node-listforwards-out-msat-stddev reports error or out_msat_stddev gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_stddev"
+}
+@test "FEAT-2972: node-listforwards-out-msat-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-stddev.1" ]
+}
+
+@test "FEAT-2973: channel-fee-earned-stddev reports error or fee_earned_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_stddev_msat"
+}
+@test "FEAT-2973: channel-fee-earned-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-stddev.1" ]
+}
+
+@test "FEAT-2974: peer-htlc-count-total reports error or htlc_count_total_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_total_peer"
+}
+@test "FEAT-2974: peer-htlc-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-total.1" ]
+}
+
+@test "FEAT-2975: channel-local-pct-stddev reports error or local_pct_stddev_ch gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_stddev_ch"
+}
+@test "FEAT-2975: channel-local-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-stddev.1" ]
+}
+
+@test "FEAT-2976: node-listforwards-fee-total-daily reports error or fee_total_daily_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_daily_msat"
+}
+@test "FEAT-2976: node-listforwards-fee-total-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-daily.1" ]
+}
+
+@test "FEAT-2977: channel-remote-pct-stddev reports error or remote_pct_stddev_ch gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_stddev_ch"
+}
+@test "FEAT-2977: channel-remote-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-stddev.1" ]
+}
+
+@test "FEAT-2978: peer-htlc-count-max reports error or htlc_count_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_max_peer"
+}
+@test "FEAT-2978: peer-htlc-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-max.1" ]
+}
+
+@test "FEAT-2979: channel-capacity-median reports error or capacity_median_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-median 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_median_msat"
+}
+@test "FEAT-2979: channel-capacity-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-median.1" ]
+}
+
+@test "FEAT-2980: node-listforwards-fee-total-weekly reports error or fee_total_weekly_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_weekly_msat"
+}
+@test "FEAT-2980: node-listforwards-fee-total-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-weekly.1" ]
+}
