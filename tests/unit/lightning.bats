@@ -24381,3 +24381,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1980: channel-capacity-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-msat.1" ]
 }
+
+@test "FEAT-1981: node-listpays-complete-first reports error or pay gracefully" {
+    out=$(./libexec/lightning/node-listpays-complete-first 2>/dev/null)
+    echo "$out" | grep -q "error\|pay"
+}
+@test "FEAT-1981: node-listpays-complete-first man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-complete-first.1" ]
+}
+
+@test "FEAT-1982: channel-peer-id requires arg" {
+    out=$(./libexec/lightning/channel-peer-id 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1982: channel-peer-id man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-id.1" ]
+}
+
+@test "FEAT-1983: wallet-notes-backup requires arg" {
+    out=$(./libexec/lightning/wallet-notes-backup 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1983: wallet-notes-backup man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-backup.1" ]
+}
+
+@test "FEAT-1984: node-graph-direct-peers reports error or peer_count gracefully" {
+    out=$(./libexec/lightning/node-graph-direct-peers 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_count"
+}
+@test "FEAT-1984: node-graph-direct-peers man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-direct-peers.1" ]
+}
+
+@test "FEAT-1985: channel-funding-sat requires arg" {
+    out=$(./libexec/lightning/channel-funding-sat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1985: channel-funding-sat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-sat.1" ]
+}
+
+@test "FEAT-1986: peer-capacity-total reports error or peer_count gracefully" {
+    out=$(./libexec/lightning/peer-capacity-total 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_count"
+}
+@test "FEAT-1986: peer-capacity-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-total.1" ]
+}
+
+@test "FEAT-1987: node-invoice-avg-msat reports error or total_invoices gracefully" {
+    out=$(./libexec/lightning/node-invoice-avg-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|total_invoices"
+}
+@test "FEAT-1987: node-invoice-avg-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-avg-msat.1" ]
+}
+
+@test "FEAT-1988: channel-feerate-perkw requires arg" {
+    out=$(./libexec/lightning/channel-feerate-perkw 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1988: channel-feerate-perkw man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate-perkw.1" ]
+}
+
+@test "FEAT-1989: node-graph-channel-peer-count reports error or unique_sources gracefully" {
+    out=$(./libexec/lightning/node-graph-channel-peer-count 2>/dev/null)
+    echo "$out" | grep -q "error\|unique_sources"
+}
+@test "FEAT-1989: node-graph-channel-peer-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channel-peer-count.1" ]
+}
+
+@test "FEAT-1990: channel-balance-pct requires arg" {
+    out=$(./libexec/lightning/channel-balance-pct 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1990: channel-balance-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-pct.1" ]
+}

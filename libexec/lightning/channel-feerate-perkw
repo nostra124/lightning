@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning channel-feerate-perkw <channel_id>   (FEAT-1880)
+# lightning channel-feerate-perkw <channel_id>   (FEAT-1988)
 if [ $# -lt 1 ]; then echo '{"error":"usage: channel-feerate-perkw <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
@@ -7,10 +7,11 @@ python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
 cid = sys.argv[2]
-for ch in data.get('channels', []):
+channels = data.get('channels', [])
+for ch in channels:
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        fr = ch.get('feerate', {})
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'perkw': fr.get('perkw') if fr else None}))
+        feerate = ch.get('feerate', {})
+        print(json.dumps({'channel_id': cid, 'feerate_perkw': feerate.get('perkw'), 'feerate_perkb': feerate.get('perkb')}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"
