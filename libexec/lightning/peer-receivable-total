@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning peer-receivable-total   (FEAT-2563)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+totals = {}
+for c in channels:
+    peer = c.get('peer_id', '')
+    receivable = c.get('receivable_msat', 0)
+    totals[peer] = totals.get(peer, 0) + receivable
+print(json.dumps({'peer_receivable_totals': totals}))
+" "$result"

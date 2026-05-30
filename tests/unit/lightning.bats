@@ -28891,3 +28891,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2560: channel-their-reserve-min man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-min.1" ]
 }
+
+@test "FEAT-2561: node-listforwards-fee-stddev reports error or fee_msat_stddev gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_msat_stddev"
+}
+@test "FEAT-2561: node-listforwards-fee-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-stddev.1" ]
+}
+
+@test "FEAT-2562: channel-local-balance-variance reports error or local_balance_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_variance_msat"
+}
+@test "FEAT-2562: channel-local-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-variance.1" ]
+}
+
+@test "FEAT-2563: peer-receivable-total reports error or peer_receivable_totals gracefully" {
+    out=$(./libexec/lightning/peer-receivable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_receivable_totals"
+}
+@test "FEAT-2563: peer-receivable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-total.1" ]
+}
+
+@test "FEAT-2564: node-invoice-unpaid-oldest reports error or oldest_unpaid_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|oldest_unpaid_invoice"
+}
+@test "FEAT-2564: node-invoice-unpaid-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-oldest.1" ]
+}
+
+@test "FEAT-2565: channel-capacity-skewness reports error or capacity_skewness gracefully" {
+    out=$(./libexec/lightning/channel-capacity-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_skewness"
+}
+@test "FEAT-2565: channel-capacity-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-skewness.1" ]
+}
+
+@test "FEAT-2566: node-pay-fee-median reports error or fee_median_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_median_msat"
+}
+@test "FEAT-2566: node-pay-fee-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-median.1" ]
+}
+
+@test "FEAT-2567: channel-local-balance-skewness reports error or local_balance_skewness gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_skewness"
+}
+@test "FEAT-2567: channel-local-balance-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-skewness.1" ]
+}
+
+@test "FEAT-2568: peer-htlc-value-max reports error or htlc_value_msat gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_msat"
+}
+@test "FEAT-2568: peer-htlc-value-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-max.1" ]
+}
+
+@test "FEAT-2569: node-listinvoices-bolt12-list reports error or bolt12_invoices gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-bolt12-list 2>/dev/null)
+    echo "$out" | grep -q "error\|bolt12_invoices"
+}
+@test "FEAT-2569: node-listinvoices-bolt12-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-bolt12-list.1" ]
+}
+
+@test "FEAT-2570: channel-our-reserve-avg reports error or our_reserve_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-our-reserve-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|our_reserve_avg_msat"
+}
+@test "FEAT-2570: channel-our-reserve-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-avg.1" ]
+}

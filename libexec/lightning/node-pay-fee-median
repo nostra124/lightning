@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning node-pay-fee-median   (FEAT-2566)
+result=$(lightning-cli listsendpays status=complete 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+payments = data.get('payments', [])
+fees = sorted([p.get('amount_sent_msat', 0) - p.get('amount_msat', 0) for p in payments if 'amount_sent_msat' in p and 'amount_msat' in p])
+if not fees:
+    median = 0
+else:
+    n = len(fees)
+    mid = n // 2
+    median = fees[mid] if n % 2 == 1 else (fees[mid - 1] + fees[mid]) / 2
+print(json.dumps({'fee_median_msat': median}))
+" "$result"

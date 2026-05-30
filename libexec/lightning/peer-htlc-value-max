@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning peer-htlc-value-max   (FEAT-2568)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+totals = {}
+for c in channels:
+    peer = c.get('peer_id', '')
+    htlcs = c.get('htlcs', [])
+    total = sum(h.get('amount_msat', 0) for h in htlcs)
+    totals[peer] = totals.get(peer, 0) + total
+if not totals:
+    print(json.dumps({'htlc_value_msat': None, 'peer_id': None}))
+else:
+    best_peer = max(totals, key=totals.get)
+    print(json.dumps({'htlc_value_msat': totals[best_peer], 'peer_id': best_peer}))
+" "$result"
