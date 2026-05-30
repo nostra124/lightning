@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning wallet-pin-set <wallet> <pin>   (FEAT-336)
+set -e
+wname="${1:-default}"
+pin="$2"
+if [ -z "$pin" ]; then
+    echo '{"error":"usage: wallet-pin-set <wallet> <pin>"}'
+    exit 0
+fi
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"ok":false,"reason":"database_not_found"}'
+    exit 0
+fi
+pin_hash=$(printf '%s' "$pin" | sha256sum | awk '{print $1}')
+sqlite3 "$db" "INSERT OR REPLACE INTO secrets (key, value) VALUES ('pin_hash', '$pin_hash');" 2>/dev/null || {
+    echo '{"ok":false,"reason":"write_failed"}'
+    exit 0
+}
+echo '{"ok":true}'

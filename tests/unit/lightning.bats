@@ -9814,3 +9814,53 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-333: peer-disconnect-all man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect-all.1" ]
 }
+
+# FEAT-334 — channel-htlc-count verb
+
+@test "FEAT-334: channel-htlc-count verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-count" ]
+}
+
+@test "FEAT-334: channel-htlc-count returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-count" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-334: channel-htlc-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count.1" ]
+}
+
+# FEAT-335 — node-ping verb
+
+@test "FEAT-335: node-ping verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-ping" ]
+}
+
+@test "FEAT-335: node-ping reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-ping" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-335: node-ping man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-ping.1" ]
+}
+
+# FEAT-336 — wallet-pin-set verb
+
+@test "FEAT-336: wallet-pin-set verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-set" ]
+}
+
+@test "FEAT-336: wallet-pin-set reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-set" 2>/dev/null)
+	echo "$out" | grep -q "error\|database_not_found"
+}
+
+@test "FEAT-336: wallet-pin-set reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-set" default testpin 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-336: wallet-pin-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-set.1" ]
+}

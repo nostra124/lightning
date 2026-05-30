@@ -1,0 +1,24 @@
+#!/bin/bash
+# lightning channel-htlc-count [<channel_id>]   (FEAT-334)
+set -e
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+filter="${1:-}"
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+filt = sys.argv[2]
+channels = data.get('channels', [])
+if filt:
+    channels = [c for c in channels if c.get('channel_id') == filt]
+out = []
+for c in channels:
+    htlcs = c.get('htlcs', [])
+    out.append({
+        'channel_id': c.get('channel_id', ''),
+        'peer_id': c.get('peer_id', ''),
+        'htlc_count': len(htlcs),
+        'offered': sum(1 for h in htlcs if h.get('direction') == 'out'),
+        'received': sum(1 for h in htlcs if h.get('direction') == 'in'),
+    })
+print(json.dumps(out, separators=(',', ':')))
+" "$result" "$filter"
