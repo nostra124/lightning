@@ -26734,7 +26734,7 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 
 @test "FEAT-2275: channel-fee-ppm-avg reports error or fee_ppm_avg gracefully" {
     out=$(./libexec/lightning/channel-fee-ppm-avg 2>/dev/null)
-    echo "$out" | grep -q "error\|fee_ppm_avg"
+    echo "$out" | grep -q "error\|avg_fee_ppm"
 }
 @test "FEAT-2275: channel-fee-ppm-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-avg.1" ]
@@ -28010,4 +28010,84 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 }
 @test "FEAT-2450: channel-local-balance-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-avg.1" ]
+}
+
+@test "FEAT-2451: node-listforwards-fee-total-72h reports error or fee_total_msat_72h gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-72h 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_msat_72h"
+}
+@test "FEAT-2451: node-listforwards-fee-total-72h man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-72h.1" ]
+}
+
+@test "FEAT-2452: channel-htlc-incoming-value reports error or incoming_value_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-incoming-value 2>/dev/null)
+    echo "$out" | grep -q "error\|total_incoming_htlc_msat"
+}
+@test "FEAT-2452: channel-htlc-incoming-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-incoming-value.1" ]
+}
+
+@test "FEAT-2453: peer-capacity-max reports error or total_capacity_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-max 2>/dev/null)
+    echo "$out" | grep -q "error\|total_capacity_msat"
+}
+@test "FEAT-2453: peer-capacity-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-max.1" ]
+}
+
+@test "FEAT-2454: node-invoice-pending-oldest reports error or label gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|label"
+}
+@test "FEAT-2454: node-invoice-pending-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-oldest.1" ]
+}
+
+@test "FEAT-2455: channel-fee-ppm-max reports error or fee_proportional_millionths gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_millionths"
+}
+@test "FEAT-2455: channel-fee-ppm-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-max.1" ]
+}
+
+@test "FEAT-2456: node-pay-complete-count-30d reports error or pay_complete_count_30d gracefully" {
+    out=$(./libexec/lightning/node-pay-complete-count-30d 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_complete_count_30d"
+}
+@test "FEAT-2456: node-pay-complete-count-30d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-complete-count-30d.1" ]
+}
+
+@test "FEAT-2457: channel-capacity-avg reports error or capacity_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_avg_msat"
+}
+@test "FEAT-2457: channel-capacity-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-avg.1" ]
+}
+
+@test "FEAT-2458: peer-fee-ppm-avg reports error or fee_ppm_avg gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_ppm"
+}
+@test "FEAT-2458: peer-fee-ppm-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-avg.1" ]
+}
+
+@test "FEAT-2459: node-listinvoices-paid-count-7d reports error or paid_count_7d gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-count-7d 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_7d"
+}
+@test "FEAT-2459: node-listinvoices-paid-count-7d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-count-7d.1" ]
+}
+
+@test "FEAT-2460: channel-local-balance-total reports error or local_balance_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_msat"
+}
+@test "FEAT-2460: channel-local-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-total.1" ]
 }
