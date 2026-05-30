@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning wallet-notes-list-keys <wallet_name>   (FEAT-1183)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-list-keys <wallet_name>"}'; exit 0; fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+sqlite3 "$db" "SELECT key FROM notes;" 2>/dev/null | python3 -c "
+import sys, json
+keys = [line.rstrip('\n') for line in sys.stdin if line.strip()]
+print(json.dumps({'keys': keys, 'count': len(keys)}))
+"
