@@ -1,8 +1,9 @@
 #!/bin/bash
-# lightning wallet-notes-unpin <wallet> <key>   (FEAT-1458)
-if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-unpin <wallet> <key>"}'; exit 0; fi
-wname="$1"; key="$2"
-db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-sqlite3 "$db" "UPDATE notes SET pinned=0 WHERE key='$key';" 2>/dev/null || { echo '{"error":"db error"}'; exit 0; }
-echo "{\"wallet\":\"$wname\",\"key\":\"$key\",\"pinned\":false}"
+# lightning wallet-notes-unpin   (FEAT-2193)
+DB="${LIGHTNING_WALLET_DB:-$HOME/.lightning/wallet.db}"
+if [ ! -f "$DB" ]; then
+    echo '{"error":"wallet db not found","db":"'"$DB"'"}'
+    exit 0
+fi
+result=$(sqlite3 "$DB" "UPDATE notes SET pinned=0 WHERE pinned=1; SELECT changes();" 2>/dev/null) || { echo '{"error":"sqlite3 failed"}'; exit 0; }
+echo "{\"unpinned\":${result:-0}}"

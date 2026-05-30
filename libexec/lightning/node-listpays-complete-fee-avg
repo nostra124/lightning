@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning node-listpays-complete-fee-avg   (FEAT-2191)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+complete = [p for p in pays if p.get('status') == 'complete']
+if not complete:
+    print(json.dumps({'avg_fee_msat': 0, 'complete_count': 0}))
+    sys.exit(0)
+fees = []
+for p in complete:
+    sent = p.get('amount_sent_msat', 0)
+    amt  = p.get('amount_msat', 0)
+    if isinstance(sent, str): sent = int(sent.rstrip('msat'))
+    if isinstance(amt,  str): amt  = int(amt.rstrip('msat'))
+    fees.append(sent - amt)
+avg = sum(fees) / len(fees)
+print(json.dumps({'avg_fee_msat': avg, 'complete_count': len(complete)}))
+" "$result"

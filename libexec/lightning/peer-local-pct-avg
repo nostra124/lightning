@@ -1,0 +1,23 @@
+#!/bin/bash
+# lightning peer-local-pct-avg   (FEAT-2196)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peers = {}
+for ch in channels:
+    pid = ch.get('peer_id','unknown')
+    local = ch.get('to_us_msat', 0)
+    total = ch.get('total_msat', 0)
+    if isinstance(local, str): local = int(local.rstrip('msat'))
+    if isinstance(total, str): total = int(total.rstrip('msat'))
+    if pid not in peers: peers[pid] = []
+    peers[pid].append(local / total * 100 if total else 0)
+if not peers:
+    print(json.dumps({'avg_local_pct': 0, 'peer_count': 0}))
+    sys.exit(0)
+peer_avgs = [sum(v)/len(v) for v in peers.values()]
+overall = sum(peer_avgs) / len(peer_avgs)
+print(json.dumps({'avg_local_pct': round(overall, 2), 'peer_count': len(peers)}))
+" "$result"
