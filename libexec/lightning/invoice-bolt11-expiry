@@ -1,17 +1,11 @@
 #!/bin/bash
-# lightning invoice-bolt11-expiry <label>   (FEAT-1695)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: invoice-bolt11-expiry <label>"}'; exit 0
-fi
-label="$1"
-result=$(lightning-cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+# lightning invoice-bolt11-expiry <bolt11>   (FEAT-1845)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-bolt11-expiry <bolt11>"}'; exit 0; fi
+bolt11="$1"
+result=$(lightning-cli decodepay "$bolt11" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-invs = data.get('invoices', [])
-if not invs:
-    print(json.dumps({'error': 'invoice not found'}))
-    sys.exit(0)
-inv = invs[0]
-print(json.dumps({'label': inv.get('label'), 'expires_at': inv.get('expires_at')}))
+if 'error' in data: print(json.dumps({'error': data['error']})); sys.exit(0)
+print(json.dumps({'expiry': data.get('expiry'), 'created_at': data.get('created_at')}))
 " "$result"

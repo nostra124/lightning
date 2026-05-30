@@ -23264,3 +23264,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1840: channel-local-balance-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-total.1" ]
 }
+
+@test "FEAT-1841: node-listpays-preimage reports error gracefully" {
+    out=$(./libexec/lightning/node-listpays-preimage 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1841: node-listpays-preimage man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-preimage.1" ]
+}
+
+@test "FEAT-1842: channel-remote-balance-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1842: channel-remote-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-total.1" ]
+}
+
+@test "FEAT-1843: wallet-notes-move-tag reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-move-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1843: wallet-notes-move-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-move-tag.1" ]
+}
+
+@test "FEAT-1844: node-listchannels-htlc-disabled reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listchannels-htlc-disabled 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1844: node-listchannels-htlc-disabled man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-htlc-disabled.1" ]
+}
+
+@test "FEAT-1845: invoice-bolt11-expiry reports error gracefully" {
+    out=$(./libexec/lightning/invoice-bolt11-expiry 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1845: invoice-bolt11-expiry man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-expiry.1" ]
+}
+
+@test "FEAT-1846: channel-our-max-htlc reports error gracefully" {
+    out=$(./libexec/lightning/channel-our-max-htlc 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1846: channel-our-max-htlc man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-max-htlc.1" ]
+}
+
+@test "FEAT-1847: peer-funding-count reports error gracefully" {
+    out=$(./libexec/lightning/peer-funding-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1847: peer-funding-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-funding-count.1" ]
+}
+
+@test "FEAT-1848: wallet-notes-append reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-append 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1848: wallet-notes-append man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-append.1" ]
+}
+
+@test "FEAT-1849: node-graph-short-channel-ids reports error gracefully" {
+    out=$(./libexec/lightning/node-graph-short-channel-ids 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1849: node-graph-short-channel-ids man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-short-channel-ids.1" ]
+}
+
+@test "FEAT-1850: channel-remote-disabled reports error or total gracefully" {
+    out=$(./libexec/lightning/channel-remote-disabled 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1850: channel-remote-disabled man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-disabled.1" ]
+}

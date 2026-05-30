@@ -1,19 +1,10 @@
 #!/bin/bash
-# lightning wallet-notes-append <wallet_name> <note>   (FEAT-723)
-if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-append <wallet_name> <note>"}'; exit 0; fi
-wname="$1"; note="$2"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
+# lightning wallet-notes-append <key> <text>   (FEAT-1848)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-append <key> <text>"}'; exit 0; fi
+key="$1"
+text="$2"
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
 if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-existing=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='notes'" 2>/dev/null) || existing=""
-if [ -n "$existing" ]; then
-    new_notes="$existing
-$note"
-else
-    new_notes="$note"
-fi
-if sqlite3 "$db" "INSERT OR REPLACE INTO meta(key,value) VALUES('notes','$(echo "$new_notes" | sed "s/'/''/g")')" 2>/dev/null; then
-    echo "{\"ok\":true,\"wallet\":\"$wname\"}"
-else
-    echo '{"error":"append failed"}'
-fi
+sqlite3 "$db" "UPDATE notes SET value = value || ' ' || '$text' WHERE key='$key';" 2>/dev/null || { echo '{"error":"db error"}'; exit 0; }
+echo "{\"appended\":true,\"key\":\"$key\"}"
