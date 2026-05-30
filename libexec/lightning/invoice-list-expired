@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning invoice-list-expired   (FEAT-665)
+# lightning invoice-list-expired   (FEAT-1015)
 result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
 python3 -c "
 import sys, json

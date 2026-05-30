@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-feerate-urgent   (FEAT-1019)
+if ! result=$(lightning-cli feerates urgent 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+perkw = data.get('perkw') or {}
+perkb = data.get('perkb') or {}
+print(json.dumps({'feerate_urgent_perkw': perkw.get('urgent'), 'feerate_urgent_perkb': perkb.get('urgent')}))
+" "$result"

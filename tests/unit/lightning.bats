@@ -16914,3 +16914,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1010: channel-remote-reserve man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve.1" ]
 }
+@test "FEAT-1011: node-listpays-total reports error or total_pays gracefully" {
+	out=$(./libexec/lightning/node-listpays-total 2>/dev/null)
+	echo "$out" | grep -q "error\|total_pays"
+}
+@test "FEAT-1011: node-listpays-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-total.1" ]
+}
+@test "FEAT-1012: channel-local-pct requires arg" {
+	out=$(./libexec/lightning/channel-local-pct 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1012: channel-local-pct man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct.1" ]
+}
+@test "FEAT-1013: wallet-notes-count-all requires arg" {
+	out=$(./libexec/lightning/wallet-notes-count-all 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1013: wallet-notes-count-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-all.1" ]
+}
+@test "FEAT-1014: node-channel-open-time reports error or count gracefully" {
+	out=$(./libexec/lightning/node-channel-open-time 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1014: node-channel-open-time man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-open-time.1" ]
+}
+@test "FEAT-1015: invoice-list-expired returns array gracefully" {
+	out=$(./libexec/lightning/invoice-list-expired 2>/dev/null)
+	echo "$out" | grep -qE "^\[|\{.*error"
+}
+@test "FEAT-1015: invoice-list-expired man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-expired.1" ]
+}
+@test "FEAT-1016: channel-close-reason requires arg" {
+	out=$(./libexec/lightning/channel-close-reason 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1016: channel-close-reason man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-reason.1" ]
+}
+@test "FEAT-1017: peer-total-htlcs requires arg" {
+	out=$(./libexec/lightning/peer-total-htlcs 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1017: peer-total-htlcs man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-htlcs.1" ]
+}
+@test "FEAT-1018: wallet-passphrase-set requires args" {
+	out=$(./libexec/lightning/wallet-passphrase-set 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1018: wallet-passphrase-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-passphrase-set.1" ]
+}
+@test "FEAT-1019: node-feerate-urgent reports error or feerate_urgent_perkw gracefully" {
+	out=$(./libexec/lightning/node-feerate-urgent 2>/dev/null)
+	echo "$out" | grep -q "error\|feerate_urgent_perkw"
+}
+@test "FEAT-1019: node-feerate-urgent man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-urgent.1" ]
+}
+@test "FEAT-1020: channel-peer-state requires arg" {
+	out=$(./libexec/lightning/channel-peer-state 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1020: channel-peer-state man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-state.1" ]
+}

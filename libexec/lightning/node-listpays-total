@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-listpays-total   (FEAT-1011)
+if ! result=$(lightning-cli listpays 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+total_msat = sum(p.get('amount_sent_msat', 0) for p in pays if p.get('status') == 'complete')
+print(json.dumps({'total_pays': len(pays), 'total_sent_msat': total_msat}))
+" "$result"
