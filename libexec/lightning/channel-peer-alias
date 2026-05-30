@@ -1,18 +1,15 @@
 #!/bin/bash
-# lightning channel-peer-alias <peer_id>   (FEAT-485)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: channel-peer-alias <peer_id>"}'
-    exit 0
-fi
-peer_id="$1"
-result=$(lightning-cli listnodes "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+# lightning channel-peer-alias <channel_id>   (FEAT-760)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-peer-alias <channel_id>"}'; exit 0; fi
+channel_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
-nodes = json.loads(sys.argv[1]).get('nodes', [])
-peer_id = sys.argv[2]
-node = next((n for n in nodes if n.get('nodeid') == peer_id), None)
-if node:
-    print(json.dumps({'peer_id': peer_id, 'alias': node.get('alias', ''), 'color': node.get('color', '')}, separators=(',', ':')))
-else:
-    print(json.dumps({'error': 'peer_not_found'}))
-" "$result" "$peer_id"
+data = json.loads(sys.argv[1])
+cid = sys.argv[2]
+for ch in data.get('channels', []):
+    if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'peer_id': ch.get('peer_id'), 'alias': ch.get('alias')}))
+        sys.exit(0)
+print(json.dumps({'error': 'channel not found'}))
+" "$result" "$channel_id"

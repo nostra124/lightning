@@ -1,19 +1,13 @@
 #!/bin/bash
-# lightning wallet-delete <wallet_name> --confirm   (FEAT-618)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: wallet-delete <wallet_name> --confirm"}'
-    exit 0
-fi
-wname="$1"; confirm="${2:-}"
-if [ "$confirm" != "--confirm" ]; then
-    echo '{"error":"pass --confirm to delete the wallet"}'
-    exit 0
-fi
+# lightning wallet-delete <wallet_name> <confirm>   (FEAT-753)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-delete <wallet_name> <confirm>"}'; exit 0; fi
+wname="$1"; confirm="$2"
+if [ "$confirm" != "yes" ]; then echo '{"error":"pass confirm=yes to delete"}'; exit 0; fi
 root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-wpath="$root/$wname"
-if [ ! -d "$wpath" ]; then
-    echo '{"error":"wallet not found"}'
-    exit 0
+wdir="$root/$wname"
+if [ ! -d "$wdir" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+if rm -rf "$wdir"; then
+    echo "{\"ok\":true,\"deleted\":\"$wname\"}"
+else
+    echo '{"error":"delete failed"}'
 fi
-rm -rf "$wpath" 2>/dev/null || { echo '{"error":"delete failed"}'; exit 0; }
-echo "{\"ok\":true,\"wallet\":\"$wname\",\"deleted\":true}"

@@ -1,10 +1,12 @@
 .TH "LIGHTNING-NODE_PENDING_FORWARDS" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node-pending-forwards \- list pending (offered) forwards
+lightning-node-pending-forwards \- FEAT-759 node-pending-forwards verb
 .SH SYNOPSIS
-.B lightning node-pending-forwards\n.RI [ output_dir ]
+.B lightning node-pending-forwards
 .SH DESCRIPTION
-Returns forwarding payments currently in the offered state (in-flight).
+node-pending-forwards verb for lightning CLI (FEAT-759).
+.PP
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0

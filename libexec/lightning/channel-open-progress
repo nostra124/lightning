@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning channel-open-progress   (FEAT-752)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+opening_states = ['OPENINGD', 'CHANNELD_AWAITING_LOCKIN', 'DUALOPEND_OPEN_INIT', 'DUALOPEND_AWAITING_LOCKIN']
+pending = [{'channel_id': c.get('channel_id'), 'state': c.get('state')} for c in data.get('channels', []) if c.get('state') in opening_states]
+print(json.dumps({'opening': pending, 'count': len(pending)}))
+" "$result"
