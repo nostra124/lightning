@@ -19174,3 +19174,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1310: channel-spendable-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-msat.1" ]
 }
+
+@test "FEAT-1311: node-pay-avg-msat reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-avg-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1311: node-pay-avg-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-avg-msat.1" ]
+}
+
+@test "FEAT-1312: channel-remote-cltv-delta requires arg" {
+    out=$(./libexec/lightning/channel-remote-cltv-delta 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1312: channel-remote-cltv-delta man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-cltv-delta.1" ]
+}
+
+@test "FEAT-1313: wallet-pay-total-msat requires arg" {
+    out=$(./libexec/lightning/wallet-pay-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1313: wallet-pay-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pay-total-msat.1" ]
+}
+
+@test "FEAT-1314: node-listchannels-private reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-private 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1314: node-listchannels-private man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-private.1" ]
+}
+
+@test "FEAT-1315: invoice-amount-received requires arg" {
+    out=$(./libexec/lightning/invoice-amount-received 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1315: invoice-amount-received man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-amount-received.1" ]
+}
+
+@test "FEAT-1316: channel-last-update requires arg" {
+    out=$(./libexec/lightning/channel-last-update 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1316: channel-last-update man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-last-update.1" ]
+}
+
+@test "FEAT-1317: peer-connected requires arg" {
+    out=$(./libexec/lightning/peer-connected 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1317: peer-connected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connected.1" ]
+}
+
+@test "FEAT-1318: wallet-notes-import requires args" {
+    out=$(./libexec/lightning/wallet-notes-import 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1318: wallet-notes-import man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-import.1" ]
+}
+
+@test "FEAT-1319: node-listforwards-count reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1319: node-listforwards-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count.1" ]
+}
+
+@test "FEAT-1320: channel-receivable-msat requires arg" {
+    out=$(./libexec/lightning/channel-receivable-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1320: channel-receivable-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-msat.1" ]
+}

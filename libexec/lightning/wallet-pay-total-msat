@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-pay-total-msat <wallet_name>   (FEAT-1313)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-pay-total-msat <wallet_name>"}'; exit 0; fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+python3 -c "
+import sys, sqlite3, json
+db = sys.argv[1]
+conn = sqlite3.connect(db)
+row = conn.execute('SELECT COALESCE(SUM(amount_msat),0) FROM payments WHERE status=\"complete\"').fetchone()
+conn.close()
+print(json.dumps({'wallet': sys.argv[2], 'total_msat': row[0]}))
+" "$db" "$wname" 2>/dev/null || echo '{"error":"db_error"}'
