@@ -1,25 +1,14 @@
-.TH "LIGHTNING-INVOICE-LIST-PAID" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-INVOICE_LIST_PAID" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-invoice-list-paid \- list paid invoices, newest first
+lightning-invoice-list-paid \- list paid invoices
 .SH SYNOPSIS
 .B lightning invoice-list-paid
-.RB [ --limit
-.IR N ]
+
 .SH DESCRIPTION
-Returns paid invoices sorted by
-.B paid_at
-descending.
-Default limit is 50.
-Returns an empty array if the daemon is unreachable.
-.PP
-Output:
-.nf
-[{label, payment_hash, amount_msat, paid_at, description}]
-.fi
+Returns a list of paid invoices with label, amount, and paid_at timestamp.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-invoice-list (1),
-.BR lightning-invoice-status (1)
+.BR lightning(1)

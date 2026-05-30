@@ -1,19 +1,9 @@
 #!/bin/bash
-# lightning channel-open-dual <peer_id> <our_sat> <their_sat>   (FEAT-353)
-set -e
-if [ $# -lt 3 ]; then
-    echo '{"error":"usage: channel-open-dual <peer_id> <our_sat> <their_sat>"}'
+# lightning channel-open-dual <peer_id> <amount_sat>   (FEAT-502)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: channel-open-dual <peer_id> <amount_sat>"}'
     exit 0
 fi
-peer_id="$1"
-our_sat="$2"
-their_sat="$3"
-result=$(lightning-cli fundchannel "$peer_id" "${our_sat}sat" "request_amt=${their_sat}sat" 2>/dev/null) || {
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-}
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-print(json.dumps({'channel_id': data.get('channel_id', ''), 'txid': data.get('txid', '')}, separators=(',', ':')))
-" "$result"
+peer_id="$1"; amount_sat="$2"
+result=$(lightning-cli openchannel_init "$peer_id" "${amount_sat}sat" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

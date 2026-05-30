@@ -12449,3 +12449,158 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-500: node-backup-state man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-backup-state.1" ]
 }
+
+# FEAT-501 — node-onion-decode verb
+
+@test "FEAT-501: node-onion-decode verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-onion-decode" ]
+}
+
+@test "FEAT-501: node-onion-decode reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-onion-decode" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-501: node-onion-decode man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onion-decode.1" ]
+}
+
+# FEAT-502 — channel-open-dual verb
+
+@test "FEAT-502: channel-open-dual verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-dual" ]
+}
+
+@test "FEAT-502: channel-open-dual reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-dual" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-502: channel-open-dual man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-dual.1" ]
+}
+
+# FEAT-503 — wallet-recover verb
+
+@test "FEAT-503: wallet-recover verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-recover" ]
+}
+
+@test "FEAT-503: wallet-recover reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-recover" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-503: wallet-recover reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-recover" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-503: wallet-recover man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-recover.1" ]
+}
+
+# FEAT-504 — node-fee-schedule verb
+
+@test "FEAT-504: node-fee-schedule verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-schedule" ]
+}
+
+@test "FEAT-504: node-fee-schedule returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-schedule" 2>/dev/null)
+	echo "$out" | grep -q "error\|\["
+}
+
+@test "FEAT-504: node-fee-schedule man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-schedule.1" ]
+}
+
+# FEAT-505 — invoice-list-paid verb
+
+@test "FEAT-505: invoice-list-paid verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-paid" ]
+}
+
+@test "FEAT-505: invoice-list-paid returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-paid" 2>/dev/null)
+	echo "$out" | grep -q "error\|\["
+}
+
+@test "FEAT-505: invoice-list-paid man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-paid.1" ]
+}
+
+# FEAT-506 — node-channel-opens verb
+
+@test "FEAT-506: node-channel-opens verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-opens" ]
+}
+
+@test "FEAT-506: node-channel-opens returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-opens" 2>/dev/null)
+	echo "$out" | grep -q "error\|\["
+}
+
+@test "FEAT-506: node-channel-opens man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-opens.1" ]
+}
+
+# FEAT-507 — wallet-list verb
+
+@test "FEAT-507: wallet-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-list" ]
+}
+
+@test "FEAT-507: wallet-list returns array gracefully" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-list" 2>/dev/null)
+	echo "$out" | grep -q "\["
+}
+
+@test "FEAT-507: wallet-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-list.1" ]
+}
+
+# FEAT-508 — channel-rebalance-auto verb
+
+@test "FEAT-508: channel-rebalance-auto verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-rebalance-auto" ]
+}
+
+@test "FEAT-508: channel-rebalance-auto reports error or candidates gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-rebalance-auto" 2>/dev/null)
+	echo "$out" | grep -q "error\|candidates"
+}
+
+@test "FEAT-508: channel-rebalance-auto man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-rebalance-auto.1" ]
+}
+
+# FEAT-509 — node-invoice-expiry-default verb
+
+@test "FEAT-509: node-invoice-expiry-default verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-expiry-default" ]
+}
+
+@test "FEAT-509: node-invoice-expiry-default reports error or expiry gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-expiry-default" 2>/dev/null)
+	echo "$out" | grep -q "error\|invoice_expiry"
+}
+
+@test "FEAT-509: node-invoice-expiry-default man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expiry-default.1" ]
+}
+
+# FEAT-510 — payment-track verb
+
+@test "FEAT-510: payment-track verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-track" ]
+}
+
+@test "FEAT-510: payment-track reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/payment-track" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-510: payment-track man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-track.1" ]
+}
