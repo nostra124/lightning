@@ -9049,3 +9049,13 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-285: wallet-prune man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-prune.1" ]
 }
+
+# FEAT-286 — GET /v1/accounts operator listing
+
+@test "FEAT-286: accounts.py routes GET /v1/accounts to list" {
+	python3 -c "
+src = open('share/lightning/wellknown/api/accounts.py').read()
+assert '_list_accounts' in src
+assert 'api-account-list' in src
+"
+}

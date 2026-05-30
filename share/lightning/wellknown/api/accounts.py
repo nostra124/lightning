@@ -59,6 +59,26 @@ def _query():
     return urllib.parse.parse_qs(os.environ.get("QUERY_STRING", ""))
 
 
+def _list_accounts():
+    """GET /v1/accounts — operator-only account listing (FEAT-286)."""
+    if _method() != "GET":
+        _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+    bearer = os.environ.get("HTTP_AUTHORIZATION", "")
+    if not bearer.startswith("Bearer "):
+        _lib.respond("401 Unauthorized", {"error": "missing_bearer"})
+    q = _query()
+    args = ["api-account-list"]
+    if q.get("search"):
+        args += ["--search", q["search"][0][:64]]
+    if q.get("limit"):
+        try:
+            args += ["--limit", str(int(q["limit"][0]))]
+        except ValueError:
+            pass
+    result = _lib.call_verb(*args)
+    _lib.respond("200 OK", result)
+
+
 def _create():
     if _method() != "POST":
         _lib.respond("405 Method Not Allowed", {"error": "use_post"})
@@ -524,9 +544,12 @@ def main():
     account_id, tail = _lib.read_account_id_from_path(path_info)
 
     if account_id is None:
-        # No ID present — only the create endpoint is valid here.
+        # No ID present — GET lists accounts; POST creates one.
         if not tail and not [p for p in path_info.split("/") if p]:
-            _create()
+            if _method() == "GET":
+                _list_accounts()
+            else:
+                _create()
         elif [p for p in path_info.split("/") if p] and not account_id:
             # Bad-shape ID (e.g. /Alice/balance) — 404 rather than 400
             # so we don't leak which account-ids exist.
