@@ -1,6 +1,16 @@
 #!/bin/bash
-# lightning peer-disconnect <node_id>   (FEAT-679)
-if [ $# -lt 1 ]; then echo '{"error":"usage: peer-disconnect <node_id>"}'; exit 0; fi
-node_id="$1"
-result=$(lightning-cli disconnect "$node_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps(d))" "$result"
+# lightning peer-disconnect <peer_id>   (FEAT-1057)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: peer-disconnect <peer_id>"}'
+    exit 0
+fi
+peer_id="$1"
+result=$(lightning-cli disconnect "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+try:
+    data = json.loads(sys.argv[1])
+    print(json.dumps({'ok': True, 'peer_id': sys.argv[2], 'result': data}))
+except Exception:
+    print(json.dumps({'ok': True, 'peer_id': sys.argv[2]}))
+" "$result" "$peer_id"

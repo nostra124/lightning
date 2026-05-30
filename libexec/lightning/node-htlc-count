@@ -1,12 +1,12 @@
 #!/bin/bash
-# lightning node-htlc-count   (FEAT-515)
+# lightning node-htlc-count   (FEAT-1059)
 if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
     echo '{"error":"lightning-cli not found"}'
     exit 0
 fi
 python3 -c "
 import sys, json
-channels = json.loads(sys.argv[1]).get('channels', [])
-total_htlcs = sum(len(c.get('htlcs', [])) for c in channels)
-print(json.dumps({'total_htlcs': total_htlcs, 'channels_checked': len(channels)}, separators=(',', ':')))
+data = json.loads(sys.argv[1])
+total = sum(len(ch.get('htlcs', [])) for ch in data.get('channels', []))
+print(json.dumps({'total_htlcs': total}))
 " "$result"

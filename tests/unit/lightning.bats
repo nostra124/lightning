@@ -17194,3 +17194,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1050: channel-balance-available man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-available.1" ]
 }
+@test "FEAT-1051: node-onchain-txs reports error or count gracefully" {
+	out=$(./libexec/lightning/node-onchain-txs 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1051: node-onchain-txs man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-txs.1" ]
+}
+@test "FEAT-1052: channel-open-list reports error or count gracefully" {
+	out=$(./libexec/lightning/channel-open-list 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1052: channel-open-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-list.1" ]
+}
+@test "FEAT-1053: wallet-import requires args" {
+	out=$(./libexec/lightning/wallet-import 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1053: wallet-import man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-import.1" ]
+}
+@test "FEAT-1054: node-fee-ppm reports error or fees_collected_msat gracefully" {
+	out=$(./libexec/lightning/node-fee-ppm 2>/dev/null)
+	echo "$out" | grep -q "error\|fees_collected_msat"
+}
+@test "FEAT-1054: node-fee-ppm man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-ppm.1" ]
+}
+@test "FEAT-1055: invoice-list-all returns array gracefully" {
+	out=$(./libexec/lightning/invoice-list-all 2>/dev/null)
+	echo "$out" | grep -qE "^\[|\{.*error"
+}
+@test "FEAT-1055: invoice-list-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-all.1" ]
+}
+@test "FEAT-1056: channel-peer-alias requires arg" {
+	out=$(./libexec/lightning/channel-peer-alias 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1056: channel-peer-alias man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-alias.1" ]
+}
+@test "FEAT-1057: peer-disconnect requires arg" {
+	out=$(./libexec/lightning/peer-disconnect 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1057: peer-disconnect man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect.1" ]
+}
+@test "FEAT-1058: wallet-balance-onchain requires arg" {
+	out=$(./libexec/lightning/wallet-balance-onchain 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1058: wallet-balance-onchain man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-onchain.1" ]
+}
+@test "FEAT-1059: node-htlc-count reports error or total_htlcs gracefully" {
+	out=$(./libexec/lightning/node-htlc-count 2>/dev/null)
+	echo "$out" | grep -q "error\|total_htlcs"
+}
+@test "FEAT-1059: node-htlc-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-count.1" ]
+}
+@test "FEAT-1060: channel-min-capacity requires arg" {
+	out=$(./libexec/lightning/channel-min-capacity 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1060: channel-min-capacity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-capacity.1" ]
+}
