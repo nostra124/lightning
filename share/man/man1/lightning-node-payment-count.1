@@ -1,19 +1,15 @@
-.TH "LIGHTNING-NODE-PAYMENT-COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-NODE_PAYMENT_COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node-payment-count \- show payment count by status
+lightning-node-payment-count \- count payments by status
 .SH SYNOPSIS
 .B lightning node-payment-count
 .SH DESCRIPTION
-Returns counts of payments grouped by status (complete, failed, pending).
+Count payments by status.
 .PP
-Output:
-.nf
-{"total":N, "complete":N, "failed":N, "pending":N}
-.fi
+Output: JSON object or array from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-node-payment-summary (1),
-.BR lightning-payment-list-failed (1)
+.BR lightning(1)

@@ -1,16 +1,15 @@
-.TH "LIGHTNING-WALLET-PIN-SET" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET_PIN_SET" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-pin-set \- set a PIN for the wallet
+lightning-wallet-pin-set \- set or update a wallet PIN
 .SH SYNOPSIS
 .B lightning wallet-pin-set
-.I wallet_name pin
 .SH DESCRIPTION
-Stores a SHA-256 hash of the provided PIN in the wallet's meta table.
+Set or update a wallet PIN.
 .PP
-Output: JSON object with ok and wallet fields.
+Output: JSON object or array from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-wallet-pin-reset (1)
+.BR lightning(1)

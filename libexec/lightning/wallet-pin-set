@@ -1,7 +1,7 @@
 #!/bin/bash
-# lightning wallet-pin-set <wallet_name> <pin>   (FEAT-458)
+# lightning wallet-pin-set <wallet_name> <new_pin>   (FEAT-598)
 if [ $# -lt 2 ]; then
-    echo '{"error":"usage: wallet-pin-set <wallet_name> <pin>"}'
+    echo '{"error":"usage: wallet-pin-set <wallet_name> <new_pin>"}'
     exit 0
 fi
 wname="$1"; pin="$2"
@@ -11,6 +11,6 @@ if [ ! -f "$db" ]; then
     echo '{"error":"database_not_found"}'
     exit 0
 fi
-hash=$(printf '%s' "$pin" | openssl dgst -sha256 -hex 2>/dev/null | awk '{print $2}')
-sqlite3 "$db" "INSERT OR REPLACE INTO meta(key,value) VALUES('pin_hash','$hash');" 2>/dev/null
-echo '{"ok":true,"wallet":"'"$wname"'"}'
+pin_hash=$(echo -n "$pin" | sha256sum | cut -d' ' -f1)
+sqlite3 "$db" "INSERT OR REPLACE INTO meta(key,value) VALUES('pin_hash','$pin_hash');" 2>/dev/null || { echo '{"error":"sqlite3 not found"}'; exit 0; }
+echo "{\"ok\":true,\"wallet\":\"$wname\",\"pin_set\":true}"

@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-pin-clear <wallet_name>   (FEAT-593)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-pin-clear <wallet_name>"}'
+    exit 0
+fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+sqlite3 "$db" "DELETE FROM meta WHERE key='pin_hash';" 2>/dev/null || { echo '{"error":"sqlite3 not found"}'; exit 0; }
+echo "{\"ok\":true,\"wallet\":\"$wname\",\"pin_cleared\":true}"

@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning peer-node-id <peer_alias>   (FEAT-597)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: peer-node-id <peer_alias>"}'
+    exit 0
+fi
+alias_search="$1"
+result=$(lightning-cli listnodes 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+alias = sys.argv[2].lower()
+for n in data.get('nodes', []):
+    if n.get('alias', '').lower() == alias:
+        print(json.dumps({'alias': n.get('alias'), 'nodeid': n.get('nodeid')}))
+        sys.exit(0)
+print(json.dumps({'error': 'node not found', 'alias': sys.argv[2]}))
+" "$result" "$alias_search"

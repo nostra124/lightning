@@ -13324,3 +13324,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-590: invoice-expiry-check man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-expiry-check.1" ]
 }
+
+@test "FEAT-591: node-invoice-count reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-591: node-invoice-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count.1" ]
+}
+
+@test "FEAT-592: channel-max-htlc requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-max-htlc" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-592: channel-max-htlc man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-htlc.1" ]
+}
+
+@test "FEAT-593: wallet-pin-clear requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-clear" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-593: wallet-pin-clear man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-clear.1" ]
+}
+
+@test "FEAT-594: node-payment-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-594: node-payment-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-payment-count.1" ]
+}
+
+@test "FEAT-595: invoice-decode-amount requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-decode-amount" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-595: invoice-decode-amount man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-decode-amount.1" ]
+}
+
+@test "FEAT-596: channel-open-pending returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-pending" 2>/dev/null)
+	echo "$out" | grep -q "\[\|\]"
+}
+
+@test "FEAT-596: channel-open-pending man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-pending.1" ]
+}
+
+@test "FEAT-597: peer-node-id requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-node-id" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-597: peer-node-id man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-node-id.1" ]
+}
+
+@test "FEAT-598: wallet-pin-set requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-set" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-598: wallet-pin-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-set.1" ]
+}
+
+@test "FEAT-599: node-routing-fee-earned reports error or settled_forwards gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-routing-fee-earned" 2>/dev/null)
+	echo "$out" | grep -q "error\|settled_forwards"
+}
+
+@test "FEAT-599: node-routing-fee-earned man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-routing-fee-earned.1" ]
+}
+
+@test "FEAT-600: channel-close-coop requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-coop" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-600: channel-close-coop man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-coop.1" ]
+}

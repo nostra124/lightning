@@ -1,12 +1,12 @@
 #!/bin/bash
-# lightning node-payment-count   (FEAT-400)
+# lightning node-payment-count   (FEAT-594)
 result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
-pays = json.loads(sys.argv[1]).get('pays', [])
-complete = [p for p in pays if p.get('status') == 'complete']
-failed = [p for p in pays if p.get('status') == 'failed']
-pending = [p for p in pays if p.get('status') == 'pending']
-print(json.dumps({'total': len(pays), 'complete': len(complete),
-    'failed': len(failed), 'pending': len(pending)}, separators=(',', ':')))
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+complete = sum(1 for p in pays if p.get('status') == 'complete')
+failed = sum(1 for p in pays if p.get('status') == 'failed')
+pending = sum(1 for p in pays if p.get('status') == 'pending')
+print(json.dumps({'total': len(pays), 'complete': complete, 'failed': failed, 'pending': pending}))
 " "$result"
