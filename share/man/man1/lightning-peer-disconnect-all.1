@@ -1,0 +1,25 @@
+.TH "LIGHTNING-PEER-DISCONNECT-ALL" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peer-disconnect-all \- disconnect all currently connected peers
+.SH SYNOPSIS
+.B lightning peer-disconnect-all
+.SH DESCRIPTION
+Iterates all connected peers from
+.B listpeers
+and calls
+.B lightning-cli disconnect
+for each one.
+Returns a list of per-peer results.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{"disconnected":[{peer_id, ok},...]}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-peer-disconnect (1),
+.BR lightning-peer-list (1)

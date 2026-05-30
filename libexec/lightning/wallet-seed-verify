@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning wallet-seed-verify <wallet>   (FEAT-332)
+set -e
+wname="${1:-default}"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"ok":false,"reason":"database_not_found"}'
+    exit 0
+fi
+# Check that the seed key exists in the db
+count=$(sqlite3 "$db" "SELECT COUNT(*) FROM secrets WHERE key='seed';" 2>/dev/null) || {
+    echo '{"ok":false,"reason":"query_failed"}'
+    exit 0
+}
+if [ "$count" -gt 0 ]; then
+    echo '{"ok":true,"seed_present":true}'
+else
+    echo '{"ok":true,"seed_present":false}'
+fi

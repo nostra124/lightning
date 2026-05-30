@@ -1,0 +1,31 @@
+.TH "LIGHTNING-WALLET-SEED-VERIFY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-seed-verify \- check that a seed is stored in the wallet database
+.SH SYNOPSIS
+.B lightning wallet-seed-verify
+.RI [ wallet ]
+.SH DESCRIPTION
+Queries the wallet SQLite database for the presence of a
+.B seed
+entry in the
+.B secrets
+table.
+Defaults to the
+.B default
+wallet.
+Returns
+.B {"ok":false}
+if the database does not exist.
+.PP
+Output:
+.nf
+{"ok":true,"seed_present":true|false}
+{"ok":false,"reason":...}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-check (1),
+.BR lightning-wallet-migrate (1)

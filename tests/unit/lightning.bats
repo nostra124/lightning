@@ -9769,3 +9769,48 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-330: channel-rebalance-report man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-rebalance-report.1" ]
 }
+
+# FEAT-331 — node-fee-policy verb
+
+@test "FEAT-331: node-fee-policy verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-policy" ]
+}
+
+@test "FEAT-331: node-fee-policy reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-policy" 2>/dev/null)
+	echo "$out" | grep -q "error\|\[\]"
+}
+
+@test "FEAT-331: node-fee-policy man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-policy.1" ]
+}
+
+# FEAT-332 — wallet-seed-verify verb
+
+@test "FEAT-332: wallet-seed-verify verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-seed-verify" ]
+}
+
+@test "FEAT-332: wallet-seed-verify reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-seed-verify" 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-332: wallet-seed-verify man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-seed-verify.1" ]
+}
+
+# FEAT-333 — peer-disconnect-all verb
+
+@test "FEAT-333: peer-disconnect-all verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect-all" ]
+}
+
+@test "FEAT-333: peer-disconnect-all reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect-all" 2>/dev/null)
+	echo "$out" | grep -q "error\|disconnected"
+}
+
+@test "FEAT-333: peer-disconnect-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect-all.1" ]
+}

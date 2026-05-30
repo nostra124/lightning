@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning node-fee-policy   (FEAT-331)
+set -e
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = [c for c in data.get('channels', []) if c.get('state') == 'CHANNELD_NORMAL']
+policies = []
+for c in channels:
+    upd = c.get('updates', {}).get('local', {})
+    policies.append({
+        'channel_id': c.get('channel_id', ''),
+        'peer_id': c.get('peer_id', ''),
+        'base_fee_msat': upd.get('fee_base_msat', 0),
+        'fee_ppm': upd.get('fee_proportional_millionths', 0),
+        'htlc_min_msat': upd.get('htlc_minimum_msat', 0),
+        'htlc_max_msat': upd.get('htlc_maximum_msat', 0),
+    })
+print(json.dumps(policies, separators=(',', ':')))
+" "$result"

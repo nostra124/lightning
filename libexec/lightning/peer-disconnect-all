@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning peer-disconnect-all   (FEAT-333)
+set -e
+result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, subprocess
+data = json.loads(sys.argv[1])
+peers = [p['id'] for p in data.get('peers', []) if p.get('connected')]
+disconnected = []
+for pid in peers:
+    r = subprocess.run(['lightning-cli', 'disconnect', pid], capture_output=True, text=True)
+    disconnected.append({'peer_id': pid, 'ok': r.returncode == 0})
+print(json.dumps({'disconnected': disconnected}, separators=(',', ':')))
+" "$result"
