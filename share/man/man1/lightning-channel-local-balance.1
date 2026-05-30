@@ -1,0 +1,19 @@
+.TH "LIGHTNING-CHANNEL-LOCAL-BALANCE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-local-balance \- show total local balance across all channels
+.SH SYNOPSIS
+.B lightning channel-local-balance
+.SH DESCRIPTION
+Returns the sum of local balances and total capacity across all active channels.
+.PP
+Output:
+.nf
+{"local_balance_msat":N, "local_balance_sat":N, "total_capacity_msat":N, "active_channels":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-remote-balance (1),
+.BR lightning-channel-balance-ratio (1)

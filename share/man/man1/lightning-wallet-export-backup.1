@@ -1,0 +1,23 @@
+.TH "LIGHTNING-WALLET-EXPORT-BACKUP" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-export-backup \- copy wallet database to a backup file
+.SH SYNOPSIS
+.B lightning wallet-export-backup
+.I wallet_name
+.RI [ dest_dir ]
+.SH DESCRIPTION
+Copies the wallet SQLite database to a timestamped file in
+.IR dest_dir
+(default: current directory).
+.PP
+Output:
+.nf
+{"status":"exported","path":"<file>","wallet":"<name>"}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-backup-verify (1),
+.BR lightning-wallet-export-json (1)

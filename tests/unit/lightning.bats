@@ -10939,3 +10939,163 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-405: node-close-expired-invoices man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-close-expired-invoices.1" ]
 }
+
+# FEAT-406 — node-rune-list verb
+
+@test "FEAT-406: node-rune-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-rune-list" ]
+}
+
+@test "FEAT-406: node-rune-list returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-rune-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-406: node-rune-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-rune-list.1" ]
+}
+
+# FEAT-407 — channel-autopilot-status verb
+
+@test "FEAT-407: channel-autopilot-status verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-autopilot-status" ]
+}
+
+@test "FEAT-407: channel-autopilot-status reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-autopilot-status" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-407: channel-autopilot-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-autopilot-status.1" ]
+}
+
+# FEAT-408 — wallet-export-backup verb
+
+@test "FEAT-408: wallet-export-backup verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-backup" ]
+}
+
+@test "FEAT-408: wallet-export-backup reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-backup" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-408: wallet-export-backup reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-backup" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-408: wallet-export-backup man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-backup.1" ]
+}
+
+# FEAT-409 — node-fee-revenue verb
+
+@test "FEAT-409: node-fee-revenue verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-revenue" ]
+}
+
+@test "FEAT-409: node-fee-revenue reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-revenue" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-409: node-fee-revenue man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-revenue.1" ]
+}
+
+# FEAT-410 — peer-list-connected verb
+
+@test "FEAT-410: peer-list-connected verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list-connected" ]
+}
+
+@test "FEAT-410: peer-list-connected returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list-connected" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-410: peer-list-connected man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-connected.1" ]
+}
+
+# FEAT-411 — invoice-decode verb
+
+@test "FEAT-411: invoice-decode verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-decode" ]
+}
+
+@test "FEAT-411: invoice-decode reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-decode" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-411: invoice-decode man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-decode.1" ]
+}
+
+# FEAT-412 — node-watchtower-status verb
+
+@test "FEAT-412: node-watchtower-status verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-watchtower-status" ]
+}
+
+@test "FEAT-412: node-watchtower-status reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-watchtower-status" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-412: node-watchtower-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-watchtower-status.1" ]
+}
+
+# FEAT-413 — channel-local-balance verb
+
+@test "FEAT-413: channel-local-balance verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-local-balance" ]
+}
+
+@test "FEAT-413: channel-local-balance reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-local-balance" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-413: channel-local-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance.1" ]
+}
+
+# FEAT-414 — wallet-history-export verb
+
+@test "FEAT-414: wallet-history-export verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-history-export" ]
+}
+
+@test "FEAT-414: wallet-history-export reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-history-export" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-414: wallet-history-export reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-history-export" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-414: wallet-history-export man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-history-export.1" ]
+}
+
+# FEAT-415 — node-uptime verb
+
+@test "FEAT-415: node-uptime verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-uptime" ]
+}
+
+@test "FEAT-415: node-uptime reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-uptime" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-415: node-uptime man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-uptime.1" ]
+}

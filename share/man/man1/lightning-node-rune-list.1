@@ -1,0 +1,19 @@
+.TH "LIGHTNING-NODE-RUNE-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-rune-list \- list all runes (API tokens)
+.SH SYNOPSIS
+.B lightning node-rune-list
+.SH DESCRIPTION
+Returns all runes from
+.BR listrunes .
+.PP
+Output:
+.nf
+[{rune, unique_id, restrictions}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-rune-create (1)
