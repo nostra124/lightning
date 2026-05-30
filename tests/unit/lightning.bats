@@ -32811,3 +32811,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3060: channel-uptime-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime-max.1" ]
 }
+
+@test "FEAT-3061: channel-uptime-stddev reports error or uptime_stddev gracefully" {
+    out=$(./libexec/lightning/channel-uptime-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_stddev"
+}
+@test "FEAT-3061: channel-uptime-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime-stddev.1" ]
+}
+
+@test "FEAT-3062: node-listforwards-count-week reports error or forward_count_week gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-week 2>/dev/null)
+    echo "$out" | grep -q "error\|forward_count_week"
+}
+@test "FEAT-3062: node-listforwards-count-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-week.1" ]
+}
+
+@test "FEAT-3063: peer-htlc-value-stddev reports error or htlc_value_stddev_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_stddev_msat_peer"
+}
+@test "FEAT-3063: peer-htlc-value-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-stddev.1" ]
+}
+
+@test "FEAT-3064: channel-uptime-median reports error or uptime_median gracefully" {
+    out=$(./libexec/lightning/channel-uptime-median 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_median"
+}
+@test "FEAT-3064: channel-uptime-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime-median.1" ]
+}
+
+@test "FEAT-3065: node-listforwards-count-month reports error or forward_count_month gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-month 2>/dev/null)
+    echo "$out" | grep -q "error\|forward_count_month"
+}
+@test "FEAT-3065: node-listforwards-count-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-month.1" ]
+}
+
+@test "FEAT-3066: peer-htlc-value-median reports error or htlc_value_median_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-median 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_median_msat_peer"
+}
+@test "FEAT-3066: peer-htlc-value-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-median.1" ]
+}
+
+@test "FEAT-3067: channel-age-avg reports error or age_avg_days gracefully" {
+    out=$(./libexec/lightning/channel-age-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|age_avg_days"
+}
+@test "FEAT-3067: channel-age-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-avg.1" ]
+}
+
+@test "FEAT-3068: node-listforwards-in-msat-total reports error or in_msat_total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-total 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_total"
+}
+@test "FEAT-3068: node-listforwards-in-msat-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-total.1" ]
+}
+
+@test "FEAT-3069: peer-fee-earned-total reports error or fee_earned_total_msat gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-total 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_total_msat"
+}
+@test "FEAT-3069: peer-fee-earned-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-total.1" ]
+}
+
+@test "FEAT-3070: channel-age-stddev reports error or age_stddev_days gracefully" {
+    out=$(./libexec/lightning/channel-age-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|age_stddev_days"
+}
+@test "FEAT-3070: channel-age-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-stddev.1" ]
+}
