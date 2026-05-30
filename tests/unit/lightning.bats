@@ -32,8 +32,19 @@ setup() {
 	export MOCK_STATE="$BATS_TMPDIR/mock-state.$$"
 	rm -f "$MOCK_STATE"
 
+	# Tests share these $$-keyed paths across the whole bats run (because
+	# $$ stays constant in subshells), and individual @test bodies clean
+	# them only via in-line rm -rf at the end — which is SKIPPED when an
+	# assertion fails earlier in the body.  Purge here so a flake in test
+	# A can't leak state into test B's setup and cascade.  Also reset the
+	# mock's newaddr counter so address generation is deterministic per
+	# test (otherwise the counter monotonically increases across the run).
+	rm -rf "$BATS_TMPDIR/wallets.$$" "$BATS_TMPDIR/lnd.$$"
+	rm -f "$MOCK_STATE.newaddr"
+
 	# Shim PATH: put a dir with `lightning-cli -> mock` first.
 	BIN_SHIM="$BATS_TMPDIR/bin.$$"
+	rm -rf "$BIN_SHIM"
 	mkdir -p "$BIN_SHIM"
 	ln -sf "$FIXTURES/lightning-cli-mock" "$BIN_SHIM/lightning-cli"
 	export PATH="$BIN_SHIM:$PATH"
@@ -41,7 +52,8 @@ setup() {
 
 teardown() {
 	rm -rf "$HOME" "$BIN_SHIM"
-	rm -f "$MOCK_STATE"
+	rm -rf "$BATS_TMPDIR/wallets.$$" "$BATS_TMPDIR/lnd.$$"
+	rm -f "$MOCK_STATE" "$MOCK_STATE.newaddr"
 }
 
 # Stubs curl+tar so `daemon install --trustedcoin` doesn't hit
