@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-notes-set <wallet_name> <notes>   (FEAT-603)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-notes-set <wallet_name> <notes>"}'
+    exit 0
+fi
+wname="$1"; notes="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+wpath="$root/$wname"
+if [ ! -d "$wpath" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+printf '%s\n' "$notes" > "$wpath/notes.txt" 2>/dev/null || { echo '{"error":"cannot write notes"}'; exit 0; }
+echo "{\"ok\":true,\"wallet\":\"$wname\"}"

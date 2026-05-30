@@ -13414,3 +13414,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-600: channel-close-coop man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-coop.1" ]
 }
+
+@test "FEAT-601: node-listchannels-compact reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listchannels-compact" 2>/dev/null)
+	echo "$out" | grep -q "error\|total\|\[\]"
+}
+
+@test "FEAT-601: node-listchannels-compact man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-compact.1" ]
+}
+
+@test "FEAT-602: channel-remote-msat requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-remote-msat" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-602: channel-remote-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-msat.1" ]
+}
+
+@test "FEAT-603: wallet-notes-set requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-notes-set" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-603: wallet-notes-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-set.1" ]
+}
+
+@test "FEAT-604: node-funding-outputs reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-funding-outputs" 2>/dev/null)
+	echo "$out" | grep -q "error\|count\|outputs"
+}
+
+@test "FEAT-604: node-funding-outputs man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-funding-outputs.1" ]
+}
+
+@test "FEAT-605: invoice-list-active returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-active" 2>/dev/null)
+	echo "$out" | grep -q "\[\|\]"
+}
+
+@test "FEAT-605: invoice-list-active man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-active.1" ]
+}
+
+@test "FEAT-606: channel-min-depth requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-min-depth" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-606: channel-min-depth man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-depth.1" ]
+}
+
+@test "FEAT-607: peer-list-connected returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list-connected" 2>/dev/null)
+	echo "$out" | grep -q "\[\|\]"
+}
+
+@test "FEAT-607: peer-list-connected man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-connected.1" ]
+}
+
+@test "FEAT-608: wallet-export-json requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-json" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-608: wallet-export-json man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-json.1" ]
+}
+
+@test "FEAT-609: node-invoice-fallback requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-fallback" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-609: node-invoice-fallback man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-fallback.1" ]
+}
+
+@test "FEAT-610: channel-close-timeout requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-timeout" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-610: channel-close-timeout man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-timeout.1" ]
+}

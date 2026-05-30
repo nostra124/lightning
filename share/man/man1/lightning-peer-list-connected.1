@@ -1,19 +1,15 @@
-.TH "LIGHTNING-PEER-LIST-CONNECTED" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-PEER_LIST_CONNECTED" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
 lightning-peer-list-connected \- list currently connected peers
 .SH SYNOPSIS
 .B lightning peer-list-connected
 .SH DESCRIPTION
-Returns peers that are currently online with their first known address.
+List currently connected peers.
 .PP
-Output:
-.nf
-[{peer_id, addr}]
-.fi
+Output: JSON object or array from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-peer-info (1),
-.BR lightning-node-connect-auto (1)
+.BR lightning(1)

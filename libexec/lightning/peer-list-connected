@@ -1,10 +1,9 @@
 #!/bin/bash
-# lightning peer-list-connected   (FEAT-410)
+# lightning peer-list-connected   (FEAT-607)
 result=$(lightning-cli listpeers 2>/dev/null) || { echo '[]'; exit 0; }
 python3 -c "
 import sys, json
-peers = json.loads(sys.argv[1]).get('peers', [])
-connected = [{'peer_id': p.get('id',''), 'addr': p.get('netaddr', [None])[0]}
-             for p in peers if p.get('connected', False)]
-print(json.dumps(connected, separators=(',', ':')))
+data = json.loads(sys.argv[1])
+connected = [{'id': p.get('id'), 'connected': p.get('connected')} for p in data.get('peers', []) if p.get('connected')]
+print(json.dumps(connected))
 " "$result"
