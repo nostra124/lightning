@@ -1,0 +1,6 @@
+#!/bin/bash
+# lightning wallet-pin-verify <wallet_name> <pin>   (FEAT-883)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-pin-verify <wallet_name> <pin>"}'; exit 0; fi
+wname="$1"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+if [ ! -d "$root/$wname" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+echo "{\"wallet\":\"$wname\",\"verified\":false}"

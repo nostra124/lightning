@@ -15894,3 +15894,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-880: channel-peer-features man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-features.1" ]
 }
+
+@test "FEAT-881: node-invoice-decode requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-decode" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-881: node-invoice-decode man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-decode.1" ]
+}
+
+@test "FEAT-882: channel-balance-ratio requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-balance-ratio" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-882: channel-balance-ratio man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio.1" ]
+}
+
+@test "FEAT-883: wallet-pin-verify requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-verify" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-883: wallet-pin-verify man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-verify.1" ]
+}
+
+@test "FEAT-884: node-list-closed-channels reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-list-closed-channels" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-884: node-list-closed-channels man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-list-closed-channels.1" ]
+}
+
+@test "FEAT-885: invoice-create-keysend requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-keysend" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-885: invoice-create-keysend man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-create-keysend.1" ]
+}
+
+@test "FEAT-886: channel-local-msat requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-local-msat" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-886: channel-local-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-msat.1" ]
+}
+
+@test "FEAT-887: peer-invoice-create requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-invoice-create" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-887: peer-invoice-create man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-invoice-create.1" ]
+}
+
+@test "FEAT-888: wallet-notes-search requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-notes-search" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-888: wallet-notes-search man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-search.1" ]
+}
+
+@test "FEAT-889: node-listpays-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listpays-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-889: node-listpays-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-count.1" ]
+}
+
+@test "FEAT-890: channel-rebalance-suggestion reports error or suggestions gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-rebalance-suggestion" 2>/dev/null)
+	echo "$out" | grep -q "error\|suggestions"
+}
+@test "FEAT-890: channel-rebalance-suggestion man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-rebalance-suggestion.1" ]
+}

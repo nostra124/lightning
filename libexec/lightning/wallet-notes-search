@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning wallet-notes-search <wallet_name> <query>   (FEAT-888)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-search <wallet_name> <query>"}'; exit 0; fi
+wname="$1"; query="$2"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+notes_file="$root/$wname/notes"
+if [ ! -f "$notes_file" ]; then echo '{"wallet":"'"$wname"'","matches":[]}'; exit 0; fi
+matches=$(grep -n "$query" "$notes_file" 2>/dev/null | head -20)
+python3 -c "
+import sys, json
+lines = sys.argv[1].strip().split('\n') if sys.argv[1].strip() else []
+print(json.dumps({'wallet': sys.argv[2], 'query': sys.argv[3], 'match_count': len(lines), 'matches': lines}))
+" "$matches" "$wname" "$query"
