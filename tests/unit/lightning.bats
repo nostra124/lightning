@@ -22704,3 +22704,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1770: channel-our-htlc-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-htlc-count.1" ]
 }
+
+@test "FEAT-1771: node-listpays-max reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-max 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1771: node-listpays-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-max.1" ]
+}
+
+@test "FEAT-1772: channel-to-them-pct reports error gracefully" {
+    out=$(./libexec/lightning/channel-to-them-pct 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1772: channel-to-them-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-to-them-pct.1" ]
+}
+
+@test "FEAT-1773: wallet-notes-replace reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-replace 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1773: wallet-notes-replace man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-replace.1" ]
+}
+
+@test "FEAT-1774: node-feerate-normal reports error or feerate gracefully" {
+    out=$(./libexec/lightning/node-feerate-normal 2>/dev/null)
+    echo "$out" | grep -q "error\|feerate"
+}
+@test "FEAT-1774: node-feerate-normal man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-normal.1" ]
+}
+
+@test "FEAT-1775: invoice-list-expired reports error or count gracefully" {
+    out=$(./libexec/lightning/invoice-list-expired 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1775: invoice-list-expired man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-expired.1" ]
+}
+
+@test "FEAT-1776: channel-type reports error gracefully" {
+    out=$(./libexec/lightning/channel-type 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1776: channel-type man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-type.1" ]
+}
+
+@test "FEAT-1777: peer-onion-address reports error gracefully" {
+    out=$(./libexec/lightning/peer-onion-address 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1777: peer-onion-address man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-onion-address.1" ]
+}
+
+@test "FEAT-1778: wallet-notes-count-pinned reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-count-pinned 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1778: wallet-notes-count-pinned man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-pinned.1" ]
+}
+
+@test "FEAT-1779: node-graph-channel-capacity reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/node-graph-channel-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1779: node-graph-channel-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channel-capacity.1" ]
+}
+
+@test "FEAT-1780: channel-their-htlc-count reports error gracefully" {
+    out=$(./libexec/lightning/channel-their-htlc-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1780: channel-their-htlc-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-htlc-count.1" ]
+}
