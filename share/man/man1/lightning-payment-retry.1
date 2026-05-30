@@ -1,0 +1,27 @@
+.TH "LIGHTNING-PAYMENT-RETRY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-payment-retry \- retry a payment by re-submitting a BOLT-11 invoice
+.SH SYNOPSIS
+.B lightning payment-retry
+.I bolt11
+.RB [ --sat
+.IR N ]
+.SH DESCRIPTION
+Re-submits a BOLT-11 invoice to the daemon for payment.
+Useful for retrying a previously failed payment.
+Use
+.B --sat
+to supply an amount for zero-amount invoices.
+.PP
+Output:
+.nf
+{"payment_hash":"...","status":"complete|failed|pending",
+ "amount_msat":N,"fee_msat":N,"destination":"..."}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-payment-status (1),
+.BR lightning-payment-list (1)

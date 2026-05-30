@@ -1,0 +1,45 @@
+#!/bin/bash
+# lightning payment-retry <bolt11> [--sat N]   (FEAT-295)
+#
+# Retries a payment by re-submitting a BOLT-11 invoice.
+# Optional --sat overrides the amount for zero-amount invoices.
+# Returns {payment_hash, status, amount_msat, fee_msat, destination}
+
+set -e
+[ $# -ge 1 ] || { printf 'usage: payment-retry <bolt11> [--sat N]\n' >&2; exit 1; }
+bolt11="$1"; shift
+
+sat=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --sat) sat="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+if [ -n "$sat" ]; then
+    msat=$((sat * 1000))
+    raw=$(lightning-cli $LD $NET pay "$bolt11" "$msat" 2>/dev/null) || {
+        echo '{"error":"pay_failed"}'; exit 0; }
+else
+    raw=$(lightning-cli $LD $NET pay "$bolt11" 2>/dev/null) || {
+        echo '{"error":"pay_failed"}'; exit 0; }
+fi
+
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({
+    'payment_hash': d.get('payment_hash', ''),
+    'status': d.get('status', 'unknown'),
+    'amount_msat': d.get('amount_msat', 0),
+    'fee_msat': d.get('amount_sent_msat', 0) - d.get('amount_msat', 0),
+    'destination': d.get('destination', ''),
+}, separators=(',', ':')))
+" "$raw"

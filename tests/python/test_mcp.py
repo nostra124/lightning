@@ -106,7 +106,7 @@ def test_tools_list_returns_tools(api_dir, bin_shim, lightning_stub, cgi, parse)
         "account_recv_reusable", "account_history", "account_close",
         "node_info", "channel_list", "node_funds", "account_transfer",
         "invoice_decode", "price", "fee_list", "forward_stats", "peer_summary",
-        "node_health", "payment_status", "invoice_status",
+        "node_health", "payment_status", "invoice_status", "peers_score",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -466,3 +466,13 @@ def test_tools_call_invoice_status(api_dir, bin_shim, lightning_stub, cgi, parse
     j = json.loads(body_out)
     assert j["result"]["isError"] is False
     assert j["result"]["structuredContent"]["status"] == "paid"
+
+
+def test_tools_call_peers_score(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '[{"peer_id":"02aaa","alias":"bob","score":80,"num_channels":2,"local_sat":500000,"remote_sat":500000,"connected":true,"local_ratio":0.5}]'
+    lightning_stub({"api-node-peers-score": (0, body)})
+    payload = rpc("tools/call", {"name": "peers_score", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"][0]["score"] == 80

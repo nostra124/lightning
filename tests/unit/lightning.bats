@@ -9196,3 +9196,50 @@ window=src[i:i+500]
 assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 " "$f"
 }
+
+# FEAT-295 — payment-retry verb
+
+@test "FEAT-295: payment-retry verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-retry" ]
+}
+
+@test "FEAT-295: payment-retry reports lightning-cli not found gracefully" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-retry" "lnbc1..." 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'error' in d"
+}
+
+@test "FEAT-295: payment-retry man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-retry.1" ]
+}
+
+# FEAT-296 — peers_score MCP tool
+
+@test "FEAT-296: api-node-peers-score verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-node-peers-score" ]
+}
+
+@test "FEAT-296: MCP tools/list includes peers_score" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/lightning/mcp.json"
+	python3 -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+assert 'peers_score' in d['tools'], 'peers_score not in tools'
+" "$f"
+}
+
+@test "FEAT-296: peers_score tool has no auth" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+	python3 -c "
+import sys
+src=open(sys.argv[1]).read()
+i=src.find('\"peers_score\"')
+assert i >= 0, 'tool not found'
+window=src[i:i+400]
+assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
+" "$f"
+}
+
+@test "FEAT-296: sudoers lists api-node-peers-score" {
+	grep -q 'api-node-peers-score' \
+		"$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}

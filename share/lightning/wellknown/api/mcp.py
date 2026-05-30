@@ -338,6 +338,24 @@ TOOLS = [
         "argmap": lambda a: [],
     },
     {
+        "name": "peers_score",
+        "description": "Rank all peers by a weighted channel health score (0-100). "
+                       "Components: balance score (40 pts, peaks at 50% local ratio), "
+                       "connectivity (20 pts), channel count ≥2 (20 pts). "
+                       "Returns sorted list: peer_id, alias, score, num_channels, "
+                       "local_sat, remote_sat, connected, local_ratio. "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-node-peers-score"],
+        "argmap": lambda a: [],
+    },
+    {
         "name": "payment_status",
         "description": "Check the status of an outbound payment by payment hash. "
                        "Returns payment_hash, status (complete|failed|pending), "
