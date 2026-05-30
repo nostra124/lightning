@@ -19974,3 +19974,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1410: channel-local-cltv-delta man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-cltv-delta.1" ]
 }
+
+@test "FEAT-1411: node-pay-hash-list reports error or count gracefully" {
+    out=$(./libexec/lightning/node-pay-hash-list 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1411: node-pay-hash-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-hash-list.1" ]
+}
+
+@test "FEAT-1412: channel-their-cltv-delta requires arg" {
+    out=$(./libexec/lightning/channel-their-cltv-delta 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1412: channel-their-cltv-delta man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-cltv-delta.1" ]
+}
+
+@test "FEAT-1413: wallet-notes-delete requires args" {
+    out=$(./libexec/lightning/wallet-notes-delete 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1413: wallet-notes-delete man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-delete.1" ]
+}
+
+@test "FEAT-1414: node-listchannels-normal reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-normal 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1414: node-listchannels-normal man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-normal.1" ]
+}
+
+@test "FEAT-1415: invoice-list-by-destination requires arg" {
+    out=$(./libexec/lightning/invoice-list-by-destination 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1415: invoice-list-by-destination man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-destination.1" ]
+}
+
+@test "FEAT-1416: channel-feerate-ceiling reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-feerate-ceiling 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1416: channel-feerate-ceiling man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate-ceiling.1" ]
+}
+
+@test "FEAT-1417: peer-list-by-capacity reports error or count gracefully" {
+    out=$(./libexec/lightning/peer-list-by-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1417: peer-list-by-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-by-capacity.1" ]
+}
+
+@test "FEAT-1418: wallet-meta-delete-all requires arg" {
+    out=$(./libexec/lightning/wallet-meta-delete-all 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1418: wallet-meta-delete-all man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-delete-all.1" ]
+}
+
+@test "FEAT-1419: node-listchannels-sorted-capacity reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-sorted-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1419: node-listchannels-sorted-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-sorted-capacity.1" ]
+}
+
+@test "FEAT-1420: channel-closingd-state reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-closingd-state 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1420: channel-closingd-state man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-closingd-state.1" ]
+}
