@@ -1,0 +1,26 @@
+#!/bin/bash
+# lightning peer-score [<peer_id>]   (FEAT-321)
+#
+# Without argument: returns the full peers score list (same as node-peers-score).
+# With a specific peer_id: returns just that peer's score.
+
+set -e
+self_dir="$(cd "$(dirname "$0")" && pwd)"
+
+if [ $# -eq 0 ]; then
+    exec "$self_dir/node-peers-score"
+fi
+
+peer_id="$1"
+result=$("$self_dir/node-peers-score" 2>/dev/null) || { echo '{"error":"score_failed"}'; exit 0; }
+
+python3 -c "
+import sys, json
+peers = json.loads(sys.argv[1])
+pid = sys.argv[2]
+match = next((p for p in peers if p.get('peer_id') == pid), None)
+if match:
+    print(json.dumps(match, separators=(',', ':')))
+else:
+    print(json.dumps({'error': 'not_found'}))
+" "$result" "$peer_id"

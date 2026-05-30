@@ -9614,3 +9614,23 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-320: wallet-ledger-search man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-ledger-search.1" ]
 }
+
+# FEAT-321 — peer-score verb
+
+@test "FEAT-321: peer-score verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-score" ]
+}
+
+@test "FEAT-321: peer-score returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-score" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-321: peer-score with peer_id returns not_found without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-score" "02aabbccdd" 2>/dev/null)
+	echo "$out" | grep -q "not_found\|error"
+}
+
+@test "FEAT-321: peer-score man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-score.1" ]
+}
