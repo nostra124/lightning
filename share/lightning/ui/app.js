@@ -1,14 +1,27 @@
-// Lightning wallet PWA (FEAT-209) — a thin, same-origin client for the
-// FEAT-212 account HTTP API.  No framework, no build step.
+// Lightning wallet PWA (FEAT-209 + FEAT-222 PR-7) — a thin, same-origin
+// client for the FEAT-212 account HTTP API and the FEAT-222 user layer.
 //
-// Auth (this PR): the `lt_…` API key minted at account creation.  It is
-// shown once on the backup screen and then kept in localStorage so the
-// wallet works across launches.  Passkey/WebAuthn login (no plaintext
-// bearer on the device) is the follow-up backend (FEAT-209 PR-2b).
+// Auth: account-level `lt_…` bearer for API calls; user-level passkey /
+// session token (sess_…) for the user-registration and login flows.
 
 const LS_KEY = "lightning.accounts";
+const LS_THEME_KEY = "lightning.theme";
+// User store: {user_id, label} persisted; session kept only in sessionStorage.
+const LS_USER_KEY = "lightning.user";
 
 let CONFIG = { api_base: "/.well-known/lightning/v1" };
+
+function applyTheme() {
+  const theme = localStorage.getItem(LS_THEME_KEY) || "dark";
+  document.body.classList.toggle("light", theme === "light");
+}
+
+function toggleTheme() {
+  const current = localStorage.getItem(LS_THEME_KEY) || "dark";
+  const next = current === "dark" ? "light" : "dark";
+  localStorage.setItem(LS_THEME_KEY, next);
+  applyTheme();
+}
 
 async function loadConfig() {
   try {
@@ -41,6 +54,79 @@ function upsertAccount(acct) {
   list.push(acct); saveAccounts(list);
 }
 function removeAccount(id) { saveAccounts(accounts().filter(a => a.id !== id)); }
+
+// --- user store (FEAT-222 PR-7) ------------------------------------------
+
+function storedUser() {
+  try { return JSON.parse(localStorage.getItem(LS_USER_KEY) || "null"); }
+  catch (_) { return null; }
+}
+function saveUser(u) {
+  if (u) localStorage.setItem(LS_USER_KEY, JSON.stringify(u));
+  else localStorage.removeItem(LS_USER_KEY);
+}
+function userSession() { return sessionStorage.getItem("lightning.session"); }
+function saveSession(s) { sessionStorage.setItem("lightning.session", s); }
+function clearSession() { sessionStorage.removeItem("lightning.session"); }
+
+// --- WebAuthn helpers (FEAT-222 PR-7) ------------------------------------
+
+function b64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+function b64urlDecode(s) {
+  const p = s.replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(p + "=".repeat((4 - p.length % 4) % 4)), c => c.charCodeAt(0));
+}
+
+// Build a credential create response JSON (attestation) for the server.
+async function passkeyCreate(options) {
+  const opts = {
+    publicKey: {
+      ...options,
+      challenge: b64urlDecode(options.challenge),
+      user: { ...options.user, id: b64urlDecode(options.user.id) },
+      rp: options.rp,
+    },
+  };
+  const cred = await navigator.credentials.create(opts);
+  return {
+    id: cred.id,
+    rawId: b64url(cred.rawId),
+    type: cred.type,
+    response: {
+      attestationObject: b64url(cred.response.attestationObject),
+      clientDataJSON:    b64url(cred.response.clientDataJSON),
+    },
+  };
+}
+
+// Build a credential get response JSON (assertion) for the server.
+async function passkeyGet(options) {
+  const allowCreds = (options.allowCredentials || []).map(c => ({
+    ...c, id: b64urlDecode(c.id),
+  }));
+  const opts = {
+    publicKey: {
+      ...options,
+      challenge: b64urlDecode(options.challenge),
+      allowCredentials: allowCreds,
+    },
+  };
+  const cred = await navigator.credentials.get(opts);
+  return {
+    id: cred.id,
+    rawId: b64url(cred.rawId),
+    type: cred.type,
+    response: {
+      authenticatorData: b64url(cred.response.authenticatorData),
+      clientDataJSON:    b64url(cred.response.clientDataJSON),
+      signature:         b64url(cred.response.signature),
+      userHandle: cred.response.userHandle ? b64url(cred.response.userHandle) : null,
+    },
+  };
+}
 
 // --- API ------------------------------------------------------------------
 
@@ -84,25 +170,180 @@ function renderNav() {
 
 // --- screens --------------------------------------------------------------
 
+// --- user registration / login screens (FEAT-222 PR-7) ------------------
+
+async function screenUserRegister() {
+  h(`<h2>Create user account</h2>
+     <p class="muted">Register with a passkey to manage multiple accounts
+        under one identity. An invite code is required if the operator has
+        enabled invite-only mode.</p>
+     <label>Invite code (if required)
+       <input id="invite" placeholder="optional" maxlength="32"></label>
+     <label>Your name / label
+       <input id="label" placeholder="e.g. Alice" maxlength="64"></label>
+     <button id="go" class="primary">Register with passkey</button>
+     <p class="muted"><a href="#user-login">Already registered? Log in</a></p>`);
+  const invite = sessionStorage.getItem("lightning.invite");
+  if (invite) document.getElementById("invite").value = invite;
+  document.getElementById("go").onclick = async () => {
+    document.getElementById("go").disabled = true;
+    const invite_code = document.getElementById("invite").value.trim();
+    const label       = document.getElementById("label").value.trim();
+    try {
+      // Step 1: get a challenge + provisional user_id.
+      const beginData = await api("/users/register/begin", { method: "POST" });
+      const { user_id, ...createOptions } = beginData;
+      // Step 2: browser creates the passkey.
+      const attestation = await passkeyCreate(createOptions);
+      // Step 3: finish registration — creates user + registers passkey.
+      const body = { user_id, passkey_attestation: { challenge: createOptions.challenge, attestation }, label };
+      if (invite_code) body.invite_code = invite_code;
+      const res = await api("/users", { method: "POST", body });
+      saveUser({ user_id: res.user_id, label: label || "user" });
+      saveSession(res.session);
+      sessionStorage.removeItem("lightning.invite");
+      toast("Registered! Loading your accounts…", "ok");
+      go("user");
+    } catch (e) {
+      toast("Registration failed: " + e.message, "error");
+      document.getElementById("go").disabled = false;
+    }
+  };
+}
+
+async function screenUserLogin() {
+  const stored = storedUser();
+  h(`<h2>Log in with passkey</h2>
+     ${stored ? `<p>Logging in as <strong>${esc(stored.label || stored.user_id)}</strong>.</p>` : ""}
+     <button id="go" class="primary">Authenticate</button>
+     <p class="muted"><a href="#user-register">New here? Register</a></p>
+     <p class="muted"><a href="#picker">Continue without user account</a></p>`);
+  if (!stored) { toast("No user registered on this device", "error"); return; }
+  document.getElementById("go").onclick = async () => {
+    document.getElementById("go").disabled = true;
+    const { user_id } = stored;
+    try {
+      const beginData = await api(`/users/${user_id}/passkeys/login/begin`, { method: "POST" });
+      const assertion = await passkeyGet(beginData);
+      const res = await api(`/users/${user_id}/passkeys/login/finish`, {
+        method: "POST",
+        body:   { challenge: beginData.challenge, assertion },
+      });
+      saveSession(res.session);
+      toast("Logged in", "ok");
+      go("user");
+    } catch (e) {
+      toast("Login failed: " + e.message, "error");
+      document.getElementById("go").disabled = false;
+    }
+  };
+}
+
+async function screenUser() {
+  const user = storedUser();
+  const session = userSession();
+  if (!user || !session) return go("user-login");
+  h(`<h2>${esc(user.label || "Your accounts")}</h2>
+     <div id="list"><p class="muted">Loading…</p></div>
+     <button id="newacct">+ New account</button>
+     <button id="logout" class="danger">Log out</button>`);
+  const apiUser = (path, opts = {}) =>
+    api(path, { ...opts, key: session });
+  document.getElementById("newacct").onclick = async () => {
+    try {
+      const res = await apiUser(`/users/${user.user_id}/accounts`, {
+        method: "POST", body: {},
+      });
+      upsertAccount({ id: res.account_id, label: "account", key: res.api_key });
+      toast("Account created", "ok");
+      screenUser();
+    } catch (e) { toast("Failed: " + e.message, "error"); }
+  };
+  document.getElementById("logout").onclick = () => {
+    clearSession(); toast("Logged out", "ok"); go("picker");
+  };
+  try {
+    const r = await apiUser(`/users/${user.user_id}/accounts`);
+    const list = r.accounts || [];
+    document.getElementById("list").innerHTML = list.length
+      ? `<ul class="cards">${list.map(a => {
+          const local = getAccount(a.account_id);
+          return `<li><a href="#account/${esc(a.account_id)}">
+            <strong>${esc(local ? local.label : "account")}</strong>
+            <code>${esc((a.account_id || "").slice(0, 14))}…</code>
+          </a>
+          ${!local ? `<button class="small" data-id="${esc(a.account_id)}">Load API key</button>` : ""}</li>`;
+        }).join("")}</ul>`
+      : '<p class="muted">No accounts yet. Create one above.</p>';
+    document.querySelectorAll("button[data-id]").forEach(b => b.onclick = async () => {
+      const aid = b.getAttribute("data-id");
+      try {
+        const kr = await apiUser(`/users/${user.user_id}/accounts/${aid}/api-key`);
+        upsertAccount({ id: aid, label: "account", key: kr.api_key });
+        toast("Account loaded", "ok"); screenUser();
+      } catch (e) { toast("Failed: " + e.message, "error"); }
+    });
+  } catch (e) {
+    document.getElementById("list").innerHTML = `<p class="error">${esc(e.message)}</p>`;
+    if (e.message.includes("401") || e.message.includes("session")) {
+      clearSession(); go("user-login");
+    }
+  }
+}
+
 function screenPicker() {
   const list = accounts();
-  if (list.length === 0) return screenWelcome();
+  const user = storedUser();
+  if (list.length === 0 && !user) return screenWelcome();
+  const userLink = user
+    ? `<p class="muted"><a href="#user">Switch to user view (${esc(user.label || user.user_id)})</a></p>`
+    : `<p class="muted"><a href="#user-register">Register / log in as user (multi-account)</a></p>`;
   h(`<h2>Your accounts</h2>
      <ul class="cards">${list.map(a => `
        <li><a href="#account/${esc(a.id)}">
          <strong>${esc(a.label || "account")}</strong>
          <code>${esc(a.id.slice(0, 14))}…</code></a></li>`).join("")}
      </ul>
-     <button id="add">+ New account</button>`);
+     <button id="add">+ New account</button>
+     <label class="file-label"><input type="file" id="import-file" accept=".json" hidden>
+       Import from backup</label>
+     ${userLink}`);
   document.getElementById("add").onclick = () => go("create");
+  document.getElementById("import-file").onchange = importBackup;
 }
 
 function screenWelcome() {
   h(`<h2>Welcome</h2>
      <p>A self-custodial-by-default Lightning wallet. Create your first
         account to get a top-up address and start paying / receiving.</p>
-     <button id="create">Create my first account</button>`);
+     <button id="create">Create my first account</button>
+     <label class="file-label"><input type="file" id="import-file-w" accept=".json" hidden>
+       Import from backup</label>
+     <p class="muted">Have an invite code?
+       <a href="#user-register">Register as a user</a> to manage multiple
+       accounts under one passkey.</p>`);
   document.getElementById("create").onclick = () => go("create");
+  document.getElementById("import-file-w").onchange = importBackup;
+}
+
+function importBackup(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const obj = JSON.parse(reader.result);
+      if (!obj.account_id || !obj.api_key) throw new Error("missing fields");
+      const id = obj.account_id;
+      if (!/^(bc1|tb1|bcrt1)/.test(id)) throw new Error("invalid account_id");
+      upsertAccount({ id, label: obj.label || "account", key: obj.api_key });
+      toast("Account imported", "ok");
+      go("account/" + id);
+    } catch (e) {
+      toast("Import failed: " + e.message, "error");
+    }
+  };
+  reader.readAsText(file);
 }
 
 async function screenCreate() {
@@ -185,12 +426,14 @@ async function screenAccount(id) {
        <button id="send">Send</button>
        <button id="recv">Receive</button>
        <button id="topup">Top up</button>
+       <button id="history">History</button>
        <button id="commerce">Commerce</button>
        <button id="settings">⚙</button>
      </div>
      <div id="topupbox"></div>`);
   document.getElementById("send").onclick = () => go("send/" + id);
   document.getElementById("recv").onclick = () => go("recv/" + id);
+  document.getElementById("history").onclick = () => go("history/" + id);
   document.getElementById("settings").onclick = () => go("settings/" + id);
   document.getElementById("commerce").onclick = () => go("commerce/" + id);
   document.getElementById("topup").onclick = () => showTopup(id, acct.key);
@@ -217,21 +460,42 @@ async function showTopup(id, key) {
   } catch (e) { box.innerHTML = `<p class="error">${esc(e.message)}</p>`; }
 }
 
+// FEAT-248 — improved Send UX: universal target label, fee in receipt.
 function screenSend(id) {
   const acct = getAccount(id);
   if (!acct) return go("picker");
   h(`<h2>Send</h2>
-     <label>BOLT-11 invoice
-       <textarea id="bolt11" rows="3" placeholder="lnbc…"></textarea></label>
+     <label>Invoice / Lightning address / offer
+       <textarea id="bolt11" rows="3" placeholder="lnbc… · lno… · user@domain.com"></textarea></label>
+     <p id="pay-preview" class="muted" style="min-height:1.2em"></p>
+     <label>Note (optional, stored locally with the transaction)
+       <input id="note" maxlength="200" placeholder="e.g. rent, coffee"></label>
      <button id="pay" class="primary">Pay</button>
      <a href="#account/${esc(id)}">Cancel</a>`);
+  const showDecodePreview = async (target) => {
+    if (!target.toLowerCase().startsWith("lnbc") && !target.toLowerCase().startsWith("lntb")) return;
+    try {
+      const info = await fetch(
+        `${CONFIG.api_base}/decode?invoice=${encodeURIComponent(target)}`
+      ).then(r => r.json());
+      if (info.error || !info.amount_sat) return;
+      const pre = document.getElementById("pay-preview");
+      if (pre) pre.textContent = `${info.amount_sat.toLocaleString()} sat — ${info.description || "no description"}`;
+    } catch (_) { /* best-effort */ }
+  };
+  document.getElementById("bolt11").addEventListener("blur", ev =>
+    showDecodePreview(ev.target.value.trim()));
   document.getElementById("pay").onclick = async () => {
     const target = document.getElementById("bolt11").value.trim();
-    if (!target) return toast("Paste an invoice", "error");
+    if (!target) return toast("Paste an invoice, Lightning address, or offer", "error");
+    const note = document.getElementById("note").value.trim();
     document.getElementById("pay").disabled = true;
     try {
-      const r = await api(`/accounts/${id}/pay`, { method: "POST", key: acct.key, body: { target } });
-      toast("Paid — " + (r.amount_sat ?? "?") + " sat", "ok");
+      const body = { target };
+      if (note) body.note = note;
+      const r = await api(`/accounts/${id}/pay`, { method: "POST", key: acct.key, body });
+      const fee = r.fee_sat != null ? " (fee: " + r.fee_sat + " sat)" : "";
+      toast("Paid — " + (r.amount_sat ?? "?") + " sat" + fee, "ok");
       go("account/" + id);
     } catch (e) {
       toast("Pay failed: " + e.message, "error");
@@ -240,25 +504,77 @@ function screenSend(id) {
   };
 }
 
+// FEAT-245 — BOLT-11 invoice + BOLT-12 reusable offer on the same screen.
 function screenRecv(id) {
   const acct = getAccount(id);
   if (!acct) return go("picker");
   h(`<h2>Receive</h2>
-     <label>Amount (sat)<input id="sat" type="number" min="1" placeholder="1000"></label>
-     <label>Description<input id="desc" maxlength="128" placeholder="optional"></label>
-     <button id="mint" class="primary">Create invoice</button>
+     <div class="row" id="recv-tabs">
+       <button id="tab-bolt11" class="primary">Invoice (BOLT-11)</button>
+       <button id="tab-bolt12">Reusable offer (BOLT-12)</button>
+     </div>
+     <div id="recv-bolt11">
+       <label>Amount (sat)<input id="sat" type="number" min="1" placeholder="1000"></label>
+       <label>Description<input id="desc" maxlength="128" placeholder="optional"></label>
+       <button id="mint" class="primary">Create invoice</button>
+     </div>
+     <div id="recv-bolt12" style="display:none">
+       <label>Amount (sat, or leave blank for any amount)<input id="sat12" type="number" min="1" placeholder="any"></label>
+       <label>Description<input id="desc12" maxlength="128" placeholder="optional"></label>
+       <button id="mint12" class="primary">Get reusable offer</button>
+     </div>
      <div id="inv"></div>
      <a href="#account/${esc(id)}">Back</a>`);
+
+  document.getElementById("tab-bolt11").onclick = () => {
+    document.getElementById("recv-bolt11").style.display = "";
+    document.getElementById("recv-bolt12").style.display = "none";
+    document.getElementById("tab-bolt11").classList.add("primary");
+    document.getElementById("tab-bolt12").classList.remove("primary");
+    document.getElementById("inv").innerHTML = "";
+  };
+  document.getElementById("tab-bolt12").onclick = () => {
+    document.getElementById("recv-bolt11").style.display = "none";
+    document.getElementById("recv-bolt12").style.display = "";
+    document.getElementById("tab-bolt12").classList.add("primary");
+    document.getElementById("tab-bolt11").classList.remove("primary");
+    document.getElementById("inv").innerHTML = "";
+  };
+
   document.getElementById("mint").onclick = async () => {
     const sat = parseInt(document.getElementById("sat").value, 10);
     const description = document.getElementById("desc").value.trim();
     if (!Number.isInteger(sat) || sat <= 0) return toast("Enter a positive amount", "error");
     try {
       const r = await api(`/accounts/${id}/recv`, { method: "POST", key: acct.key, body: { sat, description } });
+      const inv = r.bolt11 || "";
       document.getElementById("inv").innerHTML =
         `<div class="card"><p>Share this invoice:</p>
-         <pre class="key">${esc(r.bolt11 || "")}</pre></div>`;
+         <pre class="key">${esc(inv)}</pre>
+         <button id="copy-inv">Copy</button></div>`;
+      document.getElementById("copy-inv").onclick = () =>
+        navigator.clipboard.writeText(inv).then(() => toast("Copied", "ok"))
+          .catch(() => toast("Copy failed", "error"));
     } catch (e) { toast("Mint failed: " + e.message, "error"); }
+  };
+
+  document.getElementById("mint12").onclick = async () => {
+    const satVal = document.getElementById("sat12").value.trim();
+    const description = document.getElementById("desc12").value.trim();
+    const sat = satVal === "" ? "any" : parseInt(satVal, 10);
+    if (sat !== "any" && (!Number.isInteger(sat) || sat <= 0))
+      return toast("Enter a positive amount or leave blank for any", "error");
+    try {
+      const r = await api(`/accounts/${id}/recv-reusable`, { method: "POST", key: acct.key, body: { sat, description } });
+      const offer = r.bolt12 || "";
+      document.getElementById("inv").innerHTML =
+        `<div class="card"><p>Reusable BOLT-12 offer (share freely — payers can pay multiple times):</p>
+         <pre class="key">${esc(offer)}</pre>
+         <button id="copy-offer">Copy</button></div>`;
+      document.getElementById("copy-offer").onclick = () =>
+        navigator.clipboard.writeText(offer).then(() => toast("Copied", "ok"))
+          .catch(() => toast("Copy failed", "error"));
+    } catch (e) { toast("Offer failed: " + e.message, "error"); }
   };
 }
 
@@ -320,15 +636,29 @@ function screenSettings(id) {
   if (!acct) return go("picker");
   const year = new Date().getUTCFullYear();
   h(`<h2>Settings — ${esc(acct.label)}</h2>
+     <label>Account label (this device only)
+       <input id="label-input" value="${esc(acct.label)}" maxlength="40"></label>
+     <button id="save-label">Save label</button>
+     <button id="toggle-theme">${localStorage.getItem(LS_THEME_KEY) === "light" ? "Switch to dark mode" : "Switch to light mode"}</button>
+     <button id="node-info">Node info</button>
      <button id="referrals">Invite &amp; referrals</button>
      <button id="taxdata">Export transaction data (for tax)</button>
      <p class="muted">${year} — source data for tax preparation, not a report.</p>
      <button id="showkey">Show API key (for LLM agents / CLI)</button>
      <pre id="key" class="key" hidden>${esc(acct.key)}</pre>
+     <button id="dlbackup">Download backup</button>
+     <p class="muted">Saves account_id + API key as a JSON file for recovery.</p>
      <button id="remove" class="danger">Remove from this device</button>
      <p class="muted">Removing only forgets the account locally; the account
         and its funds stay on the node. Re-add it with its API key.</p>
      <a href="#account/${esc(id)}">Back</a>`);
+  document.getElementById("save-label").onclick = () => {
+    const newLabel = document.getElementById("label-input").value.trim() || "account";
+    upsertAccount({ ...acct, label: newLabel });
+    toast("Label saved", "ok");
+  };
+  document.getElementById("toggle-theme").onclick = () => { toggleTheme(); go("settings/" + id); };
+  document.getElementById("node-info").onclick = () => go("node");
   document.getElementById("referrals").onclick = () => go("referrals/" + id);
   document.getElementById("taxdata").onclick = async () => {
     // Bearer-authed download → fetch + blob (a plain link can't set the header).
@@ -346,9 +676,90 @@ function screenSettings(id) {
   };
   document.getElementById("showkey").onclick = () =>
     document.getElementById("key").hidden = !document.getElementById("key").hidden;
+  document.getElementById("dlbackup").onclick = () => {
+    const blob = new Blob(
+      [JSON.stringify({ account_id: id, api_key: acct.key }, null, 2)],
+      { type: "application/json" }
+    );
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `lightning-backup-${id.slice(0, 12)}.json`;
+    a.click();
+  };
   document.getElementById("remove").onclick = () => {
     if (confirm("Forget this account on this device?")) { removeAccount(id); go("picker"); }
   };
+}
+
+async function screenNode() {
+  h(`<h2>Node info</h2><p class="muted">Loading…</p>`);
+  try {
+    const info = await fetch(`${CONFIG.api_base}/node`).then(r => r.json());
+    if (info.error) throw new Error(info.error);
+    h(`<h2>Node info</h2>
+       <dl>
+         <dt>Pubkey</dt><dd><code>${esc(info.pubkey)}</code></dd>
+         <dt>Alias</dt><dd>${esc(info.alias)}</dd>
+         <dt>Active channels</dt><dd>${info.num_channels}</dd>
+         <dt>Local capacity</dt><dd>${(info.local_msat / 1000).toLocaleString()} sat</dd>
+       </dl>
+       <button id="channels">View channels</button>
+       <button id="node-funds-btn">Node funds</button>
+       <a href="#picker">Back</a>`);
+    document.getElementById("channels").onclick = () => go("channels");
+    document.getElementById("node-funds-btn").onclick = () => go("node-funds");
+  } catch (e) {
+    h(`<h2>Node info</h2><p class="error">${esc(e.message)}</p><a href="#picker">Back</a>`);
+  }
+}
+
+async function screenNodeFunds() {
+  const acctList = accounts();
+  const key = acctList.length ? acctList[0].key : null;
+  if (!key) return h(`<h2>Node funds</h2><p class="error">No account.</p><a href="#node">Back</a>`);
+  h(`<h2>Node funds</h2><p class="muted">Loading…</p>`);
+  try {
+    const f = await api("/node-funds", { key });
+    h(`<h2>Node funds</h2>
+       <dl>
+         <dt>On-chain (confirmed)</dt><dd>${f.onchain_sat.toLocaleString()} sat</dd>
+         <dt>In channels (local)</dt><dd>${f.channel_sat.toLocaleString()} sat</dd>
+         <dt>Total</dt><dd><strong>${f.total_sat.toLocaleString()} sat</strong></dd>
+       </dl>
+       ${f.utxos.length ? `<details><summary>UTXOs (${f.utxos.length})</summary><ul>
+         ${f.utxos.map(u => `<li><code>${esc(u.txid.slice(0,16))}…:${u.output}</code>
+           — ${u.sat.toLocaleString()} sat (${esc(u.status)})</li>`).join("")}
+       </ul></details>` : ""}
+       <a href="#node">Back</a>`);
+  } catch (e) {
+    h(`<h2>Node funds</h2><p class="error">${esc(e.message)}</p><a href="#node">Back</a>`);
+  }
+}
+
+async function screenChannels() {
+  const acctList = accounts();
+  const key = acctList.length ? acctList[0].key : null;
+  if (!key) return h(`<h2>Channels</h2><p class="error">No account — need a bearer key.</p><a href="#picker">Back</a>`);
+  h(`<h2>Channels</h2><p class="muted">Loading…</p>`);
+  try {
+    const chans = await api("/channels", { key });
+    if (!Array.isArray(chans) || chans.length === 0) {
+      h(`<h2>Channels</h2><p class="muted">No channels found.</p><a href="#node">Back</a>`);
+      return;
+    }
+    const rows = chans.map(c => {
+      const pct = c.capacity_sat ? Math.round(c.local_sat / c.capacity_sat * 100) : 0;
+      return `<div class="card" style="padding:.4em .8em">
+        <strong>${esc(c.alias || c.peer_id.slice(0, 16) + "…")}</strong>
+        <span class="muted" style="float:right">${esc(c.state)}</span>
+        <br><small>Cap: ${c.capacity_sat.toLocaleString()} sat
+          · Local: ${c.local_sat.toLocaleString()} sat (${pct}%)</small>
+      </div>`;
+    }).join("");
+    h(`<h2>Channels (${chans.length})</h2>${rows}<a href="#node">Back</a>`);
+  } catch (e) {
+    h(`<h2>Channels</h2><p class="error">${esc(e.message)}</p><a href="#node">Back</a>`);
+  }
 }
 
 // --- router ---------------------------------------------------------------
@@ -564,6 +975,68 @@ async function screenMandates(id) {
   refresh();
 }
 
+// FEAT-246 — transaction history screen.
+async function screenHistory(id) {
+  const acct = getAccount(id);
+  if (!acct) return go("picker");
+  h(`<h2>History</h2>
+     <div id="entries"><p class="muted">Loading…</p></div>
+     <div id="hist-nav" style="display:none">
+       <button id="older">Older</button>
+     </div>
+     <a href="#account/${esc(id)}">Back</a>`);
+
+  let beforeId = null;
+  const load = async () => {
+    try {
+      const url = `/accounts/${id}/history` + (beforeId ? `?before=${beforeId}` : "");
+      const r = await api(url, { key: acct.key });
+      const entries = r.entries || [];
+      if (entries.length === 0 && !beforeId) {
+        document.getElementById("entries").innerHTML = "<p class='muted'>No transactions yet.</p>";
+        return;
+      }
+      const rows = entries.map(e => {
+        const dir = e.direction === "in" ? "+" : "−";
+        const sat = Math.round(Math.abs(e.amount_msat) / 1000).toLocaleString();
+        const label = esc(e.message || e.peer || e.payment_hash.slice(0, 12));
+        const ts = e.ts ? new Date(e.ts).toLocaleString() : "";
+        const cls = e.direction === "in" ? "color:green" : "color:#c00";
+        const noteVal = esc(e.note || "");
+        return `<div class="card" style="padding:.4em .8em">
+          <span style="${cls}">${dir}${sat} sat</span>
+          <span class="muted" style="float:right;font-size:.85em">${ts}</span>
+          <br><span class="muted" style="font-size:.85em">${label}</span>
+          <br><input class="hist-note" data-id="${e.id}" value="${noteVal}"
+            placeholder="add note…" maxlength="200"
+            style="font-size:.85em;width:100%;margin-top:.2em">
+        </div>`;
+      }).join("");
+      const box = document.getElementById("entries");
+      if (beforeId) box.innerHTML += rows;
+      else box.innerHTML = rows;
+      if (r.has_more && entries.length) {
+        beforeId = entries[entries.length - 1].id;
+        document.getElementById("hist-nav").style.display = "";
+      } else {
+        document.getElementById("hist-nav").style.display = "none";
+      }
+    } catch (e) { document.getElementById("entries").innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+  };
+  document.getElementById("older").onclick = load;
+  await load();
+  document.getElementById("entries").addEventListener("change", async ev => {
+    const input = ev.target.closest(".hist-note");
+    if (!input) return;
+    const entryId = input.dataset.id;
+    try {
+      await api(`/accounts/${id}/history/${entryId}`, {
+        method: "PATCH", key: acct.key, body: { note: input.value.trim() }
+      });
+    } catch (e) { toast("Note save failed: " + e.message, "error"); }
+  });
+}
+
 function route() {
   if (POLL) { clearInterval(POLL); POLL = null; }
   renderNav();
@@ -576,12 +1049,19 @@ function route() {
     case "send": return screenSend(arg);
     case "recv": return screenRecv(arg);
     case "settings": return screenSettings(arg);
+    case "history": return screenHistory(arg);
     case "referrals": return screenReferrals(arg);
     case "commerce": return screenCommerce(arg);
     case "pos": return screenPOS(arg);
     case "transfer": return screenTransfer(arg);
     case "so": return screenStandingOrders(arg);
     case "mandates": return screenMandates(arg);
+    case "node": return screenNode();
+    case "channels": return screenChannels();
+    case "node-funds": return screenNodeFunds();
+    case "user-register": return screenUserRegister();
+    case "user-login": return screenUserLogin();
+    case "user": return screenUser();
     default: return screenPicker();
   }
 }
@@ -589,6 +1069,7 @@ function route() {
 window.addEventListener("hashchange", route);
 
 (async function main() {
+  applyTheme();
   await loadConfig();
   consumeInviteParam();
   document.getElementById("apibase").textContent = "API: " + CONFIG.api_base;

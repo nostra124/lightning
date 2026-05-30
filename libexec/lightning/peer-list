@@ -1,0 +1,24 @@
+#!/bin/bash
+# lightning peer-list   (FEAT-259)
+#
+# Lists connected peers.  Returns [{peer_id, connected, num_channels}].
+
+set -e
+command -v lightning-cli >/dev/null || { echo '[]'; exit 0; }
+
+raw=$(lightning-cli \
+    --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+    --network="${LIGHTNING_NETWORK:-bitcoin}" \
+    listpeers 2>/dev/null) || { echo '[]'; exit 0; }
+
+python3 - "$raw" <<'EOF'
+import sys, json
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    print("[]"); sys.exit(0)
+peers = data.get("peers", [])
+out = [{"peer_id": p.get("id",""), "connected": p.get("connected", False),
+        "num_channels": len(p.get("channels", []))} for p in peers]
+print(json.dumps(out))
+EOF

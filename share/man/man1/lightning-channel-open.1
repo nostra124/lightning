@@ -1,0 +1,31 @@
+.TH "LIGHTNING-CHANNEL-OPEN" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-open \- open a Lightning payment channel
+.SH SYNOPSIS
+.B lightning channel-open
+.I pubkey sat
+.RB [ --push-sat
+.IR sat ]
+.SH DESCRIPTION
+Opens a channel to a connected peer by calling
+.BR lightning-cli (1)
+.BR fundchannel .
+The peer must already be connected (see
+.BR lightning-peer-connect (1)).
+.PP
+Returns JSON
+.B {"txid":"...","channel_id":"...","sat":<int>}
+on success.
+.TP
+.B --push-sat N
+Push N satoshis to the remote side at open time.
+.SH EXIT STATUS
+.TP
+.B 0
+Channel open transaction broadcast.
+.TP
+.B 5
+Open failed (peer not connected, insufficient funds, etc.).
+.SH SEE ALSO
+.BR lightning-channel-close (1),
+.BR lightning-peer-connect (1)

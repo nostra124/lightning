@@ -1,0 +1,48 @@
+#!/bin/bash
+# lightning api-channel-list   (FEAT-257)
+#
+# Returns a JSON array of channels from lightning-cli listpeerchannels.
+# Normalises the CLN field names into a stable public shape:
+#   [{peer_id, alias, channel_id, capacity_sat, local_sat, remote_sat, state}]
+
+set -e
+command -v lightning-cli >/dev/null || { echo '{"error":"lightning-cli not installed"}'; exit 127; }
+
+raw=$(lightning-cli \
+    --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+    --network="${LIGHTNING_NETWORK:-bitcoin}" \
+    listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+
+python3 - "$raw" <<'EOF'
+import sys, json
+
+raw = sys.argv[1]
+try:
+    data = json.loads(raw)
+except Exception:
+    print("[]")
+    sys.exit(0)
+
+channels = data.get("channels", [])
+out = []
+for ch in channels:
+    cap_msat = ch.get("total_msat", 0)
+    if isinstance(cap_msat, str):
+        cap_msat = int(cap_msat.rstrip("msat") or 0)
+    local_msat = ch.get("to_us_msat", 0)
+    if isinstance(local_msat, str):
+        local_msat = int(local_msat.rstrip("msat") or 0)
+    capacity_sat = cap_msat // 1000
+    local_sat = local_msat // 1000
+    remote_sat = max(0, capacity_sat - local_sat)
+    out.append({
+        "peer_id":      ch.get("peer_id", ""),
+        "alias":        ch.get("alias", "") or "",
+        "channel_id":   ch.get("channel_id", "") or ch.get("short_channel_id", ""),
+        "capacity_sat": capacity_sat,
+        "local_sat":    local_sat,
+        "remote_sat":   remote_sat,
+        "state":        ch.get("state", ""),
+    })
+print(json.dumps(out))
+EOF

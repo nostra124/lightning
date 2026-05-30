@@ -1,0 +1,27 @@
+#!/bin/bash
+# lightning api-account-apikey <address>   (FEAT-249)
+#
+# Returns the API key for the account so the owner can copy it into
+# an LLM agent or CLI.  Requires the bearer to already match — auth
+# is enforced by the CGI dispatcher before this verb is called.
+#   {"api_key":"lt_…"}
+
+set -e
+[ $# -eq 1 ] || exit 1
+address="$1"
+
+case "$address" in bc1*|tb1*|bcrt1*) ;; *) exit 2 ;; esac
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+[ -f "$db" ] || { echo '{"error":"no active wallet"}'; exit 3; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+api_key=$(sqlite3 "$db" \
+    "SELECT api_key FROM accounts WHERE address = $(sql_quote "$address");")
+[ -n "$api_key" ] || { echo '{"error":"unknown account"}'; exit 4; }
+
+printf '{"api_key":"%s"}\n' "$api_key"

@@ -1,0 +1,39 @@
+#!/bin/bash
+# lightning node-log [--level io|debug|info|unusual|broken] [--limit N]  (FEAT-267)
+#
+# Fetches recent log entries from lightning-cli getlog.
+# Returns [{time,source,log,level}].
+
+set -e
+level="info"; limit=50
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --level) level="$2"; shift 2 ;;
+        --limit) limit="$2"; shift 2 ;;
+        *) exit 2 ;;
+    esac
+done
+case "$limit" in ''|*[!0-9]*) limit=50 ;; esac
+[ "$limit" -gt 1000 ] && limit=1000
+case "$level" in io|debug|info|unusual|broken) ;; *) exit 2 ;; esac
+
+command -v lightning-cli >/dev/null || { echo '[]'; exit 0; }
+
+raw=$(lightning-cli \
+    --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+    --network="${LIGHTNING_NETWORK:-bitcoin}" \
+    getlog "$level" 2>/dev/null) || { echo '[]'; exit 0; }
+
+python3 - "$raw" "$limit" <<'EOF'
+import sys, json
+try:
+    d = json.loads(sys.argv[1])
+except Exception:
+    print("[]"); sys.exit(0)
+limit = int(sys.argv[2])
+entries = d.get("log", [])
+out = [{"time": e.get("time",""), "source": e.get("source",""),
+        "log": e.get("log",""), "level": e.get("type","")}
+       for e in entries[-limit:]]
+print(json.dumps(out))
+EOF

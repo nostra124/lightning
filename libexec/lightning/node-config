@@ -1,0 +1,45 @@
+#!/bin/bash
+# lightning node-config [get [<key>] | set <key> <value>]   (FEAT-268)
+#
+# Reads or writes CLN dynamic configuration via listconfigs / setconfig.
+# Subcommands:
+#   get [<key>]        print all configs (or a single key) as JSON
+#   set <key> <value>  update a dynamic config value
+
+set -e
+cmd="${1:-get}"; shift 2>/dev/null || true
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not installed"}'; exit 127; }
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+case "$cmd" in
+    get)
+        key="${1:-}"
+        if [ -n "$key" ]; then
+            raw=$(lightning-cli $LD $NET listconfigs "$key" 2>/dev/null) \
+                || { echo '{"error":"key_not_found"}'; exit 5; }
+        else
+            raw=$(lightning-cli $LD $NET listconfigs 2>/dev/null) \
+                || { echo '{"error":"listconfigs_failed"}'; exit 5; }
+        fi
+        python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+configs = d.get('configs', d)
+print(json.dumps(configs))
+" "$raw"
+        ;;
+    set)
+        [ $# -ge 2 ] || { printf 'usage: node-config set <key> <value>\n' >&2; exit 1; }
+        key="$1"; val="$2"
+        raw=$(lightning-cli $LD $NET setconfig "$key" "$val" 2>/dev/null) \
+            || { echo '{"error":"setconfig_failed"}'; exit 5; }
+        echo '{"ok":true}'
+        ;;
+    *)
+        printf 'usage: node-config get [<key>] | set <key> <value>\n' >&2
+        exit 1 ;;
+esac

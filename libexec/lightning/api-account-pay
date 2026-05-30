@@ -9,10 +9,11 @@
 set -e
 [ $# -ge 2 ] || exit 1
 address="$1"; target="$2"; shift 2
-sat=""
+sat=""; note=""
 while [ $# -gt 0 ]; do
 	case "$1" in
-		--sat) sat="$2"; shift 2 ;;
+		--sat)  sat="$2";  shift 2 ;;
+		--note) note="$2"; shift 2 ;;
 		*) exit 2 ;;
 	esac
 done
@@ -173,8 +174,8 @@ referral_sat=$(( referral_msat / 1000 ))
 # referrer sum to +operator_fee_msat.  Same payment_hash on all
 # rows for trace.
 sql="BEGIN;"
-sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message)"
-sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$invoice_msat, $(sql_quote "$payment_hash"), 'api pay');"
+sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message, note)"
+sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$invoice_msat, $(sql_quote "$payment_hash"), 'api pay', $(sql_quote "${note:0:200}"));"
 sql+=" INSERT INTO ledger(ts, account, direction, amount_msat, payment_hash, message)"
 sql+=" VALUES(datetime('now'), $(sql_quote "$name"), 'out', -$network_fee_msat, $(sql_quote "$payment_hash"), 'network fee');"
 if [ "$operator_fee_msat" -gt 0 ]; then

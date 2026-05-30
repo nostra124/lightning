@@ -4503,8 +4503,8 @@ _acct212pr2_teardown() {
 	            account_pay account_recv account_recv_reusable account_close; do
 		jq -e --arg t "$tool" '.tools | index($t)' "$f" >/dev/null
 	done
-	# Resource URI templates.
-	jq -e '.resources | length == 3' "$f" >/dev/null
+	# Resource URI templates (node://info added in FEAT-269/274).
+	jq -e '.resources | length >= 3' "$f" >/dev/null
 	# Protocol version.
 	[ "$(jq -r '.protocolVersion' "$f")" = "2025-03-26" ]
 }
@@ -7970,6 +7970,69 @@ _pr5_teardown() {
 }
 
 # ---------------------------------------------------------------------------
+# FEAT-222 PR-7: PWA user registration / login flow + Show API key.
+# ---------------------------------------------------------------------------
+
+@test "FEAT-222 PR-7: app.js has user registration screen (screenUserRegister)" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "screenUserRegister" "$f"
+	grep -q "user-register" "$f"
+	grep -q "register/begin" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js has user login screen (screenUserLogin)" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "screenUserLogin" "$f"
+	grep -q "user-login" "$f"
+	grep -q "login/begin" "$f"
+	grep -q "login/finish" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js has user accounts screen (screenUser)" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "screenUser\b" "$f"
+	grep -q "users/.*accounts" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js routes user-register, user-login, user" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q '"user-register"' "$f"
+	grep -q '"user-login"' "$f"
+	grep -q '"user".*screenUser\b' "$f"
+}
+
+@test "FEAT-222 PR-7: app.js has passkey WebAuthn helpers (passkeyCreate + passkeyGet)" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "passkeyCreate" "$f"
+	grep -q "passkeyGet" "$f"
+	grep -q "navigator.credentials.create" "$f"
+	grep -q "navigator.credentials.get" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js stores user_id + session separately (LS_USER_KEY)" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "LS_USER_KEY" "$f"
+	grep -q "storedUser\|saveUser" "$f"
+	grep -q "userSession\|saveSession\|clearSession" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js has 'Show API key' in settings screen" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "showkey\|Show API key" "$f"
+}
+
+@test "FEAT-222 PR-7: app.js surfaces api-key retrieval for user-owned accounts" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "api-key\|apikey\|api_key" "$f"
+	grep -q "users/.*accounts.*/api-key" "$f"
+}
+
+@test "FEAT-222 PR-7: screenPicker links to user-register / user view" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "user-register\|user-login" "$f"
+}
+
+# ---------------------------------------------------------------------------
 # FEAT-222 PR-6: access control — require_referral + invite whitelist.
 # ---------------------------------------------------------------------------
 
@@ -8206,4 +8269,783 @@ _acct243_teardown() {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/schema.sql"
 	grep -q "profile" "$f"
 	grep -q "fund_class" "$f"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-245 — PWA: BOLT-12 reusable offer on the Receive screen
+# ---------------------------------------------------------------------------
+
+@test "FEAT-245: screenRecv has BOLT-12 tab button" {
+	grep -q "tab-bolt12" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-245: screenRecv calls recv-reusable endpoint" {
+	grep -q "recv-reusable" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-245: BOLT-12 tab sends sat=any when amount is blank" {
+	grep -q '"any"' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-245: screenRecv renders both Invoice and Reusable offer tabs" {
+	js="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "Invoice (BOLT-11)" "$js"
+	grep -q "Reusable offer (BOLT-12)" "$js"
+}
+
+@test "FEAT-245: screenRecv displays bolt12 string on success" {
+	grep -q "r.bolt12" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-246 — Transaction history API + PWA screen
+# ---------------------------------------------------------------------------
+
+@test "FEAT-246: api-account-history verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-history" ]
+}
+
+@test "FEAT-246: api-account-history returns entries + has_more for unknown account exits 4" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.246.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.246.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	db="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create 2>/dev/null)
+	addr=$(echo "$acct_json" | jq -r '.account_id')
+	run "$LIGHTNING_BIN" api-account-history "$addr"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.entries | type == "array"'
+	echo "$output" | jq -e 'has("has_more")'
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR"
+}
+
+@test "FEAT-246: api-account-history entries include ledger rows after a transfer" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.246b.$$"
+	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.246b.$$"
+	mkdir -p "$LIGHTNING_DIR"
+	"$LIGHTNING_BIN" wallet new alice >/dev/null
+	db="$LIGHTNING_WALLETS_ROOT/alice/state.db"
+	# Seed two accounts; book a ledger row manually.
+	a1_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create 2>/dev/null)
+	addr=$(echo "$a1_json" | jq -r '.account_id')
+	name=$(sqlite3 "$db" "SELECT name FROM accounts WHERE address='$addr';")
+	sqlite3 "$db" "INSERT INTO ledger(ts,account,direction,amount_msat,peer,payment_hash,message) VALUES(datetime('now'),'$name','in',5000000,'-','-','test-entry');"
+	run "$LIGHTNING_BIN" api-account-history "$addr"
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.entries | length >= 1'
+	echo "$output" | jq -e '.entries[0].direction == "in"'
+	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR"
+}
+
+@test "FEAT-246: accounts.py routes GET history" {
+	grep -q '"history"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
+	grep -q '_history' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
+}
+
+@test "FEAT-246: PWA app.js has screenHistory" {
+	grep -q "screenHistory" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-246: PWA account screen has History button" {
+	grep -q 'History' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-246: llms.txt documents the history endpoint" {
+	grep -q "history" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-247 — MCP account_history tool + ledger resource
+# ---------------------------------------------------------------------------
+
+@test "FEAT-247: mcp.py lists account_history tool" {
+	grep -q "account_history" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+}
+
+@test "FEAT-247: mcp.py ledger resource routes to api-account-history" {
+	grep -q "api-account-history" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+}
+
+@test "FEAT-247: account_history tool has correct inputSchema fields" {
+	py="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+	grep -q "before_id" "$py"
+	grep -q '"limit"' "$py"
+}
+
+@test "FEAT-247: llms.txt mentions account_history MCP tool" {
+	grep -q "account_history" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+}
+
+@test "FEAT-247: sudoers fragment lists api-account-history" {
+	grep -q "api-account-history" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-248 — Send screen UX + copy button on receive
+# ---------------------------------------------------------------------------
+
+@test "FEAT-248: Send screen label mentions Lightning address" {
+	grep -q "Lightning address" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-248: Send receipt shows fee_sat" {
+	grep -q "fee_sat" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-248: Receive screen has Copy button for invoice" {
+	grep -q "copy-inv" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-248: Receive screen has Copy button for offer" {
+	grep -q "copy-offer" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-248: Copy uses navigator.clipboard" {
+	grep -q "navigator.clipboard" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+# FEAT-249 — PWA Settings backup + api-key endpoint
+
+@test "FEAT-249: api-account-apikey verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-apikey" ]
+}
+
+@test "FEAT-249: accounts.py routes GET api-key" {
+	grep -q '"api-key"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
+}
+
+@test "FEAT-249: sudoers lists api-account-apikey" {
+	grep -q "api-account-apikey" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+@test "FEAT-249: PWA Settings has Download backup button" {
+	grep -q "dlbackup" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-249: PWA backup download uses account_id and api_key" {
+	grep -q "account_id.*api_key\|api_key.*account_id" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-249: backup filename includes short account id" {
+	grep -q 'lightning-backup-' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-249: llms.txt documents the api-key endpoint" {
+	grep -q "api-key" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+}
+
+# FEAT-250 — PWA import from backup blob
+
+@test "FEAT-250: picker screen has import-file input" {
+	grep -q "import-file" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-250: importBackup function validates account_id and api_key" {
+	grep -q "importBackup" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-250: import validates bech32 account_id prefix" {
+	grep -q "bc1.*tb1.*bcrt1\|bc1|tb1|bcrt1" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-250: successful import navigates to account view" {
+	grep -q 'go("account/' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+# FEAT-251 — PWA rename account label
+
+@test "FEAT-251: Settings screen has label input" {
+	grep -q "label-input" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-251: Settings screen has Save label button" {
+	grep -q "save-label" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-251: save-label handler calls upsertAccount" {
+	grep -A5 "save-label.*onclick" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js" \
+		| grep -q "upsertAccount"
+}
+
+# FEAT-252 — node info verb + PWA node screen
+
+@test "FEAT-252: api-node-info verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-node-info" ]
+}
+
+@test "FEAT-252: node.py CGI script exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/node.py" ]
+}
+
+@test "FEAT-252: Apache conf has ScriptAlias for /v1/node" {
+	grep -q "v1/node" "$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+}
+
+@test "FEAT-252: sudoers lists api-node-info" {
+	grep -q "api-node-info" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+@test "FEAT-252: PWA has screenNode function" {
+	grep -q "function screenNode" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-252: PWA router handles node route" {
+	grep -q '"node".*screenNode' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-252: llms.txt documents GET /node" {
+	grep -q "GET /node" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+}
+
+# FEAT-253 — payment note / memo
+
+@test "FEAT-253: api-account-pay accepts --note argument" {
+	grep -q "\-\-note" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-pay"
+}
+
+@test "FEAT-253: api-account-pay writes note to ledger" {
+	grep -q "sql_quote.*note\|note.*sql_quote" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-pay"
+}
+
+@test "FEAT-253: accounts.py passes note to verb" {
+	grep -q '"--note"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
+}
+
+@test "FEAT-253: PWA Send screen has note input" {
+	grep -q 'id="note"' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-253: PWA Send includes note in pay body" {
+	grep -q "body.note\|body\[.note.\]" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+# FEAT-254 — PATCH history/<entry_id> update note
+
+@test "FEAT-254: api-account-history-note verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-history-note" ]
+}
+
+@test "FEAT-254: accounts.py routes PATCH history/<entry_id>" {
+	grep -q "history.*entry_id\|entry_id.*history" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
+}
+
+@test "FEAT-254: sudoers lists api-account-history-note" {
+	grep -q "api-account-history-note" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+@test "FEAT-254: PWA history rows have note inputs" {
+	grep -q "hist-note" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-254: PWA history note change sends PATCH request" {
+	grep -q '"PATCH"' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+# FEAT-255 — MCP node_info tool
+
+@test "FEAT-255: mcp.py lists node_info tool" {
+	grep -q "node_info" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/mcp.py"
+}
+
+@test "FEAT-255: node_info tool has no required auth" {
+	python3 -c "
+import sys; sys.path.insert(0,'$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api')
+import mcp
+t = mcp.TOOLS_BY_NAME['node_info']
+assert t['auth'] is None
+"
+}
+
+# FEAT-256 — api-account-list verb
+
+@test "FEAT-256: api-account-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-list" ]
+}
+
+@test "FEAT-256: api-account-list returns JSON array for empty wallet" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets256"
+	mkdir -p "$LIGHTNING_WALLETS_ROOT/default"
+	sqlite3 "$LIGHTNING_WALLETS_ROOT/default/state.db" \
+		"CREATE TABLE IF NOT EXISTS accounts(address TEXT,name TEXT,description TEXT,overdraft TEXT,created_at TEXT); CREATE TABLE IF NOT EXISTS ledger(id INTEGER,account TEXT,amount_msat INTEGER,message TEXT);"
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-list")
+	[ "$out" = "[]" ] || echo "$out" | python3 -c "import sys,json; json.load(sys.stdin)"
+}
+
+@test "FEAT-256: api-account-list --search filters results" {
+	grep -q "\-\-search" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-list"
+}
+
+@test "FEAT-256: api-account-list --limit caps results" {
+	grep -q "\-\-limit" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-list"
+}
+
+# FEAT-257 — channel list verb + endpoint
+
+@test "FEAT-257: api-channel-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-channel-list" ]
+}
+
+@test "FEAT-257: channels.py CGI script exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/channels.py" ]
+}
+
+@test "FEAT-257: Apache conf has ScriptAlias for /v1/channels" {
+	grep -q "v1/channels" "$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+}
+
+@test "FEAT-257: sudoers lists api-channel-list" {
+	grep -q "api-channel-list" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+@test "FEAT-257: PWA has screenChannels function" {
+	grep -q "function screenChannels" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-257: llms.txt documents GET /channels" {
+	grep -q "GET /channels" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
+}
+
+# FEAT-258 — PWA light/dark mode toggle
+
+@test "FEAT-258: style.css has light mode variables" {
+	grep -q "body.light" "$BATS_TEST_DIRNAME/../../share/lightning/ui/style.css"
+}
+
+@test "FEAT-258: app.js has toggleTheme function" {
+	grep -q "function toggleTheme" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-258: app.js applies theme on startup" {
+	grep -q "applyTheme" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-258: Settings screen has theme toggle button" {
+	grep -q "toggle-theme" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+# FEAT-259 — peer-connect / peer-disconnect / peer-list verbs
+
+@test "FEAT-259: peer-connect verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-connect" ]
+}
+
+@test "FEAT-259: peer-disconnect verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect" ]
+}
+
+@test "FEAT-259: peer-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list" ]
+}
+
+@test "FEAT-259: peer-list returns empty array when no daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-259: man pages exist for peer-connect, peer-disconnect, peer-list" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connect.1" ]
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect.1" ]
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list.1" ]
+}
+
+# FEAT-260 — channel-open / channel-close verbs
+
+@test "FEAT-260: channel-open verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open" ]
+}
+
+@test "FEAT-260: channel-close verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close" ]
+}
+
+@test "FEAT-260: man pages exist for channel-open and channel-close" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open.1" ]
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close.1" ]
+}
+
+@test "FEAT-260: channel-open validates sat argument" {
+	grep -q "case.*sat.*\*\[!\*0-9\]\*\|NOT_A_NUMBER\|0-9.*exit 2" "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open"
+}
+
+# FEAT-261 — wallet-stats verb
+
+@test "FEAT-261: wallet-stats verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" ]
+}
+
+@test "FEAT-261: wallet-stats returns valid JSON for missing wallet" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets261"
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['num_accounts']==0"
+}
+
+@test "FEAT-261: wallet-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-stats.1" ]
+}
+
+# FEAT-262 — invoice-decode verb + preview
+
+@test "FEAT-262: invoice-decode verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-decode" ]
+}
+
+@test "FEAT-262: decode.py CGI exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/decode.py" ]
+}
+
+@test "FEAT-262: Apache conf has ScriptAlias for /v1/decode" {
+	grep -q "v1/decode" "$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+}
+
+@test "FEAT-262: PWA Send screen has invoice decode preview" {
+	grep -q "pay-preview" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-262: PWA Send screen calls decode endpoint on blur" {
+	grep -q "showDecodePreview\|v1/decode" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+# FEAT-263 — invoice-list verb
+
+@test "FEAT-263: invoice-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list" ]
+}
+
+@test "FEAT-263: invoice-list returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-263: invoice-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list.1" ]
+}
+
+# FEAT-264 — payment-list verb
+
+@test "FEAT-264: payment-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-list" ]
+}
+
+@test "FEAT-264: payment-list returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-264: payment-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-list.1" ]
+}
+
+# FEAT-265 — node-funds verb + PWA screen
+
+@test "FEAT-265: node-funds verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-funds" ]
+}
+
+@test "FEAT-265: node-funds returns zero totals without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-funds" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['total_sat']==0"
+}
+
+@test "FEAT-265: node_funds.py CGI exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/node_funds.py" ]
+}
+
+@test "FEAT-265: PWA has screenNodeFunds" {
+	grep -q "function screenNodeFunds" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-265: node-funds man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-funds.1" ]
+}
+
+# FEAT-266 — route-find verb
+
+@test "FEAT-266: route-find verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/route-find" ]
+}
+
+@test "FEAT-266: route-find man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-route-find.1" ]
+}
+
+@test "FEAT-266: route-find validates sat argument" {
+	grep -q "case.*sat.*0-9\|sat.*exit 2" "$BATS_TEST_DIRNAME/../../libexec/lightning/route-find"
+}
+
+# FEAT-267 — node-log verb
+
+@test "FEAT-267: node-log verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-log" ]
+}
+
+@test "FEAT-267: node-log returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-log" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-267: node-log man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-log.1" ]
+}
+
+# FEAT-268 — node-config verb
+
+@test "FEAT-268: node-config verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-config" ]
+}
+
+@test "FEAT-268: node-config handles get subcommand" {
+	grep -q '"get"' "$BATS_TEST_DIRNAME/../../libexec/lightning/node-config" || \
+	grep -q 'get)' "$BATS_TEST_DIRNAME/../../libexec/lightning/node-config"
+}
+
+@test "FEAT-268: node-config handles set subcommand" {
+	grep -q '"set"\|set)' "$BATS_TEST_DIRNAME/../../libexec/lightning/node-config"
+}
+
+@test "FEAT-268: node-config man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-config.1" ]
+}
+
+# FEAT-270 — MCP channel_list and node_funds tools
+
+@test "FEAT-270: MCP tools/list includes channel_list" {
+	grep -q '"channel_list"\|channel_list' share/lightning/wellknown/api/mcp.py
+}
+
+@test "FEAT-270: MCP tools/list includes node_funds" {
+	grep -q '"node_funds"\|node_funds' share/lightning/wellknown/api/mcp.py
+}
+
+@test "FEAT-270: channel_list tool has no auth" {
+	python3 -c "
+src = open('share/lightning/wellknown/api/mcp.py').read()
+idx = src.index('\"channel_list\"')
+snippet = src[idx:idx+600]
+assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
+"
+}
+
+# FEAT-271 — MCP account_transfer tool
+
+@test "FEAT-271: MCP tools/list includes account_transfer" {
+	grep -q '"account_transfer"' share/lightning/wellknown/api/mcp.py
+}
+
+@test "FEAT-271: account_transfer tool requires account auth" {
+	python3 -c "
+src = open('share/lightning/wellknown/api/mcp.py').read()
+idx = src.index('\"account_transfer\"')
+snippet = src[idx:idx+900]
+assert '\"auth\": \"account\"' in snippet or \"'auth': 'account'\" in snippet, repr(snippet)
+"
+}
+
+# FEAT-272 — MCP invoice_decode tool
+
+@test "FEAT-272: MCP tools/list includes invoice_decode" {
+	grep -q '"invoice_decode"' share/lightning/wellknown/api/mcp.py
+}
+
+@test "FEAT-272: invoice_decode tool has no auth" {
+	python3 -c "
+src = open('share/lightning/wellknown/api/mcp.py').read()
+idx = src.index('\"invoice_decode\"')
+snippet = src[idx:idx+800]
+assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
+"
+}
+
+# FEAT-273 — api-price verb + MCP price tool
+
+@test "FEAT-273: api-price verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-price" ]
+}
+
+@test "FEAT-273: MCP tools/list includes price" {
+	grep -q '"price"' share/lightning/wellknown/api/mcp.py
+}
+
+# FEAT-275 — wallet-backup verb
+
+@test "FEAT-275: wallet-backup verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-backup" ]
+}
+
+@test "FEAT-275: wallet-backup returns valid JSON without a wallet" {
+	out=$(LIGHTNING_WALLETS_ROOT=/tmp/no-such-wallet-dir "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-backup" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'accounts' in d"
+}
+
+@test "FEAT-275: wallet-backup man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup.1" ]
+}
+
+# FEAT-276 — wallet-check verb
+
+@test "FEAT-276: wallet-check verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-check" ]
+}
+
+@test "FEAT-276: wallet-check reports database_not_found without wallet" {
+	out=$(LIGHTNING_WALLETS_ROOT=/tmp/no-such-wallet-276 "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-check" 2>/dev/null) || true
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is False"
+}
+
+@test "FEAT-276: wallet-check reports ok on a valid database" {
+	tmpdir=$(mktemp -d)
+	mkdir -p "$tmpdir/default"
+	sqlite3 "$tmpdir/default/state.db" \
+		"CREATE TABLE accounts (id INTEGER); CREATE TABLE ledger (id INTEGER);"
+	out=$(LIGHTNING_WALLETS_ROOT="$tmpdir" \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-check" 2>/dev/null)
+	rm -rf "$tmpdir"
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] is True"
+}
+
+@test "FEAT-276: wallet-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-check.1" ]
+}
+
+# FEAT-277 — api-fee-list verb + MCP fee_list tool
+
+@test "FEAT-277: api-fee-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-fee-list" ]
+}
+
+@test "FEAT-277: api-fee-list returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-fee-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-277: MCP tools/list includes fee_list" {
+	grep -q '"fee_list"' share/lightning/wellknown/api/mcp.py
+}
+
+# FEAT-278 — api-forward-stats verb + MCP forward_stats tool
+
+@test "FEAT-278: api-forward-stats verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-forward-stats" ]
+}
+
+@test "FEAT-278: api-forward-stats returns zero totals without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-forward-stats" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['count']==0"
+}
+
+@test "FEAT-278: MCP tools/list includes forward_stats" {
+	grep -q '"forward_stats"' share/lightning/wellknown/api/mcp.py
+}
+
+# FEAT-279 — wallet-export-csv verb
+
+@test "FEAT-279: wallet-export-csv verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" ]
+}
+
+@test "FEAT-279: wallet-export-csv outputs CSV header without wallet" {
+	out=$(LIGHTNING_WALLETS_ROOT=/tmp/no-wallet-279 \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" 2>/dev/null)
+	echo "$out" | grep -q "id,account,ts,direction"
+}
+
+@test "FEAT-279: wallet-export-csv man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-csv.1" ]
+}
+
+# FEAT-280 — api-peer-summary verb + MCP peer_summary tool
+
+@test "FEAT-280: api-peer-summary verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-peer-summary" ]
+}
+
+@test "FEAT-280: api-peer-summary returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-peer-summary" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-280: MCP tools/list includes peer_summary" {
+	grep -q '"peer_summary"' share/lightning/wellknown/api/mcp.py
+}
+
+# FEAT-281 — node-health verb + MCP node_health tool
+
+@test "FEAT-281: node-health verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-health" ]
+}
+
+@test "FEAT-281: node-health returns valid JSON without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-health" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'ok' in d"
+}
+
+@test "FEAT-281: node-health man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-health.1" ]
+}
+
+@test "FEAT-281: MCP tools/list includes node_health" {
+	grep -q '"node_health"' share/lightning/wellknown/api/mcp.py
+}
+
+# FEAT-282 — node-version verb
+
+@test "FEAT-282: node-version verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-version" ]
+}
+
+@test "FEAT-282: node-version returns valid JSON" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-version" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'lightning' in d"
+}
+
+@test "FEAT-282: node-version man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-version.1" ]
+}
+
+# FEAT-283 — node://health MCP resource
+
+@test "FEAT-283: MCP resources/list includes node://health" {
+	grep -q '"node://health"\|node://health' share/lightning/wellknown/api/mcp.py
+}
+
+@test "FEAT-283: mcp.json includes node://health resource" {
+	grep -q 'node://health' share/lightning/wellknown/lightning/mcp.json
+}
+
+# FEAT-284 — GET /v1/health public endpoint
+
+@test "FEAT-284: health.py CGI exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/health.py" ]
+}
+
+@test "FEAT-284: Apache conf has ScriptAlias for /v1/health" {
+	grep -q "v1/health" share/lightning/apache/lnurlp.conf
+}
+
+# FEAT-285 — wallet-prune verb
+
+@test "FEAT-285: wallet-prune verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-prune" ]
+}
+
+@test "FEAT-285: wallet-prune returns zero counts without wallet" {
+	out=$(LIGHTNING_WALLETS_ROOT=/tmp/no-wallet-285 \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-prune" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('pruned_accounts',0)==0"
+}
+
+@test "FEAT-285: wallet-prune --dry-run reports would_prune keys" {
+	tmpdir=$(mktemp -d); mkdir -p "$tmpdir/default"
+	sqlite3 "$tmpdir/default/state.db" \
+		"CREATE TABLE accounts (address TEXT, description TEXT, balance_msat INTEGER, created_at TEXT, closed_at TEXT);
+		 CREATE TABLE ledger (id INTEGER, account TEXT);
+		 INSERT INTO accounts VALUES('bc1qtest','test',0,'2020-01-01','2020-01-02');"
+	out=$(LIGHTNING_WALLETS_ROOT="$tmpdir" \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-prune" --dry-run 2>/dev/null)
+	rm -rf "$tmpdir"
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'would_prune_accounts' in d"
+}
+
+@test "FEAT-285: wallet-prune man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-prune.1" ]
 }

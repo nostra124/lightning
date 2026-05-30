@@ -1,0 +1,34 @@
+.TH "LIGHTNING-WALLET-CHECK" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-check \- verify wallet database integrity
+.SH SYNOPSIS
+.B lightning wallet-check
+.SH DESCRIPTION
+Runs
+.B PRAGMA integrity_check
+on the active wallet's SQLite database, verifies that the required
+tables (
+.B accounts
+and
+.BR ledger )
+exist, and reports per-table row counts.
+.PP
+Output on success:
+.nf
+{"ok":true,"tables":{"accounts":N,"ledger":N,...}}
+.fi
+Output on failure:
+.nf
+{"ok":false,"errors":["..."]}
+.fi
+Exits with status 1 if the database is missing or corrupt.
+.SH EXIT STATUS
+.TP
+.B 0
+Database is intact.
+.TP
+.B 1
+Database is missing or integrity check failed.
+.SH SEE ALSO
+.BR lightning-wallet-stats (1),
+.BR lightning-wallet-backup (1)

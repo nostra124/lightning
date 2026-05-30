@@ -1,0 +1,35 @@
+#!/bin/bash
+# lightning api-node-info   (FEAT-252)
+#
+# Returns a subset of `lightning-cli getinfo` for the public node info
+# screen.  No account auth required — pubkey is public.
+#   {"pubkey":"...","alias":"...","num_channels":<int>,"local_msat":<int>}
+
+set -e
+
+raw=$(lightning-cli getinfo 2>/dev/null) || { echo '{"error":"node_unavailable"}'; exit 5; }
+
+pubkey=$(printf '%s' "$raw" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))")
+alias=$(printf '%s' "$raw"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('alias',''))")
+chans=$(printf '%s' "$raw"  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('num_active_channels',0))")
+local_msat=$(printf '%s' "$raw" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+msats = d.get('msatoshi_to_us', 0)
+if msats == 0:
+    # newer CLN uses 'our_reserve_msat' or 'msatoshi_to_us_min' in funds
+    funds = d.get('funds', {})
+    msats = sum(c.get('our_amount_msat',0) for c in d.get('channels',[]) if isinstance(c, dict))
+print(int(msats))
+" 2>/dev/null || echo 0)
+
+python3 -c "
+import json, sys
+d = {
+    'pubkey': sys.argv[1],
+    'alias':  sys.argv[2],
+    'num_channels': int(sys.argv[3]),
+    'local_msat': int(sys.argv[4]),
+}
+print(json.dumps(d))
+" "$pubkey" "$alias" "$chans" "$local_msat"

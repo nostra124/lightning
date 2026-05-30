@@ -1,0 +1,38 @@
+#!/bin/bash
+# lightning channel-open <pubkey> <sat> [--push-sat <sat>]   (FEAT-260)
+#
+# Opens a channel to a connected peer.  Calls lightning-cli fundchannel.
+# Returns {"txid":"...","channel_id":"...","sat":<int>}.
+
+set -e
+[ $# -ge 2 ] || { printf 'usage: channel-open <pubkey> <sat> [--push-sat N]\n' >&2; exit 1; }
+pubkey="$1"; sat="$2"; shift 2
+push_sat=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --push-sat) push_sat="$2"; shift 2 ;;
+        *) exit 2 ;;
+    esac
+done
+case "$sat" in ''|*[!0-9]*) exit 2 ;; esac
+[ -n "$push_sat" ] && case "$push_sat" in ''|*[!0-9]*) exit 2 ;; esac
+
+command -v lightning-cli >/dev/null || { echo '{"error":"lightning-cli not installed"}'; exit 127; }
+
+args=("$pubkey" "$sat")
+[ -n "$push_sat" ] && args+=(push_msat "$(( push_sat * 1000 ))")
+
+out=$(lightning-cli \
+    --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+    --network="${LIGHTNING_NETWORK:-bitcoin}" \
+    fundchannel "${args[@]}" 2>/dev/null) || { echo '{"error":"open_failed"}'; exit 5; }
+
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({
+    'txid':       d.get('txid',''),
+    'channel_id': d.get('channel_id',''),
+    'sat':        int(sys.argv[2]),
+}))
+" "$out" "$sat"

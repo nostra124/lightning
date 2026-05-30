@@ -25,16 +25,45 @@ work (crediting deposits, GC, rebalancing); the PWA just talks to it.
 
 - **Send**: paste a BOLT-11 invoice, tap Pay.
 - **Receive**: enter an amount + description, mint a BOLT-11 invoice to
-  share.
+  share; or switch to the **Reusable offer (BOLT-12)** tab to create a
+  reusable `lno1…` offer (FEAT-245) — shareable in a bio, no expiry.
 - **Settings**: reveal the API key (for LLM agents / CLI), or forget the
   account on this device (funds stay on the node).
 
 ## Credentials
 
-- **API key** (`lt_…`): the bearer this PWA uses today, and what LLM
-  agents / CLI / server-to-server callers use. Long-lived; store safely.
-- **Passkey** (WebAuthn): no plaintext bearer on the device — a
-  follow-up backend (FEAT-209 PR-2b).
+- **API key** (`lt_…`): the bearer LLM agents / CLI / server-to-server
+  callers use. Long-lived; store safely. Retrievable in the PWA via
+  Settings → "Show API key" or via `GET /users/<id>/accounts/<acct>/api-key`.
+- **Passkey / user session** (FEAT-222): register at `#user-register`
+  with an invite code → one passkey gates all your accounts. Login at
+  `#user-login`; the PWA keeps the `sess_…` session token in
+  sessionStorage (never persisted to disk).
+
+## User layer (FEAT-222)
+
+The **user layer** sits above accounts — one human identity owns N accounts.
+Operators bootstrap via `lightning wallet-user create`; end-users register
+via the PWA at `#user-register`.
+
+### POST /users/register/begin
+Anonymous. Returns `{user_id, challenge, …}` for WebAuthn credential create.
+
+### POST /users
+Anonymous. Body: `{user_id, passkey_attestation, invite_code?, label?}`.
+Creates the user + registers the passkey. Returns `{user_id, session, expires_at}`.
+
+### POST /users/<id>/passkeys/login/begin + /finish
+Login flow; finish returns `{session, …}`.
+
+### GET /users/<id>/accounts
+Session-authed (`Bearer sess_…`). Lists accounts owned by this user.
+
+### POST /users/<id>/accounts
+Session-authed. Creates a new account owned by the user.
+
+### GET /users/<id>/accounts/<acct>/api-key
+Session-authed. Returns `{api_key}` so the user can hand the key to an LLM agent.
 
 ## Commerce (FEAT-231)
 
@@ -100,11 +129,28 @@ Body `{ "sat": N, "description": "…" }` → `{ bolt11, payment_hash }`.
 ### POST /accounts/<id>/recv-reusable
 BOLT-12 offer; `sat` may be `"any"`.
 
+### GET /accounts/<id>/history[?limit=N&before=ID]
+Returns `{ entries: [...], has_more: bool }`. Each entry: `id, ts,
+direction ("in"|"out"), amount_msat, peer, payment_hash, message,
+note`. Paginate backwards via `before=<last_id>`. Default limit 50,
+max 200. (FEAT-246)
+
 ### POST /accounts/<id>/transfer
 Body `{ "to": "<id|name>", "sat": N, "note": "…" }` — intra-node move.
 
 ### GET /accounts/<id>/referrals
 The accounts this one referred + accrued credit.
+
+### GET /channels  (FEAT-257, bearer-required)
+Channel list: `[{peer_id, alias, channel_id, capacity_sat, local_sat, remote_sat, state}]`.
+
+### GET /node  (FEAT-252, public)
+Node summary: `{pubkey, alias, num_channels, local_msat}`. No auth.
+
+### GET /accounts/<id>/api-key
+Returns `{ api_key }` for the account. Requires the bearer to match the
+account. Useful for LLM agents that need to retrieve the key they already
+hold, or for PWA backup flows. (FEAT-249)
 
 ### POST /accounts/<id>/close
 Revoke the key + mark the account closed.
@@ -157,9 +203,38 @@ JSON-RPC 2.0 envelope:
   "params": { "name": "balance", "arguments": { "account_id": "bc1…" } } }
 ```
 
-`tools/list` enumerates the available tools (balance, topup, pay, recv,
-transfer, …), each mirroring the REST endpoint above with the same
-inputs, outputs, and error codes.
+## Available tools
+
+| Tool | Auth | Description |
+|---|---|---|
+| `account_create` | none | Open a new account, returns `account_id` + `api_key`. |
+| `account_balance` | account | Balance, limit, overdraft policy. |
+| `account_topup` | account | BIP-21 on-chain top-up URI. |
+| `account_withdraw` | account | Submarine-swap out to on-chain address. |
+| `account_pay` | account | Pay a BOLT-11 invoice. |
+| `account_recv` | account | Mint a single-use BOLT-11 invoice. |
+| `account_recv_reusable` | account | Mint a reusable BOLT-12 offer. |
+| `account_history` | account | Paginated ledger entries; paginate backwards with `before_id`. |
+| `account_transfer` | account | Intra-node transfer to another account by ID or label. |
+| `account_close` | account | Close account and revoke API key. |
+| `invoice_decode` | none | Decode a BOLT-11 invoice without paying it. |
+| `price` | none | Latest sat/fiat price tick (`base` defaults to EUR). |
+| `node_info` | none | Node pubkey, alias, channel count, local capacity. |
+| `channel_list` | none | List all active channels with capacity/state. |
+| `node_funds` | none | On-chain + off-chain fund totals. |
+
+## Resources
+
+| URI | Auth | Description |
+|---|---|---|
+| `account://{id}` | account | Balance + limit + overdraft for the account. |
+| `account://{id}/ledger` | account | Recent ledger entries. |
+| `account://{id}/topup` | account | BIP-21 top-up URI. |
+| `node://info` | none | Node pubkey, alias, channel count, local capacity. |
+
+The `account_history` tool returns paginated ledger entries; paginate
+backwards with `before_id`. The `account://id/ledger` MCP resource
+also returns the most recent entries via the same backend.
 
 To point an agent at this node: give it the base URL, the account's API
 key, and this `llms.txt`. One fetch of `/lightning/docs/llms.txt` is

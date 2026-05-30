@@ -32,6 +32,7 @@ and routes:
   GET  .../v1/accounts/<id>/charges/<cid>            -> show
   POST .../v1/accounts/<id>/charges/<cid>/<action>   -> lifecycle transition
   GET  .../v1/accounts/<id>/export/tax-data          -> tax-data export (FEAT-230)
+  GET  .../v1/accounts/<id>/api-key         -> api-key (FEAT-249)
   POST .../v1/accounts/<id>/close          -> close
 
 All authenticated endpoints require Authorization: Bearer <key>.
@@ -117,9 +118,12 @@ def _pay(account_id):
     sat = body.get("sat")
     if not isinstance(target, str) or not target:
         _lib.respond("400 Bad Request", {"error": "target_required"})
+    note = body.get("note", "")
     args = ["api-account-pay", account_id, target]
     if isinstance(sat, int) and sat > 0:
         args += ["--sat", str(sat)]
+    if isinstance(note, str) and note:
+        args += ["--note", note[:200]]
     result = _lib.call_verb(*args)
     _lib.respond("200 OK", result)
 
@@ -425,11 +429,46 @@ def _export(account_id):
     sys.exit(0)
 
 
+def _apikey(account_id):
+    # FEAT-249 — return the account's API key so the owner can copy it.
+    if _method() != "GET":
+        _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+    _lib.auth_account(account_id)
+    result = _lib.call_verb("api-account-apikey", account_id)
+    _lib.respond("200 OK", result)
+
+
 def _close(account_id):
     if _method() != "POST":
         _lib.respond("405 Method Not Allowed", {"error": "use_post"})
     _lib.auth_account(account_id)
     result = _lib.call_verb("api-account-close", account_id)
+    _lib.respond("200 OK", result)
+
+
+def _history(account_id, entry_id=None):
+    # FEAT-246 — transaction history (ledger entries for the account).
+    # FEAT-254 — PATCH .../history/<entry_id> updates the note.
+    _lib.auth_account(account_id)
+    if entry_id is not None:
+        if not re.fullmatch(r"[0-9]+", entry_id):
+            _lib.respond("400 Bad Request", {"error": "bad_entry_id"})
+        if _method() != "PATCH":
+            _lib.respond("405 Method Not Allowed", {"error": "use_patch"})
+        body = _lib.read_body()
+        note = body.get("note", "") if isinstance(body, dict) else ""
+        result = _lib.call_verb("api-account-history-note", account_id, entry_id,
+                                str(note)[:200])
+        _lib.respond("200 OK", result)
+    if _method() != "GET":
+        _lib.respond("405 Method Not Allowed", {"error": "use_get"})
+    qs = _query()
+    args = ["api-account-history", account_id]
+    if "limit" in qs:
+        args += ["--limit", qs["limit"][0]]
+    if "before" in qs:
+        args += ["--before", qs["before"][0]]
+    result = _lib.call_verb(*args)
     _lib.respond("200 OK", result)
 
 
@@ -500,6 +539,10 @@ def main():
         _lib.respond("404 Not Found")
 
     verb = tail[0]
+    if verb == "history" and len(tail) > 1:
+        # PATCH .../history/<entry_id> updates the note.
+        _history(account_id, tail[1])
+        return
     if verb == "invoice":
         # POST .../invoice (create) or GET .../invoice/<payment_hash>.
         _invoice(account_id, tail[1] if len(tail) > 1 else None)
@@ -526,8 +569,10 @@ def main():
         "recv": lambda: _recv(account_id, reusable=False),
         "recv-reusable": lambda: _recv(account_id, reusable=True),
         "transfer": lambda: _transfer(account_id),
+        "history": lambda: _history(account_id),
         "referrals": lambda: _referrals(account_id),
         "invite-codes": lambda: _invite_codes(account_id),
+        "api-key": lambda: _apikey(account_id),
         "close": lambda: _close(account_id),
     }
     handler = routes.get(verb)

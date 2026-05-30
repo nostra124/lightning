@@ -1,0 +1,38 @@
+.TH "LIGHTNING-WALLET-BACKUP" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-backup \- export a portable JSON snapshot of the wallet
+.SH SYNOPSIS
+.B lightning wallet-backup
+.RB [ --output
+.IR file ]
+.SH DESCRIPTION
+Exports the active wallet to JSON: account list (address, description,
+balance, dates) and the most recent 1000 ledger entries.
+.PP
+Without
+.B --output
+the snapshot is written to stdout.  With
+.B --output FILE
+it is written to
+.IR file
+and a short confirmation
+.nf
+{"ok":true,"file":"FILE"}
+.fi
+is printed to stdout.
+.PP
+The snapshot can be used as a read-only audit trail or as source
+material for a manual restore.  It does not contain private keys or
+API keys.
+.TP
+.B --output FILE
+Write the snapshot to
+.I FILE
+instead of stdout.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.SH SEE ALSO
+.BR lightning-wallet-stats (1),
+.BR lightning-wallet-user (1)

@@ -1,0 +1,26 @@
+.TH "LIGHTNING-NODE-FUNDS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-funds \- show node on-chain and channel funds
+.SH SYNOPSIS
+.B lightning node-funds
+.SH DESCRIPTION
+Shows the node operator's available funds via
+.BR lightning-cli (1)
+.BR listfunds :
+on-chain confirmed UTXOs and local channel balances.
+Returns JSON:
+.nf
+{
+  "onchain_sat": <int>,
+  "channel_sat": <int>,
+  "total_sat":   <int>,
+  "utxos": [{"txid":"...","output":<int>,"sat":<int>,"status":"..."}]
+}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Success (returns zeros if daemon unavailable).
+.SH SEE ALSO
+.BR lightning-node-info (1),
+.BR lightning-channel-open (1)

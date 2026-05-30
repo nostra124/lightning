@@ -1,0 +1,6 @@
+#!/bin/bash
+# lightning api-node-health   (FEAT-281)
+# Thin CGI-callable wrapper over node-health.
+set -e
+self_dir="$(cd "$(dirname "$0")" && pwd)"
+exec "$self_dir/node-health"

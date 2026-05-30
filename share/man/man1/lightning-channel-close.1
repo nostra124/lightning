@@ -1,0 +1,31 @@
+.TH "LIGHTNING-CHANNEL-CLOSE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-close \- close a Lightning payment channel
+.SH SYNOPSIS
+.B lightning channel-close
+.I channel_id
+.RB [ --force ]
+.SH DESCRIPTION
+Cooperatively closes a channel via
+.BR lightning-cli (1)
+.BR close .
+With
+.B --force
+the channel is unilaterally closed (sweep to chain).
+.PP
+Returns JSON
+.B {"txid":"...","type":"mutual"|"unilateral"}
+on success.
+.TP
+.B --force
+Force-close (unilateral); use only when the peer is unresponsive.
+.SH EXIT STATUS
+.TP
+.B 0
+Close initiated.
+.TP
+.B 5
+Close failed.
+.SH SEE ALSO
+.BR lightning-channel-open (1),
+.BR lightning-peer-disconnect (1)

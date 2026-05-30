@@ -222,6 +222,31 @@ TOOLS = [
                              else [a["account_id"], str(a["sat"])]),
     },
     {
+        "name": "account_history",
+        "description": "Return recent ledger entries for the account.  "
+                       "Each entry has id, ts, direction (\"in\"/\"out\"), "
+                       "amount_msat, peer, payment_hash, message, note.  "
+                       "Paginate backwards via before_id.  Default limit 50.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["account_id"],
+            "properties": {
+                "account_id": ID_PROP,
+                "limit": {"type": "integer", "minimum": 1, "maximum": 200,
+                          "default": 50},
+                "before_id": {"type": "integer", "minimum": 1},
+            },
+            "additionalProperties": False,
+        },
+        "auth": "account",
+        "verb": ["api-account-history"],
+        "argmap": lambda a: (
+            [a["account_id"]]
+            + (["--limit", str(a["limit"])] if a.get("limit") else [])
+            + (["--before", str(a["before_id"])] if a.get("before_id") else [])
+        ),
+    },
+    {
         "name": "account_close",
         "description": "Close the account.  Revokes its API key and "
                        "stamps closed_at.",
@@ -235,10 +260,185 @@ TOOLS = [
         "verb": ["api-account-close"],
         "argmap": lambda a: [a["account_id"]],
     },
+    {
+        "name": "node_info",
+        "description": "Return the node's public identity: pubkey, alias, "
+                       "active channel count, and total local capacity in "
+                       "msat.  No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-node-info"],
+        "argmap": lambda a: [],
+    },
+    {
+        "name": "node_health",
+        "description": "Return a compact health snapshot: ok (bool), "
+                       "daemon reachability, block_height, num_channels, "
+                       "balanced (no channel < 10% local), pending_htlcs, "
+                       "and a warnings array.  No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-node-health"],
+        "argmap": lambda a: [],
+    },
+    {
+        "name": "peer_summary",
+        "description": "Return a per-peer summary combining peer connectivity "
+                       "and channel totals: peer_id, alias, connected, "
+                       "num_channels, local_sat, remote_sat.  "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-peer-summary"],
+        "argmap": lambda a: [],
+    },
+    {
+        "name": "forward_stats",
+        "description": "Return forwarding totals for this routing node: "
+                       "settled count, total fees earned (msat), and "
+                       "failed count.  No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-forward-stats"],
+        "argmap": lambda a: [],
+    },
+    {
+        "name": "fee_list",
+        "description": "List per-channel routing fee policy: base_msat and "
+                       "ppm (parts-per-million) for each active channel. "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-fee-list"],
+        "argmap": lambda a: [],
+    },
+    {
+        "name": "price",
+        "description": "Return the latest stored sat/fiat price tick. "
+                       "Returns {base, sat_per_unit, price_fiat, ts} or "
+                       "{error: no_price_data} when no feed is configured. "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "base": {"type": "string", "default": "EUR",
+                         "description": "Fiat currency code, e.g. EUR, USD."},
+            },
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-price"],
+        "argmap": lambda a: (["--base", a["base"]] if a.get("base") else []),
+    },
+    {
+        "name": "invoice_decode",
+        "description": "Decode a BOLT-11 invoice without paying it. "
+                       "Returns {bolt11, amount_sat, description, "
+                       "payee, expires_at, payment_hash}.  "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["bolt11"],
+            "properties": {
+                "bolt11": {"type": "string", "minLength": 10,
+                           "description": "BOLT-11 invoice string."},
+            },
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["invoice-decode"],
+        "argmap": lambda a: [a["bolt11"]],
+    },
+    {
+        "name": "account_transfer",
+        "description": "Instantly move sats between two accounts on the "
+                       "same node (atomic intra-node ledger transfer). "
+                       "`to` may be another account ID or a label. "
+                       "Returns {transfer_id, from, to, amount_sat}.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["account_id", "to", "sat"],
+            "properties": {
+                "account_id": ID_PROP,
+                "to": {"type": "string", "minLength": 1,
+                       "description": "Destination account ID or label."},
+                "sat": {"type": "integer", "minimum": 1},
+                "note": {"type": "string", "maxLength": 200},
+            },
+            "additionalProperties": False,
+        },
+        "auth": "account",
+        "verb": ["api-account-transfer"],
+        "argmap": lambda a: (
+            [a["account_id"], a["to"], str(a["sat"])]
+            + (["--note", a["note"]] if a.get("note") else [])
+        ),
+    },
+    {
+        "name": "channel_list",
+        "description": "List all active Lightning channels on this node. "
+                       "Returns an array of {peer_id, alias, channel_id, "
+                       "capacity_sat, local_sat, remote_sat, state}.  "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-channel-list"],
+        "argmap": lambda a: [],
+    },
+    {
+        "name": "node_funds",
+        "description": "Return on-chain and off-chain fund totals for the "
+                       "node: total_sat, onchain_sat, offchain_sat, "
+                       "and detailed outputs/channels arrays.  "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["node-funds"],
+        "argmap": lambda a: [],
+    },
 ]
 
 TOOLS_BY_NAME = {t["name"]: t for t in TOOLS}
 
+
+NODE_RESOURCE_URI = "node://info"
+NODE_HEALTH_URI = "node://health"
 
 RESOURCES = [
     {
@@ -258,6 +458,21 @@ RESOURCES = [
         "uri": "account://{id}/topup",
         "name": "Account top-up URI",
         "description": "BIP-21 URI for on-chain top-up.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": NODE_RESOURCE_URI,
+        "name": "Node info",
+        "description": "Node pubkey, alias, channel count, and local "
+                       "capacity.  No auth required.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": NODE_HEALTH_URI,
+        "name": "Node health",
+        "description": "Health snapshot: ok, daemon, block_height, "
+                       "num_channels, balanced, pending_htlcs, warnings. "
+                       "No auth required.",
         "mimeType": "application/json",
     },
 ]
@@ -355,6 +570,18 @@ def handle_resources_list(params):
 
 
 def _resource_read(uri, bearer):
+    if uri == NODE_RESOURCE_URI:
+        rc, payload = call_verb_json("api-node-info")
+        if rc != 0:
+            return jsonrpc_error(None, -32000, "backend_failed", payload)
+        return {"contents": [{"uri": uri, "mimeType": "application/json",
+                               "text": json.dumps(payload, separators=(",", ":"))}]}
+    if uri == NODE_HEALTH_URI:
+        rc, payload = call_verb_json("api-node-health")
+        if rc != 0:
+            return jsonrpc_error(None, -32000, "backend_failed", payload)
+        return {"contents": [{"uri": uri, "mimeType": "application/json",
+                               "text": json.dumps(payload, separators=(",", ":"))}]}
     if not ACCOUNT_RESOURCE_RE.match(uri):
         return jsonrpc_error(None, -32602, "bad_resource_uri", {"uri": uri})
     parts = uri[len("account://"):].split("/", 1)
@@ -378,13 +605,8 @@ def _resource_read(uri, bearer):
         verb_args = [account_id]
         verb = "api-account-topup"
     elif sub == "ledger":
-        # No dedicated `ledger` HTTP verb yet — balance is the
-        # canonical read endpoint for now; PR-3 ships ledger as a
-        # placeholder so the resource URI stays stable.  Returning
-        # a 501-equivalent so clients can detect it.
-        return {"contents": [{"uri": uri, "mimeType": "application/json",
-                              "text": json.dumps({"error": "not_implemented",
-                                                  "note": "ledger resource lands in a follow-up"})}]}
+        verb_args = [account_id]
+        verb = "api-account-history"
     else:
         return jsonrpc_error(None, -32602, "bad_resource_uri", {"uri": uri})
 

@@ -93,7 +93,7 @@ def test_notifications_initialized_returns_204(api_dir, bin_shim, lightning_stub
 # --- tools/list -----------------------------------------------------------
 
 
-def test_tools_list_returns_8_tools(api_dir, bin_shim, lightning_stub, cgi, parse):
+def test_tools_list_returns_tools(api_dir, bin_shim, lightning_stub, cgi, parse):
     lightning_stub({})
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, rpc("tools/list"))
     assert "200" in status
@@ -103,7 +103,10 @@ def test_tools_list_returns_8_tools(api_dir, bin_shim, lightning_stub, cgi, pars
     assert names == {
         "account_create", "account_balance", "account_topup",
         "account_withdraw", "account_pay", "account_recv",
-        "account_recv_reusable", "account_close",
+        "account_recv_reusable", "account_history", "account_close",
+        "node_info", "channel_list", "node_funds", "account_transfer",
+        "invoice_decode", "price", "fee_list", "forward_stats", "peer_summary",
+        "node_health",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -224,12 +227,13 @@ def test_tools_call_backend_failure_returns_isError(api_dir, bin_shim, lightning
 # --- resources -----------------------------------------------------------
 
 
-def test_resources_list_returns_three(api_dir, bin_shim, lightning_stub, cgi, parse):
+def test_resources_list_returns_four(api_dir, bin_shim, lightning_stub, cgi, parse):
     lightning_stub({})
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, rpc("resources/list"))
     j = json.loads(body_out)
     uris = {r["uri"] for r in j["result"]["resources"]}
-    assert uris == {"account://{id}", "account://{id}/ledger", "account://{id}/topup"}
+    assert uris == {"account://{id}", "account://{id}/ledger", "account://{id}/topup",
+                    "node://info", "node://health"}
 
 
 def test_resources_read_account_root(api_dir, bin_shim, lightning_stub, cgi, parse):
@@ -257,13 +261,154 @@ def test_resources_read_topup(api_dir, bin_shim, lightning_stub, cgi, parse):
     assert "bitcoin:" in j["result"]["contents"][0]["text"]
 
 
-def test_resources_read_ledger_placeholder(api_dir, bin_shim, lightning_stub, cgi, parse):
-    lightning_stub({"api-account-verify": (0, "")})
+def test_resources_read_ledger_returns_history(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"entries":[],"has_more":false}'
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-history": (0, body)})
     payload = rpc("resources/read", {"uri": f"account://{ID}/ledger"})
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload,
                                headers={"HTTP_AUTHORIZATION": "Bearer lt_x"})
     j = json.loads(body_out)
-    assert "not_implemented" in j["result"]["contents"][0]["text"]
+    assert "entries" in j["result"]["contents"][0]["text"]
+
+
+def test_tools_call_node_info(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"pubkey":"0266e4598d1d3c415f572a8488830b60f7e744ed9235eb0b1ba93283b315c03518","alias":"alice","num_channels":2,"local_msat":200000}'
+    lightning_stub({"api-node-info": (0, body)})
+    payload = rpc("tools/call", {"name": "node_info", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["alias"] == "alice"
+
+
+def test_tools_call_history(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"entries":[{"id":1,"ts":"2026-01-01","direction":"in","amount_msat":5000,"peer":"-","payment_hash":"-","message":"","note":""}],"has_more":false}'
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-history": (0, body)})
+    payload = rpc("tools/call",
+                  {"name": "account_history",
+                   "arguments": {"account_id": ID}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload,
+                               headers={"HTTP_AUTHORIZATION": "Bearer lt_x"})
+    j = json.loads(body_out)
+    assert j["result"]["structuredContent"]["entries"][0]["direction"] == "in"
+
+
+def test_resources_read_node_info(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"pubkey":"0266e4598d1d3c415f572a8488830b60f7e744ed9235eb0b1ba93283b315c03518","alias":"alice","num_channels":2,"local_msat":200000}'
+    lightning_stub({"api-node-info": (0, body)})
+    payload = rpc("resources/read", {"uri": "node://info"})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert "pubkey" in j["result"]["contents"][0]["text"]
+
+
+def test_tools_call_node_health(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"ok":true,"daemon":true,"block_height":900000,"num_channels":3,"balanced":true,"pending_htlcs":0,"warnings":[]}'
+    lightning_stub({"api-node-health": (0, body)})
+    payload = rpc("tools/call", {"name": "node_health", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["ok"] is True
+    assert j["result"]["structuredContent"]["block_height"] == 900000
+
+
+def test_tools_call_peer_summary(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '[{"peer_id":"02aaa","alias":"bob","connected":true,"num_channels":1,"local_sat":500000,"remote_sat":500000}]'
+    lightning_stub({"api-peer-summary": (0, body)})
+    payload = rpc("tools/call", {"name": "peer_summary", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"][0]["alias"] == "bob"
+
+
+def test_tools_call_forward_stats(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"count":5,"earned_msat":2500,"failed_count":1}'
+    lightning_stub({"api-forward-stats": (0, body)})
+    payload = rpc("tools/call", {"name": "forward_stats", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["earned_msat"] == 2500
+
+
+def test_tools_call_fee_list(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '[{"channel_id":"100x1x0","base_msat":1000,"ppm":1}]'
+    lightning_stub({"api-fee-list": (0, body)})
+    payload = rpc("tools/call", {"name": "fee_list", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"][0]["channel_id"] == "100x1x0"
+
+
+def test_tools_call_price(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"base":"EUR","sat_per_unit":0.000009,"price_fiat":111111,"ts":"2026-05-30T10:00:00Z"}'
+    lightning_stub({"api-price": (0, body)})
+    payload = rpc("tools/call", {"name": "price", "arguments": {"base": "EUR"}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["base"] == "EUR"
+
+
+def test_tools_call_invoice_decode(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"bolt11":"lnbc1pxx","amount_sat":1000,"description":"test","payee":"02aaa","expires_at":"2026-06-01T00:00:00Z","payment_hash":"deadbeef"}'
+    lightning_stub({"invoice-decode": (0, body)})
+    payload = rpc("tools/call",
+                  {"name": "invoice_decode",
+                   "arguments": {"bolt11": "lnbc1pxx"}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["payment_hash"] == "deadbeef"
+
+
+def test_tools_call_account_transfer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    ID2 = "bcrt1qtestaddress000000000000000000000000000088yyyy"
+    body = f'{{"transfer_id":"xfer:1","from":"{ID}","to":"{ID2}","amount_sat":10}}'
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-transfer": (0, body)})
+    payload = rpc("tools/call",
+                  {"name": "account_transfer",
+                   "arguments": {"account_id": ID, "to": ID2, "sat": 10}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload,
+                               headers={"HTTP_AUTHORIZATION": "Bearer lt_x"})
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["amount_sat"] == 10
+
+
+def test_tools_call_channel_list(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '[{"peer_id":"02aaa","alias":"bob","channel_id":"abc","capacity_sat":1000000,"local_sat":500000,"remote_sat":500000,"state":"CHANNELD_NORMAL"}]'
+    lightning_stub({"api-channel-list": (0, body)})
+    payload = rpc("tools/call", {"name": "channel_list", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"][0]["alias"] == "bob"
+
+
+def test_tools_call_node_funds(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"total_sat":5000,"onchain_sat":1000,"offchain_sat":4000,"outputs":[],"channels":[]}'
+    lightning_stub({"node-funds": (0, body)})
+    payload = rpc("tools/call", {"name": "node_funds", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["total_sat"] == 5000
+
+
+def test_resources_read_node_health(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"ok":true,"daemon":true,"block_height":900000,"num_channels":2,"balanced":true,"pending_htlcs":0,"warnings":[]}'
+    lightning_stub({"api-node-health": (0, body)})
+    payload = rpc("resources/read", {"uri": "node://health"})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert "ok" in j["result"]["contents"][0]["text"]
 
 
 def test_resources_read_bad_uri_errors(api_dir, bin_shim, lightning_stub, cgi, parse):

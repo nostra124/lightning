@@ -1,0 +1,38 @@
+.TH "LIGHTNING-PAYMENT-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-payment-list \- list outbound payments from the node
+.SH SYNOPSIS
+.B lightning payment-list
+.RB [ --limit
+.IR N ]
+.RB [ --status
+.IR pending | complete | failed ]
+.SH DESCRIPTION
+Lists outbound payments from the CLN daemon via
+.BR lightning-cli (1)
+.BR listpays .
+Returns a JSON array:
+.nf
+[{
+  "payment_hash": "<hex>",
+  "bolt11": "lnbc...",
+  "amount_msat": <int>,
+  "amount_sat": <int>,
+  "fee_msat": <int>,
+  "status": "pending|complete|failed",
+  "destination": "<pubkey>",
+  "completed_at": <unix-ts|null>
+}, ...]
+.fi
+.TP
+.B --limit N
+Return at most N payments (default 50, max 500).
+.TP
+.B --status complete|pending|failed
+Filter by status.
+.SH EXIT STATUS
+.TP
+.B 0
+Success (returns empty array if daemon unavailable).
+.SH SEE ALSO
+.BR lightning-invoice-list (1)

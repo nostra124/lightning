@@ -1,0 +1,38 @@
+.TH "LIGHTNING-ROUTE-FIND" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-route-find \- find a payment route to a Lightning node
+.SH SYNOPSIS
+.B lightning route-find
+.I pubkey sat
+.RB [ --riskfactor
+.IR N ]
+.SH DESCRIPTION
+Finds a payment route to
+.I pubkey
+for
+.I sat
+satoshis using
+.BR lightning-cli (1)
+.BR getroute .
+Returns JSON:
+.nf
+{
+  "hops": [{"id":"...","channel":"...","direction":<int>,
+            "amount_msat":<int>,"delay":<int>}, ...],
+  "total_msat": <int>,
+  "fee_msat":   <int>
+}
+.fi
+.TP
+.B --riskfactor N
+Risk factor for the pathfinding algorithm (default 1).
+.SH EXIT STATUS
+.TP
+.B 0
+Route found.
+.TP
+.B 5
+No route to destination.
+.SH SEE ALSO
+.BR lightning-peer-connect (1),
+.BR lightning-channel-open (1)

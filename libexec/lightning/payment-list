@@ -1,0 +1,63 @@
+#!/bin/bash
+# lightning payment-list [--limit N] [--status pending|complete|failed]  (FEAT-264)
+#
+# Lists outbound payments from lightning-cli listpays.
+# Returns [{payment_hash, bolt11, amount_msat, status, completed_at, destination}].
+
+set -e
+limit=50; status_filter=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --limit)  limit="$2";  shift 2 ;;
+        --status) status_filter="$2"; shift 2 ;;
+        *) exit 2 ;;
+    esac
+done
+case "$limit" in ''|*[!0-9]*) limit=50 ;; esac
+[ "$limit" -gt 500 ] && limit=500
+
+command -v lightning-cli >/dev/null || { echo '[]'; exit 0; }
+
+raw=$(lightning-cli \
+    --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+    --network="${LIGHTNING_NETWORK:-bitcoin}" \
+    listpays 2>/dev/null) || { echo '[]'; exit 0; }
+
+python3 - "$raw" "$limit" "$status_filter" <<'EOF'
+import sys, json
+
+try:
+    data = json.loads(sys.argv[1])
+except Exception:
+    print("[]"); sys.exit(0)
+
+limit = int(sys.argv[2])
+status_filter = sys.argv[3].lower()
+
+pays = data.get("pays", [])
+out = []
+for p in pays:
+    status = p.get("status", "")
+    if status_filter and status != status_filter:
+        continue
+    amount_msat = p.get("amount_msat", 0)
+    if isinstance(amount_msat, str):
+        amount_msat = int(amount_msat.rstrip("msat") or 0)
+    sent_msat = p.get("amount_sent_msat", amount_msat)
+    if isinstance(sent_msat, str):
+        sent_msat = int(sent_msat.rstrip("msat") or 0)
+    out.append({
+        "payment_hash":  p.get("payment_hash", ""),
+        "bolt11":        p.get("bolt11", ""),
+        "amount_msat":   amount_msat,
+        "amount_sat":    amount_msat // 1000,
+        "fee_msat":      max(0, sent_msat - amount_msat),
+        "status":        status,
+        "destination":   p.get("destination", ""),
+        "completed_at":  p.get("completed_at"),
+    })
+    if len(out) >= limit:
+        break
+
+print(json.dumps(out))
+EOF

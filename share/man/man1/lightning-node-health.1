@@ -1,0 +1,50 @@
+.TH "LIGHTNING-NODE-HEALTH" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-health \- single-call node health snapshot
+.SH SYNOPSIS
+.B lightning node-health
+.SH DESCRIPTION
+Returns a compact JSON health snapshot for quick operator diagnostics:
+.nf
+{ok, daemon, block_height, num_channels, balanced,
+ pending_htlcs, warnings:[]}
+.fi
+.TP
+.B ok
+.B true
+when the daemon is reachable, synced, and no warnings are present.
+.TP
+.B daemon
+.B true
+when
+.BR lightning-cli (1)
+can reach the daemon.
+.TP
+.B block_height
+Current best block known to the daemon, or
+.B null
+when unreachable.
+.TP
+.B num_channels
+Number of active (CHANNELD_NORMAL or CHANNELD_AWAITING_LOCKIN) channels.
+.TP
+.B balanced
+.B false
+when any active channel has less than 10 % of its capacity on the local
+side.
+.TP
+.B pending_htlcs
+Total in-flight HTLCs across all channels.
+.TP
+.B warnings
+Array of diagnostic strings; empty when healthy.
+.SH EXIT STATUS
+.TP
+.B 0
+Always (use the
+.B ok
+field to detect problems).
+.SH SEE ALSO
+.BR lightning-node-info (1),
+.BR lightning-node-log (1),
+.BR lightning-wallet-check (1)

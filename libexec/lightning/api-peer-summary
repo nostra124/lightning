@@ -1,0 +1,43 @@
+#!/bin/bash
+# lightning api-peer-summary   (FEAT-280)
+#
+# Returns a per-peer summary combining peer info + channel totals:
+# [{peer_id, alias, connected, num_channels, local_sat, remote_sat}]
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || { echo '[]'; exit 0; }
+
+peers_raw=$(lightning-cli $LD $NET listpeers 2>/dev/null)    || { echo '[]'; exit 0; }
+chans_raw=$(lightning-cli $LD $NET listpeerchannels 2>/dev/null) || chans_raw='{"channels":[]}'
+
+python3 -c "
+import sys, json
+peers = json.loads(sys.argv[1]).get('peers', [])
+chans = json.loads(sys.argv[2]).get('channels', [])
+
+chan_map = {}
+for c in chans:
+    pid = c.get('peer_id', '')
+    if pid not in chan_map:
+        chan_map[pid] = {'num_channels': 0, 'local_sat': 0, 'remote_sat': 0}
+    chan_map[pid]['num_channels'] += 1
+    chan_map[pid]['local_sat']  += c.get('to_us_msat', 0) // 1000
+    chan_map[pid]['remote_sat'] += (c.get('total_msat', 0) - c.get('to_us_msat', 0)) // 1000
+
+out = []
+for p in peers:
+    pid = p.get('id', '')
+    cm = chan_map.get(pid, {'num_channels': 0, 'local_sat': 0, 'remote_sat': 0})
+    out.append({
+        'peer_id': pid,
+        'alias': (p.get('alias') or '')[:32],
+        'connected': bool(p.get('connected')),
+        'num_channels': cm['num_channels'],
+        'local_sat': cm['local_sat'],
+        'remote_sat': cm['remote_sat'],
+    })
+print(json.dumps(out, separators=(',', ':')))
+" "$peers_raw" "$chans_raw"
