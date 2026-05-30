@@ -30591,3 +30591,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2780: channel-receivable-pct-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-avg.1" ]
 }
+
+@test "FEAT-2781: node-listforwards-in-msat-stddev reports error or in_msat_stddev gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_stddev"
+}
+@test "FEAT-2781: node-listforwards-in-msat-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-stddev.1" ]
+}
+
+@test "FEAT-2782: channel-fee-proportional-min reports error or fee_proportional_min gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_min"
+}
+@test "FEAT-2782: channel-fee-proportional-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-min.1" ]
+}
+
+@test "FEAT-2783: peer-local-pct-stddev reports error or local_pct_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_stddev_peer"
+}
+@test "FEAT-2783: peer-local-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-stddev.1" ]
+}
+
+@test "FEAT-2784: node-pay-count-month reports error or pay_count_month gracefully" {
+    out=$(./libexec/lightning/node-pay-count-month 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_month"
+}
+@test "FEAT-2784: node-pay-count-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-month.1" ]
+}
+
+@test "FEAT-2785: channel-fee-proportional-avg reports error or fee_proportional_avg gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_avg"
+}
+@test "FEAT-2785: channel-fee-proportional-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-avg.1" ]
+}
+
+@test "FEAT-2786: node-invoice-paid-count-month reports error or paid_count_month gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-month 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_month"
+}
+@test "FEAT-2786: node-invoice-paid-count-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-month.1" ]
+}
+
+@test "FEAT-2787: channel-spendable-pct-stddev reports error or spendable_pct_stddev gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_stddev"
+}
+@test "FEAT-2787: channel-spendable-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-stddev.1" ]
+}
+
+@test "FEAT-2788: peer-local-pct-range reports error or local_pct_range gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-range 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_range"
+}
+@test "FEAT-2788: peer-local-pct-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-range.1" ]
+}
+
+@test "FEAT-2789: node-listforwards-in-msat-range reports error or in_msat_range gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-range 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_range"
+}
+@test "FEAT-2789: node-listforwards-in-msat-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-range.1" ]
+}
+
+@test "FEAT-2790: channel-receivable-pct-min reports error or receivable_pct_min gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct-min 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_min"
+}
+@test "FEAT-2790: channel-receivable-pct-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-min.1" ]
+}

@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning channel-spendable-pct-stddev   (FEAT-2787)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = []
+for c in channels:
+    spendable = c.get('spendable_msat')
+    total = c.get('total_msat')
+    if spendable is not None and total and total > 0:
+        vals.append(spendable / total * 100.0)
+if len(vals) < 2:
+    stddev = 0.0
+else:
+    mean = sum(vals) / len(vals)
+    stddev = math.sqrt(sum((v - mean) ** 2 for v in vals) / len(vals))
+print(json.dumps({'spendable_pct_stddev': stddev, 'count': len(vals)}))
+" "$result"

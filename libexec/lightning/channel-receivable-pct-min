@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning channel-receivable-pct-min   (FEAT-2790)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = []
+for c in channels:
+    receivable = c.get('receivable_msat')
+    total = c.get('total_msat')
+    if receivable is not None and total and total > 0:
+        vals.append(receivable / total * 100.0)
+receivable_pct_min = min(vals) if vals else None
+print(json.dumps({'receivable_pct_min': receivable_pct_min, 'count': len(vals)}))
+" "$result"

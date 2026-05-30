@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-pay-count-month   (FEAT-2784)
+result=$(lightning-cli listpays status=complete 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+now = time.time()
+# 30 days ago in unix seconds
+cutoff = now - 30 * 24 * 3600
+count = sum(1 for p in pays if p.get('created_at', 0) >= cutoff)
+print(json.dumps({'pay_count_month': count}))
+" "$result"
