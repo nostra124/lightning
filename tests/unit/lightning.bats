@@ -18454,3 +18454,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1220: channel-last-stable-connection man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-last-stable-connection.1" ]
 }
+
+@test "FEAT-1221: node-channel-age-avg reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/node-channel-age-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1221: node-channel-age-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-age-avg.1" ]
+}
+
+@test "FEAT-1222: channel-balance-history requires arg" {
+    out=$(./libexec/lightning/channel-balance-history 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1222: channel-balance-history man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-history.1" ]
+}
+
+@test "FEAT-1223: wallet-notes-tag-list requires arg" {
+    out=$(./libexec/lightning/wallet-notes-tag-list 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1223: wallet-notes-tag-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-tag-list.1" ]
+}
+
+@test "FEAT-1224: node-listpeers-state reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listpeers-state 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1224: node-listpeers-state man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-state.1" ]
+}
+
+@test "FEAT-1225: invoice-msatoshi-received requires arg" {
+    out=$(./libexec/lightning/invoice-msatoshi-received 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1225: invoice-msatoshi-received man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-msatoshi-received.1" ]
+}
+
+@test "FEAT-1226: channel-min-to-them requires arg" {
+    out=$(./libexec/lightning/channel-min-to-them 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1226: channel-min-to-them man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-to-them.1" ]
+}
+
+@test "FEAT-1227: peer-alias requires arg" {
+    out=$(./libexec/lightning/peer-alias 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1227: peer-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-alias.1" ]
+}
+
+@test "FEAT-1228: wallet-label-delete requires args" {
+    out=$(./libexec/lightning/wallet-label-delete 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1228: wallet-label-delete man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-label-delete.1" ]
+}
+
+@test "FEAT-1229: node-listchannels-by-node requires arg" {
+    out=$(./libexec/lightning/node-listchannels-by-node 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1229: node-listchannels-by-node man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-node.1" ]
+}
+
+@test "FEAT-1230: channel-capacity-msat requires arg" {
+    out=$(./libexec/lightning/channel-capacity-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1230: channel-capacity-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-msat.1" ]
+}
