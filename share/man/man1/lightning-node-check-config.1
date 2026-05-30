@@ -1,0 +1,21 @@
+.TH "LIGHTNING-NODE-CHECK-CONFIG" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-check-config \- show key node configuration settings
+.SH SYNOPSIS
+.B lightning node-check-config
+.SH DESCRIPTION
+Returns selected important settings from
+.BR listconfigs ,
+including network, fee policy, and HTLC limits.
+.PP
+Output:
+.nf
+{"config_count":N, "key_settings":{...}}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-info (1),
+.BR lightning-node-fee-policy (1)

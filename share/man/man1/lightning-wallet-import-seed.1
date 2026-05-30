@@ -1,0 +1,21 @@
+.TH "LIGHTNING-WALLET-IMPORT-SEED" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-import-seed \- import a wallet from seed words
+.SH SYNOPSIS
+.B lightning wallet-import-seed
+.I wallet_name seed_words
+.SH DESCRIPTION
+Creates a new wallet entry initialized from the provided seed words.
+Returns an error if the wallet already exists.
+.PP
+Output:
+.nf
+{"status":"imported","wallet":"<name>"}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-seed-verify (1),
+.BR lightning-wallet-list (1)

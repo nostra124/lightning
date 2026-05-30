@@ -1,11 +1,10 @@
 #!/bin/bash
 # lightning node-scb-backup [<output_path>]   (FEAT-376)
-set -e
 out_path="${1:-./static_channel_backup_$(date +%Y%m%d_%H%M%S).bin}"
-result=$(lightning-cli staticbackup 2>/dev/null) || {
+if ! result=$(lightning-cli staticbackup 2>/dev/null); then
     echo '{"error":"lightning-cli not found"}'
     exit 0
-}
+fi
 python3 -c "
 import sys, json, base64, os
 data = json.loads(sys.argv[1])

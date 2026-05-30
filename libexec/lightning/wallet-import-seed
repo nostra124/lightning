@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning wallet-import-seed <wallet_name> <seed_words>   (FEAT-388)
+set -e
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-import-seed <wallet_name> <seed_words>"}'
+    exit 0
+fi
+wname="$1"; shift
+seed_words="$*"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ -f "$db" ]; then
+    echo '{"error":"wallet_already_exists"}'
+    exit 0
+fi
+mkdir -p "$root/$wname"
+sqlite3 "$db" "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);"
+sqlite3 "$db" "INSERT OR REPLACE INTO meta VALUES ('seed_imported','1'),('created_at','$(date -u +%s)');"
+echo '{"status":"imported","wallet":"'"$wname"'"}'

@@ -1,0 +1,21 @@
+.TH "LIGHTNING-CHANNEL-OPEN-CONFIRM" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-open-confirm \- show confirmation status of a channel open
+.SH SYNOPSIS
+.B lightning channel-open-confirm
+.I channel_id
+.SH DESCRIPTION
+Returns the current confirmation count vs required confirmations for a
+pending channel open.
+.PP
+Output:
+.nf
+{"channel_id":..., "state":..., "confirmations":N, "confirmations_required":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-pending (1),
+.BR lightning-channel-info (1)

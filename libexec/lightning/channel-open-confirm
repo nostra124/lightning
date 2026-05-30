@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning channel-open-confirm <channel_id>   (FEAT-391)
+set -e
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: channel-open-confirm <channel_id>"}'
+    exit 0
+fi
+channel_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+channels = json.loads(sys.argv[1]).get('channels', [])
+cid = sys.argv[2]
+match = next((c for c in channels if c.get('channel_id') == cid or c.get('short_channel_id') == cid), None)
+if match:
+    print(json.dumps({'channel_id': match.get('channel_id',''), 'state': match.get('state',''),
+        'confirmations': match.get('confirmations', 0), 'confirmations_required': match.get('confirmations_required', 0)},
+        separators=(',', ':')))
+else:
+    print(json.dumps({'error': 'channel_not_found'}))
+" "$result" "$channel_id"

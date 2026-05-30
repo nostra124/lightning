@@ -1,0 +1,21 @@
+.TH "LIGHTNING-NODE-ROUTING-SCORE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-routing-score \- compute a composite routing health score
+.SH SYNOPSIS
+.B lightning node-routing-score
+.SH DESCRIPTION
+Combines channel balance ratio, active channel count, and total fee
+revenue into a composite score from 0 to 100.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{overall_score, balance_score, capacity_score, revenue_score, active_channels}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-peers-score (1),
+.BR lightning-node-channel-summary (1)

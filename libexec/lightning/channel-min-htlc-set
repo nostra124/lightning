@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning channel-min-htlc-set <channel_id> <min_htlc_msat>   (FEAT-394)
+set -e
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: channel-min-htlc-set <channel_id> <min_htlc_msat>"}'
+    exit 0
+fi
+channel_id="$1"
+min_htlc="$2"
+result=$(lightning-cli setchannel "$channel_id" htlcmin "${min_htlc}msat" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"
