@@ -30751,3 +30751,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2800: channel-spendable-pct-range man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-range.1" ]
 }
+
+@test "FEAT-2801: node-listforwards-fee-skewness reports error or fee_skewness gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_skewness"
+}
+@test "FEAT-2801: node-listforwards-fee-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-skewness.1" ]
+}
+
+@test "FEAT-2802: channel-fee-base-skewness reports error or fee_base_skewness gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_skewness"
+}
+@test "FEAT-2802: channel-fee-base-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-skewness.1" ]
+}
+
+@test "FEAT-2803: peer-capacity-range reports error or peer_capacity_range_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-range 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_capacity_range_msat"
+}
+@test "FEAT-2803: peer-capacity-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-range.1" ]
+}
+
+@test "FEAT-2804: node-pay-amount-skewness reports error or amount_skewness gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_skewness"
+}
+@test "FEAT-2804: node-pay-amount-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-skewness.1" ]
+}
+
+@test "FEAT-2805: channel-capacity-kurtosis reports error or capacity_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-capacity-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_kurtosis"
+}
+@test "FEAT-2805: channel-capacity-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-kurtosis.1" ]
+}
+
+@test "FEAT-2806: node-invoice-paid-amount-stddev reports error or paid_amount_stddev_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_stddev_msat"
+}
+@test "FEAT-2806: node-invoice-paid-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-stddev.1" ]
+}
+
+@test "FEAT-2807: channel-fee-ppm-skewness reports error or fee_ppm_skewness gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_skewness"
+}
+@test "FEAT-2807: channel-fee-ppm-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-skewness.1" ]
+}
+
+@test "FEAT-2808: peer-fee-ppm-range reports error or fee_ppm_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_range_peer"
+}
+@test "FEAT-2808: peer-fee-ppm-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-range.1" ]
+}
+
+@test "FEAT-2809: node-listforwards-in-msat-kurtosis reports error or in_msat_kurtosis gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_kurtosis"
+}
+@test "FEAT-2809: node-listforwards-in-msat-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-kurtosis.1" ]
+}
+
+@test "FEAT-2810: channel-local-balance-kurtosis reports error or local_balance_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_kurtosis"
+}
+@test "FEAT-2810: channel-local-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-kurtosis.1" ]
+}
