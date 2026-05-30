@@ -276,6 +276,22 @@ TOOLS = [
         "argmap": lambda a: [],
     },
     {
+        "name": "peer_summary",
+        "description": "Return a per-peer summary combining peer connectivity "
+                       "and channel totals: peer_id, alias, connected, "
+                       "num_channels, local_sat, remote_sat.  "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-peer-summary"],
+        "argmap": lambda a: [],
+    },
+    {
         "name": "forward_stats",
         "description": "Return forwarding totals for this routing node: "
                        "settled count, total fees earned (msat), and "

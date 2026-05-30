@@ -8952,3 +8952,18 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-279: wallet-export-csv man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-csv.1" ]
 }
+
+# FEAT-280 — api-peer-summary verb + MCP peer_summary tool
+
+@test "FEAT-280: api-peer-summary verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-peer-summary" ]
+}
+
+@test "FEAT-280: api-peer-summary returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-peer-summary" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-280: MCP tools/list includes peer_summary" {
+	grep -q '"peer_summary"' share/lightning/wellknown/api/mcp.py
+}
