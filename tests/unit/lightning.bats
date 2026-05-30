@@ -33211,3 +33211,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3110: channel-fee-ppm-range man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-range.1" ]
 }
+
+@test "FEAT-3111: channel-fee-base-range reports error or fee_base_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_range_msat"
+}
+@test "FEAT-3111: channel-fee-base-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-range.1" ]
+}
+
+@test "FEAT-3112: node-invoice-count-expired reports error or invoice_count_expired gracefully" {
+    out=$(./libexec/lightning/node-invoice-count-expired 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_count_expired"
+}
+@test "FEAT-3112: node-invoice-count-expired man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-expired.1" ]
+}
+
+@test "FEAT-3113: peer-remote-reserve-min reports error or remote_reserve_min_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-reserve-min 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_min_msat"
+}
+@test "FEAT-3113: peer-remote-reserve-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-min.1" ]
+}
+
+@test "FEAT-3114: channel-htlc-min-range reports error or htlc_min_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_range_msat"
+}
+@test "FEAT-3114: channel-htlc-min-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-range.1" ]
+}
+
+@test "FEAT-3115: node-invoice-amount-total reports error or invoice_amount_total_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_total_msat"
+}
+@test "FEAT-3115: node-invoice-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-total.1" ]
+}
+
+@test "FEAT-3116: peer-remote-reserve-max reports error or remote_reserve_max_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-reserve-max 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_max_msat"
+}
+@test "FEAT-3116: peer-remote-reserve-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-max.1" ]
+}
+
+@test "FEAT-3117: channel-htlc-max-range reports error or htlc_max_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_range_msat"
+}
+@test "FEAT-3117: channel-htlc-max-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-range.1" ]
+}
+
+@test "FEAT-3118: node-invoice-amount-avg reports error or invoice_amount_avg_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_avg_msat"
+}
+@test "FEAT-3118: node-invoice-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-avg.1" ]
+}
+
+@test "FEAT-3119: peer-remote-reserve-stddev reports error or remote_reserve_stddev_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-reserve-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_stddev_msat"
+}
+@test "FEAT-3119: peer-remote-reserve-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-stddev.1" ]
+}
+
+@test "FEAT-3120: channel-capacity-range reports error or capacity_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-range 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_range_msat"
+}
+@test "FEAT-3120: channel-capacity-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-range.1" ]
+}
