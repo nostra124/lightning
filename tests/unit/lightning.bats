@@ -29521,3 +29521,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2640: channel-receivable-median man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-median.1" ]
 }
+
+@test "FEAT-2641: node-listforwards-out-msat-max reports error or max_out_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_out_msat"
+}
+@test "FEAT-2641: node-listforwards-out-msat-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-max.1" ]
+}
+
+@test "FEAT-2642: channel-local-reserve-median reports error or median_local_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_local_reserve_msat"
+}
+@test "FEAT-2642: channel-local-reserve-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-median.1" ]
+}
+
+@test "FEAT-2643: peer-receivable-total reports error or total_receivable_msat gracefully" {
+    out=$(./libexec/lightning/peer-receivable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_receivable_msat"
+}
+@test "FEAT-2643: peer-receivable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-total.1" ]
+}
+
+@test "FEAT-2644: node-pay-failed-count-90d reports error or failed_pay_count_90d gracefully" {
+    out=$(./libexec/lightning/node-pay-failed-count-90d 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_pay_count_90d"
+}
+@test "FEAT-2644: node-pay-failed-count-90d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-failed-count-90d.1" ]
+}
+
+@test "FEAT-2645: channel-remote-reserve-median reports error or median_remote_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_remote_reserve_msat"
+}
+@test "FEAT-2645: channel-remote-reserve-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-median.1" ]
+}
+
+@test "FEAT-2646: node-listforwards-out-msat-min reports error or min_out_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_out_msat"
+}
+@test "FEAT-2646: node-listforwards-out-msat-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-min.1" ]
+}
+
+@test "FEAT-2647: channel-fee-base-median reports error or median_fee_base_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_fee_base_msat"
+}
+@test "FEAT-2647: channel-fee-base-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-median.1" ]
+}
+
+@test "FEAT-2648: peer-capacity-total reports error or total_capacity_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_capacity_msat"
+}
+@test "FEAT-2648: peer-capacity-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-total.1" ]
+}
+
+@test "FEAT-2649: node-invoice-expired-count-today reports error or expired_today_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-expired-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|expired_today_count"
+}
+@test "FEAT-2649: node-invoice-expired-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expired-count-today.1" ]
+}
+
+@test "FEAT-2650: channel-fee-ppm-median reports error or median_fee_ppm gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_fee_ppm"
+}
+@test "FEAT-2650: channel-fee-ppm-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-median.1" ]
+}
