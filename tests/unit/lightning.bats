@@ -33771,3 +33771,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3180: channel-remote-pct-min man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-min.1" ]
 }
+
+@test "FEAT-3181: channel-remote-pct-max reports error or remote_pct_max_channel gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_max_channel"
+}
+@test "FEAT-3181: channel-remote-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-max.1" ]
+}
+
+@test "FEAT-3182: node-invoice-pending-newest reports error or newest_pending_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|newest_pending_invoice"
+}
+@test "FEAT-3182: node-invoice-pending-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-newest.1" ]
+}
+
+@test "FEAT-3183: peer-channel-count-min reports error or channel_count_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-min 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count_min_peer"
+}
+@test "FEAT-3183: peer-channel-count-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-min.1" ]
+}
+
+@test "FEAT-3184: channel-local-pct-avg reports error or local_pct_avg_channel gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_avg_channel"
+}
+@test "FEAT-3184: channel-local-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-avg.1" ]
+}
+
+@test "FEAT-3185: node-invoice-pending-count-today reports error or pending_count_today gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_count_today"
+}
+@test "FEAT-3185: node-invoice-pending-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-count-today.1" ]
+}
+
+@test "FEAT-3186: peer-channel-count-max reports error or channel_count_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count_max_peer"
+}
+@test "FEAT-3186: peer-channel-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-max.1" ]
+}
+
+@test "FEAT-3187: channel-remote-pct-avg reports error or remote_pct_avg_channel gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_avg_channel"
+}
+@test "FEAT-3187: channel-remote-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-avg.1" ]
+}
+
+@test "FEAT-3188: node-listforwards-fee-min reports error or fee_min_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_min_msat"
+}
+@test "FEAT-3188: node-listforwards-fee-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-min.1" ]
+}
+
+@test "FEAT-3189: peer-channel-count-median reports error or channel_count_median_peer gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-median 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count_median_peer"
+}
+@test "FEAT-3189: peer-channel-count-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-median.1" ]
+}
+
+@test "FEAT-3190: channel-htlc-timeout-max reports error or htlc_cltv_expiry_max gracefully" {
+    out=$(./libexec/lightning/channel-htlc-timeout-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_cltv_expiry_max"
+}
+@test "FEAT-3190: channel-htlc-timeout-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-timeout-max.1" ]
+}
