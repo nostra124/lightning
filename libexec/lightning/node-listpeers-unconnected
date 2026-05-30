@@ -1,14 +1,10 @@
 #!/bin/bash
-# lightning node-listpeers-unconnected   (FEAT-1121)
-if ! result=$(lightning-cli listpeers 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
+# lightning node-listpeers-unconnected   (FEAT-1534)
+result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
 peers = data.get('peers', [])
-unconnected = [p for p in peers if not p.get('connected')]
-out = [{'id': p.get('id')} for p in unconnected]
-print(json.dumps({'count': len(out), 'peers': out}))
+unconnected = [{'id': p.get('id')} for p in peers if not p.get('connected')]
+print(json.dumps({'count': len(unconnected), 'peers': unconnected}))
 " "$result"

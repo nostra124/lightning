@@ -1,15 +1,8 @@
 #!/bin/bash
-# lightning wallet-notes-count-all <wallet_name>   (FEAT-1013)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: wallet-notes-count-all <wallet_name>"}'
-    exit 0
-fi
+# lightning wallet-notes-count-all <wallet>   (FEAT-1533)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-count-all <wallet>"}'; exit 0; fi
 wname="$1"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"wallet_not_found"}'
-    exit 0
-fi
-count=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes;" 2>/dev/null || echo 0)
-echo "{\"wallet\":\"$wname\",\"count\":$count}"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+total=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+echo "{\"wallet\":\"$wname\",\"count\":$total}"

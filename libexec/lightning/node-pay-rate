@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning node-pay-rate   (FEAT-1531)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+pays = [p for p in data.get('pays', []) if p.get('status') == 'complete' and p.get('created_at')]
+total = len(pays)
+if total < 2:
+    print(json.dumps({'total': total, 'rate_per_day': 0}))
+    sys.exit(0)
+pays.sort(key=lambda p: p['created_at'])
+span_days = (pays[-1]['created_at'] - pays[0]['created_at']) / 86400
+rate = total / span_days if span_days > 0 else 0
+print(json.dumps({'total': total, 'rate_per_day': round(rate, 4)}))
+" "$result"

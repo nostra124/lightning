@@ -20844,3 +20844,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1530: channel-close-to-addr man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-to-addr.1" ]
 }
+@test "FEAT-1531: node-pay-rate reports error or total gracefully" {
+    out=$(./libexec/lightning/node-pay-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1531: node-pay-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-rate.1" ]
+}
+@test "FEAT-1532: channel-total-out-msat reports error or total_out_msat gracefully" {
+    out=$(./libexec/lightning/channel-total-out-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|total_out_msat"
+}
+@test "FEAT-1532: channel-total-out-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-out-msat.1" ]
+}
+@test "FEAT-1533: wallet-notes-count-all reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-count-all 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1533: wallet-notes-count-all man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count-all.1" ]
+}
+@test "FEAT-1534: node-listpeers-unconnected reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpeers-unconnected 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1534: node-listpeers-unconnected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-unconnected.1" ]
+}
+@test "FEAT-1535: invoice-updated-index reports error gracefully" {
+    out=$(./libexec/lightning/invoice-updated-index 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1535: invoice-updated-index man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-updated-index.1" ]
+}
+@test "FEAT-1536: channel-commitment-feerate reports error gracefully" {
+    out=$(./libexec/lightning/channel-commitment-feerate 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1536: channel-commitment-feerate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-commitment-feerate.1" ]
+}
+@test "FEAT-1537: peer-channel-count reports error gracefully" {
+    out=$(./libexec/lightning/peer-channel-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1537: peer-channel-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count.1" ]
+}
+@test "FEAT-1538: wallet-meta-list reports error gracefully" {
+    out=$(./libexec/lightning/wallet-meta-list 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1538: wallet-meta-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-list.1" ]
+}
+@test "FEAT-1539: node-onchain-pending reports error or pending_count gracefully" {
+    out=$(./libexec/lightning/node-onchain-pending 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_count"
+}
+@test "FEAT-1539: node-onchain-pending man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-pending.1" ]
+}
+@test "FEAT-1540: channel-min-depth reports error gracefully" {
+    out=$(./libexec/lightning/channel-min-depth 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1540: channel-min-depth man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-depth.1" ]
+}
