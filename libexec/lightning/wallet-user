@@ -250,11 +250,11 @@ PRAGMA foreign_keys=ON;" 2>/dev/null || true
 	local current_uid="$user_id"
 	while true; do
 		local row; row=$(sqlite3 -separator $'\t' "$db" \
-			"SELECT COALESCE(referrer_user,''), COALESCE(max_downline,'NULL') FROM wallet_users WHERE id = $(sql_quote "$current_uid") LIMIT 1;" 2>/dev/null)
+			"SELECT COALESCE(referrer_user,''), COALESCE(max_downline,-1) FROM wallet_users WHERE id = $(sql_quote "$current_uid") LIMIT 1;" 2>/dev/null)
 		[ -n "$row" ] || break
 		local parent cap_val
 		IFS=$'\t' read -r parent cap_val <<< "$row"
-		if [ "$cap_val" != "NULL" ] && [ "$cap_val" != "" ]; then
+		if [ "$cap_val" -ge 0 ] 2>/dev/null; then
 			local cur_size; cur_size=$(count_downstream "$db" "$current_uid")
 			if [ $(( cur_size + 1 )) -gt "$cap_val" ]; then
 				printf '{"error":"cap_exceeded","ancestor":"%s"}\n' "$current_uid" >&2
