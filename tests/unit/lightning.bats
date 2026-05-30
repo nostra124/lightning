@@ -22224,3 +22224,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1710: channel-last-feerate man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-last-feerate.1" ]
 }
+
+@test "FEAT-1711: node-listpays-sorted-fee reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-sorted-fee 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1711: node-listpays-sorted-fee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-sorted-fee.1" ]
+}
+
+@test "FEAT-1712: channel-opening-count reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-opening-count 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1712: channel-opening-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opening-count.1" ]
+}
+
+@test "FEAT-1713: wallet-notes-sync requires arg" {
+    out=$(./libexec/lightning/wallet-notes-sync 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1713: wallet-notes-sync man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-sync.1" ]
+}
+
+@test "FEAT-1714: node-graph-connected-nodes reports error or total gracefully" {
+    out=$(./libexec/lightning/node-graph-connected-nodes 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1714: node-graph-connected-nodes man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-connected-nodes.1" ]
+}
+
+@test "FEAT-1715: invoice-list-paid reports error or count gracefully" {
+    out=$(./libexec/lightning/invoice-list-paid 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1715: invoice-list-paid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-paid.1" ]
+}
+
+@test "FEAT-1716: channel-stuckd-state reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-stuckd-state 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1716: channel-stuckd-state man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-stuckd-state.1" ]
+}
+
+@test "FEAT-1717: peer-channel-balance requires arg" {
+    out=$(./libexec/lightning/peer-channel-balance 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1717: peer-channel-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-balance.1" ]
+}
+
+@test "FEAT-1718: wallet-meta-get-all requires arg" {
+    out=$(./libexec/lightning/wallet-meta-get-all 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1718: wallet-meta-get-all man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-get-all.1" ]
+}
+
+@test "FEAT-1719: node-graph-fee-median reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-fee-median 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1719: node-graph-fee-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-fee-median.1" ]
+}
+
+@test "FEAT-1720: channel-remote-balance-pct requires arg" {
+    out=$(./libexec/lightning/channel-remote-balance-pct 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1720: channel-remote-balance-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-pct.1" ]
+}
