@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning node-invoice-pending-oldest   (FEAT-2364)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+pending = [i for i in invoices if i.get('status') == 'unpaid']
+if not pending:
+    print(json.dumps({'label': None, 'expires_at': None, 'pending_count': 0}))
+    sys.exit(0)
+oldest = min(pending, key=lambda i: i.get('expires_at', float('inf')))
+print(json.dumps({'label': oldest.get('label'), 'expires_at': oldest.get('expires_at'), 'amount_msat': oldest.get('amount_msat'), 'pending_count': len(pending)}))
+" "$result"
