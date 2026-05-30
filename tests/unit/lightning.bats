@@ -7906,6 +7906,25 @@ _acct243_teardown() {
 	_acct243_teardown
 }
 
+@test "FEAT-222 PR-6: invite-only registration downgrades foreign-funds rating to MEDIUM" {
+	# Closed/invite-only deployment (family-and-friends) carries much less
+	# MSB-style exposure than open custody even when foreign funds are held.
+	_acct243_setup
+	"$LIGHTNING_BIN" account set-fund-class cust foreign >/dev/null
+
+	# Default access.recfile ships require_referral: off — open registration.
+	run "$LIGHTNING_BIN" compliance status
+	[[ "$output" == *"registration:"*"open"* ]]
+	[[ "$output" == *"rating: HIGH"* ]]
+
+	# Flip to invite-only — same foreign funds, but now closed.
+	sed -i 's/^require_referral: off$/require_referral: on/' "$LIGHTNING_WALLETS_ROOT/alice/access.recfile"
+	run "$LIGHTNING_BIN" compliance status
+	[[ "$output" == *"registration:"*"invite-only"* ]]
+	[[ "$output" == *"rating: MEDIUM"* ]]
+	_acct243_teardown
+}
+
 @test "FEAT-243: default access.recfile carries default_profile" {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/defaults/access.recfile"
 	grep -q "default_profile: treasury" "$f"
