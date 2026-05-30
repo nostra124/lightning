@@ -34091,3 +34091,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3220: peer-fee-base-range man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-range.1" ]
 }
+
+@test "FEAT-3221: channel-htlc-count-stddev reports error or htlc_count_stddev_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_stddev_channel"
+}
+@test "FEAT-3221: channel-htlc-count-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-stddev.1" ]
+}
+
+@test "FEAT-3222: node-pay-amount-kurtosis-weekly reports error or amount_kurtosis_weekly gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_kurtosis_weekly"
+}
+@test "FEAT-3222: node-pay-amount-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-3223: peer-fee-ppm-kurtosis reports error or fee_ppm_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_kurtosis_peer"
+}
+@test "FEAT-3223: peer-fee-ppm-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-kurtosis.1" ]
+}
+
+@test "FEAT-3224: channel-htlc-count-range reports error or htlc_count_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_range_channel"
+}
+@test "FEAT-3224: channel-htlc-count-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-range.1" ]
+}
+
+@test "FEAT-3225: node-pay-fee-range-weekly reports error or fee_range_weekly gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-range-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_range_weekly"
+}
+@test "FEAT-3225: node-pay-fee-range-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-range-weekly.1" ]
+}
+
+@test "FEAT-3226: peer-fee-ppm-skewness reports error or fee_ppm_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_skewness_peer"
+}
+@test "FEAT-3226: peer-fee-ppm-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-skewness.1" ]
+}
+
+@test "FEAT-3227: channel-htlc-count-kurtosis reports error or htlc_count_kurtosis_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_kurtosis_channel"
+}
+@test "FEAT-3227: channel-htlc-count-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-kurtosis.1" ]
+}
+
+@test "FEAT-3228: node-pay-amount-stddev-weekly reports error or amount_stddev_weekly gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-stddev-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_stddev_weekly"
+}
+@test "FEAT-3228: node-pay-amount-stddev-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-stddev-weekly.1" ]
+}
+
+@test "FEAT-3229: peer-fee-base-kurtosis reports error or fee_base_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_kurtosis_peer"
+}
+@test "FEAT-3229: peer-fee-base-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-kurtosis.1" ]
+}
+
+@test "FEAT-3230: channel-htlc-count-skewness reports error or htlc_count_skewness_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_skewness_channel"
+}
+@test "FEAT-3230: channel-htlc-count-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-skewness.1" ]
+}
