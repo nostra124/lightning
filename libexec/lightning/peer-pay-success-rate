@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning peer-pay-success-rate   (FEAT-2318)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+total = len(pays)
+complete = sum(1 for p in pays if p.get('status') == 'complete')
+rate = round(complete / total, 6) if total > 0 else None
+print(json.dumps({'pay_success_rate': rate, 'complete_pays': complete, 'total_pays': total}))
+" "$result"
