@@ -18214,3 +18214,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1190: channel-peer-connected man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-connected.1" ]
 }
+
+@test "FEAT-1191: node-invoice-total-msat reports error or paid_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count"
+}
+@test "FEAT-1191: node-invoice-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-total-msat.1" ]
+}
+
+@test "FEAT-1192: channel-funding-txid requires arg" {
+    out=$(./libexec/lightning/channel-funding-txid 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1192: channel-funding-txid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-txid.1" ]
+}
+
+@test "FEAT-1193: wallet-notes-count requires arg" {
+    out=$(./libexec/lightning/wallet-notes-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1193: wallet-notes-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-count.1" ]
+}
+
+@test "FEAT-1194: node-listpeers-by-alias requires arg" {
+    out=$(./libexec/lightning/node-listpeers-by-alias 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1194: node-listpeers-by-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-by-alias.1" ]
+}
+
+@test "FEAT-1195: invoice-list-unpaid returns array gracefully" {
+    out=$(./libexec/lightning/invoice-list-unpaid 2>/dev/null)
+    echo "$out" | grep -q "\[\|error"
+}
+@test "FEAT-1195: invoice-list-unpaid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-unpaid.1" ]
+}
+
+@test "FEAT-1196: channel-open-block requires arg" {
+    out=$(./libexec/lightning/channel-open-block 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1196: channel-open-block man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-block.1" ]
+}
+
+@test "FEAT-1197: peer-channel-balance requires arg" {
+    out=$(./libexec/lightning/peer-channel-balance 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1197: peer-channel-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-balance.1" ]
+}
+
+@test "FEAT-1198: wallet-label-get requires args" {
+    out=$(./libexec/lightning/wallet-label-get 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1198: wallet-label-get man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-label-get.1" ]
+}
+
+@test "FEAT-1199: node-channel-spendable-total reports error or spendable_total_msat gracefully" {
+    out=$(./libexec/lightning/node-channel-spendable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_total_msat"
+}
+@test "FEAT-1199: node-channel-spendable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-spendable-total.1" ]
+}
+
+@test "FEAT-1200: channel-our-to-self-delay requires arg" {
+    out=$(./libexec/lightning/channel-our-to-self-delay 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1200: channel-our-to-self-delay man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-to-self-delay.1" ]
+}

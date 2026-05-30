@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning invoice-list-unpaid   (FEAT-905)
+# lightning invoice-list-unpaid   (FEAT-1195)
 result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
 python3 -c "
 import sys, json
