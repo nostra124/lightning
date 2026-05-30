@@ -28731,3 +28731,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2540: channel-our-reserve-min man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-min.1" ]
 }
+
+@test "FEAT-2541: node-listforwards-local-fail-count reports error or local_failed_forwards_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-local-fail-count 2>/dev/null)
+    echo "$out" | grep -q "error\|local_failed_forwards_count"
+}
+@test "FEAT-2541: node-listforwards-local-fail-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-local-fail-count.1" ]
+}
+
+@test "FEAT-2542: channel-capacity-top5 reports error or top5_channels_by_capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_channels_by_capacity"
+}
+@test "FEAT-2542: channel-capacity-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-top5.1" ]
+}
+
+@test "FEAT-2543: peer-fee-proportional-avg reports error or fee_proportional_avg gracefully" {
+    out=$(./libexec/lightning/peer-fee-proportional-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_avg"
+}
+@test "FEAT-2543: peer-fee-proportional-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-proportional-avg.1" ]
+}
+
+@test "FEAT-2544: node-invoice-paid-amount-total reports error or paid_invoice_amount_total_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_invoice_amount_total_msat"
+}
+@test "FEAT-2544: node-invoice-paid-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-total.1" ]
+}
+
+@test "FEAT-2545: channel-their-reserve-total reports error or their_reserve_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-their-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|their_reserve_total_msat"
+}
+@test "FEAT-2545: channel-their-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-total.1" ]
+}
+
+@test "FEAT-2546: node-pay-fee-avg reports error or pay_fee_avg_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_fee_avg_msat"
+}
+@test "FEAT-2546: node-pay-fee-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-avg.1" ]
+}
+
+@test "FEAT-2547: channel-local-balance-top5 reports error or top5_channels_by_local_balance gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_channels_by_local_balance"
+}
+@test "FEAT-2547: channel-local-balance-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-top5.1" ]
+}
+
+@test "FEAT-2548: peer-channel-spendable-total reports error or peer_spendable_totals gracefully" {
+    out=$(./libexec/lightning/peer-channel-spendable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_spendable_totals"
+}
+@test "FEAT-2548: peer-channel-spendable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-spendable-total.1" ]
+}
+
+@test "FEAT-2549: node-listinvoices-paid-today reports error or paid_today_count gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-today 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_today_count"
+}
+@test "FEAT-2549: node-listinvoices-paid-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-today.1" ]
+}
+
+@test "FEAT-2550: channel-remote-balance-top5 reports error or top5_channels_by_remote_balance gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_channels_by_remote_balance"
+}
+@test "FEAT-2550: channel-remote-balance-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-top5.1" ]
+}
