@@ -1,0 +1,16 @@
+.TH "LIGHTNING-NODE-INVOICE-PENDING-COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-invoice-pending-count \- show invoice counts by status
+.SH SYNOPSIS
+.B lightning node-invoice-pending-count
+.SH DESCRIPTION
+Returns counts of total, unpaid, and paid invoices.
+.PP
+Output: JSON object with total, unpaid, paid fields.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-invoice-list-pending (1),
+.BR lightning-node-invoice-stats (1)

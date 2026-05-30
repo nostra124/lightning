@@ -1,0 +1,17 @@
+.TH "LIGHTNING-NODE-PEER-CHANNELS-COUNT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-peer-channels-count \- count channels for a specific peer
+.SH SYNOPSIS
+.B lightning node-peer-channels-count
+.I peer_id
+.SH DESCRIPTION
+Returns the number of channels with the specified peer.
+.PP
+Output: JSON object with peer_id and channel_count.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-peer-summary (1),
+.BR lightning-peer-channels (1)

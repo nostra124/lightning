@@ -1,0 +1,17 @@
+.TH "LIGHTNING-WALLET-TAG-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-tag-list \- list distinct tags used in the wallet ledger
+.SH SYNOPSIS
+.B lightning wallet-tag-list
+.I wallet_name
+.SH DESCRIPTION
+Returns all distinct non-empty tag values from the wallet's ledger table.
+.PP
+Output: JSON array of tag strings.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-history-export (1),
+.BR lightning-wallet-ledger-add (1)

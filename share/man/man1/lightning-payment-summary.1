@@ -1,0 +1,16 @@
+.TH "LIGHTNING-PAYMENT-SUMMARY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-payment-summary \- show payment counts and totals
+.SH SYNOPSIS
+.B lightning payment-summary
+.SH DESCRIPTION
+Returns counts of total, complete, failed, and pending payments plus total amount sent.
+.PP
+Output: JSON object with total, complete, failed, pending, total_sent_msat.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-payment-list-failed (1),
+.BR lightning-node-payment-count (1)

@@ -11729,3 +11729,163 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-455: wallet-meta-get man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-get.1" ]
 }
+
+# FEAT-456 — channel-htlc-max-set verb
+
+@test "FEAT-456: channel-htlc-max-set verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-max-set" ]
+}
+
+@test "FEAT-456: channel-htlc-max-set reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-htlc-max-set" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-456: channel-htlc-max-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-set.1" ]
+}
+
+# FEAT-457 — node-invoice-pending-count verb
+
+@test "FEAT-457: node-invoice-pending-count verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-pending-count" ]
+}
+
+@test "FEAT-457: node-invoice-pending-count reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-pending-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-457: node-invoice-pending-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-count.1" ]
+}
+
+# FEAT-458 — wallet-pin-set verb
+
+@test "FEAT-458: wallet-pin-set verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-set" ]
+}
+
+@test "FEAT-458: wallet-pin-set reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-set" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-458: wallet-pin-set reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-pin-set" testwallet 1234 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-458: wallet-pin-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-set.1" ]
+}
+
+# FEAT-459 — node-bolt12-decode verb
+
+@test "FEAT-459: node-bolt12-decode verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-bolt12-decode" ]
+}
+
+@test "FEAT-459: node-bolt12-decode reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-bolt12-decode" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-459: node-bolt12-decode man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-bolt12-decode.1" ]
+}
+
+# FEAT-460 — channel-remote-balance verb
+
+@test "FEAT-460: channel-remote-balance verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-remote-balance" ]
+}
+
+@test "FEAT-460: channel-remote-balance reports error or balance gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-remote-balance" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_msat"
+}
+
+@test "FEAT-460: channel-remote-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance.1" ]
+}
+
+# FEAT-461 — node-plugin-list verb
+
+@test "FEAT-461: node-plugin-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-plugin-list" ]
+}
+
+@test "FEAT-461: node-plugin-list reports error or plugins gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-plugin-list" 2>/dev/null)
+	echo "$out" | grep -q "error\|plugin"
+}
+
+@test "FEAT-461: node-plugin-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-plugin-list.1" ]
+}
+
+# FEAT-462 — invoice-qr verb
+
+@test "FEAT-462: invoice-qr verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-qr" ]
+}
+
+@test "FEAT-462: invoice-qr reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-qr" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-462: invoice-qr man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-qr.1" ]
+}
+
+# FEAT-463 — wallet-tag-list verb
+
+@test "FEAT-463: wallet-tag-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-tag-list" ]
+}
+
+@test "FEAT-463: wallet-tag-list reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-tag-list" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-463: wallet-tag-list reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-tag-list" testwallet 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-463: wallet-tag-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-tag-list.1" ]
+}
+
+# FEAT-464 — node-peer-channels-count verb
+
+@test "FEAT-464: node-peer-channels-count verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-channels-count" ]
+}
+
+@test "FEAT-464: node-peer-channels-count reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-peer-channels-count" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-464: node-peer-channels-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-channels-count.1" ]
+}
+
+# FEAT-465 — payment-summary verb
+
+@test "FEAT-465: payment-summary verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-summary" ]
+}
+
+@test "FEAT-465: payment-summary reports error or summary gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/payment-summary" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-465: payment-summary man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-summary.1" ]
+}

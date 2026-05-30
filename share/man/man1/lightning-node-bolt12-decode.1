@@ -1,0 +1,17 @@
+.TH "LIGHTNING-NODE-BOLT12-DECODE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-bolt12-decode \- decode a BOLT12 offer or invoice
+.SH SYNOPSIS
+.B lightning node-bolt12-decode
+.I offer_string
+.SH DESCRIPTION
+Decodes a BOLT12 offer or invoice string using CLN's decode command.
+.PP
+Output: JSON object from CLN's decode command.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-invoice-bolt12-decode (1),
+.BR lightning-invoice-decode (1)

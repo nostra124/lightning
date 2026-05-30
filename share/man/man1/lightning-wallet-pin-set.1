@@ -1,29 +1,16 @@
 .TH "LIGHTNING-WALLET-PIN-SET" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-pin-set \- store a hashed PIN in the wallet database
+lightning-wallet-pin-set \- set a PIN for the wallet
 .SH SYNOPSIS
 .B lightning wallet-pin-set
-.I wallet
-.I pin
+.I wallet_name pin
 .SH DESCRIPTION
-Hashes
-.I pin
-with SHA-256 and stores it as
-.B pin_hash
-in the wallet's
-.B secrets
-table.
-This is a local protection mechanism; the PIN itself is never stored.
+Stores a SHA-256 hash of the provided PIN in the wallet's meta table.
 .PP
-Output:
-.nf
-{"ok":true}
-{"ok":false,"reason":...}
-.fi
+Output: JSON object with ok and wallet fields.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-wallet-check (1),
-.BR lightning-wallet-seed-verify (1)
+.BR lightning-wallet-pin-reset (1)
