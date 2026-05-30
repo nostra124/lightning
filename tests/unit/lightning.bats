@@ -11099,3 +11099,158 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-415: node-uptime man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-uptime.1" ]
 }
+
+# FEAT-416 — channel-close-mutual verb
+
+@test "FEAT-416: channel-close-mutual verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-mutual" ]
+}
+
+@test "FEAT-416: channel-close-mutual reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-mutual" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-416: channel-close-mutual man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-mutual.1" ]
+}
+
+# FEAT-417 — node-listfunds verb
+
+@test "FEAT-417: node-listfunds verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-listfunds" ]
+}
+
+@test "FEAT-417: node-listfunds reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listfunds" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-417: node-listfunds man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listfunds.1" ]
+}
+
+# FEAT-418 — invoice-pay-status verb
+
+@test "FEAT-418: invoice-pay-status verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-pay-status" ]
+}
+
+@test "FEAT-418: invoice-pay-status reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-pay-status" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-418: invoice-pay-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-pay-status.1" ]
+}
+
+# FEAT-419 — node-splice-status verb
+
+@test "FEAT-419: node-splice-status verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-splice-status" ]
+}
+
+@test "FEAT-419: node-splice-status reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-splice-status" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-419: node-splice-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-splice-status.1" ]
+}
+
+# FEAT-420 — wallet-ledger-add verb
+
+@test "FEAT-420: wallet-ledger-add verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-ledger-add" ]
+}
+
+@test "FEAT-420: wallet-ledger-add reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-ledger-add" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-420: wallet-ledger-add reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-ledger-add" testwallet credit 100 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-420: wallet-ledger-add man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-ledger-add.1" ]
+}
+
+# FEAT-421 — channel-total-capacity verb
+
+@test "FEAT-421: channel-total-capacity verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-total-capacity" ]
+}
+
+@test "FEAT-421: channel-total-capacity reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-total-capacity" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-421: channel-total-capacity man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-capacity.1" ]
+}
+
+# FEAT-422 — node-address-list verb
+
+@test "FEAT-422: node-address-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-address-list" ]
+}
+
+@test "FEAT-422: node-address-list reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-address-list" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-422: node-address-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-address-list.1" ]
+}
+
+# FEAT-423 — channel-disable verb
+
+@test "FEAT-423: channel-disable verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-disable" ]
+}
+
+@test "FEAT-423: channel-disable reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-disable" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-423: channel-disable man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-disable.1" ]
+}
+
+# FEAT-424 — invoice-create-offer verb
+
+@test "FEAT-424: invoice-create-offer verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-offer" ]
+}
+
+@test "FEAT-424: invoice-create-offer reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-offer" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-424: invoice-create-offer man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-create-offer.1" ]
+}
+
+# FEAT-425 — node-balance-snapshot verb
+
+@test "FEAT-425: node-balance-snapshot verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-balance-snapshot" ]
+}
+
+@test "FEAT-425: node-balance-snapshot reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-balance-snapshot" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-425: node-balance-snapshot man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-balance-snapshot.1" ]
+}

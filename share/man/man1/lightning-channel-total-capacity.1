@@ -1,0 +1,19 @@
+.TH "LIGHTNING-CHANNEL-TOTAL-CAPACITY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-total-capacity \- show total capacity across active channels
+.SH SYNOPSIS
+.B lightning channel-total-capacity
+.SH DESCRIPTION
+Returns the sum of all active channel capacities.
+.PP
+Output:
+.nf
+{"total_capacity_msat":N, "total_capacity_sat":N, "active_channels":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-local-balance (1),
+.BR lightning-node-channel-count (1)

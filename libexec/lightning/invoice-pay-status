@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning invoice-pay-status <payment_hash>   (FEAT-418)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: invoice-pay-status <payment_hash>"}'
+    exit 0
+fi
+payment_hash="$1"
+result=$(lightning-cli listpays payment_hash="$payment_hash" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+if pays:
+    p = pays[0]
+    print(json.dumps({'payment_hash': p.get('payment_hash',''), 'status': p.get('status',''),
+        'amount_msat': p.get('amount_msat', 0), 'created_at': p.get('created_at', 0)},
+        separators=(',', ':')))
+else:
+    print(json.dumps({'error': 'not_found'}))
+" "$result"

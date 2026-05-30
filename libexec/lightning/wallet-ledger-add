@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning wallet-ledger-add <wallet_name> <direction> <amount_sat> [<note>]   (FEAT-420)
+if [ $# -lt 3 ]; then
+    echo '{"error":"usage: wallet-ledger-add <wallet_name> <direction> <amount_sat> [<note>]"}'
+    exit 0
+fi
+wname="$1"; direction="$2"; amount_sat="$3"; note="${4:-}"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+ts=$(date -u +%s)
+sqlite3 "$db" "CREATE TABLE IF NOT EXISTS ledger (entry_id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT, direction TEXT, amount_sat INTEGER, note TEXT, created_at INTEGER);"
+sqlite3 "$db" "INSERT INTO ledger (direction,amount_sat,note,created_at) VALUES ('$direction',$amount_sat,'$note',$ts);"
+echo '{"status":"added","wallet":"'"$wname"'","amount_sat":'"$amount_sat"'}'

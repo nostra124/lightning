@@ -1,0 +1,20 @@
+.TH "LIGHTNING-NODE-LISTFUNDS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-listfunds \- show on-chain and off-chain fund summary
+.SH SYNOPSIS
+.B lightning node-listfunds
+.SH DESCRIPTION
+Returns a summary of on-chain UTXOs and off-chain channel balances from
+.BR listfunds .
+.PP
+Output:
+.nf
+{"onchain_sat":N, "offchain_msat":N, "offchain_sat":N, "utxo_count":N, "channel_count":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-onchain-balance (1),
+.BR lightning-channel-local-balance (1)

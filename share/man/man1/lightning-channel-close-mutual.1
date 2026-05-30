@@ -1,0 +1,18 @@
+.TH "LIGHTNING-CHANNEL-CLOSE-MUTUAL" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-close-mutual \- cooperatively close a channel
+.SH SYNOPSIS
+.B lightning channel-close-mutual
+.I channel_id
+.RI [ destination_address ]
+.SH DESCRIPTION
+Initiates a cooperative close of the specified channel via
+.BR close .
+An optional destination address receives the local balance.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-force-close (1),
+.BR lightning-channel-close-all-peers (1)

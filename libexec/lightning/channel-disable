@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning channel-disable <channel_id>   (FEAT-423)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: channel-disable <channel_id>"}'
+    exit 0
+fi
+channel_id="$1"
+result=$(lightning-cli setchannel "$channel_id" feebase=1000000msat feeppm=1000000 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo '{"status":"disabled_via_high_fees","channel_id":"'"$channel_id"'"}'
