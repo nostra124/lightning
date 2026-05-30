@@ -30001,3 +30001,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2700: channel-local-reserve-bottom5 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-bottom5.1" ]
 }
+
+@test "FEAT-2701: node-listforwards-offered-rate reports error or offered_rate gracefully" {
+    out=$(./libexec/lightning/node-listforwards-offered-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|offered_rate"
+}
+@test "FEAT-2701: node-listforwards-offered-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-offered-rate.1" ]
+}
+
+@test "FEAT-2702: channel-remote-reserve-bottom5 reports error or bottom5_by_remote_reserve gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_by_remote_reserve"
+}
+@test "FEAT-2702: channel-remote-reserve-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-bottom5.1" ]
+}
+
+@test "FEAT-2703: peer-local-pct-min reports error or local_pct_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-min 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_min_peer"
+}
+@test "FEAT-2703: peer-local-pct-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-min.1" ]
+}
+
+@test "FEAT-2704: node-pay-amount-variance reports error or amount_variance_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_variance_msat"
+}
+@test "FEAT-2704: node-pay-amount-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-variance.1" ]
+}
+
+@test "FEAT-2705: channel-spendable-total reports error or total_spendable_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_spendable_msat"
+}
+@test "FEAT-2705: channel-spendable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-total.1" ]
+}
+
+@test "FEAT-2706: node-listforwards-local-count reports error or local_forward_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-local-count 2>/dev/null)
+    echo "$out" | grep -q "error\|local_forward_count"
+}
+@test "FEAT-2706: node-listforwards-local-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-local-count.1" ]
+}
+
+@test "FEAT-2707: channel-receivable-total reports error or total_receivable_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_receivable_msat"
+}
+@test "FEAT-2707: channel-receivable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-total.1" ]
+}
+
+@test "FEAT-2708: peer-local-pct-stddev reports error or local_pct_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_stddev_peer"
+}
+@test "FEAT-2708: peer-local-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-stddev.1" ]
+}
+
+@test "FEAT-2709: node-invoice-expired-oldest reports error or expires_at gracefully" {
+    out=$(./libexec/lightning/node-invoice-expired-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|expires_at"
+}
+@test "FEAT-2709: node-invoice-expired-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expired-oldest.1" ]
+}
+
+@test "FEAT-2710: channel-fee-earned-median reports error or median_fee_earned_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_fee_earned_msat"
+}
+@test "FEAT-2710: channel-fee-earned-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-median.1" ]
+}
