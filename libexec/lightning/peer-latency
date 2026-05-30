@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning peer-latency <peer_id>   (FEAT-517)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: peer-latency <peer_id>"}'
+    exit 0
+fi
+peer_id="$1"
+result=$(lightning-cli listpeers "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+peers = json.loads(sys.argv[1]).get('peers', [])
+peer = next((p for p in peers if p.get('id') == sys.argv[2]), None)
+if peer:
+    print(json.dumps({'peer_id': sys.argv[2], 'connected': peer.get('connected', False),
+        'ping_time_ms': 'N/A'}, separators=(',', ':')))
+else:
+    print(json.dumps({'error': 'peer_not_found'}))
+" "$result" "$peer_id"

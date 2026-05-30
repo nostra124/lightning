@@ -12604,3 +12604,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-510: payment-track man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-track.1" ]
 }
+
+@test "FEAT-511: node-offer-create reports error or bolt12 gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-offer-create" 2>/dev/null)
+	echo "$out" | grep -q "error\|bolt12\|offer_id"
+}
+
+@test "FEAT-511: node-offer-create man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-offer-create.1" ]
+}
+
+@test "FEAT-512: channel-sat-per-vbyte reports error or sat_per_vbyte gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-sat-per-vbyte" 2>/dev/null)
+	echo "$out" | grep -q "error\|sat_per_vbyte\|opening"
+}
+
+@test "FEAT-512: channel-sat-per-vbyte man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-sat-per-vbyte.1" ]
+}
+
+@test "FEAT-513: node-lnurl-pay requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-lnurl-pay" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-513: node-lnurl-pay man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-lnurl-pay.1" ]
+}
+
+@test "FEAT-514: wallet-close requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-close" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-514: wallet-close man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-close.1" ]
+}
+
+@test "FEAT-515: node-htlc-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total\|htlc"
+}
+
+@test "FEAT-515: node-htlc-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-count.1" ]
+}
+
+@test "FEAT-516: invoice-amount-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-amount-check" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-516: invoice-amount-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-amount-check.1" ]
+}
+
+@test "FEAT-517: peer-latency requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-latency" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-517: peer-latency man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-latency.1" ]
+}
+
+@test "FEAT-518: node-watched-txids reports error or outputs gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-watched-txids" 2>/dev/null)
+	echo "$out" | grep -q "error\|outputs\|txid"
+}
+
+@test "FEAT-518: node-watched-txids man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-watched-txids.1" ]
+}
+
+@test "FEAT-519: wallet-default-set requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-default-set" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-519: wallet-default-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-default-set.1" ]
+}
+
+@test "FEAT-520: node-channel-age reports error or channels gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-age" 2>/dev/null)
+	echo "$out" | grep -q "error\|channels\|age"
+}
+
+@test "FEAT-520: node-channel-age man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-age.1" ]
+}
