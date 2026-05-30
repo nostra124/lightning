@@ -22304,3 +22304,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1720: channel-remote-balance-pct man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-pct.1" ]
 }
+
+@test "FEAT-1721: node-listpays-by-created-at requires arg" {
+    out=$(./libexec/lightning/node-listpays-by-created-at 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1721: node-listpays-by-created-at man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-by-created-at.1" ]
+}
+
+@test "FEAT-1722: channel-balance-ratio reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1722: channel-balance-ratio man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio.1" ]
+}
+
+@test "FEAT-1723: wallet-notes-archive requires args" {
+    out=$(./libexec/lightning/wallet-notes-archive 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1723: wallet-notes-archive man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-archive.1" ]
+}
+
+@test "FEAT-1724: node-graph-base-fee-median reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-base-fee-median 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1724: node-graph-base-fee-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-base-fee-median.1" ]
+}
+
+@test "FEAT-1725: invoice-list-created-after requires arg" {
+    out=$(./libexec/lightning/invoice-list-created-after 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1725: invoice-list-created-after man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-created-after.1" ]
+}
+
+@test "FEAT-1726: channel-close-count reports error or total gracefully" {
+    out=$(./libexec/lightning/channel-close-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1726: channel-close-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-count.1" ]
+}
+
+@test "FEAT-1727: peer-has-channels requires arg" {
+    out=$(./libexec/lightning/peer-has-channels 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1727: peer-has-channels man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-has-channels.1" ]
+}
+
+@test "FEAT-1728: wallet-meta-copy requires args" {
+    out=$(./libexec/lightning/wallet-meta-copy 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1728: wallet-meta-copy man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-copy.1" ]
+}
+
+@test "FEAT-1729: node-graph-capacity-dist reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-capacity-dist 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1729: node-graph-capacity-dist man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-capacity-dist.1" ]
+}
+
+@test "FEAT-1730: channel-spendable-pct requires arg" {
+    out=$(./libexec/lightning/channel-spendable-pct 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1730: channel-spendable-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct.1" ]
+}

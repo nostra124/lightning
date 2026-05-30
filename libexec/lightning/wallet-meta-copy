@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning wallet-meta-copy <wallet> <src_key> <dst_key>   (FEAT-1728)
+if [ $# -lt 3 ]; then
+    echo '{"error":"usage: wallet-meta-copy <wallet> <src_key> <dst_key>"}'; exit 0
+fi
+wname="$1"; src_key="$2"; dst_key="$3"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+value=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='$src_key';")
+if [ -z "$value" ]; then echo '{"error":"source key not found"}'; exit 0; fi
+sqlite3 "$db" "INSERT OR REPLACE INTO meta(key,value) VALUES('$dst_key','$value');" 2>/dev/null
+echo "{\"wallet\":\"$wname\",\"copied\":true,\"from\":\"$src_key\",\"to\":\"$dst_key\"}"
