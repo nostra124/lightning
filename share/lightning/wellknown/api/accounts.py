@@ -446,11 +446,22 @@ def _close(account_id):
     _lib.respond("200 OK", result)
 
 
-def _history(account_id):
+def _history(account_id, entry_id=None):
     # FEAT-246 — transaction history (ledger entries for the account).
+    # FEAT-254 — PATCH .../history/<entry_id> updates the note.
+    _lib.auth_account(account_id)
+    if entry_id is not None:
+        if not re.fullmatch(r"[0-9]+", entry_id):
+            _lib.respond("400 Bad Request", {"error": "bad_entry_id"})
+        if _method() != "PATCH":
+            _lib.respond("405 Method Not Allowed", {"error": "use_patch"})
+        body = _lib.read_body()
+        note = body.get("note", "") if isinstance(body, dict) else ""
+        result = _lib.call_verb("api-account-history-note", account_id, entry_id,
+                                str(note)[:200])
+        _lib.respond("200 OK", result)
     if _method() != "GET":
         _lib.respond("405 Method Not Allowed", {"error": "use_get"})
-    _lib.auth_account(account_id)
     qs = _query()
     args = ["api-account-history", account_id]
     if "limit" in qs:
@@ -528,6 +539,10 @@ def main():
         _lib.respond("404 Not Found")
 
     verb = tail[0]
+    if verb == "history" and len(tail) > 1:
+        # PATCH .../history/<entry_id> updates the note.
+        _history(account_id, tail[1])
+        return
     if verb == "invoice":
         # POST .../invoice (create) or GET .../invoice/<payment_hash>.
         _invoice(account_id, tail[1] if len(tail) > 1 else None)

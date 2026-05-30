@@ -8520,3 +8520,25 @@ _acct243_teardown() {
 @test "FEAT-253: PWA Send includes note in pay body" {
 	grep -q "body.note\|body\[.note.\]" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
 }
+
+# FEAT-254 — PATCH history/<entry_id> update note
+
+@test "FEAT-254: api-account-history-note verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-history-note" ]
+}
+
+@test "FEAT-254: accounts.py routes PATCH history/<entry_id>" {
+	grep -q "history.*entry_id\|entry_id.*history" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
+}
+
+@test "FEAT-254: sudoers lists api-account-history-note" {
+	grep -q "api-account-history-note" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
+}
+
+@test "FEAT-254: PWA history rows have note inputs" {
+	grep -q "hist-note" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-254: PWA history note change sends PATCH request" {
+	grep -q '"PATCH".*history\|PATCH.*history' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}

@@ -920,10 +920,14 @@ async function screenHistory(id) {
         const label = esc(e.message || e.peer || e.payment_hash.slice(0, 12));
         const ts = e.ts ? new Date(e.ts).toLocaleString() : "";
         const cls = e.direction === "in" ? "color:green" : "color:#c00";
+        const noteVal = esc(e.note || "");
         return `<div class="card" style="padding:.4em .8em">
           <span style="${cls}">${dir}${sat} sat</span>
           <span class="muted" style="float:right;font-size:.85em">${ts}</span>
           <br><span class="muted" style="font-size:.85em">${label}</span>
+          <br><input class="hist-note" data-id="${e.id}" value="${noteVal}"
+            placeholder="add note…" maxlength="200"
+            style="font-size:.85em;width:100%;margin-top:.2em">
         </div>`;
       }).join("");
       const box = document.getElementById("entries");
@@ -939,6 +943,16 @@ async function screenHistory(id) {
   };
   document.getElementById("older").onclick = load;
   await load();
+  document.getElementById("entries").addEventListener("change", async ev => {
+    const input = ev.target.closest(".hist-note");
+    if (!input) return;
+    const entryId = input.dataset.id;
+    try {
+      await api(`/accounts/${id}/history/${entryId}`, {
+        method: "PATCH", key: acct.key, body: { note: input.value.trim() }
+      });
+    } catch (e) { toast("Note save failed: " + e.message, "error"); }
+  });
 }
 
 function route() {

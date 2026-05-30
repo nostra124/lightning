@@ -89,4 +89,7 @@ www-data ALL=(alice) NOPASSWD: \
     /usr/local/bin/lightning api-account-apikey        bc1*, \
     /usr/local/bin/lightning api-account-apikey        tb1*, \
     /usr/local/bin/lightning api-account-apikey        bcrt1*, \
-    /usr/local/bin/lightning api-node-info
+    /usr/local/bin/lightning api-node-info, \
+    /usr/local/bin/lightning api-account-history-note  bc1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-history-note  tb1* [0-9]* *, \
+    /usr/local/bin/lightning api-account-history-note  bcrt1* [0-9]* *
