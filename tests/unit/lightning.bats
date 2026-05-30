@@ -31771,3 +31771,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2930: peer-remote-reserve-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-total.1" ]
 }
+
+@test "FEAT-2931: channel-capacity-range reports error or capacity_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-range 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_range_msat"
+}
+@test "FEAT-2931: channel-capacity-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-range.1" ]
+}
+
+@test "FEAT-2932: node-listforwards-in-msat-avg reports error or in_msat_avg gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_avg"
+}
+@test "FEAT-2932: node-listforwards-in-msat-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-avg.1" ]
+}
+
+@test "FEAT-2933: channel-local-balance-variance reports error or local_balance_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_variance_msat"
+}
+@test "FEAT-2933: channel-local-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-variance.1" ]
+}
+
+@test "FEAT-2934: peer-capacity-avg reports error or capacity_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_avg_msat"
+}
+@test "FEAT-2934: peer-capacity-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-avg.1" ]
+}
+
+@test "FEAT-2935: channel-remote-balance-variance reports error or remote_balance_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_variance_msat"
+}
+@test "FEAT-2935: channel-remote-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-variance.1" ]
+}
+
+@test "FEAT-2936: node-listforwards-out-msat-avg reports error or out_msat_avg gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_avg"
+}
+@test "FEAT-2936: node-listforwards-out-msat-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-avg.1" ]
+}
+
+@test "FEAT-2937: channel-capacity-variance reports error or capacity_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_variance_msat"
+}
+@test "FEAT-2937: channel-capacity-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-variance.1" ]
+}
+
+@test "FEAT-2938: peer-capacity-min reports error or capacity_min_msat gracefully" {
+    out=$(./libexec/lightning/peer-capacity-min 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_min_msat"
+}
+@test "FEAT-2938: peer-capacity-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-min.1" ]
+}
+
+@test "FEAT-2939: channel-spendable-variance reports error or spendable_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_variance_msat"
+}
+@test "FEAT-2939: channel-spendable-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-variance.1" ]
+}
+
+@test "FEAT-2940: node-pay-fee-avg reports error or fee_avg_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_avg_msat"
+}
+@test "FEAT-2940: node-pay-fee-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-avg.1" ]
+}
