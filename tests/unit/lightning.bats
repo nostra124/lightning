@@ -30671,3 +30671,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2790: channel-receivable-pct-min man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-min.1" ]
 }
+
+@test "FEAT-2791: node-listforwards-out-msat-range reports error or out_msat_range gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-range 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_range"
+}
+@test "FEAT-2791: node-listforwards-out-msat-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-range.1" ]
+}
+
+@test "FEAT-2792: channel-fee-base-variance reports error or fee_base_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_variance_msat"
+}
+@test "FEAT-2792: channel-fee-base-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-variance.1" ]
+}
+
+@test "FEAT-2793: peer-remote-pct-stddev reports error or remote_pct_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_stddev_peer"
+}
+@test "FEAT-2793: peer-remote-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-pct-stddev.1" ]
+}
+
+@test "FEAT-2794: node-pay-count-year reports error or pay_count_year gracefully" {
+    out=$(./libexec/lightning/node-pay-count-year 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_year"
+}
+@test "FEAT-2794: node-pay-count-year man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-year.1" ]
+}
+
+@test "FEAT-2795: channel-fee-ppm-variance reports error or fee_ppm_variance_val gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_variance_val"
+}
+@test "FEAT-2795: channel-fee-ppm-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-variance.1" ]
+}
+
+@test "FEAT-2796: node-invoice-paid-count-year reports error or paid_count_year gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-year 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_year"
+}
+@test "FEAT-2796: node-invoice-paid-count-year man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-year.1" ]
+}
+
+@test "FEAT-2797: channel-receivable-pct-stddev reports error or receivable_pct_stddev gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_stddev"
+}
+@test "FEAT-2797: channel-receivable-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-stddev.1" ]
+}
+
+@test "FEAT-2798: peer-remote-pct-range reports error or remote_pct_range gracefully" {
+    out=$(./libexec/lightning/peer-remote-pct-range 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_range"
+}
+@test "FEAT-2798: peer-remote-pct-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-pct-range.1" ]
+}
+
+@test "FEAT-2799: node-listforwards-fee-variance reports error or fee_variance_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_variance_msat"
+}
+@test "FEAT-2799: node-listforwards-fee-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-variance.1" ]
+}
+
+@test "FEAT-2800: channel-spendable-pct-range reports error or spendable_pct_range gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-range 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_range"
+}
+@test "FEAT-2800: channel-spendable-pct-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-range.1" ]
+}
