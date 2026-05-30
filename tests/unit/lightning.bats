@@ -15734,3 +15734,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-860: channel-reserve-remote man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-remote.1" ]
 }
+
+@test "FEAT-861: node-listforwards-failed reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listforwards-failed" 2>/dev/null)
+	echo "$out" | grep -q "error\|count\|\[\]"
+}
+@test "FEAT-861: node-listforwards-failed man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-failed.1" ]
+}
+
+@test "FEAT-862: channel-local-reserve requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-local-reserve" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-862: channel-local-reserve man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve.1" ]
+}
+
+@test "FEAT-863: wallet-seed-words requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-seed-words" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-863: wallet-seed-words man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-seed-words.1" ]
+}
+
+@test "FEAT-864: node-listpeers-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listpeers-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-864: node-listpeers-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-count.1" ]
+}
+
+@test "FEAT-865: invoice-expiry-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-expiry-check" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-865: invoice-expiry-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-expiry-check.1" ]
+}
+
+@test "FEAT-866: channel-open-cost requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-open-cost" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-866: channel-open-cost man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-open-cost.1" ]
+}
+
+@test "FEAT-867: peer-total-sent requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-total-sent" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-867: peer-total-sent man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-sent.1" ]
+}
+
+@test "FEAT-868: wallet-auto-backup requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-auto-backup" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-868: wallet-auto-backup man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-auto-backup.1" ]
+}
+
+@test "FEAT-869: node-close-channel-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-close-channel-check" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-869: node-close-channel-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-close-channel-check.1" ]
+}
+
+@test "FEAT-870: channel-short-id requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-short-id" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-870: channel-short-id man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-short-id.1" ]
+}

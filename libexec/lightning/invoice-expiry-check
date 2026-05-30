@@ -1,21 +1,14 @@
 #!/bin/bash
-# lightning invoice-expiry-check <label>   (FEAT-590)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: invoice-expiry-check <label>"}'
-    exit 0
-fi
+# lightning invoice-expiry-check <label>   (FEAT-865)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-expiry-check <label>"}'; exit 0; fi
 label="$1"
-result=$(lightning-cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+if ! result=$(lightning-cli listinvoices "$label" 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
 python3 -c "
 import sys, json, time
-data = json.loads(sys.argv[1])
-invoices = data.get('invoices', [])
-now = int(time.time())
-if invoices:
-    inv = invoices[0]
-    expires_at = inv.get('expires_at', 0)
-    remaining = expires_at - now
-    print(json.dumps({'label': inv.get('label'), 'status': inv.get('status'), 'expires_at': expires_at, 'seconds_remaining': remaining, 'expired': remaining <= 0}))
+data = json.loads(sys.argv[1]); invs = data.get('invoices', [])
+if invs:
+    inv = invs[0]; exp = inv.get('expires_at', 0); now = int(time.time())
+    print(json.dumps({'label': sys.argv[2], 'expired': exp < now, 'expires_at': exp}))
 else:
     print(json.dumps({'error': 'invoice not found'}))
-" "$result"
+" "$result" "$label"
