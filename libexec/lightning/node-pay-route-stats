@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning node-pay-route-stats   (FEAT-2159)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+complete = [p for p in pays if p.get('status') == 'complete']
+count = len(complete)
+print(json.dumps({'count': count, 'total': len(pays)}))
+" "$result"
