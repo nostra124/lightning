@@ -1,0 +1,22 @@
+#!/bin/bash
+# lightning peer-local-balance-variance   (FEAT-2954)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+from collections import defaultdict
+peer_balances = defaultdict(list)
+for c in channels:
+    peer_id = c.get('peer_id', '')
+    local = c.get('to_us_msat', 0)
+    if peer_id:
+        peer_balances[peer_id].append(local)
+all_locals = [b for balances in peer_balances.values() for b in balances]
+if not all_locals:
+    print(json.dumps({'local_balance_variance_msat': 0, 'peer_count': 0}))
+else:
+    mean = sum(all_locals) / len(all_locals)
+    variance = sum((b - mean) ** 2 for b in all_locals) / len(all_locals)
+    print(json.dumps({'local_balance_variance_msat': variance, 'peer_count': len(peer_balances)}))
+" "$result"
