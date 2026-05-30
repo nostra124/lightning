@@ -33371,3 +33371,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3130: channel-spendable-range man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-range.1" ]
 }
+
+@test "FEAT-3131: channel-receivable-range reports error or receivable_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-range 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_range_msat"
+}
+@test "FEAT-3131: channel-receivable-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-range.1" ]
+}
+
+@test "FEAT-3132: node-invoice-amount-median reports error or invoice_amount_median_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-median 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_median_msat"
+}
+@test "FEAT-3132: node-invoice-amount-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-median.1" ]
+}
+
+@test "FEAT-3133: peer-remote-reserve-range reports error or remote_reserve_range_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-reserve-range 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_range_msat"
+}
+@test "FEAT-3133: peer-remote-reserve-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-range.1" ]
+}
+
+@test "FEAT-3134: channel-fee-proportional-max reports error or fee_proportional_max gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_max"
+}
+@test "FEAT-3134: channel-fee-proportional-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-max.1" ]
+}
+
+@test "FEAT-3135: node-invoice-amount-range reports error or invoice_amount_range_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_range_msat"
+}
+@test "FEAT-3135: node-invoice-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-range.1" ]
+}
+
+@test "FEAT-3136: peer-fee-ppm-range reports error or fee_ppm_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_range_peer"
+}
+@test "FEAT-3136: peer-fee-ppm-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-range.1" ]
+}
+
+@test "FEAT-3137: channel-fee-proportional-median reports error or fee_proportional_median gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_median"
+}
+@test "FEAT-3137: channel-fee-proportional-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-median.1" ]
+}
+
+@test "FEAT-3138: node-invoice-paid-amount-range reports error or paid_amount_range_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_range_msat"
+}
+@test "FEAT-3138: node-invoice-paid-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-range.1" ]
+}
+
+@test "FEAT-3139: peer-fee-base-range reports error or fee_base_range_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_range_msat_peer"
+}
+@test "FEAT-3139: peer-fee-base-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-range.1" ]
+}
+
+@test "FEAT-3140: channel-fee-proportional-stddev reports error or fee_proportional_stddev gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_stddev"
+}
+@test "FEAT-3140: channel-fee-proportional-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-stddev.1" ]
+}
