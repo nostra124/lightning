@@ -19814,3 +19814,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1390: channel-peer-alias man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-alias.1" ]
 }
+
+@test "FEAT-1391: node-pay-success-count reports error or total gracefully" {
+    out=$(./libexec/lightning/node-pay-success-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1391: node-pay-success-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-success-count.1" ]
+}
+
+@test "FEAT-1392: channel-to-self-delay requires arg" {
+    out=$(./libexec/lightning/channel-to-self-delay 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1392: channel-to-self-delay man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-to-self-delay.1" ]
+}
+
+@test "FEAT-1393: wallet-meta-set requires args" {
+    out=$(./libexec/lightning/wallet-meta-set 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1393: wallet-meta-set man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-set.1" ]
+}
+
+@test "FEAT-1394: node-listchannels-with-peers reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-with-peers 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1394: node-listchannels-with-peers man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-with-peers.1" ]
+}
+
+@test "FEAT-1395: invoice-bolt11-payee requires arg" {
+    out=$(./libexec/lightning/invoice-bolt11-payee 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1395: invoice-bolt11-payee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-payee.1" ]
+}
+
+@test "FEAT-1396: channel-close-block requires arg" {
+    out=$(./libexec/lightning/channel-close-block 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1396: channel-close-block man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-block.1" ]
+}
+
+@test "FEAT-1397: peer-count-channels requires arg" {
+    out=$(./libexec/lightning/peer-count-channels 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1397: peer-count-channels man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-count-channels.1" ]
+}
+
+@test "FEAT-1398: wallet-notes-set requires args" {
+    out=$(./libexec/lightning/wallet-notes-set 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1398: wallet-notes-set man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-set.1" ]
+}
+
+@test "FEAT-1399: node-feerate-medium reports error or feerate_medium_perkw gracefully" {
+    out=$(./libexec/lightning/node-feerate-medium 2>/dev/null)
+    echo "$out" | grep -q "error\|feerate_medium_perkw"
+}
+@test "FEAT-1399: node-feerate-medium man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-feerate-medium.1" ]
+}
+
+@test "FEAT-1400: channel-peer-id requires arg" {
+    out=$(./libexec/lightning/channel-peer-id 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1400: channel-peer-id man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-id.1" ]
+}

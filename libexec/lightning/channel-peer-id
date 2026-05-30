@@ -1,9 +1,6 @@
 #!/bin/bash
-# lightning channel-peer-id <channel_id>   (FEAT-586)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: channel-peer-id <channel_id>"}'
-    exit 0
-fi
+# lightning channel-peer-id <channel_id>   (FEAT-1400)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-peer-id <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "

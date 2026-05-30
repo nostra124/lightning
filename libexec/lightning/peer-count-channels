@@ -1,15 +1,12 @@
 #!/bin/bash
-# lightning peer-count-channels <peer_id>   (FEAT-627)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: peer-count-channels <peer_id>"}'
-    exit 0
-fi
+# lightning peer-count-channels <peer_id>   (FEAT-1397)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-count-channels <peer_id>"}'; exit 0; fi
 peer_id="$1"
-result=$(lightning-cli listpeerchannels "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-channels = data.get('channels', [])
-active = sum(1 for c in channels if c.get('state') == 'CHANNELD_NORMAL')
-print(json.dumps({'peer_id': sys.argv[2], 'total': len(channels), 'active': active}))
+pid = sys.argv[2]
+count = len([ch for ch in data.get('channels', []) if ch.get('peer_id') == pid])
+print(json.dumps({'peer_id': pid, 'count': count}))
 " "$result" "$peer_id"
