@@ -15484,3 +15484,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-830: channel-balance-split man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-split.1" ]
 }
+
+@test "FEAT-831: node-listchannels-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listchannels-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-831: node-listchannels-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-count.1" ]
+}
+
+@test "FEAT-832: channel-total-htlc-value requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-total-htlc-value" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-832: channel-total-htlc-value man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-htlc-value.1" ]
+}
+
+@test "FEAT-833: wallet-info requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-info" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-833: wallet-info man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-info.1" ]
+}
+
+@test "FEAT-834: node-channel-history reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-history" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-834: node-channel-history man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-history.1" ]
+}
+
+@test "FEAT-835: invoice-create-once requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-once" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-835: invoice-create-once man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-create-once.1" ]
+}
+
+@test "FEAT-836: channel-close-initiated reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-initiated" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-836: channel-close-initiated man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-initiated.1" ]
+}
+
+@test "FEAT-837: peer-message-count requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-message-count" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-837: peer-message-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-message-count.1" ]
+}
+
+@test "FEAT-838: wallet-version reports version gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-version" 2>/dev/null)
+	echo "$out" | grep -q "version"
+}
+
+@test "FEAT-838: wallet-version man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-version.1" ]
+}
+
+@test "FEAT-839: node-graph-nodes-count reports error or node_count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-graph-nodes-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|node_count"
+}
+
+@test "FEAT-839: node-graph-nodes-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-nodes-count.1" ]
+}
+
+@test "FEAT-840: channel-max-inflight requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-max-inflight" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-840: channel-max-inflight man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-inflight.1" ]
+}
