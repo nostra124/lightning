@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning channel-remote-balance-top10   (FEAT-2592)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+for c in channels:
+    total = int(c.get('total_msat', 0))
+    to_us = int(c.get('to_us_msat', 0))
+    c['_remote_msat'] = total - to_us
+channels.sort(key=lambda c: c['_remote_msat'], reverse=True)
+top10 = [{'channel_id': c.get('channel_id',''), 'peer_id': c.get('peer_id',''), 'remote_msat': c['_remote_msat']} for c in channels[:10]]
+print(json.dumps({'top10_channels_by_remote': top10}))
+" "$result"

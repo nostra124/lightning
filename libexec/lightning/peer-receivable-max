@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning peer-receivable-max   (FEAT-2598)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peers = {}
+for c in channels:
+    pid = c.get('peer_id', '')
+    val = int(c.get('receivable_msat', 0))
+    peers[pid] = peers.get(pid, 0) + val
+if not peers:
+    print(json.dumps({'peer_id': None, 'receivable_msat': 0}))
+else:
+    pid = max(peers, key=lambda p: peers[p])
+    print(json.dumps({'peer_id': pid, 'receivable_msat': peers[pid]}))
+" "$result"

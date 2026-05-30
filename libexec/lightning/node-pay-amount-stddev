@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning node-pay-amount-stddev   (FEAT-2596)
+result=$(lightning-cli listsendpays status=complete 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+pays = data.get('payments', [])
+amounts = [int(p.get('amount_msat', 0)) for p in pays]
+if len(amounts) < 2:
+    print(json.dumps({'amount_stddev_msat': 0}))
+else:
+    mean = sum(amounts) / len(amounts)
+    variance = sum((x - mean) ** 2 for x in amounts) / len(amounts)
+    print(json.dumps({'amount_stddev_msat': math.sqrt(variance)}))
+" "$result"
