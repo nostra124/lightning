@@ -16534,3 +16534,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-960: peer-list-online man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-online.1" ]
 }
+
+@test "FEAT-961: node-listfunds-total reports error or total_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listfunds-total" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_msat"
+}
+@test "FEAT-961: node-listfunds-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listfunds-total.1" ]
+}
+
+@test "FEAT-962: channel-inflight-count requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-inflight-count" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-962: channel-inflight-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-inflight-count.1" ]
+}
+
+@test "FEAT-963: wallet-meta-set requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-meta-set" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-963: wallet-meta-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-set.1" ]
+}
+
+@test "FEAT-964: node-channel-open-pending reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-open-pending" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-964: node-channel-open-pending man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-open-pending.1" ]
+}
+
+@test "FEAT-965: invoice-hash requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-hash" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-965: invoice-hash man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-hash.1" ]
+}
+
+@test "FEAT-966: channel-peer-msatoshi requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-msatoshi" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-966: channel-peer-msatoshi man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-msatoshi.1" ]
+}
+
+@test "FEAT-967: peer-disconnect-all reports error or disconnecting gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect-all" 2>/dev/null)
+	echo "$out" | grep -q "error\|disconnecting"
+}
+@test "FEAT-967: peer-disconnect-all man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect-all.1" ]
+}
+
+@test "FEAT-968: wallet-unlock requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-unlock" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-968: wallet-unlock man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-unlock.1" ]
+}
+
+@test "FEAT-969: node-listpays-complete reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listpays-complete" 2>/dev/null)
+	echo "$out" | grep -q "error\|count\|\[\]"
+}
+@test "FEAT-969: node-listpays-complete man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-complete.1" ]
+}
+
+@test "FEAT-970: channel-balance-local-pct requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-balance-local-pct" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-970: channel-balance-local-pct man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-local-pct.1" ]
+}
