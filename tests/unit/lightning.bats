@@ -8605,3 +8605,21 @@ assert t['auth'] is None
 @test "FEAT-257: llms.txt documents GET /channels" {
 	grep -q "GET /channels" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
 }
+
+# FEAT-258 — PWA light/dark mode toggle
+
+@test "FEAT-258: style.css has light mode variables" {
+	grep -q "body.light" "$BATS_TEST_DIRNAME/../../share/lightning/ui/style.css"
+}
+
+@test "FEAT-258: app.js has toggleTheme function" {
+	grep -q "function toggleTheme" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-258: app.js applies theme on startup" {
+	grep -q "applyTheme" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-258: Settings screen has theme toggle button" {
+	grep -q "toggle-theme" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}

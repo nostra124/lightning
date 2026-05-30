@@ -2,6 +2,10 @@
   --bg: #14161a; --fg: #e8e8ea; --muted: #9aa0a6; --accent: #f7931a;
   --card: #1d2026; --danger: #e2554e; --ok: #3fb950; --warn: #d8a657;
 }
+body.light {
+  --bg: #f5f5f7; --fg: #1a1a1a; --muted: #6e6e73; --accent: #c05f00;
+  --card: #ffffff; --danger: #c0392b; --ok: #217a3c; --warn: #a07000;
+}
 * { box-sizing: border-box; }
 body {
   margin: 0; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

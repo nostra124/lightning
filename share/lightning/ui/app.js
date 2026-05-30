@@ -5,10 +5,23 @@
 // session token (sess_…) for the user-registration and login flows.
 
 const LS_KEY = "lightning.accounts";
+const LS_THEME_KEY = "lightning.theme";
 // User store: {user_id, label} persisted; session kept only in sessionStorage.
 const LS_USER_KEY = "lightning.user";
 
 let CONFIG = { api_base: "/.well-known/lightning/v1" };
+
+function applyTheme() {
+  const theme = localStorage.getItem(LS_THEME_KEY) || "dark";
+  document.body.classList.toggle("light", theme === "light");
+}
+
+function toggleTheme() {
+  const current = localStorage.getItem(LS_THEME_KEY) || "dark";
+  const next = current === "dark" ? "light" : "dark";
+  localStorage.setItem(LS_THEME_KEY, next);
+  applyTheme();
+}
 
 async function loadConfig() {
   try {
@@ -612,6 +625,7 @@ function screenSettings(id) {
      <label>Account label (this device only)
        <input id="label-input" value="${esc(acct.label)}" maxlength="40"></label>
      <button id="save-label">Save label</button>
+     <button id="toggle-theme">${localStorage.getItem(LS_THEME_KEY) === "light" ? "Switch to dark mode" : "Switch to light mode"}</button>
      <button id="node-info">Node info</button>
      <button id="referrals">Invite &amp; referrals</button>
      <button id="taxdata">Export transaction data (for tax)</button>
@@ -629,6 +643,7 @@ function screenSettings(id) {
     upsertAccount({ ...acct, label: newLabel });
     toast("Label saved", "ok");
   };
+  document.getElementById("toggle-theme").onclick = () => { toggleTheme(); go("settings/" + id); };
   document.getElementById("node-info").onclick = () => go("node");
   document.getElementById("referrals").onclick = () => go("referrals/" + id);
   document.getElementById("taxdata").onclick = async () => {
@@ -1014,6 +1029,7 @@ function route() {
 window.addEventListener("hashchange", route);
 
 (async function main() {
+  applyTheme();
   await loadConfig();
   consumeInviteParam();
   document.getElementById("apibase").textContent = "API: " + CONFIG.api_base;
