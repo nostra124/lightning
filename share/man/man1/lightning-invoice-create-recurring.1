@@ -1,0 +1,29 @@
+.TH "LIGHTNING-INVOICE-CREATE-RECURRING" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-invoice-create-recurring \- create a batch of recurring invoices
+.SH SYNOPSIS
+.B lightning invoice-create-recurring
+.I amount_msat
+.I label_prefix
+.I count
+.SH DESCRIPTION
+Creates
+.I count
+invoices, each for
+.I amount_msat
+millisatoshis, with labels derived from
+.IR label_prefix .
+Returns an array of label/bolt11 pairs.
+Returns an error object if no arguments are provided.
+.PP
+Output:
+.nf
+[{label, bolt11},...]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-invoice-create (1),
+.BR lightning-invoice-list (1)

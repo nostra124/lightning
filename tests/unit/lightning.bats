@@ -10554,3 +10554,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-380: wallet-export-json man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-json.1" ]
 }
+
+# FEAT-381 — invoice-create-recurring verb
+
+@test "FEAT-381: invoice-create-recurring verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-recurring" ]
+}
+
+@test "FEAT-381: invoice-create-recurring reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-recurring" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-381: invoice-create-recurring man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-create-recurring.1" ]
+}
+
+# FEAT-382 — node-bandwidth verb
+
+@test "FEAT-382: node-bandwidth verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-bandwidth" ]
+}
+
+@test "FEAT-382: node-bandwidth reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-bandwidth" 2>/dev/null)
+	echo "$out" | grep -q "error\|bandwidth_msat"
+}
+
+@test "FEAT-382: node-bandwidth man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-bandwidth.1" ]
+}
