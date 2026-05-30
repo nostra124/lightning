@@ -1,0 +1,15 @@
+.TH "LIGHTNING-NODE-LISTINVOICES-PAID-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-listinvoices-paid-list \- FEAT-2279 list of all paid invoices with payment_hash and amount
+.SH SYNOPSIS
+.B lightning node-listinvoices-paid-list
+.SH DESCRIPTION
+node-listinvoices-paid-list for lightning CLI (FEAT-2279).
+.PP
+Output: JSON from CLN. Returns an array of objects with payment_hash and amount_msat for every paid invoice.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)
