@@ -1,6 +1,8 @@
 #!/bin/bash
-# lightning channel-to-us-msat <channel_id>   (FEAT-1212)
-if [ $# -lt 1 ]; then echo '{"error":"usage: channel-to-us-msat <channel_id>"}'; exit 0; fi
+# lightning channel-to-us-msat <channel_id>   (FEAT-1602)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: channel-to-us-msat <channel_id>"}'; exit 0
+fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "

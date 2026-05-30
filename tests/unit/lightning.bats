@@ -21344,3 +21344,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1600: channel-htlc-total-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-total-msat.1" ]
 }
+
+@test "FEAT-1601: node-pay-newest reports error or created_at gracefully" {
+    out=$(./libexec/lightning/node-pay-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|created_at"
+}
+@test "FEAT-1601: node-pay-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-newest.1" ]
+}
+
+@test "FEAT-1602: channel-to-us-msat requires arg" {
+    out=$(./libexec/lightning/channel-to-us-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1602: channel-to-us-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-to-us-msat.1" ]
+}
+
+@test "FEAT-1603: wallet-notes-tag-count requires args" {
+    out=$(./libexec/lightning/wallet-notes-tag-count 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1603: wallet-notes-tag-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-tag-count.1" ]
+}
+
+@test "FEAT-1604: node-listchannels-with-htlcs reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-with-htlcs 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1604: node-listchannels-with-htlcs man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-with-htlcs.1" ]
+}
+
+@test "FEAT-1605: invoice-bolt11-paymenthash requires arg" {
+    out=$(./libexec/lightning/invoice-bolt11-paymenthash 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1605: invoice-bolt11-paymenthash man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-paymenthash.1" ]
+}
+
+@test "FEAT-1606: channel-remote-fee-ppm requires arg" {
+    out=$(./libexec/lightning/channel-remote-fee-ppm 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1606: channel-remote-fee-ppm man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-fee-ppm.1" ]
+}
+
+@test "FEAT-1607: peer-channel-ids requires arg" {
+    out=$(./libexec/lightning/peer-channel-ids 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1607: peer-channel-ids man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-ids.1" ]
+}
+
+@test "FEAT-1608: wallet-notes-rename-key requires args" {
+    out=$(./libexec/lightning/wallet-notes-rename-key 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1608: wallet-notes-rename-key man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-rename-key.1" ]
+}
+
+@test "FEAT-1609: node-graph-channel-age reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-channel-age 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1609: node-graph-channel-age man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-channel-age.1" ]
+}
+
+@test "FEAT-1610: channel-their-base-fee requires arg" {
+    out=$(./libexec/lightning/channel-their-base-fee 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1610: channel-their-base-fee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-base-fee.1" ]
+}

@@ -1,7 +1,7 @@
 #!/bin/bash
-# lightning channel-remote-fee-ppm <channel_id>   (FEAT-1606)
+# lightning channel-their-base-fee <channel_id>   (FEAT-1610)
 if [ $# -lt 1 ]; then
-    echo '{"error":"usage: channel-remote-fee-ppm <channel_id>"}'; exit 0
+    echo '{"error":"usage: channel-their-base-fee <channel_id>"}'; exit 0
 fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
@@ -13,7 +13,7 @@ for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
         updates = ch.get('updates', {})
         remote = updates.get('remote', {})
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'fee_proportional_millionths': remote.get('fee_proportional_millionths')}))
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'base_fee_millisatoshi': remote.get('base_fee_millisatoshi')}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"
