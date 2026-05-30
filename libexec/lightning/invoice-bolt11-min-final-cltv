@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning invoice-bolt11-min-final-cltv <bolt11>   (FEAT-1405)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-bolt11-min-final-cltv <bolt11>"}'; exit 0; fi
+bolt11="$1"
+result=$(lightning-cli decodepay "$bolt11" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+if 'error' in data:
+    print(json.dumps({'error': data['error']}))
+else:
+    print(json.dumps({'min_final_cltv_expiry': data.get('min_final_cltv_expiry')}))
+" "$result"

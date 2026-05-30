@@ -19894,3 +19894,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1400: channel-peer-id man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-id.1" ]
 }
+
+@test "FEAT-1401: node-listpays-by-preimage requires arg" {
+    out=$(./libexec/lightning/node-listpays-by-preimage 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1401: node-listpays-by-preimage man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-by-preimage.1" ]
+}
+
+@test "FEAT-1402: channel-funding-sat requires arg" {
+    out=$(./libexec/lightning/channel-funding-sat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1402: channel-funding-sat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-sat.1" ]
+}
+
+@test "FEAT-1403: wallet-notes-get-all requires arg" {
+    out=$(./libexec/lightning/wallet-notes-get-all 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1403: wallet-notes-get-all man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-get-all.1" ]
+}
+
+@test "FEAT-1404: node-listchannels-high-capacity requires arg" {
+    out=$(./libexec/lightning/node-listchannels-high-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1404: node-listchannels-high-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-high-capacity.1" ]
+}
+
+@test "FEAT-1405: invoice-bolt11-min-final-cltv requires arg" {
+    out=$(./libexec/lightning/invoice-bolt11-min-final-cltv 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1405: invoice-bolt11-min-final-cltv man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-bolt11-min-final-cltv.1" ]
+}
+
+@test "FEAT-1406: channel-remote-disabled reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-remote-disabled 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1406: channel-remote-disabled man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-disabled.1" ]
+}
+
+@test "FEAT-1407: peer-total-capacity requires arg" {
+    out=$(./libexec/lightning/peer-total-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1407: peer-total-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-capacity.1" ]
+}
+
+@test "FEAT-1408: wallet-backup-list requires arg" {
+    out=$(./libexec/lightning/wallet-backup-list 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1408: wallet-backup-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup-list.1" ]
+}
+
+@test "FEAT-1409: node-listchannels-zero-reserve reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listchannels-zero-reserve 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1409: node-listchannels-zero-reserve man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-zero-reserve.1" ]
+}
+
+@test "FEAT-1410: channel-local-cltv-delta requires arg" {
+    out=$(./libexec/lightning/channel-local-cltv-delta 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1410: channel-local-cltv-delta man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-cltv-delta.1" ]
+}
