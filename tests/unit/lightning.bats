@@ -30081,3 +30081,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2710: channel-fee-earned-median man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-median.1" ]
 }
+
+@test "FEAT-2711: node-listforwards-settled-count reports error or settled_forward_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-settled-count 2>/dev/null)
+    echo "$out" | grep -q "error\|settled_forward_count"
+}
+@test "FEAT-2711: node-listforwards-settled-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-settled-count.1" ]
+}
+
+@test "FEAT-2712: channel-fee-ppm-top10 reports error or top10_by_fee_ppm gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_by_fee_ppm"
+}
+@test "FEAT-2712: channel-fee-ppm-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-top10.1" ]
+}
+
+@test "FEAT-2713: peer-local-balance-stddev reports error or local_balance_stddev_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_stddev_msat"
+}
+@test "FEAT-2713: peer-local-balance-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-stddev.1" ]
+}
+
+@test "FEAT-2714: node-pay-destination-count reports error or unique_destination_count gracefully" {
+    out=$(./libexec/lightning/node-pay-destination-count 2>/dev/null)
+    echo "$out" | grep -q "error\|unique_destination_count"
+}
+@test "FEAT-2714: node-pay-destination-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-destination-count.1" ]
+}
+
+@test "FEAT-2715: channel-fee-base-top10 reports error or top10_by_fee_base gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_by_fee_base"
+}
+@test "FEAT-2715: channel-fee-base-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-top10.1" ]
+}
+
+@test "FEAT-2716: node-listforwards-failed-oldest reports error or oldest_failed_forward gracefully" {
+    out=$(./libexec/lightning/node-listforwards-failed-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|oldest_failed_forward"
+}
+@test "FEAT-2716: node-listforwards-failed-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-failed-oldest.1" ]
+}
+
+@test "FEAT-2717: channel-spendable-top10 reports error or top10_by_spendable gracefully" {
+    out=$(./libexec/lightning/channel-spendable-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_by_spendable"
+}
+@test "FEAT-2717: channel-spendable-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-top10.1" ]
+}
+
+@test "FEAT-2718: peer-remote-balance-stddev reports error or remote_balance_stddev_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_stddev_msat"
+}
+@test "FEAT-2718: peer-remote-balance-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-stddev.1" ]
+}
+
+@test "FEAT-2719: node-invoice-unpaid-oldest reports error or created_at gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|created_at"
+}
+@test "FEAT-2719: node-invoice-unpaid-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-oldest.1" ]
+}
+
+@test "FEAT-2720: channel-receivable-top10 reports error or top10_by_receivable gracefully" {
+    out=$(./libexec/lightning/channel-receivable-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_by_receivable"
+}
+@test "FEAT-2720: channel-receivable-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-top10.1" ]
+}
