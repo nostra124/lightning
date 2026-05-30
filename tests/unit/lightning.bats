@@ -9011,3 +9011,13 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-283: mcp.json includes node://health resource" {
 	grep -q 'node://health' share/lightning/wellknown/lightning/mcp.json
 }
+
+# FEAT-284 — GET /v1/health public endpoint
+
+@test "FEAT-284: health.py CGI exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/health.py" ]
+}
+
+@test "FEAT-284: Apache conf has ScriptAlias for /v1/health" {
+	grep -q "v1/health" share/lightning/apache/lnurlp.conf
+}
