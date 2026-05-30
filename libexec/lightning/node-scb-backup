@@ -8,16 +8,19 @@ fi
 python3 -c "
 import sys, json
 try:
-    data = json.loads(sys.argv[1])
+    data = json.loads(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1] else {}
     scb = data.get('scb', '')
-    out = sys.argv[2]
+    out = sys.argv[2] if len(sys.argv) > 2 else '/tmp/scb_backup.bin'
     if scb:
         raw = bytes.fromhex(scb)
-        with open(out, 'wb') as f:
-            f.write(raw)
-        print(json.dumps({'ok': True, 'path': out, 'size': len(raw)}, separators=(',', ':')))
+        try:
+            with open(out, 'wb') as f:
+                f.write(raw)
+            print(json.dumps({'ok': True, 'path': out, 'size': len(raw)}, separators=(',', ':')))
+        except OSError as e:
+            print(json.dumps({'ok': False, 'reason': str(e)}))
     else:
         print(json.dumps({'ok': False, 'reason': 'no_scb'}))
 except Exception as e:
     print(json.dumps({'error': str(e)}))
-" "$result" "$out_path"
+" "$result" "$out_path" || echo '{"error":"internal"}'
