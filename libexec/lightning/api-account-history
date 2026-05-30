@@ -45,6 +45,8 @@ fetch=$(( limit + 1 ))
 rows=$(sqlite3 -json "$db" \
 	"SELECT id, ts, direction, amount_msat, peer, payment_hash, message, note \
 	 FROM ledger WHERE $where ORDER BY id DESC LIMIT $fetch;" 2>/dev/null || echo "[]")
+# sqlite3 -json returns empty string (not "[]") for zero rows in some versions.
+[ -n "$rows" ] || rows="[]"
 
 # If we got limit+1 rows, there are more; trim to limit.
 count=$(echo "$rows" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d))" 2>/dev/null || echo 0)
