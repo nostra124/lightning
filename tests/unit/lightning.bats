@@ -29921,3 +29921,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2690: channel-fee-ppm-bottom5 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-bottom5.1" ]
 }
+
+@test "FEAT-2691: node-listforwards-settled-rate reports error or settled_rate gracefully" {
+    out=$(./libexec/lightning/node-listforwards-settled-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|settled_rate"
+}
+@test "FEAT-2691: node-listforwards-settled-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-settled-rate.1" ]
+}
+
+@test "FEAT-2692: channel-fee-ppm-top5 reports error or top5_by_fee_ppm gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_by_fee_ppm"
+}
+@test "FEAT-2692: channel-fee-ppm-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-top5.1" ]
+}
+
+@test "FEAT-2693: peer-local-pct-avg reports error or avg_local_pct gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_local_pct"
+}
+@test "FEAT-2693: peer-local-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-avg.1" ]
+}
+
+@test "FEAT-2694: node-pay-amount-median reports error or median_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-median 2>/dev/null)
+    echo "$out" | grep -q "error\|median_amount_msat"
+}
+@test "FEAT-2694: node-pay-amount-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-median.1" ]
+}
+
+@test "FEAT-2695: channel-local-reserve-top5 reports error or top5_by_local_reserve gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_by_local_reserve"
+}
+@test "FEAT-2695: channel-local-reserve-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-top5.1" ]
+}
+
+@test "FEAT-2696: node-listforwards-failed-count reports error or failed_forward_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-failed-count 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_forward_count"
+}
+@test "FEAT-2696: node-listforwards-failed-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-failed-count.1" ]
+}
+
+@test "FEAT-2697: channel-remote-reserve-top5 reports error or top5_by_remote_reserve gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve-top5 2>/dev/null)
+    echo "$out" | grep -q "error\|top5_by_remote_reserve"
+}
+@test "FEAT-2697: channel-remote-reserve-top5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-top5.1" ]
+}
+
+@test "FEAT-2698: peer-local-pct-max reports error or local_pct_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_max_peer"
+}
+@test "FEAT-2698: peer-local-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-max.1" ]
+}
+
+@test "FEAT-2699: node-invoice-paid-amount-min reports error or min_paid_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_paid_amount_msat"
+}
+@test "FEAT-2699: node-invoice-paid-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-min.1" ]
+}
+
+@test "FEAT-2700: channel-local-reserve-bottom5 reports error or bottom5_by_local_reserve gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-bottom5 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom5_by_local_reserve"
+}
+@test "FEAT-2700: channel-local-reserve-bottom5 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-bottom5.1" ]
+}
