@@ -23664,3 +23664,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1890: channel-both-fees man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-fees.1" ]
 }
+
+@test "FEAT-1891: node-listpays-grouped-dest reports error or destinations gracefully" {
+    out=$(./libexec/lightning/node-listpays-grouped-dest 2>/dev/null)
+    echo "$out" | grep -q "error\|destinations"
+}
+@test "FEAT-1891: node-listpays-grouped-dest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-grouped-dest.1" ]
+}
+
+@test "FEAT-1892: channel-remote-htlc-count reports error or total_remote_htlcs gracefully" {
+    out=$(./libexec/lightning/channel-remote-htlc-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total_remote_htlcs"
+}
+@test "FEAT-1892: channel-remote-htlc-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-htlc-count.1" ]
+}
+
+@test "FEAT-1893: wallet-notes-tag-exists reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-tag-exists 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1893: wallet-notes-tag-exists man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-tag-exists.1" ]
+}
+
+@test "FEAT-1894: node-graph-peers-connected reports error or total gracefully" {
+    out=$(./libexec/lightning/node-graph-peers-connected 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1894: node-graph-peers-connected man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-peers-connected.1" ]
+}
+
+@test "FEAT-1895: invoice-amount-total reports error or paid_count gracefully" {
+    out=$(./libexec/lightning/invoice-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count"
+}
+@test "FEAT-1895: invoice-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-amount-total.1" ]
+}
+
+@test "FEAT-1896: channel-closing-count reports error or total gracefully" {
+    out=$(./libexec/lightning/channel-closing-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1896: channel-closing-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-closing-count.1" ]
+}
+
+@test "FEAT-1897: peer-all-balances reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/peer-all-balances 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1897: peer-all-balances man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-all-balances.1" ]
+}
+
+@test "FEAT-1898: wallet-notes-deduplicate reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-deduplicate 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1898: wallet-notes-deduplicate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-deduplicate.1" ]
+}
+
+@test "FEAT-1899: node-listforwards-channel-pair reports error gracefully" {
+    out=$(./libexec/lightning/node-listforwards-channel-pair 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1899: node-listforwards-channel-pair man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-channel-pair.1" ]
+}
+
+@test "FEAT-1900: channel-opening-count reports error or total gracefully" {
+    out=$(./libexec/lightning/channel-opening-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1900: channel-opening-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opening-count.1" ]
+}

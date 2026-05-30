@@ -1,10 +1,11 @@
 #!/bin/bash
-# lightning channel-opening-count   (FEAT-1712)
+# lightning channel-opening-count   (FEAT-1900)
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
 channels = data.get('channels', [])
-opening = [c for c in channels if c.get('state') in ('CHANNELD_AWAITING_LOCKIN', 'DUALOPEND_AWAITING_LOCKIN', 'DUALOPEND_OPEN_INIT')]
-print(json.dumps({'count': len(opening), 'channels': [c.get('channel_id') for c in opening]}))
+opening = [c for c in channels if 'OPEN' in c.get('state', '') and c.get('state') != 'CHANNELD_NORMAL']
+normal = [c for c in channels if c.get('state') == 'CHANNELD_NORMAL']
+print(json.dumps({'total': len(channels), 'normal': len(normal), 'opening': len(opening)}))
 " "$result"
