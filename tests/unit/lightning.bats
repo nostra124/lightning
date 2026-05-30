@@ -33131,3 +33131,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3100: channel-spendable-pct-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-max.1" ]
 }
+
+@test "FEAT-3101: channel-receivable-pct-max reports error or receivable_pct_max gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_max"
+}
+@test "FEAT-3101: channel-receivable-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-max.1" ]
+}
+
+@test "FEAT-3102: node-invoice-count-total reports error or invoice_count_total gracefully" {
+    out=$(./libexec/lightning/node-invoice-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_count_total"
+}
+@test "FEAT-3102: node-invoice-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-total.1" ]
+}
+
+@test "FEAT-3103: peer-local-reserve-min reports error or local_reserve_min_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-reserve-min 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_min_msat"
+}
+@test "FEAT-3103: peer-local-reserve-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-reserve-min.1" ]
+}
+
+@test "FEAT-3104: channel-receivable-pct-median reports error or receivable_pct_median gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct-median 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_median"
+}
+@test "FEAT-3104: channel-receivable-pct-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-median.1" ]
+}
+
+@test "FEAT-3105: node-invoice-count-paid reports error or invoice_count_paid gracefully" {
+    out=$(./libexec/lightning/node-invoice-count-paid 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_count_paid"
+}
+@test "FEAT-3105: node-invoice-count-paid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-paid.1" ]
+}
+
+@test "FEAT-3106: peer-local-reserve-max reports error or local_reserve_max_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-reserve-max 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_max_msat"
+}
+@test "FEAT-3106: peer-local-reserve-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-reserve-max.1" ]
+}
+
+@test "FEAT-3107: channel-spendable-pct-median reports error or spendable_pct_median gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-median 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_median"
+}
+@test "FEAT-3107: channel-spendable-pct-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-median.1" ]
+}
+
+@test "FEAT-3108: node-invoice-count-unpaid reports error or invoice_count_unpaid gracefully" {
+    out=$(./libexec/lightning/node-invoice-count-unpaid 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_count_unpaid"
+}
+@test "FEAT-3108: node-invoice-count-unpaid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-unpaid.1" ]
+}
+
+@test "FEAT-3109: peer-local-reserve-stddev reports error or local_reserve_stddev_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-reserve-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_stddev_msat"
+}
+@test "FEAT-3109: peer-local-reserve-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-reserve-stddev.1" ]
+}
+
+@test "FEAT-3110: channel-fee-ppm-range reports error or fee_ppm_range gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_range"
+}
+@test "FEAT-3110: channel-fee-ppm-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-range.1" ]
+}
