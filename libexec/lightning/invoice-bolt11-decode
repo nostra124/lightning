@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning invoice-bolt11-decode <bolt11>   (FEAT-1125)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: invoice-bolt11-decode <bolt11>"}'
+    exit 0
+fi
+bolt11="$1"
+result=$(lightning-cli decodepay "$bolt11" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+try:
+    data = json.loads(sys.argv[1])
+    print(json.dumps({'payment_hash': data.get('payment_hash'), 'amount_msat': data.get('amount_msat'), 'description': data.get('description'), 'expiry': data.get('expiry')}))
+except Exception:
+    print(json.dumps({'error': 'decode failed'}))
+" "$result"

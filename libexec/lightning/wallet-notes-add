@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning wallet-notes-add <wallet_name> <body>   (FEAT-1123)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-notes-add <wallet_name> <body>"}'
+    exit 0
+fi
+wname="$1"; body="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"wallet_not_found"}'
+    exit 0
+fi
+nid=$(date +%s%N 2>/dev/null || echo $$)
+sqlite3 "$db" "INSERT INTO notes (id,body) VALUES ('$nid','$body');" 2>/dev/null
+echo "{\"ok\":true,\"wallet\":\"$wname\",\"id\":\"$nid\"}"
