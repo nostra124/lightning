@@ -17754,3 +17754,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1130: channel-fee-ppm man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm.1" ]
 }
+@test "FEAT-1131: node-peer-uptime requires arg" {
+	out=$(./libexec/lightning/node-peer-uptime 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1131: node-peer-uptime man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-peer-uptime.1" ]
+}
+@test "FEAT-1132: channel-close-tx requires arg" {
+	out=$(./libexec/lightning/channel-close-tx 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1132: channel-close-tx man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-tx.1" ]
+}
+@test "FEAT-1133: wallet-export-keys requires arg" {
+	out=$(./libexec/lightning/wallet-export-keys 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1133: wallet-export-keys man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-keys.1" ]
+}
+@test "FEAT-1134: node-listpays-total-msat reports error or complete_count gracefully" {
+	out=$(./libexec/lightning/node-listpays-total-msat 2>/dev/null)
+	echo "$out" | grep -q "error\|complete_count"
+}
+@test "FEAT-1134: node-listpays-total-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-total-msat.1" ]
+}
+@test "FEAT-1135: invoice-cancel requires arg" {
+	out=$(./libexec/lightning/invoice-cancel 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1135: invoice-cancel man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-cancel.1" ]
+}
+@test "FEAT-1136: channel-anchor requires arg" {
+	out=$(./libexec/lightning/channel-anchor 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1136: channel-anchor man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-anchor.1" ]
+}
+@test "FEAT-1137: peer-active-channels requires arg" {
+	out=$(./libexec/lightning/peer-active-channels 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1137: peer-active-channels man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-active-channels.1" ]
+}
+@test "FEAT-1138: wallet-notes-clear requires arg" {
+	out=$(./libexec/lightning/wallet-notes-clear 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1138: wallet-notes-clear man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-clear.1" ]
+}
+@test "FEAT-1139: node-routing-stats reports error or total_forwards gracefully" {
+	out=$(./libexec/lightning/node-routing-stats 2>/dev/null)
+	echo "$out" | grep -q "error\|total_forwards"
+}
+@test "FEAT-1139: node-routing-stats man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-routing-stats.1" ]
+}
+@test "FEAT-1140: channel-id-list returns array gracefully" {
+	out=$(./libexec/lightning/channel-id-list 2>/dev/null)
+	echo "$out" | grep -qE "^\[|\{.*error"
+}
+@test "FEAT-1140: channel-id-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-id-list.1" ]
+}
