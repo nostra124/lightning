@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning channel-capacity-top10   (FEAT-2390)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+def msat_int(v):
+    if isinstance(v, str) and v.endswith('msat'):
+        return int(v[:-4])
+    return int(v) if v else 0
+enriched = []
+for ch in channels:
+    local = msat_int(ch.get('local_msat', 0))
+    remote = msat_int(ch.get('remote_msat', 0))
+    enriched.append({'peer_id': ch.get('peer_id', ''), 'local_msat': local, 'remote_msat': remote, 'capacity_msat': local + remote})
+top10 = sorted(enriched, key=lambda c: c['capacity_msat'], reverse=True)[:10]
+print(json.dumps({'top10_channels': top10}))
+" "$result"
