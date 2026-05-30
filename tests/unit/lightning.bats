@@ -8936,3 +8936,19 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-278: MCP tools/list includes forward_stats" {
 	grep -q '"forward_stats"' share/lightning/wellknown/api/mcp.py
 }
+
+# FEAT-279 — wallet-export-csv verb
+
+@test "FEAT-279: wallet-export-csv verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" ]
+}
+
+@test "FEAT-279: wallet-export-csv outputs CSV header without wallet" {
+	out=$(LIGHTNING_WALLETS_ROOT=/tmp/no-wallet-279 \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" 2>/dev/null)
+	echo "$out" | grep -q "id,account,ts,direction"
+}
+
+@test "FEAT-279: wallet-export-csv man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-csv.1" ]
+}
