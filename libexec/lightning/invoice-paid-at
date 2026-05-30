@@ -1,18 +1,13 @@
 #!/bin/bash
-# lightning invoice-paid-at <label>   (FEAT-555)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: invoice-paid-at <label>"}'
-    exit 0
-fi
+# lightning invoice-paid-at <label>   (FEAT-895)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-paid-at <label>"}'; exit 0; fi
 label="$1"
-result=$(lightning-cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+if ! result=$(lightning-cli listinvoices "$label" 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
 python3 -c "
 import sys, json
-data = json.loads(sys.argv[1])
-invoices = data.get('invoices', [])
-if invoices:
-    inv = invoices[0]
-    print(json.dumps({'label': inv.get('label'), 'status': inv.get('status'), 'paid_at': inv.get('paid_at')}))
+data = json.loads(sys.argv[1]); invs = data.get('invoices', [])
+if invs:
+    print(json.dumps({'label': sys.argv[2], 'paid_at': invs[0].get('paid_at'), 'status': invs[0].get('status')}))
 else:
     print(json.dumps({'error': 'invoice not found'}))
-" "$result"
+" "$result" "$label"
