@@ -1,0 +1,6 @@
+#!/bin/bash
+# lightning wallet-open <wallet_name>   (FEAT-978)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-open <wallet_name>"}'; exit 0; fi
+wname="$1"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+if [ ! -d "$root/$wname" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+echo "{\"wallet\":\"$wname\",\"status\":\"open\"}"

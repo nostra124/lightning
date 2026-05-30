@@ -16614,3 +16614,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-970: channel-balance-local-pct man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-local-pct.1" ]
 }
+
+@test "FEAT-971: node-payment-latest reports error or latest gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-payment-latest" 2>/dev/null)
+	echo "$out" | grep -q "error\|latest"
+}
+@test "FEAT-971: node-payment-latest man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-payment-latest.1" ]
+}
+
+@test "FEAT-972: channel-state-transitions requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-state-transitions" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-972: channel-state-transitions man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state-transitions.1" ]
+}
+
+@test "FEAT-973: wallet-meta-delete requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-meta-delete" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-973: wallet-meta-delete man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-delete.1" ]
+}
+
+@test "FEAT-974: node-invoice-list-by-time requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-invoice-list-by-time" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-974: node-invoice-list-by-time man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-list-by-time.1" ]
+}
+
+@test "FEAT-975: invoice-total-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-total-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-975: invoice-total-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-total-count.1" ]
+}
+
+@test "FEAT-976: channel-remote-pct requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-remote-pct" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-976: channel-remote-pct man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct.1" ]
+}
+
+@test "FEAT-977: peer-bandwidth requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-bandwidth" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-977: peer-bandwidth man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-bandwidth.1" ]
+}
+
+@test "FEAT-978: wallet-open requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-open" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-978: wallet-open man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-open.1" ]
+}
+
+@test "FEAT-979: node-pending-htlc-count reports error or pending_htlcs gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-pending-htlc-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|pending_htlcs"
+}
+@test "FEAT-979: node-pending-htlc-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pending-htlc-count.1" ]
+}
+
+@test "FEAT-980: channel-reserve-balance requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-reserve-balance" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-980: channel-reserve-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-reserve-balance.1" ]
+}

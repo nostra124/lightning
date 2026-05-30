@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-payment-latest   (FEAT-971)
+if ! result=$(lightning-cli listpays 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = sorted(data.get('pays', []), key=lambda p: p.get('created_at', 0), reverse=True)
+latest = pays[0] if pays else None
+print(json.dumps({'latest': latest}))
+" "$result"

@@ -1,0 +1,8 @@
+#!/bin/bash
+# lightning wallet-meta-delete <wallet_name> <key>   (FEAT-973)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-meta-delete <wallet_name> <key>"}'; exit 0; fi
+wname="$1"; key="$2"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+meta_file="$root/$wname/meta/$key"
+if [ ! -f "$meta_file" ]; then echo '{"error":"key_not_found"}'; exit 0; fi
+rm -f "$meta_file"
+echo "{\"wallet\":\"$wname\",\"key\":\"$key\",\"deleted\":true}"
