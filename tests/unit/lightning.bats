@@ -9954,3 +9954,53 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-342: node-payment-summary man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-payment-summary.1" ]
 }
+
+# FEAT-343 — channel-fee-earned verb
+
+@test "FEAT-343: channel-fee-earned verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-fee-earned" ]
+}
+
+@test "FEAT-343: channel-fee-earned returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-fee-earned" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-343: channel-fee-earned man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned.1" ]
+}
+
+# FEAT-344 — node-route-hints verb
+
+@test "FEAT-344: node-route-hints verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-route-hints" ]
+}
+
+@test "FEAT-344: node-route-hints reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-route-hints" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-344: node-route-hints man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-route-hints.1" ]
+}
+
+# FEAT-345 — wallet-backup-verify verb
+
+@test "FEAT-345: wallet-backup-verify verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-backup-verify" ]
+}
+
+@test "FEAT-345: wallet-backup-verify reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-backup-verify" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-345: wallet-backup-verify reports backup_not_found for missing file" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-backup-verify" /nonexistent/backup.db 2>/dev/null)
+	echo "$out" | grep -q "backup_not_found"
+}
+
+@test "FEAT-345: wallet-backup-verify man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-backup-verify.1" ]
+}

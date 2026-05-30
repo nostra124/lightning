@@ -1,0 +1,24 @@
+.TH "LIGHTNING-NODE-ROUTE-HINTS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-route-hints \- extract routing hints from a BOLT-11 invoice
+.SH SYNOPSIS
+.B lightning node-route-hints
+.I bolt11
+.SH DESCRIPTION
+Decodes the BOLT-11 invoice and returns any embedded routing hints
+from the
+.B r
+field.
+Returns an error object if the daemon is unreachable or the invoice is invalid.
+.PP
+Output:
+.nf
+{"route_hint_count":N,"hints":[...]}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-invoice-decode (1),
+.BR lightning-route-find (1)
