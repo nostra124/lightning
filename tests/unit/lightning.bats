@@ -8623,3 +8623,28 @@ assert t['auth'] is None
 @test "FEAT-258: Settings screen has theme toggle button" {
 	grep -q "toggle-theme" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
 }
+
+# FEAT-259 — peer-connect / peer-disconnect / peer-list verbs
+
+@test "FEAT-259: peer-connect verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-connect" ]
+}
+
+@test "FEAT-259: peer-disconnect verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect" ]
+}
+
+@test "FEAT-259: peer-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list" ]
+}
+
+@test "FEAT-259: peer-list returns empty array when no daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-259: man pages exist for peer-connect, peer-disconnect, peer-list" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connect.1" ]
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect.1" ]
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list.1" ]
+}

@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning peer-connect <pubkey@host[:port]>   (FEAT-259)
+#
+# Connects to a Lightning peer.  <addr> is in the form expected by
+# lightning-cli connect: <pubkey>@<host>[:<port>].
+# Returns {"peer_id":"...","connected":true}.
+
+set -e
+[ $# -eq 1 ] || { printf 'usage: peer-connect <pubkey@host[:port]>\n' >&2; exit 1; }
+addr="$1"
+
+command -v lightning-cli >/dev/null || { echo '{"error":"lightning-cli not installed"}'; exit 127; }
+
+out=$(lightning-cli \
+    --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+    --network="${LIGHTNING_NETWORK:-bitcoin}" \
+    connect "$addr" 2>/dev/null) || { echo '{"error":"connect_failed"}'; exit 5; }
+
+peer_id=$(printf '%s' "$out" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+printf '{"peer_id":"%s","connected":true}\n' "$peer_id"

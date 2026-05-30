@@ -1,0 +1,21 @@
+.TH "LIGHTNING-PEER-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peer-list \- list connected Lightning network peers
+.SH SYNOPSIS
+.B lightning peer-list
+.SH DESCRIPTION
+Lists all known peers from the CLN daemon via
+.BR lightning-cli (1)
+.BR listpeers .
+Returns a JSON array of objects:
+.nf
+[{"peer_id":"...","connected":true,"num_channels":N}, ...]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Success (empty array if no peers or daemon unavailable).
+.SH SEE ALSO
+.BR lightning-peer (1),
+.BR lightning-peer-connect (1),
+.BR lightning-peer-disconnect (1)

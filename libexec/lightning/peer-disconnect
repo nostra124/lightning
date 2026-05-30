@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning peer-disconnect <pubkey>   (FEAT-259)
+#
+# Disconnects from a Lightning peer.  Returns {"ok":true}.
+
+set -e
+[ $# -eq 1 ] || { printf 'usage: peer-disconnect <pubkey>\n' >&2; exit 1; }
+pubkey="$1"
+
+command -v lightning-cli >/dev/null || { echo '{"error":"lightning-cli not installed"}'; exit 127; }
+
+lightning-cli \
+    --lightning-dir="${LIGHTNING_DIR:-$HOME/.lightning}" \
+    --network="${LIGHTNING_NETWORK:-bitcoin}" \
+    disconnect "$pubkey" >/dev/null 2>&1 || { echo '{"error":"disconnect_failed"}'; exit 5; }
+
+echo '{"ok":true}'
