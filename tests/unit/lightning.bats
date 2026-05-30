@@ -27067,3 +27067,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2320: channel-capacity-median man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-median.1" ]
 }
+
+@test "FEAT-2321: node-listforwards-count reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-2321: node-listforwards-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count.1" ]
+}
+
+@test "FEAT-2322: channel-htlc-incoming-value reports error or total_incoming_htlc_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-incoming-value 2>/dev/null)
+    echo "$out" | grep -q "error\|total_incoming_htlc_msat"
+}
+@test "FEAT-2322: channel-htlc-incoming-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-incoming-value.1" ]
+}
+
+@test "FEAT-2323: peer-newest-pay reports error or peers gracefully" {
+    out=$(./libexec/lightning/peer-newest-pay 2>/dev/null)
+    echo "$out" | grep -q "error\|peers"
+}
+@test "FEAT-2323: peer-newest-pay man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-newest-pay.1" ]
+}
+
+@test "FEAT-2324: node-invoice-paid-rate reports error or paid_rate gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_rate"
+}
+@test "FEAT-2324: node-invoice-paid-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-rate.1" ]
+}
+
+@test "FEAT-2325: channel-fee-revenue-max reports error or estimated_fee_revenue_score gracefully" {
+    out=$(./libexec/lightning/channel-fee-revenue-max 2>/dev/null)
+    echo "$out" | grep -q "error\|estimated_fee_revenue_score"
+}
+@test "FEAT-2325: channel-fee-revenue-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-revenue-max.1" ]
+}
+
+@test "FEAT-2326: node-pay-count-7d reports error or pay_count_7d gracefully" {
+    out=$(./libexec/lightning/node-pay-count-7d 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_7d"
+}
+@test "FEAT-2326: node-pay-count-7d man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-7d.1" ]
+}
+
+@test "FEAT-2327: channel-htlc-outgoing-value reports error or total_outgoing_htlc_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-outgoing-value 2>/dev/null)
+    echo "$out" | grep -q "error\|total_outgoing_htlc_msat"
+}
+@test "FEAT-2327: channel-htlc-outgoing-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-outgoing-value.1" ]
+}
+
+@test "FEAT-2328: peer-oldest-pay reports error or destination gracefully" {
+    out=$(./libexec/lightning/peer-oldest-pay 2>/dev/null)
+    echo "$out" | grep -q "error\|destination"
+}
+@test "FEAT-2328: peer-oldest-pay man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-oldest-pay.1" ]
+}
+
+@test "FEAT-2329: node-listinvoices-paid-recent reports error or recent_paid_invoices gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-recent 2>/dev/null)
+    echo "$out" | grep -q "error\|recent_paid_invoices"
+}
+@test "FEAT-2329: node-listinvoices-paid-recent man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-recent.1" ]
+}
+
+@test "FEAT-2330: channel-local-balance-total reports error or local_balance_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_msat"
+}
+@test "FEAT-2330: channel-local-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-total.1" ]
+}
