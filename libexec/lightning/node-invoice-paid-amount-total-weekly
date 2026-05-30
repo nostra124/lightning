@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning node-invoice-paid-amount-total-weekly   (FEAT-2856)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+week_ago = time.time() - 7 * 86400
+total = 0
+for inv in invoices:
+    if inv.get('status') == 'paid':
+        paid_at = inv.get('paid_at', 0)
+        if paid_at >= week_ago:
+            total += inv.get('amount_received_msat', 0)
+print(json.dumps({'paid_amount_total_weekly_msat': total}))
+" "$result"
