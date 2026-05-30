@@ -1,16 +1,12 @@
 #!/bin/bash
-# lightning wallet-set-label <wallet_name> <label>   (FEAT-440)
-if [ $# -lt 2 ]; then
-    echo '{"error":"usage: wallet-set-label <wallet_name> <label>"}'
-    exit 0
-fi
+# lightning wallet-set-label <wallet_name> <label>   (FEAT-683)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-set-label <wallet_name> <label>"}'; exit 0; fi
 wname="$1"; label="$2"
 root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
 db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then
-    echo '{"error":"database_not_found"}'
-    exit 0
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+if sqlite3 "$db" "INSERT OR REPLACE INTO meta(key,value) VALUES('label','$label')" 2>/dev/null; then
+    echo "{\"ok\":true,\"wallet\":\"$wname\",\"label\":\"$label\"}"
+else
+    echo '{"error":"set label failed"}'
 fi
-sqlite3 "$db" "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);"
-sqlite3 "$db" "INSERT OR REPLACE INTO meta VALUES ('label','$label');"
-echo '{"status":"updated","wallet":"'"$wname"'","label":"'"$label"'"}'

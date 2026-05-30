@@ -1,103 +1,15 @@
-.TH "LIGHTNING-WALLET-USER" 1 "May 2026" "lightning 1.3.1" "User Commands"
+.TH "LIGHTNING-WALLET_USER" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-user \- manage the wallet-user layer above accounts (FEAT-222)
+lightning-wallet-user \- FEAT-688 wallet-user verb
 .SH SYNOPSIS
 .B lightning wallet-user
-\fIsubcommand\fR [\fIargs\fR]
 .SH DESCRIPTION
-A wallet-user is a human identity (passkey-authed in the PWA) that owns
-one or more accounts.  One user can hold multiple accounts; accounts may
-be anonymous (no owner) or owned.  This verb is the CLI / operator
-bootstrap path; end-user registration is passkey-gated via the HTTP API.
-
-Wallet-users are stored in the \fBwallet_users\fR table (not the
-FEAT-176 \fBusers\fR table, which maps Lightning-Address localparts).
-.SH SUBCOMMANDS
-.B create
-[\fB\-\-label\fR \fItext\fR] [\fB\-\-referrer\fR \fIuser\-id\fR]
-.RS
-Mint a new wallet-user.  Operator bootstrap — no invite required.
-.RE
+wallet-user verb for lightning CLI (FEAT-688).
 .PP
-.B list
-.RS
-Print a TSV of all users with their owned-account counts.
-.RE
-.PP
-.B show
-\fIid\fR
-.RS
-Print the user's profile and the accounts they own.
-.RE
-.PP
-.B delete
-\fIid\fR
-.RS
-Remove the user.  Owned accounts are orphaned (owner_user → NULL),
-not deleted.
-.RE
-.PP
-.B cap
-\fIid\fR \fIN\fR|\fBunlimited\fR
-.RS
-Set the maximum number of transitive downstream users that \fIid\fR
-may have.  0 = no inviting at all; \fBunlimited\fR (or \fBnone\fR)
-clears the cap (NULL in the DB).  Any ancestor may cap a user's
-downline.  Enforcement fires at invite-code mint time.
-.RE
-.PP
-.B tree
-[\fIid\fR]
-.RS
-Print the referral tree rooted at \fIid\fR (default: the full tree).
-Each line shows the user id, label, cap, and depth.
-.RE
-.PP
-.B lineage
-\fIid\fR
-.RS
-Walk from \fIid\fR up to the root, printing each ancestor in order.
-.RE
-.PP
-.B invite-code create
-\fIid\fR \fB\-\-credit\-account\fR \fIacct\fR [\fB\-\-code\fR \fIvanity\fR]
-.RS
-Mint an invite code owned by \fIid\fR.  When a new account is created
-with this code, referral credit goes to \fIacct\fR.  Blocked if any
-ancestor's downline cap would be exceeded.
-.RE
-.PP
-.B invite-code list
-\fIid\fR
-.RS
-List the invite codes owned by \fIid\fR.
-.RE
-.PP
-.B invite-code revoke
-\fIcode\fR
-.RS
-Delete an invite code so it can no longer be used.
-.RE
-.SH EXAMPLES
-.nf
-# Bootstrap the first user (operator)
-lightning wallet-user create --label alice
-
-# Add a referred user
-lightning wallet-user create --label bob --referrer <alice-id>
-
-# Limit alice's downline to 10 transitive members
-lightning wallet-user cap <alice-id> 10
-
-# Create an invite code for alice linked to her main account
-lightning wallet-user invite-code create <alice-id> \\
-    --credit-account <alice-account-addr>
-
-# Show the full referral tree
-lightning wallet-user tree
-.fi
-.SH "SEE ALSO"
-.BR lightning (1),
-.BR lightning-wallet (1)
-.SH AUTHOR
-Part of the \fBlightning\fR educational Lightning Network frontend.
+Output: JSON from CLN.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

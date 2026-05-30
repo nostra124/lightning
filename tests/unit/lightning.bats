@@ -14134,3 +14134,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-680: wallet-sweep man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-sweep.1" ]
 }
+
+@test "FEAT-681: node-htlc-max reports error or max_payment_size_msat gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-htlc-max" 2>/dev/null)
+	echo "$out" | grep -q "error\|max_payment_size_msat"
+}
+
+@test "FEAT-681: node-htlc-max man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-htlc-max.1" ]
+}
+
+@test "FEAT-682: channel-spendable requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-spendable" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-682: channel-spendable man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable.1" ]
+}
+
+@test "FEAT-683: wallet-set-label requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-set-label" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-683: wallet-set-label man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-set-label.1" ]
+}
+
+@test "FEAT-684: invoice-paid-count reports error or count gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-paid-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-684: invoice-paid-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-paid-count.1" ]
+}
+
+@test "FEAT-685: node-channel-open-count reports error or total gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-channel-open-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+
+@test "FEAT-685: node-channel-open-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-open-count.1" ]
+}
+
+@test "FEAT-686: channel-fees-total reports error or by_channel gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-fees-total" 2>/dev/null)
+	echo "$out" | grep -q "error\|by_channel"
+}
+
+@test "FEAT-686: channel-fees-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fees-total.1" ]
+}
+
+@test "FEAT-687: peer-node-info requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-node-info" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-687: peer-node-info man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-node-info.1" ]
+}
+
+@test "FEAT-688: wallet-user reports user gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-user" 2>/dev/null)
+	echo "$out" | grep -q "user"
+}
+
+@test "FEAT-688: wallet-user man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-user.1" ]
+}
+
+@test "FEAT-689: node-emergency-recover requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-emergency-recover" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-689: node-emergency-recover man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-emergency-recover.1" ]
+}
+
+@test "FEAT-690: channel-close-unilateral requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-unilateral" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-690: channel-close-unilateral man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-unilateral.1" ]
+}

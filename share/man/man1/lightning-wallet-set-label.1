@@ -1,20 +1,15 @@
-.TH "LIGHTNING-WALLET-SET-LABEL" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-WALLET_SET_LABEL" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-wallet-set-label \- set a display label for a wallet
+lightning-wallet-set-label \- FEAT-683 wallet-set-label verb
 .SH SYNOPSIS
 .B lightning wallet-set-label
-.I wallet_name label
 .SH DESCRIPTION
-Stores a display label in the wallet's metadata table.
+wallet-set-label verb for lightning CLI (FEAT-683).
 .PP
-Output:
-.nf
-{"status":"updated","wallet":"<name>","label":"<label>"}
-.fi
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-wallet-info (1),
-.BR lightning-wallet-tag (1)
+.BR lightning(1)
