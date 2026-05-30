@@ -8720,3 +8720,18 @@ assert t['auth'] is None
 @test "FEAT-263: invoice-list man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list.1" ]
 }
+
+# FEAT-264 — payment-list verb
+
+@test "FEAT-264: payment-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-list" ]
+}
+
+@test "FEAT-264: payment-list returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/payment-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-264: payment-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-payment-list.1" ]
+}
