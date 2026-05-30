@@ -1,0 +1,18 @@
+.TH "LIGHTNING-CHANNEL-COUNT-TOTAL" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-count-total \- FEAT-2880 channel-count-total
+.SH SYNOPSIS
+.B lightning channel-count-total
+.SH DESCRIPTION
+Total channel count across all peers (FEAT-2880).
+.PP
+Queries all peer channels via lightning-cli listpeerchannels and returns
+the total number of channels regardless of state.
+.PP
+Output: JSON from CLN.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)
