@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning channel-capacity-range   (FEAT-2500)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+caps = [c.get('total_msat') for c in channels if c.get('total_msat') is not None]
+if caps:
+    print(json.dumps({'capacity_range_msat': max(caps) - min(caps), 'capacity_min_msat': min(caps), 'capacity_max_msat': max(caps)}))
+else:
+    print(json.dumps({'capacity_range_msat': None, 'capacity_min_msat': None, 'capacity_max_msat': None}))
+" "$result"
