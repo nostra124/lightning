@@ -1,15 +1,15 @@
 #!/bin/bash
-# lightning peer-alias <peer_id>   (FEAT-1477)
-if [ $# -lt 1 ]; then echo '{"error":"usage: peer-alias <peer_id>"}'; exit 0; fi
-peer_id="$1"
-result=$(lightning-cli listnodes "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+# lightning peer-alias <node_id>   (FEAT-1916)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-alias <node_id>"}'; exit 0; fi
+arg="$1"
+result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-nodes = data.get('nodes', [])
-if not nodes:
-    print(json.dumps({'error': 'peer not found'}))
-    sys.exit(0)
-n = nodes[0]
-print(json.dumps({'peer_id': n.get('nodeid'), 'alias': n.get('alias')}))
-" "$result"
+nid = sys.argv[2]
+for p in data.get('peers', []):
+    if p.get('id') == nid:
+        print(json.dumps({'node_id': p.get('id'), 'alias': p.get('alias')}))
+        sys.exit(0)
+print(json.dumps({'error': 'peer not found'}))
+" "$result" "$arg"

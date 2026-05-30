@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning channel-dust-limit <channel_id>   (FEAT-1752)
+# lightning channel-dust-limit <channel_id>   (FEAT-1912)
 if [ $# -lt 1 ]; then echo '{"error":"usage: channel-dust-limit <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }

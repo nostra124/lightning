@@ -23824,3 +23824,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1910: channel-force-closeable man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-force-closeable.1" ]
 }
+
+@test "FEAT-1911: node-pay-oldest reports error or created_at gracefully" {
+    out=$(./libexec/lightning/node-pay-oldest 2>/dev/null)
+    echo "$out" | grep -q "error\|created_at"
+}
+@test "FEAT-1911: node-pay-oldest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-oldest.1" ]
+}
+
+@test "FEAT-1912: channel-dust-limit requires arg" {
+    out=$(./libexec/lightning/channel-dust-limit 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1912: channel-dust-limit man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-dust-limit.1" ]
+}
+
+@test "FEAT-1913: wallet-notes-list-by-tag requires arg" {
+    out=$(./libexec/lightning/wallet-notes-list-by-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1913: wallet-notes-list-by-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-list-by-tag.1" ]
+}
+
+@test "FEAT-1914: node-invoice-paid-total-msat reports error or paid_count gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count"
+}
+@test "FEAT-1914: node-invoice-paid-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-total-msat.1" ]
+}
+
+@test "FEAT-1915: channel-max-htlc-msat requires arg" {
+    out=$(./libexec/lightning/channel-max-htlc-msat 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1915: channel-max-htlc-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-htlc-msat.1" ]
+}
+
+@test "FEAT-1916: peer-alias requires arg" {
+    out=$(./libexec/lightning/peer-alias 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1916: peer-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-alias.1" ]
+}
+
+@test "FEAT-1917: node-listforwards-failed reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-failed 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1917: node-listforwards-failed man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-failed.1" ]
+}
+
+@test "FEAT-1918: channel-close-to-addr requires arg" {
+    out=$(./libexec/lightning/channel-close-to-addr 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1918: channel-close-to-addr man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-to-addr.1" ]
+}
+
+@test "FEAT-1919: node-pay-success-rate reports error or total gracefully" {
+    out=$(./libexec/lightning/node-pay-success-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1919: node-pay-success-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-success-rate.1" ]
+}
+
+@test "FEAT-1920: channel-remote-reserve requires arg" {
+    out=$(./libexec/lightning/channel-remote-reserve 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1920: channel-remote-reserve man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve.1" ]
+}
