@@ -1,0 +1,45 @@
+#!/bin/bash
+# lightning api-user-show — JSON profile for a wallet-user (FEAT-222 PR-4).
+#
+# usage: lightning api-user-show <uid>
+# stdout: JSON {user_id, label, created_at, referrer_user, account_count}
+# exit 4: user not found
+
+set -e
+
+[ $# -ge 1 ] || { printf '{"error":"missing_user_id"}\n'; exit 1; }
+user_id="$1"
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+
+[ -f "$db" ] || { printf '{"error":"no_wallet"}\n'; exit 2; }
+
+sql_quote() { printf "'%s'" "${1//\'/\'\'}"; }
+
+uid_q=$(sql_quote "$user_id")
+
+row=$(sqlite3 -separator $'\t' "$db" \
+	"SELECT u.id, u.label, u.created_at, COALESCE(u.referrer_user,''), \
+	        (SELECT COUNT(*) FROM accounts a WHERE a.owner_user = u.id) \
+	 FROM wallet_users u WHERE u.id = $uid_q;" 2>/dev/null)
+
+[ -n "$row" ] || { printf '{"error":"not_found"}\n'; exit 4; }
+
+IFS=$'\t' read -r uid label created ref acct_count <<<"$row"
+
+jq -nc \
+	--arg uid "$uid" \
+	--arg label "$label" \
+	--argjson created "$created" \
+	--arg ref "$ref" \
+	--argjson count "$acct_count" \
+	'{
+		user_id:       $uid,
+		label:         $label,
+		created_at:    $created,
+		referrer_user: (if $ref == "" then null else $ref end),
+		account_count: $count
+	}'

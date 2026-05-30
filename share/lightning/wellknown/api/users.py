@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
-"""FEAT-222 PR-3b — user-layer passkey + session HTTP API.
+"""FEAT-222 PR-3b + PR-4 — user-layer passkey + session HTTP API.
 
 Apache mounts this at /.well-known/lightning/v1/users/ via ScriptAlias;
 PATH_INFO arrives as /<user_id>/<rest>.
 
-Routes (PR-3b's six passkey endpoints — session/refresh lands in PR-4):
+Routes (PR-3b passkey endpoints + PR-4 user CRUD / owned-account API):
+
+  POST   /register/begin                  anonymous — mint provisional user_id + challenge
+  POST   /                                anonymous — finish registration (passkey + invite)
+  GET    /<id>                            session auth — user profile
+  GET    /<id>/accounts                   session auth — list owned accounts
+  POST   /<id>/accounts                   session auth — create owned account
+  GET    /<id>/accounts/<acct>/api-key    session auth — retrieve account API key
+  POST   /<id>/session/refresh            session auth — refresh session token
 
   POST   /<id>/passkeys/register/begin    session auth (enroll ANOTHER
                                           device; the first passkey
-                                          arrives via POST /api/users
-                                          in PR-4).
+                                          arrives via POST /api/users).
   POST   /<id>/passkeys/register/finish   session auth.
   POST   /<id>/passkeys/login/begin       no auth.
   POST   /<id>/passkeys/login/finish      no auth -> mints + returns a
