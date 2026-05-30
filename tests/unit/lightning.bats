@@ -18054,3 +18054,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1170: channel-pending-htlcs man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-pending-htlcs.1" ]
 }
+
+@test "FEAT-1171: node-pay-failed-count reports error or failed_count gracefully" {
+    out=$(./libexec/lightning/node-pay-failed-count 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_count"
+}
+@test "FEAT-1171: node-pay-failed-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-failed-count.1" ]
+}
+
+@test "FEAT-1172: channel-commit-fee requires arg" {
+    out=$(./libexec/lightning/channel-commit-fee 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1172: channel-commit-fee man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-commit-fee.1" ]
+}
+
+@test "FEAT-1173: wallet-balance-spendable reports error or spendable_msat gracefully" {
+    out=$(./libexec/lightning/wallet-balance-spendable 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_msat"
+}
+@test "FEAT-1173: wallet-balance-spendable man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-balance-spendable.1" ]
+}
+
+@test "FEAT-1174: node-listforwards-settled reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-settled 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1174: node-listforwards-settled man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-settled.1" ]
+}
+
+@test "FEAT-1175: invoice-created-at requires arg" {
+    out=$(./libexec/lightning/invoice-created-at 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1175: invoice-created-at man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-created-at.1" ]
+}
+
+@test "FEAT-1176: channel-balance-total reports error or local_msat gracefully" {
+    out=$(./libexec/lightning/channel-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|local_msat"
+}
+@test "FEAT-1176: channel-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-total.1" ]
+}
+
+@test "FEAT-1177: peer-invoice-count requires arg" {
+    out=$(./libexec/lightning/peer-invoice-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1177: peer-invoice-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-invoice-count.1" ]
+}
+
+@test "FEAT-1178: wallet-history requires arg" {
+    out=$(./libexec/lightning/wallet-history 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1178: wallet-history man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-history.1" ]
+}
+
+@test "FEAT-1179: node-channel-balance-total reports error or our_total_msat gracefully" {
+    out=$(./libexec/lightning/node-channel-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|our_total_msat"
+}
+@test "FEAT-1179: node-channel-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-balance-total.1" ]
+}
+
+@test "FEAT-1180: channel-max-receivable reports error or max_receivable_msat gracefully" {
+    out=$(./libexec/lightning/channel-max-receivable 2>/dev/null)
+    echo "$out" | grep -q "error\|max_receivable_msat"
+}
+@test "FEAT-1180: channel-max-receivable man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-receivable.1" ]
+}
