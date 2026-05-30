@@ -1,0 +1,24 @@
+#!/bin/bash
+# lightning api-price [--base <CUR>]   (FEAT-273)
+#
+# Returns the latest stored sat/fiat price tick.
+# Thin wrapper over `lightning price now`.
+# Output: {"base":"EUR","sat_per_unit":0.0000xxxx,"price_fiat":NNN,"ts":"..."}
+# On error / no price yet: {"error":"no_price_data"}
+
+set -e
+
+base="EUR"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --base) base="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+
+self_dir="$(cd "$(dirname "$0")" && pwd)"
+
+out=$("$self_dir/price" now --base "$base" 2>/dev/null) || {
+    echo '{"error":"no_price_data"}'; exit 0; }
+
+echo "$out"

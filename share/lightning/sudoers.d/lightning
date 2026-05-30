@@ -95,4 +95,6 @@ www-data ALL=(alice) NOPASSWD: \
     /usr/local/bin/lightning api-account-history-note  bcrt1* [0-9]* *, \
     /usr/local/bin/lightning api-channel-list, \
     /usr/local/bin/lightning invoice-decode *, \
-    /usr/local/bin/lightning node-funds
+    /usr/local/bin/lightning node-funds, \
+    /usr/local/bin/lightning api-price, \
+    /usr/local/bin/lightning api-price --base *

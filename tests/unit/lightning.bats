@@ -8855,3 +8855,13 @@ snippet = src[idx:idx+800]
 assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 "
 }
+
+# FEAT-273 — api-price verb + MCP price tool
+
+@test "FEAT-273: api-price verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-price" ]
+}
+
+@test "FEAT-273: MCP tools/list includes price" {
+	grep -q '"price"' share/lightning/wellknown/api/mcp.py
+}

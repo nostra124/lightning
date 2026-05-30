@@ -276,6 +276,25 @@ TOOLS = [
         "argmap": lambda a: [],
     },
     {
+        "name": "price",
+        "description": "Return the latest stored sat/fiat price tick. "
+                       "Returns {base, sat_per_unit, price_fiat, ts} or "
+                       "{error: no_price_data} when no feed is configured. "
+                       "No account auth required.",
+        "inputSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {
+                "base": {"type": "string", "default": "EUR",
+                         "description": "Fiat currency code, e.g. EUR, USD."},
+            },
+            "additionalProperties": False,
+        },
+        "auth": None,
+        "verb": ["api-price"],
+        "argmap": lambda a: (["--base", a["base"]] if a.get("base") else []),
+    },
+    {
         "name": "invoice_decode",
         "description": "Decode a BOLT-11 invoice without paying it. "
                        "Returns {bolt11, amount_sat, description, "

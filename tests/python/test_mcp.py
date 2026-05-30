@@ -105,7 +105,7 @@ def test_tools_list_returns_tools(api_dir, bin_shim, lightning_stub, cgi, parse)
         "account_withdraw", "account_pay", "account_recv",
         "account_recv_reusable", "account_history", "account_close",
         "node_info", "channel_list", "node_funds", "account_transfer",
-        "invoice_decode",
+        "invoice_decode", "price",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -301,6 +301,16 @@ def test_resources_read_node_info(api_dir, bin_shim, lightning_stub, cgi, parse)
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
     j = json.loads(body_out)
     assert "pubkey" in j["result"]["contents"][0]["text"]
+
+
+def test_tools_call_price(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"base":"EUR","sat_per_unit":0.000009,"price_fiat":111111,"ts":"2026-05-30T10:00:00Z"}'
+    lightning_stub({"api-price": (0, body)})
+    payload = rpc("tools/call", {"name": "price", "arguments": {"base": "EUR"}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["base"] == "EUR"
 
 
 def test_tools_call_invoice_decode(api_dir, bin_shim, lightning_stub, cgi, parse):
