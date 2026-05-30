@@ -26859,3 +26859,51 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2290: channel-our-reserve-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-total.1" ]
 }
+
+@test "FEAT-2291: node-listforwards-fee-avg reports error or fee_msat_avg gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_msat_avg"
+}
+@test "FEAT-2291: node-listforwards-fee-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg.1" ]
+}
+
+@test "FEAT-2292: channel-htlc-incoming-count reports error or incoming_htlc_count gracefully" {
+    out=$(./libexec/lightning/channel-htlc-incoming-count 2>/dev/null)
+    echo "$out" | grep -q "error\|incoming_htlc_count"
+}
+@test "FEAT-2292: channel-htlc-incoming-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-incoming-count.1" ]
+}
+
+@test "FEAT-2294: node-invoice-paid-count-by-month reports error or paid_by_month gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-by-month 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_by_month"
+}
+@test "FEAT-2294: node-invoice-paid-count-by-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-by-month.1" ]
+}
+
+@test "FEAT-2296: node-pay-newest-complete reports error or newest_complete_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-newest-complete 2>/dev/null)
+    echo "$out" | grep -q "error\|newest_complete_pay"
+}
+@test "FEAT-2296: node-pay-newest-complete man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-newest-complete.1" ]
+}
+
+@test "FEAT-2297: channel-fee-revenue-avg reports error or fee_revenue_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-revenue-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_revenue_avg_msat"
+}
+@test "FEAT-2297: channel-fee-revenue-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-revenue-avg.1" ]
+}
+
+@test "FEAT-2299: node-listinvoices-pending-list reports error or pending_invoices gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-pending-list 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_invoices"
+}
+@test "FEAT-2299: node-listinvoices-pending-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-pending-list.1" ]
+}
