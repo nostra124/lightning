@@ -438,6 +438,7 @@ TOOLS_BY_NAME = {t["name"]: t for t in TOOLS}
 
 
 NODE_RESOURCE_URI = "node://info"
+NODE_HEALTH_URI = "node://health"
 
 RESOURCES = [
     {
@@ -464,6 +465,14 @@ RESOURCES = [
         "name": "Node info",
         "description": "Node pubkey, alias, channel count, and local "
                        "capacity.  No auth required.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": NODE_HEALTH_URI,
+        "name": "Node health",
+        "description": "Health snapshot: ok, daemon, block_height, "
+                       "num_channels, balanced, pending_htlcs, warnings. "
+                       "No auth required.",
         "mimeType": "application/json",
     },
 ]
@@ -563,6 +572,12 @@ def handle_resources_list(params):
 def _resource_read(uri, bearer):
     if uri == NODE_RESOURCE_URI:
         rc, payload = call_verb_json("api-node-info")
+        if rc != 0:
+            return jsonrpc_error(None, -32000, "backend_failed", payload)
+        return {"contents": [{"uri": uri, "mimeType": "application/json",
+                               "text": json.dumps(payload, separators=(",", ":"))}]}
+    if uri == NODE_HEALTH_URI:
+        rc, payload = call_verb_json("api-node-health")
         if rc != 0:
             return jsonrpc_error(None, -32000, "backend_failed", payload)
         return {"contents": [{"uri": uri, "mimeType": "application/json",

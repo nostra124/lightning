@@ -233,7 +233,7 @@ def test_resources_list_returns_four(api_dir, bin_shim, lightning_stub, cgi, par
     j = json.loads(body_out)
     uris = {r["uri"] for r in j["result"]["resources"]}
     assert uris == {"account://{id}", "account://{id}/ledger", "account://{id}/topup",
-                    "node://info"}
+                    "node://info", "node://health"}
 
 
 def test_resources_read_account_root(api_dir, bin_shim, lightning_stub, cgi, parse):
@@ -400,6 +400,15 @@ def test_tools_call_node_funds(api_dir, bin_shim, lightning_stub, cgi, parse):
     j = json.loads(body_out)
     assert j["result"]["isError"] is False
     assert j["result"]["structuredContent"]["total_sat"] == 5000
+
+
+def test_resources_read_node_health(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"ok":true,"daemon":true,"block_height":900000,"num_channels":2,"balanced":true,"pending_htlcs":0,"warnings":[]}'
+    lightning_stub({"api-node-health": (0, body)})
+    payload = rpc("resources/read", {"uri": "node://health"})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert "ok" in j["result"]["contents"][0]["text"]
 
 
 def test_resources_read_bad_uri_errors(api_dir, bin_shim, lightning_stub, cgi, parse):

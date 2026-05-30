@@ -9001,3 +9001,13 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-282: node-version man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-version.1" ]
 }
+
+# FEAT-283 — node://health MCP resource
+
+@test "FEAT-283: MCP resources/list includes node://health" {
+	grep -q '"node://health"\|node://health' share/lightning/wellknown/api/mcp.py
+}
+
+@test "FEAT-283: mcp.json includes node://health resource" {
+	grep -q 'node://health' share/lightning/wellknown/lightning/mcp.json
+}
