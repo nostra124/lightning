@@ -18774,3 +18774,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1260: channel-feerate-per-kbyte man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-feerate-per-kbyte.1" ]
 }
+
+@test "FEAT-1261: node-listpeers-with-channels reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpeers-with-channels 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1261: node-listpeers-with-channels man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-with-channels.1" ]
+}
+
+@test "FEAT-1262: channel-splice-state requires arg" {
+    out=$(./libexec/lightning/channel-splice-state 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1262: channel-splice-state man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-splice-state.1" ]
+}
+
+@test "FEAT-1263: wallet-notes-unpin requires args" {
+    out=$(./libexec/lightning/wallet-notes-unpin 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1263: wallet-notes-unpin man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-unpin.1" ]
+}
+
+@test "FEAT-1264: node-listpays-amount reports error or complete_count gracefully" {
+    out=$(./libexec/lightning/node-listpays-amount 2>/dev/null)
+    echo "$out" | grep -q "error\|complete_count"
+}
+@test "FEAT-1264: node-listpays-amount man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-amount.1" ]
+}
+
+@test "FEAT-1265: invoice-list-count reports error or total gracefully" {
+    out=$(./libexec/lightning/invoice-list-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1265: invoice-list-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-count.1" ]
+}
+
+@test "FEAT-1266: channel-push-msat requires arg" {
+    out=$(./libexec/lightning/channel-push-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1266: channel-push-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-push-msat.1" ]
+}
+
+@test "FEAT-1267: peer-total-received requires arg" {
+    out=$(./libexec/lightning/peer-total-received 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1267: peer-total-received man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-total-received.1" ]
+}
+
+@test "FEAT-1268: wallet-pin-verify requires args" {
+    out=$(./libexec/lightning/wallet-pin-verify 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1268: wallet-pin-verify man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-pin-verify.1" ]
+}
+
+@test "FEAT-1269: node-channel-spendable-max reports error or max_spendable_msat gracefully" {
+    out=$(./libexec/lightning/node-channel-spendable-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_spendable_msat"
+}
+@test "FEAT-1269: node-channel-spendable-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-spendable-max.1" ]
+}
+
+@test "FEAT-1270: channel-in-payments-count requires arg" {
+    out=$(./libexec/lightning/channel-in-payments-count 2>/dev/null)
+    echo "$out" | grep -q "error\|usage"
+}
+@test "FEAT-1270: channel-in-payments-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-in-payments-count.1" ]
+}
