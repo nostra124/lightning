@@ -1,0 +1,24 @@
+#!/bin/bash
+# lightning channel-local-balance-kurtosis-weekly   (FEAT-2850)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+values = []
+for ch in channels:
+    bal = ch.get('to_us_msat', ch.get('spendable_msat', 0))
+    if isinstance(bal, str): bal = int(bal.rstrip('msat'))
+    values.append(float(bal))
+n = len(values)
+if n < 4:
+    print(json.dumps({'local_balance_kurtosis_weekly': None, 'n': n}))
+    sys.exit(0)
+mean = sum(values) / n
+var = sum((x - mean)**2 for x in values) / n
+if var == 0:
+    print(json.dumps({'local_balance_kurtosis_weekly': None, 'n': n}))
+    sys.exit(0)
+kurt = (sum((x - mean)**4 for x in values) / n) / (var**2) - 3
+print(json.dumps({'local_balance_kurtosis_weekly': round(kurt, 6), 'n': n}))
+" "$result"
