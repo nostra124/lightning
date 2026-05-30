@@ -8787,3 +8787,22 @@ assert t['auth'] is None
 @test "FEAT-267: node-log man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-log.1" ]
 }
+
+# FEAT-268 — node-config verb
+
+@test "FEAT-268: node-config verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-config" ]
+}
+
+@test "FEAT-268: node-config handles get subcommand" {
+	grep -q '"get"' "$BATS_TEST_DIRNAME/../../libexec/lightning/node-config" || \
+	grep -q 'get)' "$BATS_TEST_DIRNAME/../../libexec/lightning/node-config"
+}
+
+@test "FEAT-268: node-config handles set subcommand" {
+	grep -q '"set"\|set)' "$BATS_TEST_DIRNAME/../../libexec/lightning/node-config"
+}
+
+@test "FEAT-268: node-config man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-config.1" ]
+}

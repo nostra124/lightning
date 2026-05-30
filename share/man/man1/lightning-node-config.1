@@ -1,0 +1,36 @@
+.TH "LIGHTNING-NODE-CONFIG" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-config \- read or write CLN dynamic configuration
+.SH SYNOPSIS
+.B lightning node-config get
+.RI [ key ]
+.br
+.B lightning node-config set
+.I key value
+.SH DESCRIPTION
+Reads or writes CLN dynamic configuration via
+.BR lightning-cli (1)
+.BR listconfigs
+/
+.BR setconfig .
+Dynamic config changes take effect immediately without restarting the
+daemon (CLN 23.08+).
+.PP
+.B get
+prints all configs as JSON, or a single key's value if
+.I key
+is given.
+.PP
+.B set
+updates a dynamic config value.  Only dynamically-reconfigurable keys
+are accepted; the daemon enforces this.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 5
+Config key not found or setconfig failed.
+.SH SEE ALSO
+.BR lightning-node-info (1),
+.BR lightning-fee (1)
