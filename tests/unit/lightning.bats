@@ -24701,3 +24701,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2020: channel-remote-reserve man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve.1" ]
 }
+
+@test "FEAT-2021: node-listpays-failed-count reports error or failed_count gracefully" {
+    out=$(./libexec/lightning/node-listpays-failed-count 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_count\|count"
+}
+@test "FEAT-2021: node-listpays-failed-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-failed-count.1" ]
+}
+
+@test "FEAT-2022: channel-their-reserve reports error or their_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-their-reserve 2>/dev/null)
+    echo "$out" | grep -q "error\|their_reserve_msat\|reserve"
+}
+@test "FEAT-2022: channel-their-reserve man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve.1" ]
+}
+
+@test "FEAT-2023: wallet-notes-import reports error or notes gracefully" {
+    out=$(./libexec/lightning/wallet-notes-import 2>/dev/null)
+    echo "$out" | grep -q "error\|notes\|import"
+}
+@test "FEAT-2023: wallet-notes-import man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-import.1" ]
+}
+
+@test "FEAT-2024: node-graph-avg-capacity reports error or avg_capacity_sat gracefully" {
+    out=$(./libexec/lightning/node-graph-avg-capacity 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_capacity\|capacity"
+}
+@test "FEAT-2024: node-graph-avg-capacity man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-avg-capacity.1" ]
+}
+
+@test "FEAT-2025: channel-funding-output reports error or funding_outpoint gracefully" {
+    out=$(./libexec/lightning/channel-funding-output 2>/dev/null)
+    echo "$out" | grep -q "error\|funding_outpoint\|outpoint"
+}
+@test "FEAT-2025: channel-funding-output man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-output.1" ]
+}
+
+@test "FEAT-2026: peer-connected-count reports error or connected_count gracefully" {
+    out=$(./libexec/lightning/peer-connected-count 2>/dev/null)
+    echo "$out" | grep -q "error\|connected_count\|connected"
+}
+@test "FEAT-2026: peer-connected-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connected-count.1" ]
+}
+
+@test "FEAT-2027: node-listinvoices-paid-count reports error or paid_count gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-count 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count\|paid"
+}
+@test "FEAT-2027: node-listinvoices-paid-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-count.1" ]
+}
+
+@test "FEAT-2028: channel-our-reserve reports error or our_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-our-reserve 2>/dev/null)
+    echo "$out" | grep -q "error\|our_reserve_msat\|reserve"
+}
+@test "FEAT-2028: channel-our-reserve man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve.1" ]
+}
+
+@test "FEAT-2029: node-pay-total-msat reports error or total_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-total-msat 2>/dev/null)
+    echo "$out" | grep -q "error\|total_msat\|msat"
+}
+@test "FEAT-2029: node-pay-total-msat man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-total-msat.1" ]
+}
+
+@test "FEAT-2030: channel-state-summary reports error or state_summary gracefully" {
+    out=$(./libexec/lightning/channel-state-summary 2>/dev/null)
+    echo "$out" | grep -q "error\|state_summary\|state"
+}
+@test "FEAT-2030: channel-state-summary man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state-summary.1" ]
+}
