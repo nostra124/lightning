@@ -33931,3 +33931,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3200: channel-htlc-value-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-avg.1" ]
 }
+
+@test "FEAT-3201: node-pay-fee-stddev reports error or fee_stddev_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_stddev_pay"
+}
+@test "FEAT-3201: node-pay-fee-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-stddev.1" ]
+}
+
+@test "FEAT-3202: peer-fee-ppm-stddev reports error or fee_ppm_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_stddev_peer"
+}
+@test "FEAT-3202: peer-fee-ppm-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-stddev.1" ]
+}
+
+@test "FEAT-3203: channel-htlc-value-max reports error or htlc_value_max_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_max_channel"
+}
+@test "FEAT-3203: channel-htlc-value-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-max.1" ]
+}
+
+@test "FEAT-3204: node-pay-fee-range reports error or fee_range_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_range_pay"
+}
+@test "FEAT-3204: node-pay-fee-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-range.1" ]
+}
+
+@test "FEAT-3205: peer-fee-ppm-range reports error or fee_ppm_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_range_peer"
+}
+@test "FEAT-3205: peer-fee-ppm-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-range.1" ]
+}
+
+@test "FEAT-3206: channel-htlc-value-min reports error or htlc_value_min_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_min_channel"
+}
+@test "FEAT-3206: channel-htlc-value-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-min.1" ]
+}
+
+@test "FEAT-3207: node-pay-amount-avg reports error or amount_avg_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_avg_pay"
+}
+@test "FEAT-3207: node-pay-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-avg.1" ]
+}
+
+@test "FEAT-3208: peer-fee-base-avg reports error or fee_base_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_avg_peer"
+}
+@test "FEAT-3208: peer-fee-base-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-avg.1" ]
+}
+
+@test "FEAT-3209: channel-htlc-value-stddev reports error or htlc_value_stddev_channel gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_stddev_channel"
+}
+@test "FEAT-3209: channel-htlc-value-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-stddev.1" ]
+}
+
+@test "FEAT-3210: node-pay-amount-max reports error or amount_max_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_max_pay"
+}
+@test "FEAT-3210: node-pay-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-max.1" ]
+}
