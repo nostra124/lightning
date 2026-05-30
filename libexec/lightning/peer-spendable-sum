@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning peer-spendable-sum   (FEAT-2863)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+per_peer = {}
+for c in channels:
+    peer = c.get('peer_id', 'unknown')
+    per_peer[peer] = per_peer.get(peer, 0) + c.get('spendable_msat', 0)
+print(json.dumps({'spendable_sum_peer_msat': per_peer}))
+" "$result"

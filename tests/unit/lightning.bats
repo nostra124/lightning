@@ -31231,3 +31231,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2860: channel-remote-balance-sum man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-sum.1" ]
 }
+
+@test "FEAT-2861: node-listforwards-in-msat-total reports error or in_msat_total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-total 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_total"
+}
+@test "FEAT-2861: node-listforwards-in-msat-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-total.1" ]
+}
+
+@test "FEAT-2862: channel-spendable-sum reports error or spendable_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_sum_msat"
+}
+@test "FEAT-2862: channel-spendable-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-sum.1" ]
+}
+
+@test "FEAT-2863: peer-spendable-sum reports error or spendable_sum_peer_msat gracefully" {
+    out=$(./libexec/lightning/peer-spendable-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_sum_peer_msat"
+}
+@test "FEAT-2863: peer-spendable-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-sum.1" ]
+}
+
+@test "FEAT-2864: node-pay-fee-total-weekly reports error or fee_total_weekly_pay_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-total-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_weekly_pay_msat"
+}
+@test "FEAT-2864: node-pay-fee-total-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-total-weekly.1" ]
+}
+
+@test "FEAT-2865: channel-receivable-sum reports error or receivable_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_sum_msat"
+}
+@test "FEAT-2865: channel-receivable-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-sum.1" ]
+}
+
+@test "FEAT-2866: node-invoice-paid-count-weekly reports error or paid_count_weekly gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_weekly"
+}
+@test "FEAT-2866: node-invoice-paid-count-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-weekly.1" ]
+}
+
+@test "FEAT-2867: channel-our-reserve-sum reports error or our_reserve_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-our-reserve-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|our_reserve_sum_msat"
+}
+@test "FEAT-2867: channel-our-reserve-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-sum.1" ]
+}
+
+@test "FEAT-2868: peer-receivable-sum reports error or receivable_sum_peer_msat gracefully" {
+    out=$(./libexec/lightning/peer-receivable-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_sum_peer_msat"
+}
+@test "FEAT-2868: peer-receivable-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-sum.1" ]
+}
+
+@test "FEAT-2869: node-listforwards-fee-total-daily reports error or fee_total_daily_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_daily_msat"
+}
+@test "FEAT-2869: node-listforwards-fee-total-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-daily.1" ]
+}
+
+@test "FEAT-2870: channel-their-reserve-sum reports error or their_reserve_sum_msat gracefully" {
+    out=$(./libexec/lightning/channel-their-reserve-sum 2>/dev/null)
+    echo "$out" | grep -q "error\|their_reserve_sum_msat"
+}
+@test "FEAT-2870: channel-their-reserve-sum man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-sum.1" ]
+}
