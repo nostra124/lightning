@@ -421,21 +421,23 @@ async function showTopup(id, key) {
   } catch (e) { box.innerHTML = `<p class="error">${esc(e.message)}</p>`; }
 }
 
+// FEAT-248 — improved Send UX: universal target label, fee in receipt.
 function screenSend(id) {
   const acct = getAccount(id);
   if (!acct) return go("picker");
   h(`<h2>Send</h2>
-     <label>BOLT-11 invoice
-       <textarea id="bolt11" rows="3" placeholder="lnbc…"></textarea></label>
+     <label>Invoice / Lightning address / offer
+       <textarea id="bolt11" rows="3" placeholder="lnbc… · lno… · user@domain.com"></textarea></label>
      <button id="pay" class="primary">Pay</button>
      <a href="#account/${esc(id)}">Cancel</a>`);
   document.getElementById("pay").onclick = async () => {
     const target = document.getElementById("bolt11").value.trim();
-    if (!target) return toast("Paste an invoice", "error");
+    if (!target) return toast("Paste an invoice, Lightning address, or offer", "error");
     document.getElementById("pay").disabled = true;
     try {
       const r = await api(`/accounts/${id}/pay`, { method: "POST", key: acct.key, body: { target } });
-      toast("Paid — " + (r.amount_sat ?? "?") + " sat", "ok");
+      const fee = r.fee_sat != null ? " (fee: " + r.fee_sat + " sat)" : "";
+      toast("Paid — " + (r.amount_sat ?? "?") + " sat" + fee, "ok");
       go("account/" + id);
     } catch (e) {
       toast("Pay failed: " + e.message, "error");
@@ -487,9 +489,14 @@ function screenRecv(id) {
     if (!Number.isInteger(sat) || sat <= 0) return toast("Enter a positive amount", "error");
     try {
       const r = await api(`/accounts/${id}/recv`, { method: "POST", key: acct.key, body: { sat, description } });
+      const inv = r.bolt11 || "";
       document.getElementById("inv").innerHTML =
         `<div class="card"><p>Share this invoice:</p>
-         <pre class="key">${esc(r.bolt11 || "")}</pre></div>`;
+         <pre class="key">${esc(inv)}</pre>
+         <button id="copy-inv">Copy</button></div>`;
+      document.getElementById("copy-inv").onclick = () =>
+        navigator.clipboard.writeText(inv).then(() => toast("Copied", "ok"))
+          .catch(() => toast("Copy failed", "error"));
     } catch (e) { toast("Mint failed: " + e.message, "error"); }
   };
 
@@ -501,9 +508,14 @@ function screenRecv(id) {
       return toast("Enter a positive amount or leave blank for any", "error");
     try {
       const r = await api(`/accounts/${id}/recv-reusable`, { method: "POST", key: acct.key, body: { sat, description } });
+      const offer = r.bolt12 || "";
       document.getElementById("inv").innerHTML =
         `<div class="card"><p>Reusable BOLT-12 offer (share freely — payers can pay multiple times):</p>
-         <pre class="key">${esc(r.bolt12 || "")}</pre></div>`;
+         <pre class="key">${esc(offer)}</pre>
+         <button id="copy-offer">Copy</button></div>`;
+      document.getElementById("copy-offer").onclick = () =>
+        navigator.clipboard.writeText(offer).then(() => toast("Copied", "ok"))
+          .catch(() => toast("Copy failed", "error"));
     } catch (e) { toast("Offer failed: " + e.message, "error"); }
   };
 }

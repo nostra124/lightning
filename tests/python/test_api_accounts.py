@@ -1118,3 +1118,39 @@ def test_mandate_pulls_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, p
                env=env(bin_shim, PATH_INFO=f"/{ID}/mandates/{MDT}/pulls"))
     status, _, _ = parse(proc)
     assert "401" in status
+
+
+# --- /history (FEAT-246) --------------------------------------------------
+
+
+def test_history_returns_entries(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"entries":[{"id":1,"ts":"2026-01-01T00:00:00","direction":"in","amount_msat":5000,"peer":"-","payment_hash":"-","message":"test","note":""}],"has_more":false}'
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-history": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/history",
+                                   REQUEST_METHOD="GET")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert "entries" in body_out
+    assert "has_more" in body_out
+
+
+def test_history_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (1, "")})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim, PATH_INFO=f"/{ID}/history",
+                       REQUEST_METHOD="GET"))
+    status, _, _ = parse(proc)
+    assert "401" in status
+
+
+def test_history_post_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, "")})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/history",
+                                   REQUEST_METHOD="POST")))
+    status, _, _ = parse(proc)
+    assert "405" in status

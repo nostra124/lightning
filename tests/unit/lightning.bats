@@ -8380,3 +8380,27 @@ _acct243_teardown() {
 @test "FEAT-247: sudoers fragment lists api-account-history" {
 	grep -q "api-account-history" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
 }
+
+# ---------------------------------------------------------------------------
+# FEAT-248 — Send screen UX + copy button on receive
+# ---------------------------------------------------------------------------
+
+@test "FEAT-248: Send screen label mentions Lightning address" {
+	grep -q "Lightning address" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-248: Send receipt shows fee_sat" {
+	grep -q "fee_sat" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-248: Receive screen has Copy button for invoice" {
+	grep -q "copy-inv" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-248: Receive screen has Copy button for offer" {
+	grep -q "copy-offer" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
+
+@test "FEAT-248: Copy uses navigator.clipboard" {
+	grep -q "navigator.clipboard" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+}
