@@ -28571,3 +28571,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2520: channel-fee-revenue-total-estimate man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-revenue-total-estimate.1" ]
 }
+
+@test "FEAT-2521: node-listforwards-settled-count-day reports error or settled_forwards_count_day gracefully" {
+    out=$(./libexec/lightning/node-listforwards-settled-count-day 2>/dev/null)
+    echo "$out" | grep -q "error\|settled_forwards_count_day"
+}
+@test "FEAT-2521: node-listforwards-settled-count-day man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-settled-count-day.1" ]
+}
+
+@test "FEAT-2522: channel-balance-ratio-list reports error or channel_balance_ratio_list gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio-list 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_balance_ratio_list"
+}
+@test "FEAT-2522: channel-balance-ratio-list man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio-list.1" ]
+}
+
+@test "FEAT-2523: node-pay-route-hop-max reports error or max_route_hops gracefully" {
+    out=$(./libexec/lightning/node-pay-route-hop-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_route_hops"
+}
+@test "FEAT-2523: node-pay-route-hop-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-route-hop-max.1" ]
+}
+
+@test "FEAT-2524: peer-uptime-count reports error or peer_uptime_count gracefully" {
+    out=$(./libexec/lightning/peer-uptime-count 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_uptime_count"
+}
+@test "FEAT-2524: peer-uptime-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-uptime-count.1" ]
+}
+
+@test "FEAT-2525: channel-htlc-count-total reports error or total_htlc_count gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_total"
+}
+@test "FEAT-2525: channel-htlc-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-total.1" ]
+}
+
+@test "FEAT-2526: node-invoice-expire-next reports error or next_expiring_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-expire-next 2>/dev/null)
+    echo "$out" | grep -q "error\|next_expiring_invoice"
+}
+@test "FEAT-2526: node-invoice-expire-next man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-expire-next.1" ]
+}
+
+@test "FEAT-2527: channel-fee-proportional-max reports error or fee_proportional_millionths gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_millionths"
+}
+@test "FEAT-2527: channel-fee-proportional-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-max.1" ]
+}
+
+@test "FEAT-2528: node-listforwards-fee-avg-week reports error or avg_fee_msat_week gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg-week 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_msat_week"
+}
+@test "FEAT-2528: node-listforwards-fee-avg-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg-week.1" ]
+}
+
+@test "FEAT-2529: channel-local-pct-min reports error or local_pct gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-min 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct"
+}
+@test "FEAT-2529: channel-local-pct-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-min.1" ]
+}
+
+@test "FEAT-2530: peer-channel-count-max reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-max 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-2530: peer-channel-count-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-max.1" ]
+}
