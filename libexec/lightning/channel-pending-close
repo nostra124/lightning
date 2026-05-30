@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning channel-pending-close   (FEAT-1672)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pending = [c for c in data.get('channels', []) if c.get('state') in ('CLOSINGD_COMPLETE', 'CLOSINGD_SIGEXCHANGE', 'AWAITING_UNILATERAL')]
+print(json.dumps({'count': len(pending), 'channels': [c.get('channel_id') for c in pending]}))
+" "$result"

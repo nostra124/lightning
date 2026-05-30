@@ -1,13 +1,11 @@
 #!/bin/bash
-# lightning channel-total-balance   (FEAT-846)
-if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
+# lightning channel-total-balance   (FEAT-1676)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
-local = sum(c.get('to_us_msat', 0) for c in data.get('channels', []))
-remote = sum((c.get('total_msat', 0) - c.get('to_us_msat', 0)) for c in data.get('channels', []))
-print(json.dumps({'local_msat': local, 'remote_msat': remote, 'total_msat': local + remote}))
+channels = [c for c in data.get('channels', []) if c.get('state') == 'CHANNELD_NORMAL']
+local = sum(c.get('to_us_msat', 0) for c in channels)
+total = sum(c.get('total_msat', 0) for c in channels)
+print(json.dumps({'channel_count': len(channels), 'local_msat': local, 'remote_msat': total - local, 'total_msat': total}))
 " "$result"

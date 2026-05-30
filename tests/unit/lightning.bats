@@ -21904,3 +21904,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1670: channel-shutdown-scriptpubkey man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-shutdown-scriptpubkey.1" ]
 }
+
+@test "FEAT-1671: node-listpays-by-bolt11 requires arg" {
+    out=$(./libexec/lightning/node-listpays-by-bolt11 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1671: node-listpays-by-bolt11 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-by-bolt11.1" ]
+}
+
+@test "FEAT-1672: channel-pending-close reports error or count gracefully" {
+    out=$(./libexec/lightning/channel-pending-close 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1672: channel-pending-close man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-pending-close.1" ]
+}
+
+@test "FEAT-1673: wallet-notes-list-unpinned requires arg" {
+    out=$(./libexec/lightning/wallet-notes-list-unpinned 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1673: wallet-notes-list-unpinned man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-list-unpinned.1" ]
+}
+
+@test "FEAT-1674: node-graph-nodes-with-alias reports error or total gracefully" {
+    out=$(./libexec/lightning/node-graph-nodes-with-alias 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1674: node-graph-nodes-with-alias man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-nodes-with-alias.1" ]
+}
+
+@test "FEAT-1675: invoice-list-by-paid-at requires arg" {
+    out=$(./libexec/lightning/invoice-list-by-paid-at 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1675: invoice-list-by-paid-at man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-by-paid-at.1" ]
+}
+
+@test "FEAT-1676: channel-total-balance reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-total-balance 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1676: channel-total-balance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-balance.1" ]
+}
+
+@test "FEAT-1677: peer-our-to-self-delay requires arg" {
+    out=$(./libexec/lightning/peer-our-to-self-delay 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1677: peer-our-to-self-delay man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-our-to-self-delay.1" ]
+}
+
+@test "FEAT-1678: wallet-meta-keys requires arg" {
+    out=$(./libexec/lightning/wallet-meta-keys 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1678: wallet-meta-keys man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-meta-keys.1" ]
+}
+
+@test "FEAT-1679: node-graph-avg-fee-ppm reports error or count gracefully" {
+    out=$(./libexec/lightning/node-graph-avg-fee-ppm 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1679: node-graph-avg-fee-ppm man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-avg-fee-ppm.1" ]
+}
+
+@test "FEAT-1680: channel-min-depth-actual requires arg" {
+    out=$(./libexec/lightning/channel-min-depth-actual 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1680: channel-min-depth-actual man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-depth-actual.1" ]
+}

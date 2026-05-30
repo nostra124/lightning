@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning wallet-notes-list-unpinned <wallet>   (FEAT-1673)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-notes-list-unpinned <wallet>"}'; exit 0
+fi
+wname="$1"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+keys=$(sqlite3 "$db" "SELECT key FROM notes WHERE pinned=0 OR pinned IS NULL;" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+echo "{\"wallet\":\"$wname\",\"keys\":\"$keys\"}"
