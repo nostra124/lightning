@@ -28971,3 +28971,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2570: channel-our-reserve-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-avg.1" ]
 }
+
+@test "FEAT-2571: node-listforwards-out-msat-avg reports error or avg_out_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_out_msat"
+}
+@test "FEAT-2571: node-listforwards-out-msat-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-avg.1" ]
+}
+
+@test "FEAT-2572: channel-remote-balance-variance reports error or remote_balance_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_variance_msat"
+}
+@test "FEAT-2572: channel-remote-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-variance.1" ]
+}
+
+@test "FEAT-2573: peer-local-balance-total reports error or peer_local_balance gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-total 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_local_balance"
+}
+@test "FEAT-2573: peer-local-balance-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-total.1" ]
+}
+
+@test "FEAT-2574: node-invoice-paid-newest reports error or newest_paid_invoice gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-newest 2>/dev/null)
+    echo "$out" | grep -q "error\|newest_paid_invoice\|label\|paid_at"
+}
+@test "FEAT-2574: node-invoice-paid-newest man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-newest.1" ]
+}
+
+@test "FEAT-2575: channel-spendable-avg reports error or spendable_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_avg_msat"
+}
+@test "FEAT-2575: channel-spendable-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-avg.1" ]
+}
+
+@test "FEAT-2576: node-pay-amount-median reports error or amount_median_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-median 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_median_msat"
+}
+@test "FEAT-2576: node-pay-amount-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-median.1" ]
+}
+
+@test "FEAT-2577: channel-receivable-avg reports error or receivable_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_avg_msat"
+}
+@test "FEAT-2577: channel-receivable-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-avg.1" ]
+}
+
+@test "FEAT-2578: peer-their-reserve-total reports error or peer_their_reserve_totals gracefully" {
+    out=$(./libexec/lightning/peer-their-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|peer_their_reserve_totals"
+}
+@test "FEAT-2578: peer-their-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-their-reserve-total.1" ]
+}
+
+@test "FEAT-2579: node-listinvoices-paid-month reports error or paid_month_count gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-paid-month 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_month_count"
+}
+@test "FEAT-2579: node-listinvoices-paid-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-paid-month.1" ]
+}
+
+@test "FEAT-2580: channel-their-reserve-avg reports error or their_reserve_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-their-reserve-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|their_reserve_avg_msat"
+}
+@test "FEAT-2580: channel-their-reserve-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-avg.1" ]
+}
