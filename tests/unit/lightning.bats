@@ -16454,3 +16454,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-950: channel-health-check man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-health-check.1" ]
 }
+
+@test "FEAT-951: node-color reports error or color gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-color" 2>/dev/null)
+	echo "$out" | grep -q "error\|color"
+}
+@test "FEAT-951: node-color man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-color.1" ]
+}
+
+@test "FEAT-952: channel-policy-check requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-policy-check" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-952: channel-policy-check man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-policy-check.1" ]
+}
+
+@test "FEAT-953: wallet-transaction-list requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-transaction-list" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-953: wallet-transaction-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-transaction-list.1" ]
+}
+
+@test "FEAT-954: node-listchannels-state requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-listchannels-state" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-954: node-listchannels-state man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-state.1" ]
+}
+
+@test "FEAT-955: invoice-create-auto requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-create-auto" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-955: invoice-create-auto man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-create-auto.1" ]
+}
+
+@test "FEAT-956: channel-peer-total requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-total" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-956: channel-peer-total man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-total.1" ]
+}
+
+@test "FEAT-957: wallet-fee-estimate reports error or opening gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-fee-estimate" 2>/dev/null)
+	echo "$out" | grep -q "error\|opening"
+}
+@test "FEAT-957: wallet-fee-estimate man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-fee-estimate.1" ]
+}
+
+@test "FEAT-958: node-rebalance-status reports error or active_channels gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-rebalance-status" 2>/dev/null)
+	echo "$out" | grep -q "error\|active_channels"
+}
+@test "FEAT-958: node-rebalance-status man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-rebalance-status.1" ]
+}
+
+@test "FEAT-959: channel-peer-count reports error or unique_peers gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-peer-count" 2>/dev/null)
+	echo "$out" | grep -q "error\|unique_peers"
+}
+@test "FEAT-959: channel-peer-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-peer-count.1" ]
+}
+
+@test "FEAT-960: peer-list-online returns array gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-list-online" 2>/dev/null)
+	echo "$out" | grep -q "\[\|error"
+}
+@test "FEAT-960: peer-list-online man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-list-online.1" ]
+}
