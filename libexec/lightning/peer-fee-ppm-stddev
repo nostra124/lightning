@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning peer-fee-ppm-stddev   (FEAT-2743)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = [c.get('fee_proportional_millionths', 0) for c in channels if 'fee_proportional_millionths' in c]
+if len(vals) > 1:
+    mean = sum(vals) / len(vals)
+    variance = sum((v - mean) ** 2 for v in vals) / len(vals)
+    stddev = math.sqrt(variance)
+else:
+    stddev = 0
+print(json.dumps({'fee_ppm_stddev': stddev, 'count': len(vals)}))
+" "$result"

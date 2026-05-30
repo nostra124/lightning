@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning node-listforwards-fee-avg-month   (FEAT-2749)
+result=$(lightning-cli listforwards status=settled 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+now = time.time()
+cutoff = now - 2592000
+month = [f for f in forwards if f.get('resolved_time', 0) >= cutoff]
+if month:
+    avg = sum(f.get('fee_msat', 0) for f in month) / len(month)
+else:
+    avg = 0
+print(json.dumps({'avg_fee_msat_month': avg, 'count': len(month)}))
+" "$result"

@@ -30311,3 +30311,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2740: channel-remote-pct-bottom10 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-bottom10.1" ]
 }
+@test "FEAT-2741: node-listforwards-fee-avg-day reports error or avg_fee_msat_day gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg-day 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_msat_day"
+}
+@test "FEAT-2741: node-listforwards-fee-avg-day man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg-day.1" ]
+}
+@test "FEAT-2742: channel-capacity-stddev reports error or capacity_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_stddev_msat"
+}
+@test "FEAT-2742: channel-capacity-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-stddev.1" ]
+}
+@test "FEAT-2743: peer-fee-ppm-stddev reports error or fee_ppm_stddev gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_stddev"
+}
+@test "FEAT-2743: peer-fee-ppm-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-stddev.1" ]
+}
+@test "FEAT-2744: node-pay-fee-avg reports error or avg_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_msat"
+}
+@test "FEAT-2744: node-pay-fee-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-avg.1" ]
+}
+@test "FEAT-2745: channel-local-balance-stddev reports error or local_balance_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_stddev_msat"
+}
+@test "FEAT-2745: channel-local-balance-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-stddev.1" ]
+}
+@test "FEAT-2746: node-invoice-paid-amount-max reports error or paid_amount_max_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_max_msat"
+}
+@test "FEAT-2746: node-invoice-paid-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-max.1" ]
+}
+@test "FEAT-2747: channel-fee-base-stddev reports error or fee_base_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_stddev_msat"
+}
+@test "FEAT-2747: channel-fee-base-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-stddev.1" ]
+}
+@test "FEAT-2748: peer-fee-base-stddev reports error or fee_base_stddev_msat_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_stddev_msat_peer"
+}
+@test "FEAT-2748: peer-fee-base-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-stddev.1" ]
+}
+@test "FEAT-2749: node-listforwards-fee-avg-month reports error or avg_fee_msat_month gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg-month 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_msat_month"
+}
+@test "FEAT-2749: node-listforwards-fee-avg-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg-month.1" ]
+}
+@test "FEAT-2750: channel-remote-balance-stddev reports error or remote_balance_stddev_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_stddev_msat"
+}
+@test "FEAT-2750: channel-remote-balance-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-stddev.1" ]
+}

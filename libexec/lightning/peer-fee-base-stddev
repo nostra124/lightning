@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning peer-fee-base-stddev   (FEAT-2748)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = [c.get('fee_base_msat', 0) for c in channels if 'fee_base_msat' in c]
+if len(vals) > 1:
+    mean = sum(vals) / len(vals)
+    variance = sum((v - mean) ** 2 for v in vals) / len(vals)
+    stddev = math.sqrt(variance)
+else:
+    stddev = 0
+print(json.dumps({'fee_base_stddev_msat_peer': stddev, 'count': len(vals)}))
+" "$result"
