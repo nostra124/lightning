@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning wallet-export-json [<wallet>]   (FEAT-380)
+set -e
+wname="${1:-default}"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"ok":false,"reason":"database_not_found"}'
+    exit 0
+fi
+ledger=$(sqlite3 -json "$db" "SELECT * FROM ledger ORDER BY created_at;" 2>/dev/null || echo '[]')
+echo "{\"wallet\":\"$wname\",\"ledger\":$ledger}"

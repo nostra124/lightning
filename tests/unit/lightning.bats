@@ -10509,3 +10509,48 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-377: channel-max-htlc-set man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-htlc-set.1" ]
 }
+
+# FEAT-378 — node-plugin-start verb
+
+@test "FEAT-378: node-plugin-start verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-plugin-start" ]
+}
+
+@test "FEAT-378: node-plugin-start reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-plugin-start" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-378: node-plugin-start man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-plugin-start.1" ]
+}
+
+# FEAT-379 — node-plugin-stop verb
+
+@test "FEAT-379: node-plugin-stop verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-plugin-stop" ]
+}
+
+@test "FEAT-379: node-plugin-stop reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-plugin-stop" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-379: node-plugin-stop man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-plugin-stop.1" ]
+}
+
+# FEAT-380 — wallet-export-json verb
+
+@test "FEAT-380: wallet-export-json verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-json" ]
+}
+
+@test "FEAT-380: wallet-export-json reports database_not_found without wallet" {
+	out=$(WALLETS_ROOT=/nonexistent "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-json" 2>/dev/null)
+	echo "$out" | grep -q "database_not_found"
+}
+
+@test "FEAT-380: wallet-export-json man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-json.1" ]
+}

@@ -1,0 +1,29 @@
+.TH "LIGHTNING-WALLET-EXPORT-JSON" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-export-json \- export wallet ledger as JSON
+.SH SYNOPSIS
+.B lightning wallet-export-json
+.RI [ wallet ]
+.SH DESCRIPTION
+Dumps the entire
+.B ledger
+table from the wallet database as a JSON object containing
+.B wallet
+name and a
+.B ledger
+array.
+Returns
+.B {"ok":false}
+if the database does not exist.
+.PP
+Output:
+.nf
+{"wallet":..., "ledger":[...]}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-export-csv (1),
+.BR lightning-wallet-transaction-log (1)

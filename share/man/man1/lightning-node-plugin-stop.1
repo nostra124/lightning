@@ -1,0 +1,23 @@
+.TH "LIGHTNING-NODE-PLUGIN-STOP" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-plugin-stop \- unload a running plugin from the daemon
+.SH SYNOPSIS
+.B lightning node-plugin-stop
+.I plugin_name
+.SH DESCRIPTION
+Calls
+.B lightning-cli plugin stop
+to unload the named plugin at runtime.
+Returns an error object if the daemon is unreachable or the plugin is not found.
+.PP
+Output:
+.nf
+{"ok":true}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-plugin-list (1),
+.BR lightning-node-plugin-start (1)
