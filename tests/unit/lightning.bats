@@ -31471,3 +31471,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2890: channel-local-reserve-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-total.1" ]
 }
+
+@test "FEAT-2891: channel-remote-reserve-total reports error or remote_reserve_total_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve-total 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_total_msat"
+}
+@test "FEAT-2891: channel-remote-reserve-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-total.1" ]
+}
+
+@test "FEAT-2892: node-pay-count-weekly reports error or pay_count_weekly gracefully" {
+    out=$(./libexec/lightning/node-pay-count-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_weekly"
+}
+@test "FEAT-2892: node-pay-count-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-weekly.1" ]
+}
+
+@test "FEAT-2893: channel-htlc-value-avg reports error or htlc_value_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_avg_msat"
+}
+@test "FEAT-2893: channel-htlc-value-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-avg.1" ]
+}
+
+@test "FEAT-2894: node-invoice-paid-count-monthly reports error or paid_count_monthly gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_monthly"
+}
+@test "FEAT-2894: node-invoice-paid-count-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-monthly.1" ]
+}
+
+@test "FEAT-2895: channel-local-reserve-avg reports error or local_reserve_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_avg_msat"
+}
+@test "FEAT-2895: channel-local-reserve-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-avg.1" ]
+}
+
+@test "FEAT-2896: node-listforwards-fee-total-yearly reports error or fee_total_yearly_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-total-yearly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_yearly_msat"
+}
+@test "FEAT-2896: node-listforwards-fee-total-yearly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-total-yearly.1" ]
+}
+
+@test "FEAT-2897: channel-remote-reserve-avg reports error or remote_reserve_avg_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_avg_msat"
+}
+@test "FEAT-2897: channel-remote-reserve-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-avg.1" ]
+}
+
+@test "FEAT-2898: peer-local-balance-min reports error or local_balance_min_peer_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-min 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_min_peer_msat"
+}
+@test "FEAT-2898: peer-local-balance-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-min.1" ]
+}
+
+@test "FEAT-2899: node-pay-count-monthly reports error or pay_count_monthly gracefully" {
+    out=$(./libexec/lightning/node-pay-count-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_monthly"
+}
+@test "FEAT-2899: node-pay-count-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-monthly.1" ]
+}
+
+@test "FEAT-2900: channel-both-reserves-max reports error or both_reserves_max_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-max 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_max_msat"
+}
+@test "FEAT-2900: channel-both-reserves-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-max.1" ]
+}
