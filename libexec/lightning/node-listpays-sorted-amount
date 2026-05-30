@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-listpays-sorted-amount   (FEAT-1701)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = sorted([p for p in data.get('pays', []) if p.get('status') == 'complete'], key=lambda p: p.get('amount_sent_msat', 0), reverse=True)
+top = [{'payment_hash': p.get('payment_hash'), 'amount_msat': p.get('amount_sent_msat')} for p in pays[:10]]
+print(json.dumps({'count': len(pays), 'top_by_amount': top}))
+" "$result"

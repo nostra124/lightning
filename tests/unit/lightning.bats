@@ -22144,3 +22144,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1700: channel-htlc-in-total-msat man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-in-total-msat.1" ]
 }
+
+@test "FEAT-1701: node-listpays-sorted-amount reports error or count gracefully" {
+    out=$(./libexec/lightning/node-listpays-sorted-amount 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1701: node-listpays-sorted-amount man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-sorted-amount.1" ]
+}
+
+@test "FEAT-1702: channel-push-msat-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-push-msat-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1702: channel-push-msat-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-push-msat-total.1" ]
+}
+
+@test "FEAT-1703: wallet-notes-bulk-remove-tag requires args" {
+    out=$(./libexec/lightning/wallet-notes-bulk-remove-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1703: wallet-notes-bulk-remove-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-bulk-remove-tag.1" ]
+}
+
+@test "FEAT-1704: node-listchannels-by-direction requires arg" {
+    out=$(./libexec/lightning/node-listchannels-by-direction 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1704: node-listchannels-by-direction man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-direction.1" ]
+}
+
+@test "FEAT-1705: invoice-status requires arg" {
+    out=$(./libexec/lightning/invoice-status 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1705: invoice-status man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-status.1" ]
+}
+
+@test "FEAT-1706: channel-our-base-fee-total reports error or channel_count gracefully" {
+    out=$(./libexec/lightning/channel-our-base-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1706: channel-our-base-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-base-fee-total.1" ]
+}
+
+@test "FEAT-1707: peer-last-timestamp requires arg" {
+    out=$(./libexec/lightning/peer-last-timestamp 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1707: peer-last-timestamp man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-last-timestamp.1" ]
+}
+
+@test "FEAT-1708: wallet-notes-unique-tags requires arg" {
+    out=$(./libexec/lightning/wallet-notes-unique-tags 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1708: wallet-notes-unique-tags man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-unique-tags.1" ]
+}
+
+@test "FEAT-1709: node-graph-high-fee-nodes requires arg" {
+    out=$(./libexec/lightning/node-graph-high-fee-nodes 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1709: node-graph-high-fee-nodes man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-graph-high-fee-nodes.1" ]
+}
+
+@test "FEAT-1710: channel-last-feerate requires arg" {
+    out=$(./libexec/lightning/channel-last-feerate 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1710: channel-last-feerate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-last-feerate.1" ]
+}
