@@ -1,5 +1,5 @@
 #!/bin/bash
-# lightning channel-remote-reserve <channel_id>   (FEAT-640)
+# lightning channel-remote-reserve <channel_id>   (FEAT-1010)
 if [ $# -lt 1 ]; then
     echo '{"error":"usage: channel-remote-reserve <channel_id>"}'
     exit 0

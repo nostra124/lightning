@@ -16844,3 +16844,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1000: channel-total-capacity man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-total-capacity.1" ]
 }
+@test "FEAT-1001: node-listpeers-alias reports error or count gracefully" {
+	out=$(./libexec/lightning/node-listpeers-alias 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1001: node-listpeers-alias man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpeers-alias.1" ]
+}
+@test "FEAT-1002: channel-min-htlc requires arg" {
+	out=$(./libexec/lightning/channel-min-htlc 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1002: channel-min-htlc man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-min-htlc.1" ]
+}
+@test "FEAT-1003: wallet-notes-import requires args" {
+	out=$(./libexec/lightning/wallet-notes-import 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1003: wallet-notes-import man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-import.1" ]
+}
+@test "FEAT-1004: node-payment-count reports error or total gracefully" {
+	out=$(./libexec/lightning/node-payment-count 2>/dev/null)
+	echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1004: node-payment-count man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-payment-count.1" ]
+}
+@test "FEAT-1005: invoice-description requires arg" {
+	out=$(./libexec/lightning/invoice-description 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1005: invoice-description man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-description.1" ]
+}
+@test "FEAT-1006: channel-max-htlc requires arg" {
+	out=$(./libexec/lightning/channel-max-htlc 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1006: channel-max-htlc man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-max-htlc.1" ]
+}
+@test "FEAT-1007: peer-channel-ids requires arg" {
+	out=$(./libexec/lightning/peer-channel-ids 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1007: peer-channel-ids man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-ids.1" ]
+}
+@test "FEAT-1008: wallet-address-latest requires arg" {
+	out=$(./libexec/lightning/wallet-address-latest 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1008: wallet-address-latest man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-address-latest.1" ]
+}
+@test "FEAT-1009: node-channel-capacity-avg reports error or channel_count gracefully" {
+	out=$(./libexec/lightning/node-channel-capacity-avg 2>/dev/null)
+	echo "$out" | grep -q "error\|channel_count"
+}
+@test "FEAT-1009: node-channel-capacity-avg man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-channel-capacity-avg.1" ]
+}
+@test "FEAT-1010: channel-remote-reserve requires arg" {
+	out=$(./libexec/lightning/channel-remote-reserve 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+@test "FEAT-1010: channel-remote-reserve man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve.1" ]
+}
