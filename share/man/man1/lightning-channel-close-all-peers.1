@@ -1,0 +1,27 @@
+.TH "LIGHTNING-CHANNEL-CLOSE-ALL-PEERS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-close-all-peers \- mutually close all normal channels with a peer
+.SH SYNOPSIS
+.B lightning channel-close-all-peers
+.I peer_id
+.SH DESCRIPTION
+Closes every
+.B CHANNELD_NORMAL
+channel with the specified
+.I peer_id
+by calling
+.B lightning-cli close
+on each one.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{"peer_id":..., "closed":[{channel_id, ok},...]}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-close (1),
+.BR lightning-node-close-all (1)

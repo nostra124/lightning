@@ -10049,3 +10049,33 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-348: peer-alias man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-alias.1" ]
 }
+
+# FEAT-349 — invoice-qr verb
+
+@test "FEAT-349: invoice-qr verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-qr" ]
+}
+
+@test "FEAT-349: invoice-qr reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-qr" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-349: invoice-qr man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-qr.1" ]
+}
+
+# FEAT-350 — channel-close-all-peers verb
+
+@test "FEAT-350: channel-close-all-peers verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-all-peers" ]
+}
+
+@test "FEAT-350: channel-close-all-peers reports error without args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-close-all-peers" 2>/dev/null)
+	echo "$out" | grep -q "error"
+}
+
+@test "FEAT-350: channel-close-all-peers man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-close-all-peers.1" ]
+}

@@ -1,0 +1,32 @@
+.TH "LIGHTNING-INVOICE-QR" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-invoice-qr \- render a BOLT-11 invoice as a terminal QR code
+.SH SYNOPSIS
+.B lightning invoice-qr
+.I bolt11
+.SH DESCRIPTION
+Renders the BOLT-11 invoice as a UTF-8 QR code using
+.B qrencode
+if available.
+Falls back to printing a
+.B lightning:
+URI JSON object when
+.B qrencode
+is not installed.
+.PP
+Output (qrencode present):
+.nf
+UTF-8 QR code on stdout
+.fi
+.PP
+Output (fallback):
+.nf
+{"uri":"lightning:<bolt11>"}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-qr (1),
+.BR lightning-invoice-create (1)

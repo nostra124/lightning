@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning invoice-qr <bolt11>   (FEAT-349)
+set -e
+[ $# -ge 1 ] || { echo '{"error":"usage: invoice-qr <bolt11>"}'; exit 0; }
+bolt11="$1"
+upper=$(printf '%s' "$bolt11" | tr '[:lower:]' '[:upper:]')
+# Try qrencode if available
+if command -v qrencode >/dev/null 2>&1; then
+    qrencode -t UTF8 -o - "$upper" 2>/dev/null && exit 0
+fi
+# Fallback: return URI
+echo "{\"uri\":\"lightning:$bolt11\"}"
