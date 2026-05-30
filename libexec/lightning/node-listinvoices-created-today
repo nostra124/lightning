@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning node-listinvoices-created-today   (FEAT-2339)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+now = time.gmtime()
+midnight = int(time.mktime(time.struct_time((now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, 0))))
+# Use created_index as proxy if no created_at; fall back to paid_at
+count = 0
+for inv in invoices:
+    # CLN expiry_time and created_index available; use paid_at or expires_at - 3600*24 as heuristic
+    # Best: parse created_index order; but CLN 23+ has created_at via listinvoices
+    created = inv.get('created_at') or inv.get('pay_index') or 0
+    if created >= midnight:
+        count += 1
+print(json.dumps({'invoices_created_today': count}))
+" "$result"

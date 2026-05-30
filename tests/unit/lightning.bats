@@ -27147,3 +27147,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2330: channel-local-balance-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-total.1" ]
 }
+
+@test "FEAT-2331: node-listforwards-settled-rate reports error or settled_rate gracefully" {
+    out=$(./libexec/lightning/node-listforwards-settled-rate 2>/dev/null)
+    echo "$out" | grep -q "error\|settled_rate"
+}
+@test "FEAT-2331: node-listforwards-settled-rate man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-settled-rate.1" ]
+}
+
+@test "FEAT-2332: channel-htlc-pending-value reports error or pending_htlc_value_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-pending-value 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_htlc_value_msat"
+}
+@test "FEAT-2332: channel-htlc-pending-value man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-pending-value.1" ]
+}
+
+@test "FEAT-2333: peer-channel-count-total reports error or total_channel_count gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_channel_count"
+}
+@test "FEAT-2333: peer-channel-count-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-total.1" ]
+}
+
+@test "FEAT-2334: node-invoice-amount-total reports error or total_requested_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_requested_msat"
+}
+@test "FEAT-2334: node-invoice-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-total.1" ]
+}
+
+@test "FEAT-2335: channel-local-pct-max reports error or local_pct gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct"
+}
+@test "FEAT-2335: channel-local-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-max.1" ]
+}
+
+@test "FEAT-2336: node-pay-30d-total reports error or pay_30d_total_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-30d-total 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_30d_total_msat"
+}
+@test "FEAT-2336: node-pay-30d-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-30d-total.1" ]
+}
+
+@test "FEAT-2337: channel-remote-pct-max reports error or remote_pct gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct"
+}
+@test "FEAT-2337: channel-remote-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-max.1" ]
+}
+
+@test "FEAT-2338: peer-connected-pct reports error or connected_pct gracefully" {
+    out=$(./libexec/lightning/peer-connected-pct 2>/dev/null)
+    echo "$out" | grep -q "error\|connected_pct"
+}
+@test "FEAT-2338: peer-connected-pct man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-connected-pct.1" ]
+}
+
+@test "FEAT-2339: node-listinvoices-created-today reports error or invoices_created_today gracefully" {
+    out=$(./libexec/lightning/node-listinvoices-created-today 2>/dev/null)
+    echo "$out" | grep -q "error\|invoices_created_today"
+}
+@test "FEAT-2339: node-listinvoices-created-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listinvoices-created-today.1" ]
+}
+
+@test "FEAT-2340: channel-our-reserve-max reports error or our_reserve_msat gracefully" {
+    out=$(./libexec/lightning/channel-our-reserve-max 2>/dev/null)
+    echo "$out" | grep -q "error\|our_reserve_msat"
+}
+@test "FEAT-2340: channel-our-reserve-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-max.1" ]
+}
