@@ -40,9 +40,16 @@ require_cli() {
 		error "lightning-cli not found — install Core Lightning"; exit 127; }
 }
 
+# Resolve the active wallet's DB the same way wallet/ledger/account do
+# (the active pointer lives at $WALLETS_ROOT-parent/active, NOT inside
+# the wallet dir).  Must match those verbs or ledger writes land in a
+# different DB than `ledger`/`account` read.
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
 wallet_db() {
-	local active; active=$(cat "$LIGHTNING_DIR/wallet/.active" 2>/dev/null || echo "default")
-	echo "$LIGHTNING_DIR/wallet/$active/state.db"
+	local active="default"
+	[ -f "$ACTIVE_LINK" ] && active=$(cat "$ACTIVE_LINK")
+	echo "$WALLETS_ROOT/$active/state.db"
 }
 
 cmd_create() {

@@ -82,6 +82,14 @@ already booked, and books the residue so the books reconcile.
   `ledger statement` now shows fees-paid as a positive magnitude.  This
   is a prerequisite for the books reconciling at all, so it ships with
   the feature.
+* **Wallet-DB path divergence:** `invoice` and `send` resolved the
+  active wallet from `$LIGHTNING_DIR/wallet/.active` — a file nothing
+  ever writes — so they always fell back to `default` and silently
+  booked to a phantom `wallet/default` DB on any wallet not named
+  `default` (ledger rows dropped; overdraft checks read the wrong
+  balance).  Fixed to use the same `$WALLETS_ROOT` + `/active`
+  resolution as `wallet`/`ledger`/`account`.  (`channel` scb-path and
+  `api-lnurlp` carry the same stale snippet — noted below.)
 
 ## Out of scope (follow-ups)
 
@@ -89,10 +97,13 @@ already booked, and books the residue so the books reconcile.
   account).
 * A true balance-audit (`SUM(ledger)` vs live channel+on-chain funds)
   surfaced as a drift figure.
-* The divergent wallet-DB path resolution between `invoice`/`send`
-  (`$LIGHTNING_DIR/wallet/.active`) and `ledger`/`account`
-  (`$LIGHTNING_WALLETS_ROOT` + `/active`) — they only coincide for a
-  `default`-named wallet.  Pre-existing; worth unifying separately.
+* The same stale `.active` resolution still lives in `channel` (scb
+  path) and `api-lnurlp` (HTTP receive DB) — different subsystems;
+  unify in a dedicated pass.
+* Pre-existing intermittent test-ordering flakiness in
+  `tests/unit/lightning.bats` (manual end-of-test `rm -rf` instead of a
+  bats `teardown()`, plus a run-persistent mock `newaddr` counter) —
+  surfaces a different test on different runs; worth hardening.
 
 ## Acceptance criteria
 
