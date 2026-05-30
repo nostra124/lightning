@@ -8986,3 +8986,18 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-281: MCP tools/list includes node_health" {
 	grep -q '"node_health"' share/lightning/wellknown/api/mcp.py
 }
+
+# FEAT-282 — node-version verb
+
+@test "FEAT-282: node-version verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-version" ]
+}
+
+@test "FEAT-282: node-version returns valid JSON" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-version" 2>/dev/null)
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'lightning' in d"
+}
+
+@test "FEAT-282: node-version man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-version.1" ]
+}
