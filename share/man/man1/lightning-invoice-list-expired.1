@@ -1,0 +1,23 @@
+.TH "LIGHTNING-INVOICE-LIST-EXPIRED" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-invoice-list-expired \- list expired invoices, newest first
+.SH SYNOPSIS
+.B lightning invoice-list-expired
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Returns expired invoices sorted by expiry time descending.
+Default limit is 50.
+Returns an empty array if the daemon is unreachable.
+.PP
+Output:
+.nf
+[{label, payment_hash, amount_msat, expires_at}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-invoice-list (1),
+.BR lightning-invoice-list-paid (1)

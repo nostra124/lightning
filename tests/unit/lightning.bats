@@ -10209,3 +10209,48 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-358: wallet-compact man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-compact.1" ]
 }
+
+# FEAT-359 — invoice-list-expired verb
+
+@test "FEAT-359: invoice-list-expired verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-expired" ]
+}
+
+@test "FEAT-359: invoice-list-expired returns empty array without daemon" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list-expired" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-359: invoice-list-expired man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-expired.1" ]
+}
+
+# FEAT-360 — node-macaroon-info verb
+
+@test "FEAT-360: node-macaroon-info verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-macaroon-info" ]
+}
+
+@test "FEAT-360: node-macaroon-info reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-macaroon-info" 2>/dev/null)
+	echo "$out" | grep -q "error\|count"
+}
+
+@test "FEAT-360: node-macaroon-info man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-macaroon-info.1" ]
+}
+
+# FEAT-361 — channel-remote-balance verb
+
+@test "FEAT-361: channel-remote-balance verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/channel-remote-balance" ]
+}
+
+@test "FEAT-361: channel-remote-balance reports lightning-cli not found gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-remote-balance" 2>/dev/null)
+	echo "$out" | grep -q "error\|total_remote"
+}
+
+@test "FEAT-361: channel-remote-balance man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance.1" ]
+}

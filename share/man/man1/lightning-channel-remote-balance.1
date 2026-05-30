@@ -1,0 +1,21 @@
+.TH "LIGHTNING-CHANNEL-REMOTE-BALANCE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-remote-balance \- show remote (inbound) balance across all channels
+.SH SYNOPSIS
+.B lightning channel-remote-balance
+.SH DESCRIPTION
+Returns inbound liquidity (remote balance) per channel and aggregated totals.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{total_remote_msat, total_capacity_msat,
+ channels:[{channel_id, peer_id, remote_msat, total_msat}]}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-balance (1),
+.BR lightning-liquidity-report (1)

@@ -1,0 +1,25 @@
+.TH "LIGHTNING-NODE-MACAROON-INFO" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-macaroon-info \- list rune-based access credentials
+.SH SYNOPSIS
+.B lightning node-macaroon-info
+.SH DESCRIPTION
+Core Lightning uses rune-based access control rather than macaroons.
+This verb calls
+.B lightning-cli listaccess
+and returns the list of runes with their restrictions.
+Returns an error object if the daemon is unreachable or
+.B listaccess
+is unavailable.
+.PP
+Output:
+.nf
+{"count":N,"runes":[...]}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-version (1),
+.BR lightning-daemon (1)
