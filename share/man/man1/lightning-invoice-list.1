@@ -1,0 +1,39 @@
+.TH "LIGHTNING-INVOICE-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-invoice-list \- list BOLT-11 invoices from the node
+.SH SYNOPSIS
+.B lightning invoice-list
+.RB [ --limit
+.IR N ]
+.RB [ --status
+.IR pending | paid | expired ]
+.SH DESCRIPTION
+Lists invoices from the CLN daemon via
+.BR lightning-cli (1)
+.BR listinvoices .
+Returns a JSON array of objects:
+.nf
+[{
+  "label": "...",
+  "bolt11": "lnbc...",
+  "amount_msat": <int>,
+  "amount_sat": <int>,
+  "status": "pending|paid|expired",
+  "description": "...",
+  "paid_at": <unix-ts|null>,
+  "expires_at": <unix-ts>
+}, ...]
+.fi
+.TP
+.B --limit N
+Return at most N invoices (default 50, max 500).
+.TP
+.B --status paid|pending|expired
+Filter by status.
+.SH EXIT STATUS
+.TP
+.B 0
+Success (returns empty array if daemon unavailable).
+.SH SEE ALSO
+.BR lightning-invoice-decode (1),
+.BR lightning-account-recv (1)

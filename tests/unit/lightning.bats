@@ -8705,3 +8705,18 @@ assert t['auth'] is None
 @test "FEAT-262: PWA Send screen calls decode endpoint on blur" {
 	grep -q "showDecodePreview\|v1/decode" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
 }
+
+# FEAT-263 — invoice-list verb
+
+@test "FEAT-263: invoice-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list" ]
+}
+
+@test "FEAT-263: invoice-list returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-list" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-263: invoice-list man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list.1" ]
+}
