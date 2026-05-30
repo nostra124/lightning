@@ -1,9 +1,6 @@
 #!/bin/bash
-# lightning channel-age <channel_id>   (FEAT-1110)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: channel-age <channel_id>"}'
-    exit 0
-fi
+# lightning channel-age <channel_id>   (FEAT-1902)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-age <channel_id>"}'; exit 0; fi
 channel_id="$1"
 result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
@@ -13,9 +10,8 @@ cid = sys.argv[2]
 now = int(time.time())
 for ch in data.get('channels', []):
     if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
-        opened = ch.get('opened_at', now)
-        age_seconds = now - opened
-        print(json.dumps({'channel_id': ch.get('channel_id'), 'opened_at': opened, 'age_seconds': age_seconds}))
+        ob = ch.get('open_block')
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'open_block': ob}))
         sys.exit(0)
 print(json.dumps({'error': 'channel not found'}))
 " "$result" "$channel_id"

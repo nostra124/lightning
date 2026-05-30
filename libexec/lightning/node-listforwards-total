@@ -1,13 +1,12 @@
 #!/bin/bash
-# lightning node-listforwards-total   (FEAT-1024)
-if ! result=$(lightning-cli listforwards 2>/dev/null); then
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-fi
+# lightning node-listforwards-total   (FEAT-1909)
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
 python3 -c "
 import sys, json
 data = json.loads(sys.argv[1])
 fwds = data.get('forwards', [])
+total_in = sum(f.get('in_msat', 0) for f in fwds if f.get('status') == 'settled')
+total_out = sum(f.get('out_msat', 0) for f in fwds if f.get('status') == 'settled')
 total_fee = sum(f.get('fee_msat', 0) for f in fwds if f.get('status') == 'settled')
-print(json.dumps({'total': len(fwds), 'total_fee_msat': total_fee}))
+print(json.dumps({'total': len(fwds), 'total_in_msat': total_in, 'total_out_msat': total_out, 'total_fee_msat': total_fee}))
 " "$result"

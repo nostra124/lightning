@@ -23744,3 +23744,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1900: channel-opening-count man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-opening-count.1" ]
 }
+
+@test "FEAT-1901: node-listpays-all reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listpays-all 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1901: node-listpays-all man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listpays-all.1" ]
+}
+
+@test "FEAT-1902: channel-age reports error gracefully" {
+    out=$(./libexec/lightning/channel-age 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1902: channel-age man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age.1" ]
+}
+
+@test "FEAT-1903: wallet-notes-first reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-first 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1903: wallet-notes-first man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-first.1" ]
+}
+
+@test "FEAT-1904: node-listchannels-large reports error gracefully" {
+    out=$(./libexec/lightning/node-listchannels-large 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1904: node-listchannels-large man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-large.1" ]
+}
+
+@test "FEAT-1905: invoice-list-all reports error or total gracefully" {
+    out=$(./libexec/lightning/invoice-list-all 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1905: invoice-list-all man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-all.1" ]
+}
+
+@test "FEAT-1906: channel-short-count reports error or total gracefully" {
+    out=$(./libexec/lightning/channel-short-count 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1906: channel-short-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-short-count.1" ]
+}
+
+@test "FEAT-1907: peer-channel-states reports error gracefully" {
+    out=$(./libexec/lightning/peer-channel-states 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1907: peer-channel-states man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-states.1" ]
+}
+
+@test "FEAT-1908: wallet-notes-last reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-last 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1908: wallet-notes-last man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-last.1" ]
+}
+
+@test "FEAT-1909: node-listforwards-total reports error or total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1909: node-listforwards-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-total.1" ]
+}
+
+@test "FEAT-1910: channel-force-closeable reports error or total gracefully" {
+    out=$(./libexec/lightning/channel-force-closeable 2>/dev/null)
+    echo "$out" | grep -q "error\|total"
+}
+@test "FEAT-1910: channel-force-closeable man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-force-closeable.1" ]
+}
