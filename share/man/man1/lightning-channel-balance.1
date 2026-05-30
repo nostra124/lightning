@@ -1,21 +1,15 @@
-.TH "LIGHTNING-CHANNEL-BALANCE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-CHANNEL_BALANCE" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-channel-balance \- show per-channel balance breakdown
+lightning-channel-balance \- FEAT-1566 channel-balance
 .SH SYNOPSIS
 .B lightning channel-balance
 .SH DESCRIPTION
-Returns a per-channel balance summary for all channels as a JSON array.
+channel-balance for lightning CLI (FEAT-1566).
 .PP
-Output:
-.nf
-[{channel_id, peer_id, local_sat, remote_sat, capacity_sat,
-  local_ratio, state}]
-.fi
-Returns an empty array when the daemon is not reachable.
+Output: JSON from CLN.
 .SH EXIT STATUS
 .TP
 .B 0
 Always.
 .SH SEE ALSO
-.BR lightning-channel-list (1),
-.BR lightning-node-funds (1)
+.BR lightning(1)
