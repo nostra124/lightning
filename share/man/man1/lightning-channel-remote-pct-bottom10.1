@@ -1,0 +1,15 @@
+.TH "LIGHTNING-CHANNEL-REMOTE-PCT-BOTTOM10" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-remote-pct-bottom10 \- FEAT-2740 channel-remote-pct-bottom10 verb
+.SH SYNOPSIS
+.B lightning channel-remote-pct-bottom10
+.SH DESCRIPTION
+Show the bottom 10 channels by remote balance percentage (lowest remote balance relative to channel capacity).
+.PP
+Output: JSON from CLN with key \fBbottom10_by_remote_pct\fR containing an array of channel objects with their remote balance percentage.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

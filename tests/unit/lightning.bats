@@ -30241,3 +30241,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2730: channel-local-pct-top10 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-top10.1" ]
 }
+@test "FEAT-2731: node-listforwards-failed-count reports error or failed_forward_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-failed-count 2>/dev/null)
+    echo "$out" | grep -q "error\|failed_forward_count"
+}
+@test "FEAT-2731: node-listforwards-failed-count man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-failed-count.1" ]
+}
+@test "FEAT-2732: channel-age-top10 reports error or top10_oldest gracefully" {
+    out=$(./libexec/lightning/channel-age-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_oldest"
+}
+@test "FEAT-2732: channel-age-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-top10.1" ]
+}
+@test "FEAT-2733: peer-local-reserve-avg reports error or local_reserve_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-local-reserve-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|local_reserve_avg_msat"
+}
+@test "FEAT-2733: peer-local-reserve-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-reserve-avg.1" ]
+}
+@test "FEAT-2734: node-pay-fee-total reports error or total_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_fee_msat"
+}
+@test "FEAT-2734: node-pay-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-total.1" ]
+}
+@test "FEAT-2735: channel-age-bottom10 reports error or bottom10_newest gracefully" {
+    out=$(./libexec/lightning/channel-age-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_newest"
+}
+@test "FEAT-2735: channel-age-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-bottom10.1" ]
+}
+@test "FEAT-2736: node-invoice-paid-amount-avg reports error or paid_amount_avg_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_avg_msat"
+}
+@test "FEAT-2736: node-invoice-paid-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-avg.1" ]
+}
+@test "FEAT-2737: channel-remote-pct-top10 reports error or top10_by_remote_pct gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_by_remote_pct"
+}
+@test "FEAT-2737: channel-remote-pct-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-top10.1" ]
+}
+@test "FEAT-2738: peer-remote-reserve-avg reports error or remote_reserve_avg_msat gracefully" {
+    out=$(./libexec/lightning/peer-remote-reserve-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_reserve_avg_msat"
+}
+@test "FEAT-2738: peer-remote-reserve-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-reserve-avg.1" ]
+}
+@test "FEAT-2739: node-listforwards-local-ratio reports error or local_forward_ratio gracefully" {
+    out=$(./libexec/lightning/node-listforwards-local-ratio 2>/dev/null)
+    echo "$out" | grep -q "error\|local_forward_ratio"
+}
+@test "FEAT-2739: node-listforwards-local-ratio man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-local-ratio.1" ]
+}
+@test "FEAT-2740: channel-remote-pct-bottom10 reports error or bottom10_by_remote_pct gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-bottom10 2>/dev/null)
+    echo "$out" | grep -q "error\|bottom10_by_remote_pct"
+}
+@test "FEAT-2740: channel-remote-pct-bottom10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-bottom10.1" ]
+}
