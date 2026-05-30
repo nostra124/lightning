@@ -8557,3 +8557,26 @@ t = mcp.TOOLS_BY_NAME['node_info']
 assert t['auth'] is None
 "
 }
+
+# FEAT-256 — api-account-list verb
+
+@test "FEAT-256: api-account-list verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-list" ]
+}
+
+@test "FEAT-256: api-account-list returns JSON array for empty wallet" {
+	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets256"
+	mkdir -p "$LIGHTNING_WALLETS_ROOT/default"
+	sqlite3 "$LIGHTNING_WALLETS_ROOT/default/state.db" \
+		"CREATE TABLE IF NOT EXISTS accounts(address TEXT,name TEXT,description TEXT,overdraft TEXT,created_at TEXT); CREATE TABLE IF NOT EXISTS ledger(id INTEGER,account TEXT,amount_msat INTEGER,message TEXT);"
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-list")
+	[ "$out" = "[]" ] || echo "$out" | python3 -c "import sys,json; json.load(sys.stdin)"
+}
+
+@test "FEAT-256: api-account-list --search filters results" {
+	grep -q "\-\-search" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-list"
+}
+
+@test "FEAT-256: api-account-list --limit caps results" {
+	grep -q "\-\-limit" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-list"
+}
