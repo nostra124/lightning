@@ -29681,3 +29681,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-2660: channel-fee-earned-total man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-total.1" ]
 }
+
+@test "FEAT-2661: node-listforwards-fee-min reports error or min_fee_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_fee_msat"
+}
+@test "FEAT-2661: node-listforwards-fee-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-min.1" ]
+}
+
+@test "FEAT-2662: channel-local-pct-min reports error or local_pct_min gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-min 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_min"
+}
+@test "FEAT-2662: channel-local-pct-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-min.1" ]
+}
+
+@test "FEAT-2663: peer-spendable-min reports error or spendable_min_msat gracefully" {
+    out=$(./libexec/lightning/peer-spendable-min 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_min_msat"
+}
+@test "FEAT-2663: peer-spendable-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-min.1" ]
+}
+
+@test "FEAT-2664: node-pay-amount-max reports error or max_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|max_amount_msat"
+}
+@test "FEAT-2664: node-pay-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-max.1" ]
+}
+
+@test "FEAT-2665: channel-local-pct-max reports error or local_pct_max gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-max 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_max"
+}
+@test "FEAT-2665: channel-local-pct-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-max.1" ]
+}
+
+@test "FEAT-2666: node-listforwards-count-settled reports error or settled_count gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-settled 2>/dev/null)
+    echo "$out" | grep -q "error\|settled_count"
+}
+@test "FEAT-2666: node-listforwards-count-settled man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-settled.1" ]
+}
+
+@test "FEAT-2667: channel-local-pct-median reports error or local_pct_median gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-median 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_median"
+}
+@test "FEAT-2667: channel-local-pct-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-median.1" ]
+}
+
+@test "FEAT-2668: peer-receivable-min reports error or receivable_min_msat gracefully" {
+    out=$(./libexec/lightning/peer-receivable-min 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_min_msat"
+}
+@test "FEAT-2668: peer-receivable-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-min.1" ]
+}
+
+@test "FEAT-2669: node-pay-amount-min reports error or min_amount_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|min_amount_msat"
+}
+@test "FEAT-2669: node-pay-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-min.1" ]
+}
+
+@test "FEAT-2670: channel-local-pct-stddev reports error or local_pct_stddev gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_stddev"
+}
+@test "FEAT-2670: channel-local-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-stddev.1" ]
+}
