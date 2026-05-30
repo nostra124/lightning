@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning channel-fee-base-median   (FEAT-2475)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = sorted(int(c.get('fee_base_msat', 0)) for c in channels)
+if not vals:
+    median = 0
+elif len(vals) % 2 == 1:
+    median = vals[len(vals) // 2]
+else:
+    median = (vals[len(vals) // 2 - 1] + vals[len(vals) // 2]) // 2
+print(json.dumps({'fee_base_median_msat': median}))
+" "$result"

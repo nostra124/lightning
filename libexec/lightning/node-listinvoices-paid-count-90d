@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning node-listinvoices-paid-count-90d   (FEAT-2479)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+cutoff = time.time() - 90 * 86400
+invoices = data.get('invoices', [])
+count = sum(1 for i in invoices if i.get('status') == 'paid' and float(i.get('paid_at', 0)) >= cutoff)
+print(json.dumps({'paid_count_90d': count}))
+" "$result"
