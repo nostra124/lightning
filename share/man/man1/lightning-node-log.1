@@ -1,0 +1,30 @@
+.TH "LIGHTNING-NODE-LOG" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-log \- fetch recent CLN log entries
+.SH SYNOPSIS
+.B lightning node-log
+.RB [ --level
+.IR io | debug | info | unusual | broken ]
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Fetches the recent CLN daemon log buffer via
+.BR lightning-cli (1)
+.BR getlog .
+Returns a JSON array of log entries:
+.nf
+[{"time":"...","source":"...","log":"...","level":"..."}]
+.fi
+Entries are returned in chronological order.
+.TP
+.B --level io|debug|info|unusual|broken
+Minimum log level to include (default: info).
+.TP
+.B --limit N
+Return the last N entries (default 50, max 1000).
+.SH EXIT STATUS
+.TP
+.B 0
+Success (returns empty array if daemon unavailable).
+.SH SEE ALSO
+.BR lightning-node-info (1)

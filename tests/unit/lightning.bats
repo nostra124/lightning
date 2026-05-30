@@ -8772,3 +8772,18 @@ assert t['auth'] is None
 @test "FEAT-266: route-find validates sat argument" {
 	grep -q "case.*sat.*0-9\|sat.*exit 2" "$BATS_TEST_DIRNAME/../../libexec/lightning/route-find"
 }
+
+# FEAT-267 — node-log verb
+
+@test "FEAT-267: node-log verb exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-log" ]
+}
+
+@test "FEAT-267: node-log returns empty array without daemon" {
+	out=$(PATH="" "$BATS_TEST_DIRNAME/../../libexec/lightning/node-log" 2>/dev/null)
+	[ "$out" = "[]" ]
+}
+
+@test "FEAT-267: node-log man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-log.1" ]
+}
