@@ -13144,3 +13144,93 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-570: channel-short-id man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-short-id.1" ]
 }
+
+@test "FEAT-571: node-fee-rate reports error or opening gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-fee-rate" 2>/dev/null)
+	echo "$out" | grep -q "error\|opening\|mutual_close"
+}
+
+@test "FEAT-571: node-fee-rate man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-fee-rate.1" ]
+}
+
+@test "FEAT-572: channel-local-msat requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-local-msat" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-572: channel-local-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-msat.1" ]
+}
+
+@test "FEAT-573: wallet-tag-add requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-tag-add" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-573: wallet-tag-add man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-tag-add.1" ]
+}
+
+@test "FEAT-574: node-self-payment requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-self-payment" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-574: node-self-payment man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-self-payment.1" ]
+}
+
+@test "FEAT-575: invoice-amount-msat requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-amount-msat" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-575: invoice-amount-msat man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-amount-msat.1" ]
+}
+
+@test "FEAT-576: channel-state-changes requires arg" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-state-changes" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-576: channel-state-changes man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state-changes.1" ]
+}
+
+@test "FEAT-577: node-send-custom-msg requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-send-custom-msg" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-577: node-send-custom-msg man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-send-custom-msg.1" ]
+}
+
+@test "FEAT-578: wallet-tag-remove requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-tag-remove" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-578: wallet-tag-remove man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-tag-remove.1" ]
+}
+
+@test "FEAT-579: node-announce-addr reports error or address gracefully" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-announce-addr" 2>/dev/null)
+	echo "$out" | grep -q "error\|address\|binding"
+}
+
+@test "FEAT-579: node-announce-addr man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-announce-addr.1" ]
+}
+
+@test "FEAT-580: channel-fee-set requires args" {
+	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/channel-fee-set" 2>/dev/null)
+	echo "$out" | grep -q "usage\|error"
+}
+
+@test "FEAT-580: channel-fee-set man page exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-set.1" ]
+}

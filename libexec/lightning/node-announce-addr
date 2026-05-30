@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning node-announce-addr   (FEAT-579)
+if ! result=$(lightning-cli getinfo 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'address': data.get('address', []), 'binding': data.get('binding', [])}))
+" "$result"
