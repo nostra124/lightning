@@ -20634,3 +20634,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-1500: channel-their-reserve man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve.1" ]
 }
+@test "FEAT-1501: node-pay-last reports error gracefully" {
+    out=$(./libexec/lightning/node-pay-last 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1501: node-pay-last man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-last.1" ]
+}
+@test "FEAT-1502: channel-receivable-total reports error or total_receivable_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-total 2>/dev/null)
+    echo "$out" | grep -q "error\|total_receivable_msat"
+}
+@test "FEAT-1502: channel-receivable-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-total.1" ]
+}
+@test "FEAT-1503: wallet-notes-has-tag reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-has-tag 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1503: wallet-notes-has-tag man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-has-tag.1" ]
+}
+@test "FEAT-1504: node-listchannels-by-peer reports error gracefully" {
+    out=$(./libexec/lightning/node-listchannels-by-peer 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1504: node-listchannels-by-peer man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listchannels-by-peer.1" ]
+}
+@test "FEAT-1505: invoice-list-unpaid reports error or count gracefully" {
+    out=$(./libexec/lightning/invoice-list-unpaid 2>/dev/null)
+    echo "$out" | grep -q "error\|count"
+}
+@test "FEAT-1505: invoice-list-unpaid man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-list-unpaid.1" ]
+}
+@test "FEAT-1506: channel-state reports error gracefully" {
+    out=$(./libexec/lightning/channel-state 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1506: channel-state man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-state.1" ]
+}
+@test "FEAT-1507: peer-reachable reports error gracefully" {
+    out=$(./libexec/lightning/peer-reachable 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1507: peer-reachable man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-reachable.1" ]
+}
+@test "FEAT-1508: wallet-notes-prune-untagged reports error gracefully" {
+    out=$(./libexec/lightning/wallet-notes-prune-untagged 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1508: wallet-notes-prune-untagged man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-notes-prune-untagged.1" ]
+}
+@test "FEAT-1509: node-onchain-confirmed reports error or confirmed_count gracefully" {
+    out=$(./libexec/lightning/node-onchain-confirmed 2>/dev/null)
+    echo "$out" | grep -q "error\|confirmed_count"
+}
+@test "FEAT-1509: node-onchain-confirmed man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-onchain-confirmed.1" ]
+}
+@test "FEAT-1510: channel-funding-block reports error gracefully" {
+    out=$(./libexec/lightning/channel-funding-block 2>/dev/null)
+    echo "$out" | grep -q "error"
+}
+@test "FEAT-1510: channel-funding-block man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-funding-block.1" ]
+}
