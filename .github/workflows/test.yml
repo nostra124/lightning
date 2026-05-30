@@ -30,12 +30,19 @@ jobs:
       - name: shellcheck (merge gate)
         run: |
           set -o pipefail
-          shellcheck -S warning \
-            bin/lightning \
-            libexec/lightning/* \
-            share/lightning/hooks/* \
-            tests/sit/helpers.bash \
-            share/doc/lightning/standards/refresh.sh 2>&1 | tee /tmp/ci-shellcheck.log
+          # libexec/lightning/ also holds Python helpers (FEAT-222 PR-3's
+          # _webauthn-verify, _session-token) — filter to files with a
+          # sh/bash shebang so shellcheck doesn't trip SC1071 on them.
+          # Mirrors the same filter in the in-tree meta-test.
+          files=(bin/lightning)
+          for f in libexec/lightning/*; do
+            [ -f "$f" ] || continue
+            head -1 "$f" | grep -qE '^#!.*/(ba)?sh([[:space:]]|$)' && files+=("$f")
+          done
+          files+=(share/lightning/hooks/*)
+          files+=(tests/sit/helpers.bash)
+          files+=(share/doc/lightning/standards/refresh.sh)
+          shellcheck -S warning "${files[@]}" 2>&1 | tee /tmp/ci-shellcheck.log
       # Diagnostic comment on failure — surfaces step output on the PR
       # so the actual failing test / assertion is visible without
       # opening the Actions UI.  Only fires on pull_request events
