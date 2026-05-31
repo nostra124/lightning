@@ -35051,3 +35051,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3340: peer-htlc-count-kurtosis man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-kurtosis.1" ]
 }
+
+@test "FEAT-3341: channel-htlc-min-msat-top10 reports error or top10_htlc_min_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_htlc_min_msat"
+}
+@test "FEAT-3341: channel-htlc-min-msat-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat-top10.1" ]
+}
+
+@test "FEAT-3342: node-pay-fee-avg-weekly reports error or fee_avg_weekly_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-avg-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_avg_weekly_pay"
+}
+@test "FEAT-3342: node-pay-fee-avg-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-avg-weekly.1" ]
+}
+
+@test "FEAT-3343: peer-htlc-count-skewness reports error or htlc_count_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_skewness_peer"
+}
+@test "FEAT-3343: peer-htlc-count-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-skewness.1" ]
+}
+
+@test "FEAT-3344: channel-capacity-top10 reports error or top10_capacity gracefully" {
+    out=$(./libexec/lightning/channel-capacity-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_capacity"
+}
+@test "FEAT-3344: channel-capacity-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-top10.1" ]
+}
+
+@test "FEAT-3345: node-pay-fee-avg-weekly reports error or fee_avg_weekly_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-avg-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_avg_weekly_pay"
+}
+@test "FEAT-3345: node-pay-fee-avg-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-avg-weekly.1" ]
+}
+
+@test "FEAT-3346: peer-balance-skewness reports error or balance_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_skewness_peer"
+}
+@test "FEAT-3346: peer-balance-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-skewness.1" ]
+}
+
+@test "FEAT-3347: channel-age-top10 reports error or top10_age gracefully" {
+    out=$(./libexec/lightning/channel-age-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_age"
+}
+@test "FEAT-3347: channel-age-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-top10.1" ]
+}
+
+@test "FEAT-3348: node-listforwards-fee-stddev reports error or fee_stddev gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_stddev"
+}
+@test "FEAT-3348: node-listforwards-fee-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-stddev.1" ]
+}
+
+@test "FEAT-3349: peer-balance-kurtosis reports error or balance_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_kurtosis_peer"
+}
+@test "FEAT-3349: peer-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-kurtosis.1" ]
+}
+
+@test "FEAT-3350: channel-spendable-top10 reports error or top10_spendable gracefully" {
+    out=$(./libexec/lightning/channel-spendable-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_spendable"
+}
+@test "FEAT-3350: channel-spendable-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-top10.1" ]
+}
