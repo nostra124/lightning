@@ -313,9 +313,9 @@ _blocktank_info() {
 		echo "lightning liquidity blocktank: Blocktank API unreachable (${BLOCKTANK_API})" >&2
 		return 1
 	}
-	echo "$resp" | python3 - <<'PYEOF'
+	python3 - "$resp" <<'PYEOF'
 import sys, json, os
-d = json.load(sys.stdin)
+d = json.loads(sys.argv[1])
 opts = d.get("options", d)
 print(f"Blocktank LSP — {d.get('lspNodePubKey','?')}")
 print(f"  min channel:  {opts.get('minChannelCapacitySat','?')} sat")
@@ -580,11 +580,11 @@ _nostr_buy() {
 	[ -n "$offers_json" ] || { echo "lightning liquidity nostr buy: no offers available" >&2; return 1; }
 
 	local chosen
-	chosen=$(echo "$offers_json" | python3 - "$sat" "$npub" <<'PYEOF'
+	chosen=$(python3 - "$offers_json" "$sat" "$npub" <<'PYEOF'
 import sys, json
-offers = json.load(sys.stdin)
-sat = int(sys.argv[1])
-npub = sys.argv[2]
+offers = json.loads(sys.argv[1])
+sat = int(sys.argv[2])
+npub = sys.argv[3]
 candidates = [o for o in offers
               if o["min_sat"] <= sat <= o["max_sat"]
               and (not npub or o["npub_full"] == npub)]
