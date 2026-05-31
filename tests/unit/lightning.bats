@@ -35691,3 +35691,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3420: node-invoice-amount-variance man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-variance.1" ]
 }
+
+@test "FEAT-3421: node-invoice-amount-skewness reports error or invoice_amount_skewness gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_skewness"
+}
+@test "FEAT-3421: node-invoice-amount-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-skewness.1" ]
+}
+
+@test "FEAT-3422: peer-fee-earned-max reports error or fee_earned_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_max_peer"
+}
+@test "FEAT-3422: peer-fee-earned-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-max.1" ]
+}
+
+@test "FEAT-3423: channel-fee-earned-min reports error or fee_earned_min_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_min_ch"
+}
+@test "FEAT-3423: channel-fee-earned-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-min.1" ]
+}
+
+@test "FEAT-3424: node-invoice-amount-kurtosis reports error or invoice_amount_kurtosis gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_kurtosis"
+}
+@test "FEAT-3424: node-invoice-amount-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-kurtosis.1" ]
+}
+
+@test "FEAT-3425: peer-fee-earned-min reports error or fee_earned_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_min_peer"
+}
+@test "FEAT-3425: peer-fee-earned-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-min.1" ]
+}
+
+@test "FEAT-3426: channel-fee-earned-median reports error or fee_earned_median_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_median_ch"
+}
+@test "FEAT-3426: channel-fee-earned-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-median.1" ]
+}
+
+@test "FEAT-3427: node-invoice-paid-amount-avg reports error or paid_amount_avg gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_avg"
+}
+@test "FEAT-3427: node-invoice-paid-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-avg.1" ]
+}
+
+@test "FEAT-3428: peer-fee-earned-stddev reports error or fee_earned_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_stddev_peer"
+}
+@test "FEAT-3428: peer-fee-earned-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-stddev.1" ]
+}
+
+@test "FEAT-3429: channel-fee-earned-skewness reports error or fee_earned_skewness_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_skewness_ch"
+}
+@test "FEAT-3429: channel-fee-earned-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-skewness.1" ]
+}
+
+@test "FEAT-3430: node-invoice-paid-amount-max reports error or paid_amount_max gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_max"
+}
+@test "FEAT-3430: node-invoice-paid-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-max.1" ]
+}
