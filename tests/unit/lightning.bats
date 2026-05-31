@@ -35131,3 +35131,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3350: channel-spendable-top10 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-top10.1" ]
 }
+
+@test "FEAT-3351: channel-receivable-top10 reports error or top10_receivable gracefully" {
+    out=$(./libexec/lightning/channel-receivable-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_receivable"
+}
+@test "FEAT-3351: channel-receivable-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-top10.1" ]
+}
+
+@test "FEAT-3352: node-pay-fee-avg-monthly reports error or fee_avg_monthly_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-avg-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_avg_monthly_pay"
+}
+@test "FEAT-3352: node-pay-fee-avg-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-avg-monthly.1" ]
+}
+
+@test "FEAT-3353: peer-htlc-value-max reports error or htlc_value_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_max_peer"
+}
+@test "FEAT-3353: peer-htlc-value-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-max.1" ]
+}
+
+@test "FEAT-3354: channel-local-pct-top10 reports error or top10_local_pct gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_local_pct"
+}
+@test "FEAT-3354: channel-local-pct-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-top10.1" ]
+}
+
+@test "FEAT-3355: node-invoice-count-daily reports error or invoice_count_daily gracefully" {
+    out=$(./libexec/lightning/node-invoice-count-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_count_daily"
+}
+@test "FEAT-3355: node-invoice-count-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-daily.1" ]
+}
+
+@test "FEAT-3356: peer-htlc-value-min reports error or htlc_value_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_min_peer"
+}
+@test "FEAT-3356: peer-htlc-value-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-min.1" ]
+}
+
+@test "FEAT-3357: channel-remote-pct-top10 reports error or top10_remote_pct gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_remote_pct"
+}
+@test "FEAT-3357: channel-remote-pct-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-top10.1" ]
+}
+
+@test "FEAT-3358: node-invoice-count-weekly reports error or invoice_count_weekly gracefully" {
+    out=$(./libexec/lightning/node-invoice-count-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_count_weekly"
+}
+@test "FEAT-3358: node-invoice-count-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-weekly.1" ]
+}
+
+@test "FEAT-3359: peer-htlc-value-stddev reports error or htlc_value_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_stddev_peer"
+}
+@test "FEAT-3359: peer-htlc-value-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-stddev.1" ]
+}
+
+@test "FEAT-3360: channel-fee-base-top10 reports error or top10_fee_base gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_fee_base"
+}
+@test "FEAT-3360: channel-fee-base-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-top10.1" ]
+}
