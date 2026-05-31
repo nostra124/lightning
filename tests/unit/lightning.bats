@@ -34891,3 +34891,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3320: channel-htlc-max-msat-kurtosis man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-msat-kurtosis.1" ]
 }
+
+@test "FEAT-3321: node-invoice-paid-fee-stddev reports error or paid_fee_stddev gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-fee-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_fee_stddev"
+}
+@test "FEAT-3321: node-invoice-paid-fee-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-fee-stddev.1" ]
+}
+
+@test "FEAT-3322: peer-htlc-min-msat-range reports error or htlc_min_msat_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-min-msat-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_range_peer"
+}
+@test "FEAT-3322: peer-htlc-min-msat-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-min-msat-range.1" ]
+}
+
+@test "FEAT-3323: channel-htlc-min-msat-skewness reports error or htlc_min_msat_skewness gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_skewness"
+}
+@test "FEAT-3323: channel-htlc-min-msat-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat-skewness.1" ]
+}
+
+@test "FEAT-3324: node-invoice-paid-fee-range reports error or paid_fee_range gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-fee-range 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_fee_range"
+}
+@test "FEAT-3324: node-invoice-paid-fee-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-fee-range.1" ]
+}
+
+@test "FEAT-3325: peer-htlc-max-msat-range reports error or htlc_max_msat_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-max-msat-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_range_peer"
+}
+@test "FEAT-3325: peer-htlc-max-msat-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-max-msat-range.1" ]
+}
+
+@test "FEAT-3326: channel-htlc-max-msat-skewness reports error or htlc_max_msat_skewness gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-msat-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_skewness"
+}
+@test "FEAT-3326: channel-htlc-max-msat-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-msat-skewness.1" ]
+}
+
+@test "FEAT-3327: node-invoice-paid-fee-total reports error or paid_fee_total gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-fee-total 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_fee_total"
+}
+@test "FEAT-3327: node-invoice-paid-fee-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-fee-total.1" ]
+}
+
+@test "FEAT-3328: peer-htlc-min-msat-kurtosis reports error or htlc_min_msat_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-min-msat-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_kurtosis_peer"
+}
+@test "FEAT-3328: peer-htlc-min-msat-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-min-msat-kurtosis.1" ]
+}
+
+@test "FEAT-3329: channel-htlc-min-msat-top10 reports error or top10_htlc_min_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_htlc_min_msat"
+}
+@test "FEAT-3329: channel-htlc-min-msat-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat-top10.1" ]
+}
+
+@test "FEAT-3330: node-listforwards-fee-avg-daily reports error or fee_avg_daily gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_avg_daily"
+}
+@test "FEAT-3330: node-listforwards-fee-avg-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg-daily.1" ]
+}
