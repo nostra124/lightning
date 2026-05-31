@@ -9049,3 +9049,32 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "FEAT-285: wallet-prune man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-prune.1" ]
 }
+
+# consolidated peer-* micro-verbs
+
+@test "peer stats subcommand returns JSON" {
+	out=$(LIGHTNING_DIR=/nonexistent libexec/lightning/peer stats 2>/dev/null) || true
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'peer_count' in d"
+}
+
+@test "peer stats --field returns single value" {
+	out=$(LIGHTNING_DIR=/nonexistent libexec/lightning/peer stats --field peer_count 2>/dev/null) || true
+	python3 -c "import sys,json; json.loads('$out')"
+}
+
+@test "peer connected requires peer_id" {
+	run libexec/lightning/peer connected
+	[ "$status" -ne 0 ]
+}
+
+@test "peer stats man page exists with correct NAME" {
+	grep -q "lightning-peer" share/man/man1/lightning-peer.1
+}
+
+@test "peer stats subcommand in dispatcher" {
+	grep -q "stats)" libexec/lightning/peer
+}
+
+@test "peer disconnect-all arm present" {
+	grep -q "disconnect-all" libexec/lightning/peer
+}

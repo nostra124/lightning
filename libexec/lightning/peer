@@ -680,6 +680,369 @@ EOF
 	esac
 }
 
+# -----------------------------------------------------------------------------
+# New operational subcommands (consolidated from peer-* micro-verbs)
+# -----------------------------------------------------------------------------
+
+# LC helper — consistent with dispatcher style
+LC() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
+
+cmd_connected() {
+	# peer connected <peer_id> — is this peer currently connected?
+	[ $# -lt 1 ] && { error "peer connected needs <peer_id>"; exit 1; }
+	local peer_id="$1"
+	local result; result=$(LC listpeers "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); peers = data.get('peers', [])
+if peers:
+    p = peers[0]
+    print(json.dumps({'id': p.get('id'), 'connected': p.get('connected'), 'netaddr': p.get('netaddr', [])}))
+else:
+    print(json.dumps({'error': 'peer not found'}))
+" "$result"
+}
+
+cmd_reputation() {
+	[ $# -lt 1 ] && { error "peer reputation needs <peer_id>"; exit 1; }
+	local peer_id="$1"
+	local rp ch
+	rp=$(LC listpeers "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	ch=$(LC listpeerchannels 2>/dev/null) || ch='{"channels":[]}'
+	python3 -c "
+import sys, json
+peer_id = sys.argv[3]
+peers = json.loads(sys.argv[1]).get('peers', [])
+channels = [c for c in json.loads(sys.argv[2]).get('channels', []) if c.get('peer_id') == peer_id]
+peer = peers[0] if peers else {}
+total_cap = sum(c.get('total_msat', 0) for c in channels)
+print(json.dumps({'peer_id': peer_id, 'connected': peer.get('connected', False),
+    'num_channels': len(channels), 'total_capacity_msat': total_cap}))
+" "$rp" "$ch" "$peer_id"
+}
+
+cmd_routing_score() {
+	[ $# -lt 1 ] && { error "peer routing-score needs <peer_id>"; exit 1; }
+	local peer_id="$1"
+	local result; result=$(LC listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); pid = sys.argv[2]
+chs = [c for c in data.get('channels', []) if c.get('peer_id') == pid and c.get('state') == 'CHANNELD_NORMAL']
+print(json.dumps({'peer_id': pid, 'routing_score': len(chs), 'active_channels': len(chs)}))
+" "$result" "$peer_id"
+}
+
+cmd_reconnect_peer() {
+	[ $# -lt 1 ] && { error "peer reconnect-peer needs <peer_id>"; exit 1; }
+	local peer_id="$1"
+	LC disconnect "$peer_id" 2>/dev/null || true
+	local result; result=$(LC connect "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	echo "$result"
+}
+
+cmd_disconnect_all() {
+	local result; result=$(LC listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 - "$result" <<'PYEOF'
+import sys, json
+data = json.loads(sys.argv[1])
+peers = [p.get('id') for p in data.get('peers', []) if p.get('connected')]
+print(json.dumps({'disconnecting': len(peers), 'peer_ids': peers}))
+PYEOF
+	# Actually disconnect them
+	local ids; ids=$(LC listpeers 2>/dev/null | python3 -c "
+import sys,json; d=json.load(sys.stdin)
+for p in d.get('peers',[]):
+    if p.get('connected'): print(p['id'])
+" 2>/dev/null) || true
+	while IFS= read -r id; do
+		[ -n "$id" ] || continue
+		LC disconnect "$id" force=true >/dev/null 2>&1 || true
+	done <<< "$ids"
+}
+
+cmd_node_info() {
+	[ $# -lt 1 ] && { error "peer node-info needs <node_id>"; exit 1; }
+	local node_id="$1"
+	local result; result=$(LC listnodes "$node_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); nodes = data.get('nodes', [])
+if nodes:
+    n = nodes[0]
+    print(json.dumps({'nodeid': n.get('nodeid'), 'alias': n.get('alias'),
+        'color': n.get('color'), 'last_timestamp': n.get('last_timestamp'),
+        'features': n.get('features'), 'addresses': n.get('addresses', [])}))
+else:
+    print(json.dumps({'error': 'node not found'}))
+" "$result"
+}
+
+cmd_features() {
+	[ $# -lt 1 ] && { error "peer features needs <peer_id>"; exit 1; }
+	local peer_id="$1"
+	local result; result=$(LC listpeers "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); peers = data.get('peers', [])
+if not peers: print(json.dumps({'error': 'peer not found'})); sys.exit(0)
+p = peers[0]
+print(json.dumps({'peer_id': p.get('id'), 'features': p.get('features')}))
+" "$result"
+}
+
+cmd_gossip_info() {
+	[ $# -lt 1 ] && { error "peer gossip-info needs <node_id>"; exit 1; }
+	local node_id="$1"
+	local result; result=$(LC listnodes "$node_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); nodes = data.get('nodes', [])
+if nodes:
+    n = nodes[0]
+    print(json.dumps({'nodeid': n.get('nodeid'), 'alias': n.get('alias'),
+        'color': n.get('color'), 'features': n.get('features'), 'addresses': n.get('addresses', [])}))
+else:
+    print(json.dumps({'error': 'node not found'}))
+" "$result"
+}
+
+cmd_reachability() {
+	[ $# -lt 1 ] && { error "peer reachability needs <node_id>"; exit 1; }
+	local node_id="$1"
+	local result; result=$(LC listpeers "$node_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); peers = data.get('peers', [])
+if peers:
+    p = peers[0]
+    print(json.dumps({'id': p.get('id'), 'connected': p.get('connected'), 'netaddr': p.get('netaddr', [])}))
+else:
+    print(json.dumps({'error': 'peer not found', 'id': sys.argv[2]}))
+" "$result" "$node_id"
+}
+
+cmd_open_channel() {
+	[ $# -lt 2 ] && { error "peer open-channel needs <peer_id> <amount_sat>"; exit 1; }
+	local peer_id="$1" amount="$2"
+	local result; result=$(LC fundchannel "$peer_id" "$amount" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+try:
+    data = json.loads(sys.argv[1])
+    print(json.dumps({'ok': True, 'peer_id': sys.argv[2], 'txid': data.get('txid')}))
+except Exception:
+    print(json.dumps({'error': 'failed to open channel'}))
+" "$result" "$peer_id"
+}
+
+cmd_scb_backup() {
+	local result; result=$(LC staticbackup 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'peer_backup_count': len(d.get('peer_backup', []))}))
+" "$result"
+}
+
+cmd_send_custom() {
+	[ $# -lt 3 ] && { error "peer send-custom needs <peer_id> <msg_type> <data>"; exit 1; }
+	local peer_id="$1" msg_type="$2" data="$3"
+	local result; result=$(LC sendcustommsg "$peer_id" "${msg_type}${data}" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	echo "$result"
+}
+
+cmd_score_list() {
+	local result; result=$(LC listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); peers = data.get('peers', [])
+scores = [{'id': p.get('id'), 'connected': p.get('connected'), 'channels': len(p.get('channels', []))} for p in peers]
+print(json.dumps(scores))
+" "$result"
+}
+
+cmd_alias() {
+	[ $# -lt 1 ] && { error "peer alias needs <node_id>"; exit 1; }
+	local node_id="$1"
+	local result; result=$(LC listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); nid = sys.argv[2]
+for p in data.get('peers', []):
+    if p.get('id') == nid:
+        print(json.dumps({'node_id': p.get('id'), 'alias': p.get('alias')})); sys.exit(0)
+print(json.dumps({'error': 'peer not found'}))
+" "$result" "$node_id"
+}
+
+cmd_channels() {
+	# peer channels <peer_id> — list channels for a peer
+	[ $# -lt 1 ] && { error "peer channels needs <peer_id>"; exit 1; }
+	local peer_id="$1"
+	local result; result=$(LC listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); pid = sys.argv[2]
+chs = [c for c in data.get('channels', []) if c.get('peer_id') == pid]
+print(json.dumps({'peer_id': pid, 'channel_count': len(chs), 'channels': chs}))
+" "$result" "$peer_id"
+}
+
+cmd_summary() {
+	[ $# -lt 1 ] && { error "peer summary needs <peer_id>"; exit 1; }
+	local peer_id="$1"
+	local rp ch
+	rp=$(LC listpeers "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	ch=$(LC listpeerchannels 2>/dev/null) || ch='{"channels":[]}'
+	python3 -c "
+import sys, json
+pid = sys.argv[3]
+peers = json.loads(sys.argv[1]).get('peers', [])
+channels = [c for c in json.loads(sys.argv[2]).get('channels', []) if c.get('peer_id') == pid]
+peer = peers[0] if peers else {}
+to_us = sum(c.get('to_us_msat', 0) for c in channels)
+total = sum(c.get('total_msat', 0) for c in channels)
+print(json.dumps({'peer_id': pid, 'connected': peer.get('connected', False),
+    'channel_count': len(channels), 'local_msat': to_us, 'remote_msat': total - to_us,
+    'total_msat': total, 'netaddr': peer.get('netaddr', [])}))
+" "$rp" "$ch" "$peer_id"
+}
+
+# -----------------------------------------------------------------------------
+# cmd_stats — one Python pass over listpeers + listpeerchannels
+# -----------------------------------------------------------------------------
+cmd_stats() {
+	local field=""
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--field) field="$2"; shift 2 ;;
+			--field=*) field="${1#--field=}"; shift ;;
+			*) error "peer stats: unknown option '$1'"; exit 1 ;;
+		esac
+	done
+
+	local peers_raw channels_raw forwards_raw
+	peers_raw=$(LC listpeers 2>/dev/null) || peers_raw='{"peers":[]}'
+	channels_raw=$(LC listpeerchannels 2>/dev/null) || channels_raw='{"channels":[]}'
+	forwards_raw=$(LC listforwards 2>/dev/null) || forwards_raw='{"forwards":[]}'
+
+	export _STAT_FIELD="$field"
+	python3 - "$peers_raw" "$channels_raw" "$forwards_raw" <<'PYEOF'
+import sys, json, os, math
+
+peers    = json.loads(sys.argv[1]).get('peers', [])
+channels = json.loads(sys.argv[2]).get('channels', [])
+forwards = json.loads(sys.argv[3]).get('forwards', [])
+
+connected    = [p for p in peers if p.get('connected')]
+disconnected = [p for p in peers if not p.get('connected')]
+
+caps   = [c.get('total_msat', 0) for c in channels]
+locals = [c.get('to_us_msat', 0) for c in channels]
+remotes= [c.get('total_msat', 0) - c.get('to_us_msat', 0) for c in channels]
+spends = [c.get('spendable_msat', 0) or 0 for c in channels]
+recvs  = [c.get('receivable_msat', 0) or 0 for c in channels]
+htlcs  = sum(len(c.get('htlcs', [])) for c in channels)
+active = [c for c in channels if c.get('state') == 'CHANNELD_NORMAL']
+
+def avg(lst): return sum(lst)/len(lst) if lst else 0
+def stddev(lst):
+    if len(lst) < 2: return 0
+    m = avg(lst); return math.sqrt(sum((x-m)**2 for x in lst)/len(lst))
+def variance(lst):
+    if len(lst) < 2: return 0
+    m = avg(lst); return sum((x-m)**2 for x in lst)/len(lst)
+
+total_cap     = sum(caps)
+cap_avg       = avg(caps)
+cap_min       = min(caps) if caps else 0
+cap_max       = max(caps) if caps else 0
+cap_range     = cap_max - cap_min
+cap_stddev    = stddev(caps)
+cap_median    = sorted(caps)[len(caps)//2] if caps else 0
+
+local_total   = sum(locals)
+local_avg     = avg(locals)
+local_stddev  = stddev(locals)
+local_var     = variance(locals)
+remote_total  = sum(remotes)
+remote_avg    = avg(remotes)
+remote_stddev = stddev(remotes)
+
+local_pcts = [l/c*100 if c else 0 for l,c in zip(locals,caps)]
+local_pct_avg    = avg(local_pcts)
+local_pct_stddev = stddev(local_pcts)
+local_pct_var    = variance(local_pcts)
+
+spendable_sum  = sum(spends)
+spendable_avg  = avg(spends)
+spendable_max  = max(spends) if spends else 0
+receivable_sum = sum(recvs)
+receivable_avg = avg(recvs)
+
+# Fee revenue
+fee_rev = {}
+for f in forwards:
+    ch  = f.get('in_channel', 'unknown')
+    fee = f.get('fee_msat', 0)
+    if isinstance(fee, str): fee = int(fee.replace('msat',''))
+    fee_rev[ch] = fee_rev.get(ch, 0) + fee
+total_fee_revenue = sum(fee_rev.values())
+
+# Reserves
+our_reserves   = [c.get('our_reserve_msat', 0) for c in channels]
+their_reserves = [c.get('their_reserve_msat', 0) for c in channels]
+
+connected_pct = round(len(connected)/len(peers)*100, 2) if peers else 0.0
+uptime_ratio  = round(len(connected)/len(peers), 4)     if peers else 0.0
+
+result = {
+    "peer_count":                len(peers),
+    "connected_count":           len(connected),
+    "disconnected_count":        len(disconnected),
+    "connected_pct":             connected_pct,
+    "uptime_ratio":              uptime_ratio,
+    "channel_count":             len(channels),
+    "active_channel_count":      len(active),
+    "htlc_count_total":          htlcs,
+    "capacity_total_msat":       total_cap,
+    "capacity_avg_msat":         int(cap_avg),
+    "capacity_min_msat":         cap_min,
+    "capacity_max_msat":         cap_max,
+    "capacity_range_msat":       cap_range,
+    "capacity_stddev_msat":      int(cap_stddev),
+    "capacity_median_msat":      cap_median,
+    "local_balance_total_msat":  local_total,
+    "local_balance_avg_msat":    int(local_avg),
+    "local_balance_stddev_msat": int(local_stddev),
+    "local_balance_variance":    int(local_var),
+    "remote_balance_total_msat": remote_total,
+    "remote_balance_avg_msat":   int(remote_avg),
+    "remote_balance_stddev_msat":int(remote_stddev),
+    "local_pct_avg":             round(local_pct_avg, 4),
+    "local_pct_stddev":          round(local_pct_stddev, 4),
+    "local_pct_variance":        round(local_pct_var, 4),
+    "spendable_total_msat":      spendable_sum,
+    "spendable_avg_msat":        int(spendable_avg),
+    "spendable_max_msat":        spendable_max,
+    "receivable_total_msat":     receivable_sum,
+    "receivable_avg_msat":       int(receivable_avg),
+    "our_reserve_total_msat":    sum(our_reserves),
+    "their_reserve_total_msat":  sum(their_reserves),
+    "our_reserve_avg_msat":      int(avg(our_reserves)),
+    "fee_revenue_total_msat":    total_fee_revenue,
+    "fee_revenue_by_channel":    fee_rev,
+}
+
+field = os.environ.get("_STAT_FIELD", "")
+if field:
+    print(json.dumps(result.get(field)))
+else:
+    print(json.dumps(result))
+PYEOF
+}
+
 # Source-mode guard: when sourced (e.g. by a test wanting to call
 # decode_features directly), the function defs above are all the
 # caller needs — return before touching $@ or dispatching.
@@ -696,12 +1059,30 @@ case "$SUB" in
 esac
 
 case "$SUB" in
-	list)       cmd_list "$@" ;;
-	connect)    cmd_connect "$@" ;;
-	disconnect) cmd_disconnect "$@" ;;
-	bootstrap)  cmd_bootstrap "$@" ;;
-	reconnect)  cmd_reconnect "$@" ;;
-	keepalive)  cmd_keepalive "$@" ;;
-	score)      cmd_score "$@" ;;
+	list)           cmd_list "$@" ;;
+	connect)        cmd_connect "$@" ;;
+	disconnect)     cmd_disconnect "$@" ;;
+	bootstrap)      cmd_bootstrap "$@" ;;
+	reconnect)      cmd_reconnect "$@" ;;
+	keepalive)      cmd_keepalive "$@" ;;
+	score)          cmd_score "$@" ;;
+	stats)          cmd_stats "$@" ;;
+	connected)      cmd_connected "$@" ;;
+	reputation)     cmd_reputation "$@" ;;
+	routing-score)  cmd_routing_score "$@" ;;
+	reconnect-peer) cmd_reconnect_peer "$@" ;;
+	disconnect-all) cmd_disconnect_all "$@" ;;
+	node-info)      cmd_node_info "$@" ;;
+	features)       cmd_features "$@" ;;
+	gossip-info)    cmd_gossip_info "$@" ;;
+	reachability)   cmd_reachability "$@" ;;
+	reachable)      cmd_reachability "$@" ;;
+	open-channel)   cmd_open_channel "$@" ;;
+	scb-backup)     cmd_scb_backup "$@" ;;
+	send-custom)    cmd_send_custom "$@" ;;
+	score-list)     cmd_score_list "$@" ;;
+	alias)          cmd_alias "$@" ;;
+	channels)       cmd_channels "$@" ;;
+	summary)        cmd_summary "$@" ;;
 	*) error "peer: unknown subcommand '$SUB'"; usage; exit 1 ;;
 esac

@@ -45,6 +45,44 @@ subcommands:
                               public Lightning network analytics;
                               recfile output. 1h cache under
                               \e$LIGHTNING_DIR/score-cache/.
+   stats [--field <name>]    comprehensive JSON statistics for all peers
+                              and channels (counts, capacity, balances,
+                              fee revenue, HTLC counts, reserves).
+   connected <peer_id>       check if peer is currently connected (JSON)
+   reputation <peer_id>      peer reputation: channels, capacity, state
+   routing-score <peer_id>   count of active CHANNELD_NORMAL channels
+   reconnect-peer <peer_id>  disconnect then reconnect a specific peer
+   disconnect-all            disconnect all currently connected peers
+   node-info <node_id>       gossip node info (alias, color, addresses)
+   features <peer_id>        BOLT-9 feature bitmap for a peer
+   gossip-info <node_id>     gossip layer info for a node
+   reachability <node_id>    check reachability (connected + netaddr)
+   reachable <node_id>       alias for reachability
+   open-channel <peer_id> <sat>  open a channel to this peer
+   scb-backup                static channel backup peer count
+   send-custom <peer_id> <type> <data>  send a custom message
+   score-list                list all peers with basic score info
+   alias <node_id>           look up a peer's alias
+   channels <peer_id>        list channels for a specific peer
+   summary <peer_id>         compact summary: connected, balances, addr
+.fi
+.SH STATS
+.nf
+lightning peer stats [--field <name>]
+
+Runs a single pass over listpeers + listpeerchannels + listforwards and
+emits a comprehensive JSON object. Fields include:
+  peer_count, connected_count, disconnected_count, connected_pct,
+  channel_count, active_channel_count, htlc_count_total,
+  capacity_{total,avg,min,max,range,stddev,median}_msat,
+  local_balance_{total,avg,stddev,variance}_msat,
+  remote_balance_{total,avg,stddev}_msat,
+  local_pct_{avg,stddev,variance},
+  spendable_{total,avg,max}_msat, receivable_{total,avg}_msat,
+  our_reserve_{total,avg}_msat, their_reserve_total_msat,
+  fee_revenue_total_msat, fee_revenue_by_channel.
+
+Use --field <name> to extract a single value.
 .fi
 .SH "SEE ALSO"
 .BR lightning (1)
