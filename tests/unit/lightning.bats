@@ -9187,3 +9187,53 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "invoice list-paid arm present" {
 	grep -q "list-paid" libexec/lightning/invoice
 }
+
+# consolidated channel-* micro-verbs
+
+@test "channel stats arm present in dispatcher" {
+	grep -q "stats)" libexec/lightning/channel
+}
+
+@test "channel stats --help works" {
+	libexec/lightning/channel stats --help 2>&1 | grep -q "capacity_count"
+}
+
+@test "channel inspect arm present in dispatcher" {
+	grep -q "inspect)" libexec/lightning/channel
+}
+
+@test "channel close-all arm present in dispatcher" {
+	grep -q "close-all)" libexec/lightning/channel
+}
+
+@test "channel peer-summary arm present in dispatcher" {
+	grep -q "peer-summary)" libexec/lightning/channel
+}
+
+@test "channel rebalance-suggestion arm present in dispatcher" {
+	grep -q "rebalance-suggestion)" libexec/lightning/channel
+}
+
+@test "channel top-earners arm present in dispatcher" {
+	grep -q "top-earners)" libexec/lightning/channel
+}
+
+@test "channel balance-gini arm present in dispatcher" {
+	grep -q "balance-gini)" libexec/lightning/channel
+}
+
+@test "channel stuck arm present in dispatcher" {
+	grep -q "stuck)" libexec/lightning/channel
+}
+
+@test "channel bash syntax is valid" {
+	bash -n libexec/lightning/channel
+}
+
+@test "channel man page has STATS section" {
+	grep -q "^.SH STATS" share/man/man1/lightning-channel.1
+}
+
+@test "channel man page has SUBCOMMANDS section" {
+	grep -q "^.SH SUBCOMMANDS" share/man/man1/lightning-channel.1
+}

@@ -54,6 +54,172 @@ subcommands:
                                         destinations users pay most
                                         (FEAT-217); fed by the autopilot
 .fi
+.SH STATS
+The \fBstats\fR subcommand computes all statistical metrics over channels in one
+pass and outputs a JSON object.  Use \fB\-\-field\fR to print one value,
+or \fB\-\-format tsv\fR for tab-separated output suitable for awk/grep.
+.PP
+Available fields:
+.TP
+.B Capacity
+capacity_count, capacity_sum_msat, capacity_avg_msat, capacity_min_msat,
+capacity_max_msat, capacity_stddev_msat, capacity_skewness, capacity_kurtosis,
+capacity_gini, capacity_p10/p25/p50/p75/p90_msat, capacity_top10,
+capacity_bottom10
+.TP
+.B Balance ratio
+balance_ratio_avg, balance_ratio_min, balance_ratio_max, balance_ratio_stddev,
+balance_ratio_variance, balance_ratio_gini, balance_entropy_bits,
+imbalanced_count, local_balance_sum_msat, remote_balance_sum_msat,
+local_balance_avg_msat, local_balance_stddev_msat
+.TP
+.B Fees
+fee_base_avg_msat, fee_base_stddev_msat, fee_base_min_msat, fee_base_max_msat,
+fee_base_total_msat, fee_ppm_avg, fee_ppm_stddev, fee_ppm_min, fee_ppm_max
+.TP
+.B HTLCs
+htlc_count_total, htlc_count_avg, htlc_in_flight_total, htlc_max_avg_msat,
+htlc_min_avg_msat
+.TP
+.B State
+active_count, normal_count, pending_count, closing_count, peer_count,
+both_reserves_avg_msat
+.SH SUBCOMMANDS
+.TP
+.B stats [\-\-field name] [\-\-format tsv]
+Statistical metrics over all channels (see STATS section above).
+.TP
+.B inspect <channel-id>
+Full JSON for one channel including computed fields _local_ratio and _healthy.
+.TP
+.B active <channel-id>
+Returns {channel_id, active, state} for the given channel.
+.TP
+.B active-count
+Returns {active, total} channel counts.
+.TP
+.B alias-local <channel-id>
+Returns the local alias for a channel.
+.TP
+.B all-fees
+Lists fee_base_msat and fee_proportional_millionths for every channel.
+.TP
+.B anchor <channel-id>
+Reports whether the channel uses anchor outputs.
+.TP
+.B announce <channel-id>
+Marks the channel as public (setchannel announce true).
+.TP
+.B awaiting-unilateral
+Lists channels in AWAITING_UNILATERAL state.
+.TP
+.B balance-check
+Reports channels with local ratio below 20% or above 80%.
+.TP
+.B balance-entropy
+Shannon entropy (bits) of channel balance ratios across all channels.
+.TP
+.B balance-gini
+Gini coefficient of local balances across all channels.
+.TP
+.B check-capacity <channel-id> <amount_msat>
+Reports whether the channel can send the requested amount.
+.TP
+.B cltv-check <channel-id>
+Reports our_to_self_delay and their_to_self_delay.
+.TP
+.B close-all [\-\-force]
+Cooperatively closes all channels; requires \-\-force to proceed.
+.TP
+.B close-all-peers <peer-id>
+Closes all CHANNELD_NORMAL channels with the given peer.
+.TP
+.B disable <channel-id>
+Disables routing by setting excessively high fees.
+.TP
+.B disabled-check
+Lists channels that are not in CHANNELD_NORMAL state or not peer-connected.
+.TP
+.B enable <channel-id> [base_msat ppm]
+Re-enables a channel by restoring normal fees (default 1000 msat base, 1 ppm).
+.TP
+.B fee-earned [<channel-id>]
+Fee revenue by channel from settled forwards; optionally filter to one channel.
+.TP
+.B fee-set <channel-id> <base_msat> <ppm>
+Sets fee policy for one channel via positional args.
+.TP
+.B fee-set-all <base_msat> <ppm>
+Sets fee policy on all channels (setchannel all).
+.TP
+.B feebase-set <channel-id> <base_msat>
+Sets the base fee for one channel.
+.TP
+.B feeppm-set <channel-id> <ppm>
+Sets the proportional fee (ppm) for one channel.
+.TP
+.B force-closeable
+Lists channels eligible for force-close (CHANNELD_NORMAL).
+.TP
+.B health-check <channel-id>
+Returns {channel_id, state, peer_connected, healthy} for one channel.
+.TP
+.B htlc-list [<channel-id>]
+In-flight HTLCs for one channel or all channels.
+.TP
+.B open-batch <peer_id:sat> [...]
+Opens multiple channels; each arg is peer_id:sats.
+.TP
+.B open-check
+Reports available on-chain funds for channel opens.
+.TP
+.B open-dual <peer-id> <sats>
+Initiates a dual-funded channel open (openchannel_init).
+.TP
+.B open-list
+Lists CHANNELD_NORMAL channels with peer_id.
+.TP
+.B open-private <node-uri> <sats>
+Opens a private (unannounced) channel.
+.TP
+.B open-progress
+Lists channels in OPENINGD / AWAITING_LOCKIN / DUALOPEND states.
+.TP
+.B peer-summary
+Aggregates channels, capacity, and local balance by peer.
+.TP
+.B policy-check <channel-id>
+Returns local and remote routing policies for a channel.
+.TP
+.B policy-get <channel-id>
+Returns fee_base_msat, fee_proportional_millionths, and HTLC limits.
+.TP
+.B policy-update <channel-id> <fee_base> <fee_ppm>
+Updates the routing fee policy (setchannelfee).
+.TP
+.B rebalance-auto [\-\-threshold N]
+Identifies channels outside the balance threshold (default 20%) as candidates.
+.TP
+.B rebalance-suggestion
+Returns channels that are >80% local (suggest drain) or <20% (suggest fill).
+.TP
+.B reserve-check <channel-id>
+Returns our_reserve_msat and their_reserve_msat for a channel.
+.TP
+.B set-fee <channel-id> \-\-base <msat> \-\-ppm <ppm>
+Sets the fee policy using named flags.
+.TP
+.B set-private <channel-id>
+Marks a channel as private (unannounced).
+.TP
+.B set-public <channel-id>
+Marks a channel as public (announced).
+.TP
+.B stuck [\-\-minutes N]
+Lists channels with HTLCs whose expiry is older than N minutes (default 30).
+.TP
+.B top-earners [\-\-limit N]
+Lists channels by total fee revenue from settled forwards (default top 10).
 .SH "SEE ALSO"
 .BR lightning (1)
 .SH AUTHOR

@@ -33,11 +33,58 @@ subcommands:
    list                                 TSV of all channels
    open <node-uri> <sats> [--push <sats>]
                                         open a channel
+   open-batch <peer:sat> [...]          open multiple channels
+   open-dual <peer-id> <sats>           dual-funded open
+   open-private <node-uri> <sats>       open private channel
+   open-check                           check on-chain funds
+   open-list                            list open channels
+   open-progress                        list pending opens
    close <channel-id>                   cooperative close
+   close-all [--force]                  close all channels
+   close-all-peers <peer-id>            close all with peer
    force-close <channel-id> --confirm   unilateral close (costly!)
+   force-closeable                      channels eligible for force-close
    balance [<channel-id>]               local / remote msat
+   balance-check                        flag imbalanced channels
+   balance-entropy                      Shannon entropy of balance ratios
+   balance-gini                         Gini coefficient of local balances
    info <channel-id>
+   inspect <channel-id>                 full JSON + computed fields
+   active <channel-id>                  is channel active?
+   active-count                         count active channels
+   alias-local <channel-id>             local alias
+   all-fees                             fee policy for every channel
+   anchor <channel-id>                  does channel use anchor outputs?
+   announce <channel-id>                mark channel public
+   awaiting-unilateral                  channels in AWAITING_UNILATERAL
+   check-capacity <chan-id> <msat>      can channel send amount?
+   cltv-check <channel-id>              CLTV delay values
+   disable <channel-id>                 disable via high fees
+   disabled-check                       list disabled / disconnected
+   enable <channel-id> [base ppm]       re-enable channel
+   fee-earned [<channel-id>]            fee revenue by channel
+   fee-set <chan-id> <base> <ppm>       set fee policy
+   fee-set-all <base> <ppm>             set fee policy on all channels
+   feebase-set <chan-id> <base>         set base fee only
+   feeppm-set <chan-id> <ppm>           set ppm fee only
+   health-check <channel-id>            connectivity + state check
+   htlc-list [<channel-id>]             in-flight HTLCs
    pending                              opening / closing channels
+   peer-summary                         per-peer channel aggregate
+   policy-check <channel-id>            local + remote policies
+   policy-get <channel-id>              routing fee policy
+   policy-update <chan-id> <base> <ppm> update fee policy
+   rebalance-auto [--threshold N]       identify rebalance candidates
+   rebalance-suggestion                 suggest drain / fill actions
+   reserve-check <channel-id>           channel reserve values
+   set-fee <chan-id> --base N --ppm N   set fee (named flags)
+   set-private <channel-id>             mark channel private
+   set-public <channel-id>              mark channel public
+   stats [--field <name>] [--format tsv]
+                                        statistical metrics (capacity,
+                                        balance ratios, fees, HTLCs, state)
+   stuck [--minutes N]                  channels with expired HTLCs
+   top-earners [--limit N]              highest-fee channels
    scb emit [--out <file>]              static channel backup
    scb restore <file>                   restore from SCB
    autopilot run|status|suggest         combined fee + rebalance +
@@ -1435,6 +1482,7 @@ esac
 require_cli
 
 case "$SUB" in
+	# --- original verbs ---
 	list)        cmd_list "$@" ;;
 	open)        cmd_open "$@" ;;
 	close)       cmd_close "$@" ;;
@@ -1445,5 +1493,51 @@ case "$SUB" in
 	scb)         cmd_scb "$@" ;;
 	autopilot)   cmd_autopilot "$@" ;;
 	paytarget-intel) cmd_paytarget_intel "$@" ;;
+	# --- consolidated micro-verbs ---
+	stats)            cmd_stats "$@" ;;
+	inspect)          cmd_inspect "$@" ;;
+	active)           cmd_active "$@" ;;
+	active-count)     cmd_active_count "$@" ;;
+	alias-local)      cmd_alias_local "$@" ;;
+	all-fees)         cmd_all_fees "$@" ;;
+	anchor)           cmd_anchor "$@" ;;
+	announce)         cmd_announce "$@" ;;
+	awaiting-unilateral) cmd_awaiting_unilateral "$@" ;;
+	balance-check)    cmd_balance_check "$@" ;;
+	balance-entropy)  cmd_balance_entropy "$@" ;;
+	balance-gini)     cmd_balance_gini "$@" ;;
+	check-capacity)   cmd_check_capacity "$@" ;;
+	cltv-check)       cmd_cltv_check "$@" ;;
+	close-all)        cmd_close_all "$@" ;;
+	close-all-peers)  cmd_close_all_peers "$@" ;;
+	disable)          cmd_disable "$@" ;;
+	disabled-check)   cmd_disabled_check "$@" ;;
+	enable)           cmd_enable "$@" ;;
+	feebase-set)      cmd_feebase_set "$@" ;;
+	fee-earned)       cmd_fee_earned "$@" ;;
+	fee-set)          cmd_fee_set "$@" ;;
+	fee-set-all)      cmd_fee_set_all "$@" ;;
+	feeppm-set)       cmd_feeppm_set "$@" ;;
+	force-closeable)  cmd_force_closeable "$@" ;;
+	health-check)     cmd_health_check "$@" ;;
+	htlc-list)        cmd_htlc_list "$@" ;;
+	open-batch)       cmd_open_batch "$@" ;;
+	open-check)       cmd_open_check "$@" ;;
+	open-dual)        cmd_open_dual "$@" ;;
+	open-list)        cmd_open_list "$@" ;;
+	open-private)     cmd_open_private "$@" ;;
+	open-progress)    cmd_open_progress "$@" ;;
+	peer-summary)     cmd_peer_summary "$@" ;;
+	policy-check)     cmd_policy_check "$@" ;;
+	policy-get)       cmd_policy_get "$@" ;;
+	policy-update)    cmd_policy_update "$@" ;;
+	rebalance-auto)     cmd_rebalance_auto "$@" ;;
+	rebalance-suggestion) cmd_rebalance_suggestion "$@" ;;
+	reserve-check)    cmd_reserve_check "$@" ;;
+	set-fee)          cmd_set_fee "$@" ;;
+	set-private)      cmd_set_private "$@" ;;
+	set-public)       cmd_set_public "$@" ;;
+	stuck)            cmd_stuck "$@" ;;
+	top-earners)      cmd_top_earners "$@" ;;
 	*) usage; exit 1 ;;
 esac
