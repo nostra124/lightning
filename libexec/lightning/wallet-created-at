@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning wallet-created-at <wallet_name>   (FEAT-743)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-created-at <wallet_name>"}'; exit 0; fi
-wname="$1"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-created=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='created_at'" 2>/dev/null) || created=""
-echo "{\"wallet\":\"$wname\",\"created_at\":\"$created\"}"

@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning wallet-notes-pin-all-tag <wallet> <tag>   (FEAT-1468)
-if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-pin-all-tag <wallet> <tag>"}'; exit 0; fi
-wname="$1"; tag="$2"
-db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-count=$(sqlite3 "$db" "UPDATE notes SET pinned=1 WHERE tag='$tag'; SELECT changes();" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
-echo "{\"wallet\":\"$wname\",\"tag\":\"$tag\",\"pinned_count\":$count}"

@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-channel-disabled-count   (FEAT-1329)
-result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-disabled = [ch for ch in data.get('channels', []) if not ch.get('peer_connected', True)]
-print(json.dumps({'count': len(disabled)}))
-" "$result"

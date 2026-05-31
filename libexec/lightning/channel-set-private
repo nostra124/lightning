@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning channel-set-private <channel_id>   (FEAT-452)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: channel-set-private <channel_id>"}'
-    exit 0
-fi
-channel_id="$1"
-result=$(lightning-cli setchannel "$channel_id" announce false 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

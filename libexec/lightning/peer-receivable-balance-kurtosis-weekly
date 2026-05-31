@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning peer-receivable-balance-kurtosis-weekly   (FEAT-3534)
-result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-print(json.dumps({'receivable_balance_kurtosis_weekly_peer': None}))
-" "$result"

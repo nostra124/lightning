@@ -34,6 +34,37 @@ subcommands:
    push [<remote>]      git push the wallet repo
    pull [<remote>]      git pull + rebuild state.db
    sync [<remote>]      pull + push
+   stats [--field <name>]      comprehensive JSON wallet statistics
+   count                       number of wallets
+   balance-lightning           spendable/receivable via lightning channels
+   balance-onchain             confirmed on-chain balance
+   balance-total               combined on-chain + lightning balance
+   check-integrity [<wallet>]  SQLite PRAGMA integrity_check
+   history-export [<wallet>]   export transaction history as JSON
+   info-json [<wallet>]        wallet metadata as JSON
+   address-new [<wallet>]      generate a new on-chain address
+   address-list                list on-chain addresses from listaddresses
+   network                     show network/chain from getinfo
+   backup-create [<wallet>]    create a timestamped DB backup
+   export-json [<wallet>]      export wallet meta as JSON
+   ledger-add <w> <dir> <sat> [note]  add a ledger entry
+   pin-set <wallet> <pin>      set a PIN (stored as SHA-256 hash)
+   pin-verify <wallet> <pin>   verify a PIN against stored hash
+   encrypt-check [<wallet>]    check if wallet has an encryption hash set
+.fi
+.SH STATS
+.nf
+lightning wallet stats [--field <name>]
+
+Runs a single pass over listfunds + listinvoices (from lightning-cli)
+plus SQLite counts from the active wallet DB. Fields include:
+  wallet_count, transaction_count, invoice_db_count, label_count,
+  note_count, meta_count, onchain_confirmed_msat, onchain_unconfirmed_msat,
+  lightning_spendable_msat, lightning_receivable_msat, total_msat,
+  invoice_paid_count, invoice_unpaid_count, invoice_expired_count,
+  invoice_total_received_msat.
+
+Use --field <name> to extract a single value.
 .fi
 .SH "SEE ALSO"
 .BR lightning (1)

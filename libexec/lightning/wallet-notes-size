@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning wallet-notes-size   (FEAT-1883)
-wname="${LIGHTNING_WALLET:-default}"
-db="$HOME/.lightning/wallets/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-count=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
-size=$(sqlite3 "$db" "SELECT SUM(LENGTH(value)) FROM notes;" 2>/dev/null) || size=0
-echo "{\"count\":$count,\"total_value_bytes\":${size:-0}}"

@@ -33,11 +33,58 @@ subcommands:
    list                                 TSV of all channels
    open <node-uri> <sats> [--push <sats>]
                                         open a channel
+   open-batch <peer:sat> [...]          open multiple channels
+   open-dual <peer-id> <sats>           dual-funded open
+   open-private <node-uri> <sats>       open private channel
+   open-check                           check on-chain funds
+   open-list                            list open channels
+   open-progress                        list pending opens
    close <channel-id>                   cooperative close
+   close-all [--force]                  close all channels
+   close-all-peers <peer-id>            close all with peer
    force-close <channel-id> --confirm   unilateral close (costly!)
+   force-closeable                      channels eligible for force-close
    balance [<channel-id>]               local / remote msat
+   balance-check                        flag imbalanced channels
+   balance-entropy                      Shannon entropy of balance ratios
+   balance-gini                         Gini coefficient of local balances
    info <channel-id>
+   inspect <channel-id>                 full JSON + computed fields
+   active <channel-id>                  is channel active?
+   active-count                         count active channels
+   alias-local <channel-id>             local alias
+   all-fees                             fee policy for every channel
+   anchor <channel-id>                  does channel use anchor outputs?
+   announce <channel-id>                mark channel public
+   awaiting-unilateral                  channels in AWAITING_UNILATERAL
+   check-capacity <chan-id> <msat>      can channel send amount?
+   cltv-check <channel-id>              CLTV delay values
+   disable <channel-id>                 disable via high fees
+   disabled-check                       list disabled / disconnected
+   enable <channel-id> [base ppm]       re-enable channel
+   fee-earned [<channel-id>]            fee revenue by channel
+   fee-set <chan-id> <base> <ppm>       set fee policy
+   fee-set-all <base> <ppm>             set fee policy on all channels
+   feebase-set <chan-id> <base>         set base fee only
+   feeppm-set <chan-id> <ppm>           set ppm fee only
+   health-check <channel-id>            connectivity + state check
+   htlc-list [<channel-id>]             in-flight HTLCs
    pending                              opening / closing channels
+   peer-summary                         per-peer channel aggregate
+   policy-check <channel-id>            local + remote policies
+   policy-get <channel-id>              routing fee policy
+   policy-update <chan-id> <base> <ppm> update fee policy
+   rebalance-auto [--threshold N]       identify rebalance candidates
+   rebalance-suggestion                 suggest drain / fill actions
+   reserve-check <channel-id>           channel reserve values
+   set-fee <chan-id> --base N --ppm N   set fee (named flags)
+   set-private <channel-id>             mark channel private
+   set-public <channel-id>              mark channel public
+   stats [--field <name>] [--format tsv]
+                                        statistical metrics (capacity,
+                                        balance ratios, fees, HTLCs, state)
+   stuck [--minutes N]                  channels with expired HTLCs
+   top-earners [--limit N]              highest-fee channels
    scb emit [--out <file>]              static channel backup
    scb restore <file>                   restore from SCB
    autopilot run|status|suggest         combined fee + rebalance +
@@ -594,6 +641,696 @@ cmd_paytarget_intel() {
 	echo "wrote $PAYTARGET_SUGGEST ($n pay-target suggestion(s))"
 }
 
+# ---------------------------------------------------------------------------
+# Consolidated channel-* micro-verbs (FEAT-203 consolidation)
+#
+# Three categories absorbed from origin/master:
+#   stats          — one Python pass over listpeerchannels computing all
+#                    statistical metrics (capacity, balance, fee, HTLC, age).
+#   operational    — mutation / inspection subcommands with named case arms.
+#   inspect        — full per-channel field dump for a single channel.
+# ---------------------------------------------------------------------------
+
+# cmd_stats [--field <name>] [--format tsv]
+# One Python pass computes all statistical metrics and outputs JSON.
+cmd_stats() {
+	local field="" fmt="json"
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--field)  field="$2"; shift 2 ;;
+			--format) fmt="$2";   shift 2 ;;
+			--help|-h)
+				cat <<'EOF'
+usage: lightning channel stats [--field <name>] [--format tsv]
+
+Compute statistical metrics over all channels in one pass.
+Output: JSON object with all fields, or a single value with --field.
+
+Capacity fields:
+  capacity_count, capacity_sum_msat, capacity_avg_msat,
+  capacity_min_msat, capacity_max_msat, capacity_stddev_msat,
+  capacity_skewness, capacity_kurtosis, capacity_gini,
+  capacity_p10_msat, capacity_p25_msat, capacity_p50_msat,
+  capacity_p75_msat, capacity_p90_msat,
+  capacity_top10, capacity_bottom10
+
+Balance-ratio fields (local/total per channel):
+  balance_ratio_avg, balance_ratio_min, balance_ratio_max,
+  balance_ratio_stddev, balance_ratio_gini, balance_ratio_variance,
+  balance_entropy_bits, imbalanced_count,
+  local_balance_sum_msat, remote_balance_sum_msat,
+  local_balance_avg_msat, local_balance_stddev_msat
+
+Fee fields:
+  fee_base_avg_msat, fee_base_stddev_msat,
+  fee_base_min_msat, fee_base_max_msat, fee_base_total_msat,
+  fee_ppm_avg, fee_ppm_stddev, fee_ppm_min, fee_ppm_max
+
+HTLC fields:
+  htlc_count_total, htlc_count_avg, htlc_in_flight_total,
+  htlc_max_avg_msat, htlc_min_avg_msat
+
+State / misc:
+  active_count, normal_count, pending_count, closing_count,
+  peer_count, both_reserves_avg_msat
+EOF
+				return 0 ;;
+			*) echo "channel stats: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	local raw; raw=$(cli listpeerchannels 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+	python3 - "$raw" "$field" "$fmt" <<'PYEOF'
+import sys, json, math
+
+raw   = sys.argv[1]
+field = sys.argv[2]
+fmt   = sys.argv[3]
+
+def msat(v):
+    if isinstance(v, str): return int(v.rstrip('msat')) if v.endswith('msat') else int(v)
+    return int(v) if v else 0
+
+def mean(xs): return sum(xs)/len(xs) if xs else 0.0
+def variance(xs):
+    if len(xs) < 2: return 0.0
+    m = mean(xs); return sum((x-m)**2 for x in xs)/len(xs)
+def stddev(xs): return math.sqrt(variance(xs))
+def skewness(xs):
+    if len(xs) < 3: return 0.0
+    m = mean(xs); s = stddev(xs)
+    if s == 0: return 0.0
+    return sum((x-m)**3 for x in xs)/len(xs) / s**3
+def kurtosis(xs):
+    if len(xs) < 4: return 0.0
+    m = mean(xs); v = variance(xs)
+    if v == 0: return 0.0
+    return sum((x-m)**4 for x in xs)/len(xs) / v**2 - 3
+def gini(xs):
+    if not xs: return 0.0
+    xs = sorted(xs); n = len(xs); s = sum(xs)
+    if s == 0: return 0.0
+    return (2*sum((i+1)*x for i,x in enumerate(xs)))/(n*s) - (n+1)/n
+def percentile(xs, p):
+    if not xs: return 0
+    xs = sorted(xs); idx = (len(xs)-1)*p/100
+    lo, hi = int(idx), min(int(idx)+1, len(xs)-1)
+    return xs[lo] + (xs[hi]-xs[lo])*(idx-lo)
+def entropy_bits(pcts):
+    n = len(pcts)
+    if n == 0: return 0.0
+    buckets = [0]*10
+    for p in pcts:
+        buckets[min(int(p*10),9)] += 1
+    e = 0.0
+    for b in buckets:
+        if b > 0:
+            prob = b/n; e -= prob*math.log2(prob)
+    return round(e, 4)
+
+data = json.loads(raw)
+chs  = data.get('channels', [])
+
+caps    = [msat(c.get('total_msat',0)) for c in chs]
+locals_ = [msat(c.get('to_us_msat',0)) for c in chs]
+ratios  = [l/t for l,t in zip(locals_, caps) if t > 0]
+bases   = [msat(c.get('fee_base_msat',0)) for c in chs]
+ppms    = [msat(c.get('fee_proportional_millionths',0)) for c in chs]
+htlc_counts = [len(c.get('htlcs',[])) for c in chs]
+htlc_maxs   = [msat(c.get('maximum_htlc_out_msat',0)) for c in chs]
+htlc_mins   = [msat(c.get('minimum_htlc_out_msat',0)) for c in chs]
+our_res  = [msat(c.get('our_reserve_msat',0)) for c in chs]
+their_res = [msat(c.get('their_reserve_msat',0)) for c in chs]
+
+def top_n(n, key_list, ch_list):
+    paired = sorted(zip(key_list, ch_list), key=lambda x: -x[0])
+    return [{'channel_id': c.get('channel_id'), 'short_channel_id': c.get('short_channel_id'), 'value_msat': k}
+            for k,c in paired[:n]]
+def bot_n(n, key_list, ch_list):
+    paired = sorted(zip(key_list, ch_list), key=lambda x: x[0])
+    return [{'channel_id': c.get('channel_id'), 'short_channel_id': c.get('short_channel_id'), 'value_msat': k}
+            for k,c in paired[:n]]
+
+state_counts = {}
+for c in chs:
+    s = c.get('state','unknown')
+    state_counts[s] = state_counts.get(s, 0) + 1
+
+peer_ids = set(c.get('peer_id','') for c in chs)
+
+res = {
+    # capacity
+    'capacity_count':        len(chs),
+    'capacity_sum_msat':     sum(caps),
+    'capacity_avg_msat':     round(mean(caps), 2),
+    'capacity_min_msat':     min(caps) if caps else 0,
+    'capacity_max_msat':     max(caps) if caps else 0,
+    'capacity_stddev_msat':  round(stddev(caps), 2),
+    'capacity_skewness':     round(skewness(caps), 6),
+    'capacity_kurtosis':     round(kurtosis(caps), 6),
+    'capacity_gini':         round(gini(caps), 6),
+    'capacity_p10_msat':     round(percentile(caps, 10), 2),
+    'capacity_p25_msat':     round(percentile(caps, 25), 2),
+    'capacity_p50_msat':     round(percentile(caps, 50), 2),
+    'capacity_p75_msat':     round(percentile(caps, 75), 2),
+    'capacity_p90_msat':     round(percentile(caps, 90), 2),
+    'capacity_top10':        top_n(10, caps, chs),
+    'capacity_bottom10':     bot_n(10, caps, chs),
+    # balance ratios
+    'balance_ratio_avg':        round(mean(ratios), 6),
+    'balance_ratio_min':        round(min(ratios), 6) if ratios else 0,
+    'balance_ratio_max':        round(max(ratios), 6) if ratios else 0,
+    'balance_ratio_stddev':     round(stddev(ratios), 6),
+    'balance_ratio_variance':   round(variance(ratios), 6),
+    'balance_ratio_gini':       round(gini(ratios), 6),
+    'balance_entropy_bits':     entropy_bits(ratios),
+    'imbalanced_count':         sum(1 for r in ratios if r < 0.2 or r > 0.8),
+    'local_balance_sum_msat':   sum(locals_),
+    'remote_balance_sum_msat':  sum(caps) - sum(locals_),
+    'local_balance_avg_msat':   round(mean(locals_), 2),
+    'local_balance_stddev_msat':round(stddev(locals_), 2),
+    # fees
+    'fee_base_avg_msat':    round(mean(bases), 2),
+    'fee_base_stddev_msat': round(stddev(bases), 2),
+    'fee_base_min_msat':    min(bases) if bases else 0,
+    'fee_base_max_msat':    max(bases) if bases else 0,
+    'fee_base_total_msat':  sum(bases),
+    'fee_ppm_avg':          round(mean(ppms), 2),
+    'fee_ppm_stddev':       round(stddev(ppms), 2),
+    'fee_ppm_min':          min(ppms) if ppms else 0,
+    'fee_ppm_max':          max(ppms) if ppms else 0,
+    # htlcs
+    'htlc_count_total':     sum(htlc_counts),
+    'htlc_count_avg':       round(mean(htlc_counts), 2),
+    'htlc_in_flight_total': sum(htlc_counts),
+    'htlc_max_avg_msat':    round(mean(htlc_maxs), 2),
+    'htlc_min_avg_msat':    round(mean(htlc_mins), 2),
+    # state
+    'active_count':   state_counts.get('CHANNELD_NORMAL', 0),
+    'normal_count':   state_counts.get('CHANNELD_NORMAL', 0),
+    'pending_count':  sum(v for k,v in state_counts.items() if 'AWAITING' in k or 'OPENINGD' in k),
+    'closing_count':  sum(v for k,v in state_counts.items() if 'CLOSING' in k or 'ONCHAIN' in k),
+    'peer_count':     len(peer_ids),
+    'both_reserves_avg_msat': round(mean([a+b for a,b in zip(our_res,their_res)]), 2) if our_res else 0,
+}
+
+if field:
+    if field in res:
+        v = res[field]
+        print(json.dumps(v) if isinstance(v, (dict,list)) else str(v))
+    else:
+        print(f'{{"error":"unknown field: {field}"}}', file=sys.stderr); sys.exit(1)
+elif fmt == 'tsv':
+    for k,v in res.items():
+        if not isinstance(v, (list,dict)):
+            print(f'{k}\t{v}')
+else:
+    print(json.dumps(res, separators=(',', ':')))
+PYEOF
+}
+
+# --- Per-channel inspect (returns full channel JSON + computed extras) ---
+cmd_inspect() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel inspect <channel-id>" >&2; exit 1; }
+	local id="$1"
+	cli listpeerchannels | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+cid = sys.argv[1]
+for ch in data.get('channels', []):
+    if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
+        total = ch.get('total_msat', 0)
+        local = ch.get('to_us_msat', 0)
+        ch['_local_ratio'] = round(local/total, 6) if total else None
+        ch['_healthy'] = ch.get('state') == 'CHANNELD_NORMAL' and bool(ch.get('peer_connected'))
+        print(json.dumps(ch, indent=2))
+        sys.exit(0)
+print(json.dumps({'error': 'channel not found'}), file=sys.stderr); sys.exit(1)
+" "$id"
+}
+
+# --- Active / counts ---
+cmd_active() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel active <channel-id>" >&2; exit 1; }
+	local cid="$1"
+	cli listpeerchannels | jq --arg id "$cid" '
+		.channels[] | select(.channel_id == $id or .short_channel_id == $id) |
+		{channel_id: .channel_id, active: (.state == "CHANNELD_NORMAL"), state: .state}'
+}
+
+cmd_active_count() {
+	cli listpeerchannels | jq '{
+		active: [.channels[] | select(.state=="CHANNELD_NORMAL" and .peer_connected)] | length,
+		total:  .channels | length }'
+}
+
+# --- Alias ---
+cmd_alias_local() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel alias-local <channel-id>" >&2; exit 1; }
+	local cid="$1"
+	cli listpeerchannels | jq --arg id "$cid" '
+		.channels[] | select(.channel_id == $id or .short_channel_id == $id) |
+		{channel_id: .channel_id, alias_local: .alias.local}'
+}
+
+# --- All-fees list ---
+cmd_all_fees() {
+	cli listpeerchannels | jq '[.channels[] |
+		{channel_id, short_channel_id,
+		 fee_base_msat, fee_proportional_millionths}]'
+}
+
+# --- Anchor type check ---
+cmd_anchor() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel anchor <channel-id>" >&2; exit 1; }
+	local cid="$1"
+	cli listpeerchannels | jq --arg id "$cid" '
+		.channels[] | select(.channel_id == $id or .short_channel_id == $id) |
+		{channel_id: .channel_id,
+		 has_anchor: ((.features // "") | ascii_downcase | contains("anchors"))}'
+}
+
+# --- Announce (set channel public) ---
+cmd_announce() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel announce <channel-id>" >&2; exit 1; }
+	cli setchannel "$1" announce true
+}
+
+# --- Awaiting unilateral ---
+cmd_awaiting_unilateral() {
+	cli listpeerchannels | jq '
+		{count: [.channels[] | select(.state=="AWAITING_UNILATERAL")] | length,
+		 channels: [.channels[] | select(.state=="AWAITING_UNILATERAL") | .channel_id]}'
+}
+
+# --- Balance check (imbalance report) ---
+cmd_balance_check() {
+	cli listpeerchannels | python3 -c "
+import sys, json
+chs = json.load(sys.stdin).get('channels', [])
+imb = []
+for c in chs:
+    t = c.get('total_msat', 0); l = c.get('to_us_msat', 0)
+    if t > 0:
+        r = l/t
+        if r < 0.2 or r > 0.8:
+            imb.append({'channel_id': c.get('channel_id'), 'ratio': round(r,3)})
+print(json.dumps({'imbalanced_count': len(imb), 'total_channels': len(chs), 'imbalanced': imb}))
+"
+}
+
+# --- Balance entropy ---
+cmd_balance_entropy() {
+	cli listpeerchannels | python3 -c "
+import sys, json, math
+chs = json.load(sys.stdin).get('channels', [])
+pcts = []
+for c in chs:
+    t = c.get('total_msat', 0); l = c.get('to_us_msat', 0)
+    if t > 0: pcts.append(l/t)
+n = len(pcts)
+if n == 0: print(json.dumps({'error': 'no channels'})); sys.exit(0)
+buckets = [0]*10
+for p in pcts: buckets[min(int(p*10),9)] += 1
+e = sum(-b/n*math.log2(b/n) for b in buckets if b > 0)
+print(json.dumps({'balance_entropy_bits': round(e,4), 'channel_count': n}))
+"
+}
+
+# --- Balance Gini ---
+cmd_balance_gini() {
+	cli listpeerchannels | python3 -c "
+import sys, json
+chs = json.load(sys.stdin).get('channels', [])
+bals = sorted(c.get('to_us_msat', 0) for c in chs)
+n = len(bals); s = sum(bals)
+if n < 2 or s == 0: print(json.dumps({'gini': 0.0, 'channel_count': n})); sys.exit(0)
+g = (2*sum((i+1)*b for i,b in enumerate(bals)))/(n*s) - (n+1)/n
+print(json.dumps({'gini': round(g,6), 'channel_count': n}))
+"
+}
+
+# --- Capacity check (find channels below minimum) ---
+cmd_check_capacity() {
+	[ $# -lt 2 ] && { echo "usage: lightning channel check-capacity <channel-id> <amount_msat>" >&2; exit 1; }
+	local cid="$1" amt="$2"
+	cli listpeerchannels | jq --arg id "$cid" --argjson amt "$amt" '
+		.channels[] | select(.channel_id == $id or .short_channel_id == $id) |
+		{channel_id: .channel_id,
+		 spendable_msat: .spendable_msat,
+		 requested_msat: $amt,
+		 can_send: (.spendable_msat >= $amt)}'
+}
+
+# --- CLTV check ---
+cmd_cltv_check() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel cltv-check <channel-id>" >&2; exit 1; }
+	local cid="$1"
+	cli listpeerchannels | jq --arg id "$cid" '
+		.channels[] | select(.channel_id == $id or .short_channel_id == $id) |
+		{channel_id: .channel_id, our_to_self_delay: .our_to_self_delay, their_to_self_delay: .their_to_self_delay}'
+}
+
+# --- Close all channels ---
+cmd_close_all() {
+	local force=0
+	while [ $# -gt 0 ]; do
+		case "$1" in --force) force=1; shift ;; *) shift ;; esac
+	done
+	local raw; raw=$(cli listpeerchannels)
+	local count; count=$(jq '.channels | length' <<<"$raw")
+	if [ "$force" -eq 0 ]; then
+		echo "{\"error\":\"refusing to close $count channels without --force\"}" >&2; exit 1
+	fi
+	jq -r '.channels[].channel_id' <<<"$raw" | while read -r cid; do
+		result=$(cli close "$cid" 2>/dev/null) || result='{"error":"failed"}'
+		echo "$cid: $(jq -r '.type // .error // "?"' <<<"$result")"
+	done
+}
+
+# --- Close all channels with a peer ---
+cmd_close_all_peers() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel close-all-peers <peer-id>" >&2; exit 1; }
+	local peer="$1"
+	cli listpeerchannels "$peer" | jq -r '.channels[] | select(.state=="CHANNELD_NORMAL") | .channel_id' \
+	| while read -r cid; do
+		result=$(cli close "$cid" 2>/dev/null) || result='{"error":"failed"}'
+		echo "$cid: $(jq -r '.type // .error // "?"' <<<"$result")"
+	done
+}
+
+# --- Disabled check ---
+cmd_disabled_check() {
+	cli listpeerchannels | jq '
+		{disabled_count: [.channels[] |
+		   select(.state != "CHANNELD_NORMAL" or .peer_connected == false)] | length,
+		 disabled: [.channels[] |
+		   select(.state != "CHANNELD_NORMAL" or .peer_connected == false) |
+		   {channel_id, state}]}'
+}
+
+# --- Disable / enable (via high/normal fees) ---
+cmd_disable() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel disable <channel-id>" >&2; exit 1; }
+	cli setchannel "$1" feebase=1000000msat feeppm=1000000 >/dev/null
+	echo "{\"status\":\"disabled_via_high_fees\",\"channel_id\":\"$1\"}"
+}
+
+cmd_enable() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel enable <channel-id> [<base_msat> <ppm>]" >&2; exit 1; }
+	local cid="$1" base="${2:-1000}" ppm="${3:-1}"
+	cli setchannel "$cid" "${base}msat" "$ppm" >/dev/null
+	echo "{\"status\":\"enabled\",\"channel_id\":\"$cid\"}"
+}
+
+# --- Fee earned (by channel or all) ---
+cmd_fee_earned() {
+	local filter="${1:-}"
+	local raw; raw=$(cli listforwards status=settled 2>/dev/null) || { echo '[]'; return; }
+	python3 - "$raw" "$filter" <<'PYEOF'
+import sys, json
+fwds = json.loads(sys.argv[1]).get('forwards', [])
+filt = sys.argv[2]
+if filt: fwds = [f for f in fwds if f.get('in_channel') == filt or f.get('out_channel') == filt]
+totals = {}
+for f in fwds:
+    ch = f.get('in_channel', ''); totals[ch] = totals.get(ch, 0) + f.get('fee_msat', 0)
+out = sorted([{'channel_id': ch, 'total_fee_msat': fee} for ch, fee in totals.items()],
+             key=lambda x: -x['total_fee_msat'])
+print(json.dumps(out, separators=(',', ':')))
+PYEOF
+}
+
+# --- Fee set (single channel) ---
+cmd_fee_set() {
+	[ $# -lt 3 ] && { echo "usage: lightning channel fee-set <channel-id> <base_msat> <ppm>" >&2; exit 1; }
+	cli setchannel "$1" feebase "$2" feeppm "$3"
+}
+
+# --- Fee set all ---
+cmd_fee_set_all() {
+	[ $# -lt 2 ] && { echo "usage: lightning channel fee-set-all <base_msat> <ppm>" >&2; exit 1; }
+	cli setchannel all "${1}msat" "$2"
+}
+
+# --- feebase-set / feeppm-set aliases ---
+cmd_feebase_set() {
+	[ $# -lt 2 ] && { echo "usage: lightning channel feebase-set <channel-id> <base_msat>" >&2; exit 1; }
+	cli setchannel "$1" feebase "$2"
+}
+
+cmd_feeppm_set() {
+	[ $# -lt 2 ] && { echo "usage: lightning channel feeppm-set <channel-id> <ppm>" >&2; exit 1; }
+	cli setchannel "$1" feeppm "$2"
+}
+
+# --- Force-closeable channels ---
+cmd_force_closeable() {
+	cli listpeerchannels | jq '[.channels[] |
+		select(.state == "CHANNELD_NORMAL") |
+		{channel_id, peer_id, state}]'
+}
+
+# --- Health check (single channel) ---
+cmd_health_check() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel health-check <channel-id>" >&2; exit 1; }
+	local cid="$1"
+	cli listpeerchannels | jq --arg id "$cid" '
+		.channels[] | select(.channel_id == $id or .short_channel_id == $id) |
+		{channel_id: .channel_id, state: .state, peer_connected: .peer_connected,
+		 healthy: (.state == "CHANNELD_NORMAL" and .peer_connected == true)}'
+}
+
+# --- HTLC list ---
+cmd_htlc_list() {
+	local cid="${1:-}"
+	if [ -n "$cid" ]; then
+		cli listpeerchannels | jq --arg id "$cid" '
+			.channels[] | select(.channel_id == $id or .short_channel_id == $id) |
+			{channel_id: .channel_id, htlcs: .htlcs}'
+	else
+		cli listpeerchannels | jq '[.channels[] |
+			{channel_id: .channel_id, htlc_count: (.htlcs | length), htlcs: .htlcs}]'
+	fi
+}
+
+# --- Open batch ---
+cmd_open_batch() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel open-batch <peer_id:sat> [...]" >&2; exit 1; }
+	local results="[" sep=""
+	for arg in "$@"; do
+		local peer="${arg%%:*}" sat="${arg##*:}"
+		local r; r=$(cli fundchannel "$peer" "${sat}sat" 2>/dev/null) || r='{"error":"failed"}'
+		local ch; ch=$(python3 -c "
+import sys,json; d=json.loads(sys.argv[1])
+print(json.dumps({'peer_id':sys.argv[2],'channel_id':d.get('channel_id',''),'ok':bool(d.get('channel_id',''))}))" \
+			"$r" "$peer" 2>/dev/null) || ch="{\"peer_id\":\"$peer\",\"ok\":false}"
+		results="${results}${sep}${ch}"; sep=","
+	done
+	echo "${results}]"
+}
+
+# --- Open check (on-chain funds) ---
+cmd_open_check() {
+	cli listfunds | python3 -c "
+import sys, json
+outs = json.load(sys.stdin).get('outputs', [])
+sp = sum(o.get('amount_msat', 0) for o in outs if o.get('status') == 'confirmed')
+print(json.dumps({'spendable_msat': sp, 'spendable_sat': sp//1000, 'can_open': sp > 0}))
+"
+}
+
+# --- Open dual-funded ---
+cmd_open_dual() {
+	[ $# -lt 2 ] && { echo "usage: lightning channel open-dual <peer-id> <amount_sat>" >&2; exit 1; }
+	cli openchannel_init "$1" "${2}sat"
+}
+
+# --- Open list ---
+cmd_open_list() {
+	cli listpeerchannels | jq '
+		{count: [.channels[] | select(.state=="CHANNELD_NORMAL")] | length,
+		 channels: [.channels[] | select(.state=="CHANNELD_NORMAL") |
+		   {channel_id: .channel_id, peer_id: .peer_id}]}'
+}
+
+# --- Open progress (pending opens) ---
+cmd_open_progress() {
+	cli listpeerchannels | jq '
+		{opening: [.channels[] |
+		   select(.state | test("OPENINGD|AWAITING_LOCKIN|DUALOPEND")) |
+		   {channel_id: .channel_id, state: .state}],
+		 count: [.channels[] |
+		   select(.state | test("OPENINGD|AWAITING_LOCKIN|DUALOPEND"))] | length}'
+}
+
+# --- Open private ---
+cmd_open_private() {
+	[ $# -lt 2 ] && { echo "usage: lightning channel open-private <node-uri> <sats>" >&2; exit 1; }
+	local uri="$1" sats="$2"
+	local pubkey="${uri%%@*}"
+	cli connect "$uri" >/dev/null
+	cli fundchannel "$pubkey" "${sats}sat" null false
+}
+
+# --- Peer summary ---
+cmd_peer_summary() {
+	cli listpeerchannels | python3 -c "
+import sys, json
+chs = json.load(sys.stdin).get('channels', [])
+by_peer = {}
+for c in chs:
+    pid = c.get('peer_id', '')
+    if pid not in by_peer:
+        by_peer[pid] = {'peer_id': pid, 'channels': 0, 'total_msat': 0, 'local_msat': 0}
+    by_peer[pid]['channels'] += 1
+    by_peer[pid]['total_msat'] += c.get('total_msat', 0)
+    by_peer[pid]['local_msat'] += c.get('to_us_msat', 0)
+print(json.dumps(list(by_peer.values()), separators=(',', ':')))
+"
+}
+
+# --- Policy get / check / update ---
+cmd_policy_get() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel policy-get <channel-id>" >&2; exit 1; }
+	local cid="$1"
+	cli listpeerchannels | jq --arg id "$cid" '
+		.channels[] | select(.channel_id == $id or .short_channel_id == $id) |
+		{channel_id: .channel_id,
+		 fee_base_msat: .fee_base_msat,
+		 fee_proportional_millionths: .fee_proportional_millionths,
+		 minimum_htlc_out_msat: .minimum_htlc_out_msat,
+		 maximum_htlc_out_msat: .maximum_htlc_out_msat}'
+}
+
+cmd_policy_check() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel policy-check <channel-id>" >&2; exit 1; }
+	local cid="$1"
+	cli listpeerchannels | jq --arg id "$cid" '
+		.channels[] | select(.channel_id == $id or .short_channel_id == $id) |
+		{channel_id: .channel_id,
+		 local_policy: .updates.local,
+		 remote_policy: .updates.remote}'
+}
+
+cmd_policy_update() {
+	[ $# -lt 3 ] && { echo "usage: lightning channel policy-update <channel-id> <fee_base> <fee_ppm>" >&2; exit 1; }
+	cli setchannelfee "$1" "$2" "$3"
+}
+
+# --- Rebalance suggestions ---
+cmd_rebalance_suggestion() {
+	cli listpeerchannels | python3 -c "
+import sys, json
+chs = json.load(sys.stdin).get('channels', [])
+suggs = []
+for c in chs:
+    t = c.get('total_msat', 0); l = c.get('to_us_msat', 0)
+    if t > 0:
+        r = l/t
+        if r > 0.8:   suggs.append({'channel_id': c.get('channel_id'), 'action': 'send',    'local_ratio': round(r,3)})
+        elif r < 0.2: suggs.append({'channel_id': c.get('channel_id'), 'action': 'receive', 'local_ratio': round(r,3)})
+print(json.dumps({'suggestions': suggs}))
+"
+}
+
+cmd_rebalance_auto() {
+	local threshold=20
+	while [ $# -gt 0 ]; do
+		case "$1" in --threshold) threshold="$2"; shift 2 ;; *) shift ;; esac
+	done
+	cli listpeerchannels | python3 - "$threshold" <<'PYEOF'
+import sys, json
+chs = json.load(sys.stdin).get('channels', [])
+t = int(sys.argv[1])
+unbal = []
+for c in chs:
+    total = c.get('total_msat', 0)
+    if not total: continue
+    pct = c.get('to_us_msat', 0) * 100 // total
+    if pct < t or pct > (100-t):
+        unbal.append({'channel_id': c.get('channel_id',''), 'local_pct': pct,
+                      'action': 'drain' if pct > 50 else 'fill'})
+print(json.dumps({'candidates': len(unbal), 'threshold_pct': t, 'channels': unbal}, separators=(',', ':')))
+PYEOF
+}
+
+# --- Reserve check ---
+cmd_reserve_check() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel reserve-check <channel-id>" >&2; exit 1; }
+	local cid="$1"
+	cli listpeerchannels | jq --arg id "$cid" '
+		.channels[] | select(.channel_id == $id or .short_channel_id == $id) |
+		{channel_id: .channel_id,
+		 our_reserve_msat: .our_reserve_msat,
+		 their_reserve_msat: .their_reserve_msat}'
+}
+
+# --- set-fee (--base / --ppm flags) ---
+cmd_set_fee() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel set-fee <channel-id> --base <msat> --ppm <ppm>" >&2; exit 1; }
+	local cid="$1"; shift; local base="" ppm=""
+	while [ $# -gt 0 ]; do
+		case "$1" in --base) base="$2"; shift 2 ;; --ppm) ppm="$2"; shift 2 ;; *) shift ;; esac
+	done
+	[ -n "$base" ] || { echo "channel set-fee: --base required" >&2; exit 1; }
+	[ -n "$ppm"  ] || { echo "channel set-fee: --ppm required"  >&2; exit 1; }
+	result=$(cli setchannel "$cid" "${base}msat" "$ppm")
+	echo "{\"ok\":true,\"channel_id\":\"$cid\",\"base_msat\":$base,\"ppm\":$ppm}"
+}
+
+# --- set-private / set-public ---
+cmd_set_private() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel set-private <channel-id>" >&2; exit 1; }
+	cli setchannel "$1" announce false
+}
+
+cmd_set_public() {
+	[ $# -lt 1 ] && { echo "usage: lightning channel set-public <channel-id>" >&2; exit 1; }
+	cli setchannel "$1" announce true
+}
+
+# --- Stuck HTLC detection ---
+cmd_stuck() {
+	local minutes=30
+	while [ $# -gt 0 ]; do
+		case "$1" in --minutes) minutes="$2"; shift 2 ;; *) shift ;; esac
+	done
+	local cutoff; cutoff=$(( $(date +%s) - minutes * 60 ))
+	cli listpeerchannels | python3 - "$cutoff" "$minutes" <<'PYEOF'
+import sys, json
+chs = json.load(sys.stdin).get('channels', [])
+cutoff = int(sys.argv[1]); minutes = int(sys.argv[2])
+stuck = []
+for c in chs:
+    old = [h for h in c.get('htlcs', []) if h.get('expiry', 0) and int(h.get('expiry',0)) < cutoff]
+    if old:
+        stuck.append({'channel_id': c.get('channel_id',''), 'peer_id': c.get('peer_id',''), 'stuck_htlc_count': len(old)})
+print(json.dumps(stuck, separators=(',', ':')))
+PYEOF
+}
+
+# --- Top earners ---
+cmd_top_earners() {
+	local limit=10
+	while [ $# -gt 0 ]; do
+		case "$1" in --limit) limit="$2"; shift 2 ;; *) shift ;; esac
+	done
+	local raw; raw=$(cli listforwards status=settled 2>/dev/null) || { echo '[]'; return; }
+	python3 - "$raw" "$limit" <<'PYEOF'
+import sys, json
+fwds = json.loads(sys.argv[1]).get('forwards', [])
+limit = int(sys.argv[2])
+totals = {}
+for f in fwds:
+    ch = f.get('in_channel', ''); totals[ch] = totals.get(ch, 0) + f.get('fee_msat', 0)
+top = sorted(totals.items(), key=lambda x: -x[1])[:limit]
+print(json.dumps([{'channel_id': ch, 'total_fee_msat': fee} for ch, fee in top], separators=(',', ':')))
+PYEOF
+}
+
 subhelp() {
 	case "$1" in
 		list)
@@ -694,6 +1431,39 @@ suggests, the operator decides.  Opt in to a 15-min sidecar timer
 via 'lightning daemon install --autopilot'.
 EOF
 			;;
+		stats)
+			cat <<'EOF'
+usage: lightning channel stats [--field <name>] [--format tsv]
+
+Compute statistical metrics over all channels in one Python pass.
+Output: JSON with all fields; use --field to print one value.
+
+Capacity: capacity_count, capacity_sum_msat, capacity_avg_msat,
+  capacity_min_msat, capacity_max_msat, capacity_stddev_msat,
+  capacity_skewness, capacity_kurtosis, capacity_gini,
+  capacity_p10/p25/p50/p75/p90_msat, capacity_top10, capacity_bottom10
+
+Balance ratio: balance_ratio_avg/min/max/stddev/variance/gini,
+  balance_entropy_bits, imbalanced_count,
+  local_balance_sum_msat, remote_balance_sum_msat
+
+Fees: fee_base_avg/stddev/min/max/total_msat, fee_ppm_avg/stddev/min/max
+
+HTLCs: htlc_count_total/avg, htlc_in_flight_total,
+  htlc_max_avg_msat, htlc_min_avg_msat
+
+State: active_count, normal_count, pending_count, closing_count,
+  peer_count, both_reserves_avg_msat
+EOF
+			;;
+		inspect)
+			cat <<'EOF'
+usage: lightning channel inspect <channel-id>
+
+Full JSON for one channel (short_channel_id or channel_id), including
+computed fields _local_ratio and _healthy.
+EOF
+			;;
 		*)
 			usage
 			return 1
@@ -712,6 +1482,7 @@ esac
 require_cli
 
 case "$SUB" in
+	# --- original verbs ---
 	list)        cmd_list "$@" ;;
 	open)        cmd_open "$@" ;;
 	close)       cmd_close "$@" ;;
@@ -722,5 +1493,51 @@ case "$SUB" in
 	scb)         cmd_scb "$@" ;;
 	autopilot)   cmd_autopilot "$@" ;;
 	paytarget-intel) cmd_paytarget_intel "$@" ;;
+	# --- consolidated micro-verbs ---
+	stats)            cmd_stats "$@" ;;
+	inspect)          cmd_inspect "$@" ;;
+	active)           cmd_active "$@" ;;
+	active-count)     cmd_active_count "$@" ;;
+	alias-local)      cmd_alias_local "$@" ;;
+	all-fees)         cmd_all_fees "$@" ;;
+	anchor)           cmd_anchor "$@" ;;
+	announce)         cmd_announce "$@" ;;
+	awaiting-unilateral) cmd_awaiting_unilateral "$@" ;;
+	balance-check)    cmd_balance_check "$@" ;;
+	balance-entropy)  cmd_balance_entropy "$@" ;;
+	balance-gini)     cmd_balance_gini "$@" ;;
+	check-capacity)   cmd_check_capacity "$@" ;;
+	cltv-check)       cmd_cltv_check "$@" ;;
+	close-all)        cmd_close_all "$@" ;;
+	close-all-peers)  cmd_close_all_peers "$@" ;;
+	disable)          cmd_disable "$@" ;;
+	disabled-check)   cmd_disabled_check "$@" ;;
+	enable)           cmd_enable "$@" ;;
+	feebase-set)      cmd_feebase_set "$@" ;;
+	fee-earned)       cmd_fee_earned "$@" ;;
+	fee-set)          cmd_fee_set "$@" ;;
+	fee-set-all)      cmd_fee_set_all "$@" ;;
+	feeppm-set)       cmd_feeppm_set "$@" ;;
+	force-closeable)  cmd_force_closeable "$@" ;;
+	health-check)     cmd_health_check "$@" ;;
+	htlc-list)        cmd_htlc_list "$@" ;;
+	open-batch)       cmd_open_batch "$@" ;;
+	open-check)       cmd_open_check "$@" ;;
+	open-dual)        cmd_open_dual "$@" ;;
+	open-list)        cmd_open_list "$@" ;;
+	open-private)     cmd_open_private "$@" ;;
+	open-progress)    cmd_open_progress "$@" ;;
+	peer-summary)     cmd_peer_summary "$@" ;;
+	policy-check)     cmd_policy_check "$@" ;;
+	policy-get)       cmd_policy_get "$@" ;;
+	policy-update)    cmd_policy_update "$@" ;;
+	rebalance-auto)     cmd_rebalance_auto "$@" ;;
+	rebalance-suggestion) cmd_rebalance_suggestion "$@" ;;
+	reserve-check)    cmd_reserve_check "$@" ;;
+	set-fee)          cmd_set_fee "$@" ;;
+	set-private)      cmd_set_private "$@" ;;
+	set-public)       cmd_set_public "$@" ;;
+	stuck)            cmd_stuck "$@" ;;
+	top-earners)      cmd_top_earners "$@" ;;
 	*) usage; exit 1 ;;
 esac

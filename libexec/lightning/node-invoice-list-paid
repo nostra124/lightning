@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-invoice-list-paid   (FEAT-1044)
-result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-paid = [i for i in data.get('invoices', []) if i.get('status') == 'paid']
-print(json.dumps(paid))
-" "$result"

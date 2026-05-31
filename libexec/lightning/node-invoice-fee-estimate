@@ -1,5 +1,0 @@
-#!/bin/bash
-# lightning node-invoice-fee-estimate <amount_msat>   (FEAT-924)
-if [ $# -lt 1 ]; then echo '{"error":"usage: node-invoice-fee-estimate <amount_msat>"}'; exit 0; fi
-amount_msat="$1"
-echo "{\"amount_msat\":$amount_msat,\"estimated_fee_msat\":0,\"note\":\"routing fees depend on path\"}"

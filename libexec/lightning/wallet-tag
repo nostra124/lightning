@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning wallet-tag <wallet_name>   (FEAT-698)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-tag <wallet_name>"}'; exit 0; fi
-wname="$1"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-tags=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='tags'" 2>/dev/null) || tags=""
-echo "{\"wallet\":\"$wname\",\"tags\":\"$tags\"}"

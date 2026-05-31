@@ -1,6 +1,0 @@
-#!/bin/bash
-# lightning peer-send-custom <peer_id> <msg_type> <data>   (FEAT-937)
-if [ $# -lt 3 ]; then echo '{"error":"usage: peer-send-custom <peer_id> <msg_type> <data>"}'; exit 0; fi
-peer_id="$1"; msg_type="$2"; data="$3"
-if ! result=$(lightning-cli sendcustommsg "$peer_id" "${msg_type}${data}" 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
-echo "$result"

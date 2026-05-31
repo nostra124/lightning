@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-alias-set <alias>   (FEAT-486)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: node-alias-set <alias>"}'
-    exit 0
-fi
-alias="$1"
-result=$(lightning-cli setconfig alias "$alias" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-invoice-fallback <amount_msat> <label> <onchain_addr>   (FEAT-609)
-if [ $# -lt 3 ]; then
-    echo '{"error":"usage: node-invoice-fallback <amount_msat> <label> <onchain_addr>"}'
-    exit 0
-fi
-amount_msat="$1"; label="$2"; addr="$3"
-result=$(lightning-cli invoice "$amount_msat" "$label" "invoice with fallback" 0 "$addr" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning wallet-notes-deduplicate   (FEAT-1898)
-wname="${LIGHTNING_WALLET:-default}"
-db="$HOME/.lightning/wallets/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-before=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes;" 2>/dev/null)
-sqlite3 "$db" "DELETE FROM notes WHERE rowid NOT IN (SELECT MIN(rowid) FROM notes GROUP BY key);" 2>/dev/null || { echo '{"error":"db error"}'; exit 0; }
-after=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes;" 2>/dev/null)
-echo "{\"before\":$before,\"after\":$after,\"removed\":$((before-after))}"

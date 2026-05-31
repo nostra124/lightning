@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-listforwards-count-settled   (FEAT-2666)
-result=$(lightning-cli listforwards status=settled 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-forwards = data.get('forwards', [])
-print(json.dumps({'settled_count': len(forwards)}))
-" "$result"

@@ -1,6 +1,0 @@
-#!/bin/bash
-# lightning wallet-sync-status <wallet_name>   (FEAT-913)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-sync-status <wallet_name>"}'; exit 0; fi
-wname="$1"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-if [ ! -d "$root/$wname" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
-echo "{\"wallet\":\"$wname\",\"synced\":true}"

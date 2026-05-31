@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning invoice-list-pending   (FEAT-1445)
-result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-pending = [{'label': i.get('label'), 'amount_msat': i.get('amount_msat'), 'expires_at': i.get('expires_at')} for i in data.get('invoices', []) if i.get('status') == 'unpaid']
-print(json.dumps({'count': len(pending), 'invoices': pending}))
-" "$result"

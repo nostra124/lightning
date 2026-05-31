@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning wallet-pin-status <wallet_name>   (FEAT-898)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-pin-status <wallet_name>"}'; exit 0; fi
-wname="$1"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-if [ ! -d "$root/$wname" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
-has_pin=false
-[ -f "$root/$wname/.pin" ] && has_pin=true
-echo "{\"wallet\":\"$wname\",\"has_pin\":$has_pin}"

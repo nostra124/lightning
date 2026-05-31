@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning invoice-expiry-set <amount_msat> <label> <expiry_seconds> [<desc>]   (FEAT-453)
-if [ $# -lt 3 ]; then
-    echo '{"error":"usage: invoice-expiry-set <amount_msat> <label> <expiry_seconds> [<desc>]"}'
-    exit 0
-fi
-amount_msat="$1"; label="$2"; expiry="$3"; desc="${4:-invoice}"
-result=$(lightning-cli invoice "$amount_msat" "$label" "$desc" "$expiry" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

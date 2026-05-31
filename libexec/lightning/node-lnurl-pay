@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-lnurl-pay <lnurl>   (FEAT-513)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: node-lnurl-pay <lnurl>"}'
-    exit 0
-fi
-lnurl="$1"
-result=$(lightning-cli fetchinvoice "$lnurl" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

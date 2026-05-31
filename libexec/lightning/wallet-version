@@ -1,4 +1,0 @@
-#!/bin/bash
-# lightning wallet-version   (FEAT-838)
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-echo "{\"wallets_root\":\"$root\",\"version\":\"1.0\"}"

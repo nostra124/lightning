@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning wallet-seed-show <wallet_name>   (FEAT-1218)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-seed-show <wallet_name>"}'; exit 0; fi
-wname="$1"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-seed_file="$root/$wname/seed"
-if [ ! -f "$seed_file" ]; then echo '{"error":"seed_not_found"}'; exit 0; fi
-echo "{\"wallet\":\"$wname\",\"seed_exists\":true}"

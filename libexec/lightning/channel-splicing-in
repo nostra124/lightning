@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning channel-splicing-in <channel_id> <amount_sat>   (FEAT-477)
-if [ $# -lt 2 ]; then
-    echo '{"error":"usage: channel-splicing-in <channel_id> <amount_sat>"}'
-    exit 0
-fi
-channel_id="$1"; amount_sat="$2"
-result=$(lightning-cli splice_init "$channel_id" "$amount_sat" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

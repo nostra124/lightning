@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning wallet-label-get <wallet_name> <label>   (FEAT-1198)
-if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-label-get <wallet_name> <label>"}'; exit 0; fi
-wname="$1"; label="$2"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
-val=$(sqlite3 "$db" "SELECT value FROM labels WHERE key='$label';" 2>/dev/null)
-echo "{\"wallet\":\"$wname\",\"label\":\"$label\",\"value\":\"$val\"}"

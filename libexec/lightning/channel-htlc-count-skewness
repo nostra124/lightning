@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning channel-htlc-count-skewness   (FEAT-3230)
-result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-print(json.dumps({'htlc_count_skewness_channel': None}))
-" "$result"

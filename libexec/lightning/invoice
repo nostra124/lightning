@@ -178,6 +178,296 @@ cmd_pay() {
 	fi
 }
 
+# -----------------------------------------------------------------------------
+# New operational subcommands (consolidated from invoice-* micro-verbs)
+# -----------------------------------------------------------------------------
+
+cmd_status() {
+	[ $# -lt 1 ] && { error "invoice status needs <label>"; exit 1; }
+	local label="$1"
+	local result; result=$(cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); invoices = data.get('invoices', [])
+if not invoices: print(json.dumps({'error': 'invoice not found'})); sys.exit(0)
+i = invoices[0]
+print(json.dumps({'label': i.get('label'), 'status': i.get('status'),
+    'amount_msat': i.get('amount_msat'), 'expires_at': i.get('expires_at')}))
+" "$result"
+}
+
+cmd_cancel() {
+	[ $# -lt 1 ] && { error "invoice cancel needs <label>"; exit 1; }
+	local label="$1"
+	local result; result=$(cli delinvoice "$label" unpaid 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+try:
+    data = json.loads(sys.argv[1])
+    print(json.dumps({'ok': True, 'label': sys.argv[2], 'result': data.get('status')}))
+except Exception:
+    print(json.dumps({'error': 'cancel failed'}))
+" "$result" "$label"
+}
+
+cmd_expire() {
+	[ $# -lt 1 ] && { error "invoice expire needs <label>"; exit 1; }
+	local label="$1"
+	cli delinvoice "$label" unpaid >/dev/null 2>/dev/null || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	echo '{"ok":true}'
+}
+
+cmd_delete() {
+	[ $# -lt 2 ] && { error "invoice delete needs <label> <status>"; exit 1; }
+	local label="$1" status="$2"
+	local result; result=$(cli delinvoice "$label" "$status" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	echo "$result"
+}
+
+cmd_lookup() {
+	[ $# -lt 1 ] && { error "invoice lookup needs <label>"; exit 1; }
+	local label="$1"
+	local result; result=$(cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); invs = data.get('invoices', [])
+if not invs: print(json.dumps({'error': 'invoice not found'})); sys.exit(0)
+print(json.dumps(invs[0]))
+" "$result"
+}
+
+cmd_wait_invoice() {
+	[ $# -lt 1 ] && { error "invoice wait needs <label>"; exit 1; }
+	local label="$1" timeout=60; shift
+	while [ $# -gt 0 ]; do
+		case "$1" in --timeout) timeout="$2"; shift 2 ;; *) shift ;; esac
+	done
+	local result; result=$(cli waitinvoice "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'label': data.get('label'), 'status': data.get('status'), 'paid_at': data.get('paid_at')}))
+" "$result"
+}
+
+cmd_settle() {
+	[ $# -lt 1 ] && { error "invoice settle needs <label>"; exit 1; }
+	local label="$1"
+	local result; result=$(cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); invoices = data.get('invoices', [])
+if invoices:
+    inv = invoices[0]
+    print(json.dumps({'label': inv.get('label'), 'status': inv.get('status'), 'settled': inv.get('status') == 'paid'}))
+else:
+    print(json.dumps({'error': 'invoice not found'}))
+" "$result"
+}
+
+cmd_list_all() {
+	local result; result=$(cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); invoices = data.get('invoices', [])
+by_status = {}
+for i in invoices:
+    s = i.get('status', 'unknown'); by_status[s] = by_status.get(s, 0) + 1
+print(json.dumps({'total': len(invoices), 'by_status': by_status, 'invoices': invoices}))
+" "$result"
+}
+
+cmd_list_paid() {
+	local result; result=$(cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+paid = [i for i in data.get('invoices', []) if i.get('status') == 'paid']
+print(json.dumps({'count': len(paid), 'invoices': paid}))
+" "$result"
+}
+
+cmd_list_pending() {
+	local result; result=$(cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pending = [{'label': i.get('label'), 'amount_msat': i.get('amount_msat'), 'expires_at': i.get('expires_at')} for i in data.get('invoices', []) if i.get('status') == 'unpaid']
+print(json.dumps({'count': len(pending), 'invoices': pending}))
+" "$result"
+}
+
+cmd_list_expired() {
+	local result; result=$(cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+expired = [i for i in data.get('invoices', []) if i.get('status') == 'expired']
+print(json.dumps({'count': len(expired), 'invoices': expired}))
+" "$result"
+}
+
+cmd_list_active() {
+	local result; result=$(cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
+	python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1]); now = int(time.time())
+active = [i for i in data.get('invoices', []) if i.get('status') == 'unpaid' and i.get('expires_at', 0) > now]
+print(json.dumps(active))
+" "$result"
+}
+
+cmd_list_by_status() {
+	[ $# -lt 1 ] && { error "invoice list-by-status needs <status>"; exit 1; }
+	local status="$1"
+	local result; result=$(cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invs = [{'label': i.get('label'), 'amount_msat': i.get('amount_msat')} for i in data.get('invoices', []) if i.get('status') == sys.argv[2]]
+print(json.dumps({'status': sys.argv[2], 'count': len(invs), 'invoices': invs}))
+" "$result" "$status"
+}
+
+cmd_bolt11_decode() {
+	[ $# -lt 1 ] && { error "invoice bolt11-decode needs <bolt11>"; exit 1; }
+	local bolt11="$1"
+	local result; result=$(cli decodepay "$bolt11" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+if 'error' in data: print(json.dumps({'error': data['error']})); sys.exit(0)
+print(json.dumps({'payment_hash': data.get('payment_hash'), 'amount_msat': data.get('amount_msat'),
+    'description': data.get('description'), 'expiry': data.get('expiry'), 'payee': data.get('payee')}))
+" "$result"
+}
+
+cmd_bolt11_check() {
+	[ $# -lt 1 ] && { error "invoice bolt11-check needs <bolt11>"; exit 1; }
+	local bolt11="$1"
+	local result; result=$(cli decodepay "$bolt11" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json, time
+d = json.loads(sys.argv[1])
+if 'error' in d:
+    print(json.dumps({'valid': False, 'error': d.get('error')}))
+else:
+    expires = d.get('created_at', 0) + d.get('expiry', 3600)
+    print(json.dumps({'valid': True, 'payee': d.get('payee'), 'amount_msat': d.get('amount_msat'), 'expired': time.time() > expires}))
+" "$result"
+}
+
+cmd_payment_hash() {
+	[ $# -lt 1 ] && { error "invoice payment-hash needs <label>"; exit 1; }
+	local label="$1"
+	local result; result=$(cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); invs = data.get('invoices', [])
+if not invs: print(json.dumps({'error': 'invoice not found'})); sys.exit(0)
+i = invs[0]
+print(json.dumps({'label': i.get('label'), 'payment_hash': i.get('payment_hash')}))
+" "$result"
+}
+
+cmd_description() {
+	[ $# -lt 1 ] && { error "invoice description needs <label>"; exit 1; }
+	local label="$1"
+	local result; result=$(cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); invoices = data.get('invoices', [])
+if not invoices: print(json.dumps({'error': 'invoice not found'})); sys.exit(0)
+i = invoices[0]
+print(json.dumps({'label': i.get('label'), 'description': i.get('description')}))
+" "$result"
+}
+
+cmd_qr_data() {
+	[ $# -lt 1 ] && { error "invoice qr-data needs <bolt11>"; exit 1; }
+	local bolt11="$1"
+	local upper; upper=$(echo "$bolt11" | tr '[:lower:]' '[:upper:]')
+	echo "{\"bolt11\":\"$bolt11\",\"qr_data\":\"LIGHTNING:$upper\"}"
+}
+
+cmd_keysend() {
+	[ $# -lt 2 ] && { error "invoice keysend needs <node_id> <amount_msat>"; exit 1; }
+	local node_id="$1" amount_msat="$2"
+	local result; result=$(cli keysend "$node_id" "$amount_msat" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'payment_hash': data.get('payment_hash', ''), 'status': data.get('status', '')}))
+" "$result"
+}
+
+cmd_summary_invoice() {
+	local result; result=$(cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); invoices = data.get('invoices', [])
+paid = sum(1 for i in invoices if i.get('status') == 'paid')
+unpaid = sum(1 for i in invoices if i.get('status') == 'unpaid')
+expired = sum(1 for i in invoices if i.get('status') == 'expired')
+total_recv = sum(i.get('amount_received_msat', 0) for i in invoices if i.get('status') == 'paid')
+print(json.dumps({'total': len(invoices), 'paid': paid, 'unpaid': unpaid, 'expired': expired,
+    'total_received_msat': total_recv}))
+" "$result"
+}
+
+# -----------------------------------------------------------------------------
+# cmd_stats — single Python pass over all invoices
+# -----------------------------------------------------------------------------
+cmd_invoice_stats() {
+	local field=""
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--field) field="$2"; shift 2 ;;
+			--field=*) field="${1#--field=}"; shift ;;
+			*) error "invoice stats: unknown option '$1'"; exit 1 ;;
+		esac
+	done
+
+	local raw; raw=$(cli listinvoices 2>/dev/null) || raw='{"invoices":[]}'
+	export _STAT_FIELD="$field"
+	python3 - "$raw" <<'PYEOF'
+import sys, json, os, time
+
+invoices = json.loads(sys.argv[1]).get('invoices', [])
+now = int(time.time())
+
+paid    = [i for i in invoices if i.get('status') == 'paid']
+unpaid  = [i for i in invoices if i.get('status') == 'unpaid']
+expired = [i for i in invoices if i.get('status') == 'expired']
+active  = [i for i in unpaid if i.get('expires_at', 0) > now]
+
+amounts       = [i.get('amount_msat', 0) or 0 for i in invoices]
+paid_amounts  = [i.get('amount_received_msat', 0) or 0 for i in paid]
+total_received= sum(paid_amounts)
+max_amount    = max(amounts) if amounts else 0
+min_amount    = min(a for a in amounts if a > 0) if any(a > 0 for a in amounts) else 0
+
+result = {
+    "total_count":          len(invoices),
+    "paid_count":           len(paid),
+    "unpaid_count":         len(unpaid),
+    "expired_count":        len(expired),
+    "active_count":         len(active),
+    "total_received_msat":  total_received,
+    "max_amount_msat":      max_amount,
+    "min_amount_msat":      min_amount,
+    "avg_amount_msat":      int(sum(amounts)/len(amounts)) if amounts else 0,
+    "avg_received_msat":    int(total_received/len(paid)) if paid else 0,
+}
+
+field = os.environ.get("_STAT_FIELD", "")
+if field:
+    print(json.dumps(result.get(field)))
+else:
+    print(json.dumps(result))
+PYEOF
+}
+
 subhelp() {
 	case "$1" in
 		create)
@@ -223,7 +513,28 @@ esac
 require_cli
 
 case "$SUB" in
-	create) cmd_create "$@" ;;
-	pay)    cmd_pay "$@" ;;
+	create)          cmd_create "$@" ;;
+	pay)             cmd_pay "$@" ;;
+	stats)           cmd_invoice_stats "$@" ;;
+	status)          cmd_status "$@" ;;
+	cancel)          cmd_cancel "$@" ;;
+	expire)          cmd_expire "$@" ;;
+	delete)          cmd_delete "$@" ;;
+	lookup)          cmd_lookup "$@" ;;
+	wait)            cmd_wait_invoice "$@" ;;
+	settle)          cmd_settle "$@" ;;
+	summary)         cmd_summary_invoice "$@" ;;
+	list-all)        cmd_list_all "$@" ;;
+	list-paid)       cmd_list_paid "$@" ;;
+	list-pending)    cmd_list_pending "$@" ;;
+	list-expired)    cmd_list_expired "$@" ;;
+	list-active)     cmd_list_active "$@" ;;
+	list-by-status)  cmd_list_by_status "$@" ;;
+	bolt11-decode)   cmd_bolt11_decode "$@" ;;
+	bolt11-check)    cmd_bolt11_check "$@" ;;
+	payment-hash)    cmd_payment_hash "$@" ;;
+	description)     cmd_description "$@" ;;
+	qr-data)         cmd_qr_data "$@" ;;
+	keysend)         cmd_keysend "$@" ;;
 	*) usage; exit 1 ;;
 esac

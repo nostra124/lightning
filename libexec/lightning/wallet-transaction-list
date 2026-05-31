@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning wallet-transaction-list <wallet_name>   (FEAT-953)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-transaction-list <wallet_name>"}'; exit 0; fi
-wname="$1"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then echo '[]'; exit 0; fi
-result=$(sqlite3 -json "$db" "SELECT * FROM transactions ORDER BY created_at DESC LIMIT 50;" 2>/dev/null) || result='[]'
-echo "${result:-[]}"

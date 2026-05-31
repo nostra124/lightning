@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-onion-decode <onion_hex>   (FEAT-501)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: node-onion-decode <onion_hex>"}'
-    exit 0
-fi
-onion="$1"
-result=$(lightning-cli decodepay "$onion" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

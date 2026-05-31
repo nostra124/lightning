@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning node-invoice-pending-count-today   (FEAT-3185)
-result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-print(json.dumps({'pending_count_today': None}))
-" "$result"

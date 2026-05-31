@@ -1,6 +1,0 @@
-#!/bin/bash
-# lightning wallet-sweep <wallet_name> <dest_address>   (FEAT-680)
-if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-sweep <wallet_name> <dest_address>"}'; exit 0; fi
-wname="$1"; dest="$2"
-result=$(lightning-cli withdraw "$dest" all 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps({'txid': d.get('txid'), 'wallet': sys.argv[2]}))" "$result" "$wname"

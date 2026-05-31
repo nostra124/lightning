@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning channel-fee-set <channel_id> <base_msat> <ppm>   (FEAT-580)
-if [ $# -lt 3 ]; then
-    echo '{"error":"usage: channel-fee-set <channel_id> <base_msat> <ppm>"}'
-    exit 0
-fi
-channel_id="$1"; base_msat="$2"; ppm="$3"
-result=$(lightning-cli setchannel "$channel_id" feebase "$base_msat" feeppm "$ppm" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

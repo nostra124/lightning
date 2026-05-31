@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning wallet-meta-get <wallet> <key>   (FEAT-1573)
-if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-meta-get <wallet> <key>"}'; exit 0; fi
-wname="$1"; key="$2"
-db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-val=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='$key';" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
-if [ -z "$val" ]; then echo '{"error":"key not found"}'; exit 0; fi
-echo "{\"wallet\":\"$wname\",\"key\":\"$key\",\"value\":\"$val\"}"

@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning wallet-transaction-log <wallet_name>   (FEAT-758)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-transaction-log <wallet_name>"}'; exit 0; fi
-wname="$1"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-rows=$(sqlite3 -json "$db" "SELECT * FROM transactions ORDER BY created_at DESC LIMIT 50" 2>/dev/null) || rows="[]"
-echo "$rows"

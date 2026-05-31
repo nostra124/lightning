@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-listpeers-connected-ids   (FEAT-1574)
-result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-ids = [p.get('id') for p in data.get('peers', []) if p.get('connected')]
-print(json.dumps({'count': len(ids), 'peer_ids': ids}))
-" "$result"

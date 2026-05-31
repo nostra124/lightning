@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning channel-fee-base-kurtosis-weekly   (FEAT-3242)
-result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-print(json.dumps({'fee_base_kurtosis_weekly': None}))
-" "$result"

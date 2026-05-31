@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning channel-feeppm-set <channel_id> <ppm>   (FEAT-622)
-if [ $# -lt 2 ]; then
-    echo '{"error":"usage: channel-feeppm-set <channel_id> <ppm>"}'
-    exit 0
-fi
-channel_id="$1"; ppm="$2"
-result=$(lightning-cli setchannel "$channel_id" feeppm "$ppm" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning wallet-notes-newest-key <wallet>   (FEAT-1523)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-newest-key <wallet>"}'; exit 0; fi
-wname="$1"
-db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-key=$(sqlite3 "$db" "SELECT key FROM notes ORDER BY rowid DESC LIMIT 1;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
-if [ -z "$key" ]; then echo '{"error":"no notes found"}'; exit 0; fi
-echo "{\"wallet\":\"$wname\",\"newest_key\":\"$key\"}"

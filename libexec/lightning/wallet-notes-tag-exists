@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning wallet-notes-tag-exists <tag>   (FEAT-1893)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-tag-exists <tag>"}'; exit 0; fi
-tag="$1"
-wname="${LIGHTNING_WALLET:-default}"
-db="$HOME/.lightning/wallets/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-count=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes WHERE tag='$tag';" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
-echo "{\"tag\":\"$tag\",\"exists\":$([ "$count" -gt 0 ] && echo true || echo false)}"

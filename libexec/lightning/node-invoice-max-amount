@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-invoice-max-amount   (FEAT-901)
-if ! result=$(lightning-cli listconfigs 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-max_inv = data.get('configs', {}).get('max-invoice-msat', {}).get('value_msat', None)
-print(json.dumps({'max_invoice_msat': max_inv}))
-" "$result"

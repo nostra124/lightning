@@ -1,6 +1,0 @@
-#!/bin/bash
-# lightning invoice-delete <label> <status>   (FEAT-935)
-if [ $# -lt 2 ]; then echo '{"error":"usage: invoice-delete <label> <status>"}'; exit 0; fi
-label="$1"; status="$2"
-if ! result=$(lightning-cli delinvoice "$label" "$status" 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
-echo "$result"

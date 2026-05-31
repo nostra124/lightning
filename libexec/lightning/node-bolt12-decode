@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-bolt12-decode <offer_string>   (FEAT-459)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: node-bolt12-decode <offer_string>"}'
-    exit 0
-fi
-offer="$1"
-result=$(lightning-cli decode "$offer" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

@@ -1,7 +1,0 @@
-#!/bin/bash
-# lightning wallet-notes-vacuum <wallet>   (FEAT-1993)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-vacuum <wallet>"}'; exit 0; fi
-arg="$1"
-db="$HOME/.lightning/wallets/$arg/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet db not found"}'; exit 0; fi
-sqlite3 "$db" "VACUUM;" 2>/dev/null && echo "{\"wallet\": \"$arg\", \"status\": \"ok\"}" || echo '{"error":"vacuum failed"}'

@@ -1,12 +1,65 @@
 #!/bin/bash
-# lightning wallet-prune <wallet_name>   (FEAT-676)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-prune <wallet_name>"}'; exit 0; fi
-wname="$1"
-root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
-if sqlite3 "$db" "VACUUM" 2>/dev/null; then
-    echo "{\"ok\":true,\"wallet\":\"$wname\"}"
-else
-    echo '{"error":"prune failed"}'
+# lightning wallet-prune [--days N] [--dry-run]   (FEAT-285)
+#
+# Removes closed accounts (and their ledger entries) that have been
+# closed for more than N days (default 90).  Only accounts with
+# closed_at set are eligible; open accounts are never pruned.
+#
+# Prints: {pruned_accounts:N, pruned_ledger_rows:N}
+# With --dry-run, prints what WOULD be pruned without modifying anything.
+
+set -e
+days=90
+dry_run=false
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --days)    days="$2";    shift 2 ;;
+        --dry-run) dry_run=true; shift   ;;
+        *) shift ;;
+    esac
+done
+
+WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
+ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
+wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
+db="$WALLETS_ROOT/$wname/state.db"
+
+if [ ! -f "$db" ]; then
+    echo '{"pruned_accounts":0,"pruned_ledger_rows":0}'
+    exit 0
 fi
+
+python3 -c "
+import sys, json, sqlite3, datetime
+
+db_path  = sys.argv[1]
+days_val = int(sys.argv[2])
+dry      = sys.argv[3] == 'true'
+
+conn = sqlite3.connect(db_path)
+cutoff = (datetime.datetime.utcnow() - datetime.timedelta(days=days_val)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+eligible = [r[0] for r in conn.execute(
+    'SELECT address FROM accounts WHERE closed_at IS NOT NULL AND closed_at < ?',
+    (cutoff,))]
+
+ledger_count = 0
+if eligible:
+    placeholders = ','.join('?' * len(eligible))
+    ledger_count = conn.execute(
+        f'SELECT COUNT(*) FROM ledger WHERE account IN ({placeholders})',
+        eligible).fetchone()[0]
+
+if not dry and eligible:
+    placeholders = ','.join('?' * len(eligible))
+    conn.execute(f'DELETE FROM ledger WHERE account IN ({placeholders})', eligible)
+    conn.execute(f'DELETE FROM accounts WHERE address IN ({placeholders})', eligible)
+    conn.commit()
+
+label = 'would_prune' if dry else 'pruned'
+print(json.dumps({
+    label + '_accounts': len(eligible),
+    label + '_ledger_rows': ledger_count,
+    'dry_run': dry,
+}, separators=(',', ':')))
+" "$db" "$days" "$dry_run"

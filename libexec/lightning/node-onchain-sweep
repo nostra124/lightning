@@ -1,6 +1,0 @@
-#!/bin/bash
-# lightning node-onchain-sweep <address>   (FEAT-819)
-if [ $# -lt 1 ]; then echo '{"error":"usage: node-onchain-sweep <address>"}'; exit 0; fi
-addr="$1"
-result=$(lightning-cli withdraw "$addr" all 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps({'txid': d.get('txid'), 'psbt': d.get('psbt')}))" "$result"

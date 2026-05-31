@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-pending-payments   (FEAT-631)
-result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-pending = [p for p in data.get('pays', []) if p.get('status') == 'pending']
-print(json.dumps({'count': len(pending), 'payments': pending}))
-" "$result"

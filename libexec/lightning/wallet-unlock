@@ -1,6 +1,0 @@
-#!/bin/bash
-# lightning wallet-unlock <wallet_name>   (FEAT-968)
-if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-unlock <wallet_name>"}'; exit 0; fi
-wname="$1"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-if [ ! -d "$root/$wname" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
-echo "{\"ok\":true,\"wallet\":\"$wname\",\"status\":\"unlocked\"}"

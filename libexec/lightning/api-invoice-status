@@ -1,7 +1,0 @@
-#!/bin/bash
-# lightning api-invoice-status <payment_hash|label>   (FEAT-293)
-# Thin CGI-callable wrapper over invoice-status.
-set -e
-[ $# -ge 1 ] || { echo '{"error":"missing_query"}'; exit 0; }
-self_dir="$(cd "$(dirname "$0")" && pwd)"
-exec "$self_dir/invoice-status" "$1"

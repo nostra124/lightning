@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning invoice-qr <bolt11>   (FEAT-462)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: invoice-qr <bolt11>"}'
-    exit 0
-fi
-bolt11="$1"
-qr=$(qrencode -t UTF8 "$bolt11" 2>/dev/null) || { echo '{"error":"qrencode not available"}'; exit 0; }
-echo '{"bolt11":"'"$bolt11"'","qr":'"$(echo "$qr" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')"'}'

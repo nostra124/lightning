@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-invoice-auto-expire   (FEAT-874)
-if ! result=$(lightning-cli listconfigs 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-exp = data.get('configs', {}).get('invoice-expiry', {}).get('value_int', 3600)
-print(json.dumps({'invoice_expiry_seconds': exp}))
-" "$result"

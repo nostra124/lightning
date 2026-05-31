@@ -1,5 +1,0 @@
-#!/bin/bash
-# lightning node-offer-create [<description>]   (FEAT-511)
-desc="${1:-lightning offer}"
-result=$(lightning-cli offer any "$desc" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

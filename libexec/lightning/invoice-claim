@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning invoice-claim <preimage>   (FEAT-615)
-if [ $# -lt 1 ]; then
-    echo '{"error":"usage: invoice-claim <preimage>"}'
-    exit 0
-fi
-preimage="$1"
-result=$(lightning-cli fulfillholdout "$preimage" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "$result"

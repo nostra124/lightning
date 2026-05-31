@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning wallet-transaction-get <wallet_name> <txid>   (FEAT-943)
-if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-transaction-get <wallet_name> <txid>"}'; exit 0; fi
-wname="$1"; txid="$2"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
-db="$root/$wname/state.db"
-if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
-row=$(sqlite3 "$db" "SELECT * FROM transactions WHERE txid='$txid' LIMIT 1;" 2>/dev/null) || row=
-[ -n "$row" ] && echo "{\"txid\":\"$txid\",\"found\":true}" || echo "{\"txid\":\"$txid\",\"found\":false}"

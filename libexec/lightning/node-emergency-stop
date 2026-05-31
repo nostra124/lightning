@@ -1,8 +1,0 @@
-#!/bin/bash
-# lightning node-emergency-stop   (FEAT-347)
-set -e
-result=$(lightning-cli stop 2>/dev/null) || {
-    echo '{"error":"lightning-cli not found"}'
-    exit 0
-}
-echo '{"ok":true,"message":"daemon stopping"}'

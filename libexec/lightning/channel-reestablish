@@ -1,6 +1,0 @@
-#!/bin/bash
-# lightning channel-reestablish <node_id>   (FEAT-674)
-if [ $# -lt 1 ]; then echo '{"error":"usage: channel-reestablish <node_id>"}'; exit 0; fi
-node_id="$1"
-result=$(lightning-cli connect "$node_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps({'id': d.get('id'), 'features': d.get('features')}))" "$result"

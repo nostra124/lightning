@@ -1,6 +1,0 @@
-#!/bin/bash
-# lightning node-invoice-decode <bolt11>   (FEAT-881)
-if [ $# -lt 1 ]; then echo '{"error":"usage: node-invoice-decode <bolt11>"}'; exit 0; fi
-bolt11="$1"
-if ! result=$(lightning-cli decode "$bolt11" 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
-echo "$result"

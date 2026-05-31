@@ -1,4 +1,39 @@
 #!/bin/bash
-# lightning node-version   (FEAT-651)
-result=$(lightning-cli getinfo 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps({'version': d.get('version')}))" "$result"
+# lightning node-version   (FEAT-282)
+#
+# Reports installed software versions:
+#   {lightning, cln, bitcoin_network}
+# "cln" is null when the daemon is not reachable.
+
+set -e
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+# Self version from installed package marker or fallback.
+self_dir="$(cd "$(dirname "$0")" && pwd)"
+pkg_ver=""
+for candidate in \
+    "$self_dir/../../../.rpk/version" \
+    "$self_dir/../../.rpk/version" \
+    "$self_dir/../.rpk/version"; do
+    if [ -f "$candidate" ]; then
+        pkg_ver=$(cat "$candidate")
+        break
+    fi
+done
+[ -n "$pkg_ver" ] || pkg_ver="unknown"
+
+cln_ver="null"
+btc_net="\"${LIGHTNING_NETWORK:-bitcoin}\""
+if command -v lightning-cli >/dev/null 2>&1; then
+    info=$(lightning-cli $LD $NET getinfo 2>/dev/null) && \
+        cln_ver=$(printf '%s' "$info" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+v = d.get('version', 'unknown')
+print(json.dumps(v))
+" 2>/dev/null) || cln_ver="null"
+fi
+
+printf '{"lightning":"%s","cln":%s,"bitcoin_network":%s}\n' \
+    "$pkg_ver" "$cln_ver" "$btc_net"

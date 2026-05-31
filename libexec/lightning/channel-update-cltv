@@ -1,6 +1,0 @@
-#!/bin/bash
-# lightning channel-update-cltv <channel_id> <cltv_delta>   (FEAT-826)
-if [ $# -lt 2 ]; then echo '{"error":"usage: channel-update-cltv <channel_id> <cltv_delta>"}'; exit 0; fi
-channel_id="$1"; cltv="$2"
-result=$(lightning-cli setchannel "$channel_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-echo "{\"channel_id\":\"$channel_id\",\"cltv_delta\":$cltv,\"note\":\"use setchannel with cltvdelta parameter\"}"

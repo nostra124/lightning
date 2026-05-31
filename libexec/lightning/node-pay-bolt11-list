@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning node-pay-bolt11-list   (FEAT-1214)
-result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
-python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-pays = [{'bolt11': p.get('bolt11'), 'status': p.get('status')} for p in data.get('pays', []) if p.get('bolt11')]
-print(json.dumps({'count': len(pays), 'pays': pays}))
-" "$result"

@@ -1,9 +1,0 @@
-#!/bin/bash
-# lightning wallet-notes-unpin   (FEAT-2193)
-DB="${LIGHTNING_WALLET_DB:-$HOME/.lightning/wallet.db}"
-if [ ! -f "$DB" ]; then
-    echo '{"error":"wallet db not found","db":"'"$DB"'"}'
-    exit 0
-fi
-result=$(sqlite3 "$DB" "UPDATE notes SET pinned=0 WHERE pinned=1; SELECT changes();" 2>/dev/null) || { echo '{"error":"sqlite3 failed"}'; exit 0; }
-echo "{\"unpinned\":${result:-0}}"
