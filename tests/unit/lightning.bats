@@ -34491,3 +34491,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3270: peer-local-pct-kurtosis man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-kurtosis.1" ]
 }
+
+@test "FEAT-3271: node-listforwards-count-month reports error or forwards_count_month gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-month 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_count_month"
+}
+@test "FEAT-3271: node-listforwards-count-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-month.1" ]
+}
+
+@test "FEAT-3272: peer-remote-pct-kurtosis reports error or remote_pct_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-pct-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_kurtosis_peer"
+}
+@test "FEAT-3272: peer-remote-pct-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-pct-kurtosis.1" ]
+}
+
+@test "FEAT-3273: channel-fee-proportional-range reports error or fee_proportional_range gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_range"
+}
+@test "FEAT-3273: channel-fee-proportional-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-range.1" ]
+}
+
+@test "FEAT-3274: node-listforwards-count-year reports error or forwards_count_year gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-year 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_count_year"
+}
+@test "FEAT-3274: node-listforwards-count-year man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-year.1" ]
+}
+
+@test "FEAT-3275: peer-local-pct-skewness reports error or local_pct_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_skewness_peer"
+}
+@test "FEAT-3275: peer-local-pct-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-skewness.1" ]
+}
+
+@test "FEAT-3276: channel-fee-proportional-stddev reports error or fee_proportional_stddev gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_stddev"
+}
+@test "FEAT-3276: channel-fee-proportional-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-stddev.1" ]
+}
+
+@test "FEAT-3277: node-pay-count-daily reports error or pay_count_daily gracefully" {
+    out=$(./libexec/lightning/node-pay-count-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_daily"
+}
+@test "FEAT-3277: node-pay-count-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-daily.1" ]
+}
+
+@test "FEAT-3278: peer-remote-pct-skewness reports error or remote_pct_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-pct-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_skewness_peer"
+}
+@test "FEAT-3278: peer-remote-pct-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-pct-skewness.1" ]
+}
+
+@test "FEAT-3279: channel-fee-proportional-kurtosis reports error or fee_proportional_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_kurtosis"
+}
+@test "FEAT-3279: channel-fee-proportional-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-kurtosis.1" ]
+}
+
+@test "FEAT-3280: node-invoice-paid-count-daily reports error or paid_count_daily gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_daily"
+}
+@test "FEAT-3280: node-invoice-paid-count-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-daily.1" ]
+}
