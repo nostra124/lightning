@@ -36831,3 +36831,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3570: channel-both-balances-skewness-monthly man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-skewness-monthly.1" ]
 }
+
+@test "FEAT-3571: channel-both-balances-kurtosis-monthly reports error or both_balances_kurtosis_monthly_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-kurtosis-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_kurtosis_monthly_msat"
+}
+@test "FEAT-3571: channel-both-balances-kurtosis-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-kurtosis-monthly.1" ]
+}
+
+@test "FEAT-3572: node-pay-amount-stddev reports error or amount_stddev_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_stddev_msat"
+}
+@test "FEAT-3572: node-pay-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-stddev.1" ]
+}
+
+@test "FEAT-3573: peer-both-balances-skewness reports error or both_balances_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-both-balances-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_skewness_peer"
+}
+@test "FEAT-3573: peer-both-balances-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-both-balances-skewness.1" ]
+}
+
+@test "FEAT-3574: channel-both-reserves-skewness-weekly reports error or both_reserves_skewness_weekly_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-skewness-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_skewness_weekly_msat"
+}
+@test "FEAT-3574: channel-both-reserves-skewness-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-skewness-weekly.1" ]
+}
+
+@test "FEAT-3575: node-pay-amount-median reports error or amount_median_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-median 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_median_msat"
+}
+@test "FEAT-3575: node-pay-amount-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-median.1" ]
+}
+
+@test "FEAT-3576: peer-both-balances-kurtosis reports error or both_balances_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-both-balances-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_kurtosis_peer"
+}
+@test "FEAT-3576: peer-both-balances-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-both-balances-kurtosis.1" ]
+}
+
+@test "FEAT-3577: channel-both-reserves-kurtosis-weekly reports error or both_reserves_kurtosis_weekly_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_kurtosis_weekly_msat"
+}
+@test "FEAT-3577: channel-both-reserves-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-3578: node-pay-amount-variance reports error or amount_variance_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_variance_msat"
+}
+@test "FEAT-3578: node-pay-amount-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-variance.1" ]
+}
+
+@test "FEAT-3579: peer-both-reserves-skewness reports error or both_reserves_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-both-reserves-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_skewness_peer"
+}
+@test "FEAT-3579: peer-both-reserves-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-both-reserves-skewness.1" ]
+}
+
+@test "FEAT-3580: channel-both-reserves-skewness-monthly reports error or both_reserves_skewness_monthly_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-skewness-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_skewness_monthly_msat"
+}
+@test "FEAT-3580: channel-both-reserves-skewness-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-skewness-monthly.1" ]
+}
