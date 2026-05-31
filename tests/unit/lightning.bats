@@ -34571,3 +34571,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3280: node-invoice-paid-count-daily man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-daily.1" ]
 }
+
+@test "FEAT-3281: peer-fee-proportional-avg reports error or fee_proportional_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-proportional-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_avg_peer"
+}
+@test "FEAT-3281: peer-fee-proportional-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-proportional-avg.1" ]
+}
+
+@test "FEAT-3282: channel-fee-proportional-skewness reports error or fee_proportional_skewness gracefully" {
+    out=$(./libexec/lightning/channel-fee-proportional-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_skewness"
+}
+@test "FEAT-3282: channel-fee-proportional-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-proportional-skewness.1" ]
+}
+
+@test "FEAT-3283: node-listforwards-amount-avg reports error or forwards_amount_avg gracefully" {
+    out=$(./libexec/lightning/node-listforwards-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_amount_avg"
+}
+@test "FEAT-3283: node-listforwards-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-amount-avg.1" ]
+}
+
+@test "FEAT-3284: peer-fee-proportional-max reports error or fee_proportional_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-proportional-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_max_peer"
+}
+@test "FEAT-3284: peer-fee-proportional-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-proportional-max.1" ]
+}
+
+@test "FEAT-3285: channel-htlc-min-msat-avg reports error or htlc_min_msat_avg gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_avg"
+}
+@test "FEAT-3285: channel-htlc-min-msat-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat-avg.1" ]
+}
+
+@test "FEAT-3286: node-listforwards-amount-max reports error or forwards_amount_max gracefully" {
+    out=$(./libexec/lightning/node-listforwards-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_amount_max"
+}
+@test "FEAT-3286: node-listforwards-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-amount-max.1" ]
+}
+
+@test "FEAT-3287: peer-fee-proportional-min reports error or fee_proportional_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-proportional-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_min_peer"
+}
+@test "FEAT-3287: peer-fee-proportional-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-proportional-min.1" ]
+}
+
+@test "FEAT-3288: channel-htlc-max-msat-avg reports error or htlc_max_msat_avg gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-msat-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_avg"
+}
+@test "FEAT-3288: channel-htlc-max-msat-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-msat-avg.1" ]
+}
+
+@test "FEAT-3289: node-listforwards-amount-min reports error or forwards_amount_min gracefully" {
+    out=$(./libexec/lightning/node-listforwards-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_amount_min"
+}
+@test "FEAT-3289: node-listforwards-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-amount-min.1" ]
+}
+
+@test "FEAT-3290: peer-fee-proportional-stddev reports error or fee_proportional_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-proportional-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_stddev_peer"
+}
+@test "FEAT-3290: peer-fee-proportional-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-proportional-stddev.1" ]
+}
