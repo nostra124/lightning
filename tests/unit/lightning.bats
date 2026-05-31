@@ -36751,3 +36751,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3560: channel-receivable-balance-skewness-yearly man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-balance-skewness-yearly.1" ]
 }
+
+@test "FEAT-3561: channel-receivable-balance-kurtosis-yearly reports error or receivable_balance_kurtosis_yearly gracefully" {
+    out=$(./libexec/lightning/channel-receivable-balance-kurtosis-yearly 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_balance_kurtosis_yearly"
+}
+@test "FEAT-3561: channel-receivable-balance-kurtosis-yearly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-balance-kurtosis-yearly.1" ]
+}
+
+@test "FEAT-3562: node-invoice-unpaid-count-weekly reports error or unpaid_count_weekly gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-count-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|unpaid_count_weekly"
+}
+@test "FEAT-3562: node-invoice-unpaid-count-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-count-weekly.1" ]
+}
+
+@test "FEAT-3563: peer-spendable-balance-skewness-yearly reports error or spendable_balance_skewness_yearly_peer gracefully" {
+    out=$(./libexec/lightning/peer-spendable-balance-skewness-yearly 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_balance_skewness_yearly_peer"
+}
+@test "FEAT-3563: peer-spendable-balance-skewness-yearly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-balance-skewness-yearly.1" ]
+}
+
+@test "FEAT-3564: channel-both-balances-skewness-weekly reports error or both_balances_skewness_weekly_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-skewness-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_skewness_weekly_msat"
+}
+@test "FEAT-3564: channel-both-balances-skewness-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-skewness-weekly.1" ]
+}
+
+@test "FEAT-3565: node-invoice-unpaid-count-monthly reports error or unpaid_count_monthly gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-count-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|unpaid_count_monthly"
+}
+@test "FEAT-3565: node-invoice-unpaid-count-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-count-monthly.1" ]
+}
+
+@test "FEAT-3566: peer-spendable-balance-kurtosis-yearly reports error or spendable_balance_kurtosis_yearly_peer gracefully" {
+    out=$(./libexec/lightning/peer-spendable-balance-kurtosis-yearly 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_balance_kurtosis_yearly_peer"
+}
+@test "FEAT-3566: peer-spendable-balance-kurtosis-yearly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-balance-kurtosis-yearly.1" ]
+}
+
+@test "FEAT-3567: channel-both-balances-kurtosis-weekly reports error or both_balances_kurtosis_weekly_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_kurtosis_weekly_msat"
+}
+@test "FEAT-3567: channel-both-balances-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-3568: node-invoice-unpaid-count-yearly reports error or unpaid_count_yearly gracefully" {
+    out=$(./libexec/lightning/node-invoice-unpaid-count-yearly 2>/dev/null)
+    echo "$out" | grep -q "error\|unpaid_count_yearly"
+}
+@test "FEAT-3568: node-invoice-unpaid-count-yearly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-unpaid-count-yearly.1" ]
+}
+
+@test "FEAT-3569: peer-receivable-balance-skewness-yearly reports error or receivable_balance_skewness_yearly_peer gracefully" {
+    out=$(./libexec/lightning/peer-receivable-balance-skewness-yearly 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_balance_skewness_yearly_peer"
+}
+@test "FEAT-3569: peer-receivable-balance-skewness-yearly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-balance-skewness-yearly.1" ]
+}
+
+@test "FEAT-3570: channel-both-balances-skewness-monthly reports error or both_balances_skewness_monthly_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-skewness-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_skewness_monthly_msat"
+}
+@test "FEAT-3570: channel-both-balances-skewness-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-skewness-monthly.1" ]
+}
