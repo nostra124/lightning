@@ -9158,3 +9158,32 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "wallet stats arm present in dispatcher" {
 	grep -q "stats)" libexec/lightning/wallet
 }
+
+# consolidated invoice-* micro-verbs
+
+@test "invoice stats subcommand returns JSON" {
+	out=$(LIGHTNING_DIR=/nonexistent libexec/lightning/invoice stats 2>/dev/null) || true
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'total_count' in d"
+}
+
+@test "invoice stats --field returns value" {
+	out=$(LIGHTNING_DIR=/nonexistent libexec/lightning/invoice stats --field total_count 2>/dev/null) || true
+	python3 -c "import json; json.loads('$out')"
+}
+
+@test "invoice cancel requires label" {
+	run libexec/lightning/invoice cancel
+	[ "$status" -ne 0 ]
+}
+
+@test "invoice stats man page exists with correct NAME" {
+	grep -q "lightning-invoice" share/man/man1/lightning-invoice.1
+}
+
+@test "invoice stats arm present in dispatcher" {
+	grep -q "stats)" libexec/lightning/invoice
+}
+
+@test "invoice list-paid arm present" {
+	grep -q "list-paid" libexec/lightning/invoice
+}

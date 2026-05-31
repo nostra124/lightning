@@ -32,6 +32,38 @@ subcommands:
                         [--qr] [--account <name>]
    pay <bolt11> [--max-fee-sat N] [--timeout S]
                 [--account <name>] [--note <text>]
+   stats [--field <name>]       comprehensive JSON invoice statistics
+   status <label>               status, amount, expiry for an invoice
+   cancel <label>               delete an unpaid invoice
+   expire <label>               alias for cancel (delinvoice unpaid)
+   delete <label> <status>      delete by label + status
+   lookup <label>               full invoice record
+   wait <label> [--timeout N]   block until paid or timeout
+   settle <label>               check if an invoice is settled
+   summary                      totals: paid/unpaid/expired/received
+   list-all                     all invoices with by_status breakdown
+   list-paid                    paid invoices
+   list-pending                 unpaid invoices
+   list-expired                 expired invoices
+   list-active                  unpaid + not yet expired
+   list-by-status <status>      filter by paid|unpaid|expired
+   bolt11-decode <bolt11>       decode a BOLT-11 invoice
+   bolt11-check <bolt11>        validate + expiry check
+   payment-hash <label>         extract payment_hash
+   description <label>          extract description
+   qr-data <bolt11>             LIGHTNING:<UPPER> QR payload
+   keysend <node_id> <msat>     send a keysend payment
+.fi
+.SH STATS
+.nf
+lightning invoice stats [--field <name>]
+
+Single pass over listinvoices. Fields:
+  total_count, paid_count, unpaid_count, expired_count, active_count,
+  total_received_msat, max_amount_msat, min_amount_msat,
+  avg_amount_msat, avg_received_msat.
+
+Use --field <name> to extract a single value.
 .fi
 .SH "SEE ALSO"
 .BR lightning (1)
