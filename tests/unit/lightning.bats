@@ -35211,3 +35211,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3360: channel-fee-base-top10 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-top10.1" ]
 }
+
+@test "FEAT-3361: channel-fee-ppm-top10 reports error or top10_fee_ppm gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_fee_ppm"
+}
+@test "FEAT-3361: channel-fee-ppm-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-top10.1" ]
+}
+
+@test "FEAT-3362: node-invoice-count-monthly reports error or invoice_count_monthly gracefully" {
+    out=$(./libexec/lightning/node-invoice-count-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_count_monthly"
+}
+@test "FEAT-3362: node-invoice-count-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-monthly.1" ]
+}
+
+@test "FEAT-3363: peer-htlc-value-variance reports error or htlc_value_variance_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_variance_peer"
+}
+@test "FEAT-3363: peer-htlc-value-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-variance.1" ]
+}
+
+@test "FEAT-3364: channel-fee-earned-top10 reports error or top10_fee_earned gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_fee_earned"
+}
+@test "FEAT-3364: channel-fee-earned-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-top10.1" ]
+}
+
+@test "FEAT-3365: node-invoice-paid-count-daily reports error or paid_count_daily gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_daily"
+}
+@test "FEAT-3365: node-invoice-paid-count-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-daily.1" ]
+}
+
+@test "FEAT-3366: peer-htlc-value-skewness reports error or htlc_value_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_skewness_peer"
+}
+@test "FEAT-3366: peer-htlc-value-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-skewness.1" ]
+}
+
+@test "FEAT-3367: channel-local-balance-top10 reports error or top10_local_balance gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_local_balance"
+}
+@test "FEAT-3367: channel-local-balance-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-top10.1" ]
+}
+
+@test "FEAT-3368: node-invoice-paid-count-weekly reports error or paid_count_weekly gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_weekly"
+}
+@test "FEAT-3368: node-invoice-paid-count-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-weekly.1" ]
+}
+
+@test "FEAT-3369: peer-htlc-value-kurtosis reports error or htlc_value_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_kurtosis_peer"
+}
+@test "FEAT-3369: peer-htlc-value-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-kurtosis.1" ]
+}
+
+@test "FEAT-3370: channel-remote-balance-top10 reports error or top10_remote_balance gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_remote_balance"
+}
+@test "FEAT-3370: channel-remote-balance-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-top10.1" ]
+}
