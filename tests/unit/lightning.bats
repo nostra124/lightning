@@ -36351,3 +36351,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3510: channel-spendable-balance-skewness-weekly man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-balance-skewness-weekly.1" ]
 }
+
+@test "FEAT-3511: channel-local-balance-kurtosis-weekly reports error or local_balance_kurtosis_weekly gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_kurtosis_weekly"
+}
+@test "FEAT-3511: channel-local-balance-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-3512: node-pay-count-range-monthly reports error or pay_count_range_monthly gracefully" {
+    out=$(./libexec/lightning/node-pay-count-range-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_range_monthly"
+}
+@test "FEAT-3512: node-pay-count-range-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-range-monthly.1" ]
+}
+
+@test "FEAT-3513: peer-receivable-pct-variance reports error or receivable_pct_variance_peer gracefully" {
+    out=$(./libexec/lightning/peer-receivable-pct-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_variance_peer"
+}
+@test "FEAT-3513: peer-receivable-pct-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-pct-variance.1" ]
+}
+
+@test "FEAT-3514: channel-spendable-balance-kurtosis-weekly reports error or spendable_balance_kurtosis_weekly gracefully" {
+    out=$(./libexec/lightning/channel-spendable-balance-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_balance_kurtosis_weekly"
+}
+@test "FEAT-3514: channel-spendable-balance-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-balance-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-3515: node-pay-count-range-yearly reports error or pay_count_range_yearly gracefully" {
+    out=$(./libexec/lightning/node-pay-count-range-yearly 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_range_yearly"
+}
+@test "FEAT-3515: node-pay-count-range-yearly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-range-yearly.1" ]
+}
+
+@test "FEAT-3516: peer-receivable-pct-skewness reports error or receivable_pct_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-receivable-pct-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_skewness_peer"
+}
+@test "FEAT-3516: peer-receivable-pct-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-pct-skewness.1" ]
+}
+
+@test "FEAT-3517: channel-spendable-balance-skewness-monthly reports error or spendable_balance_skewness_monthly gracefully" {
+    out=$(./libexec/lightning/channel-spendable-balance-skewness-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_balance_skewness_monthly"
+}
+@test "FEAT-3517: channel-spendable-balance-skewness-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-balance-skewness-monthly.1" ]
+}
+
+@test "FEAT-3518: node-invoice-paid-count-daily reports error or paid_count_daily gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_daily"
+}
+@test "FEAT-3518: node-invoice-paid-count-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-daily.1" ]
+}
+
+@test "FEAT-3519: peer-receivable-pct-kurtosis reports error or receivable_pct_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-receivable-pct-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_kurtosis_peer"
+}
+@test "FEAT-3519: peer-receivable-pct-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-pct-kurtosis.1" ]
+}
+
+@test "FEAT-3520: channel-spendable-balance-kurtosis-monthly reports error or spendable_balance_kurtosis_monthly gracefully" {
+    out=$(./libexec/lightning/channel-spendable-balance-kurtosis-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_balance_kurtosis_monthly"
+}
+@test "FEAT-3520: channel-spendable-balance-kurtosis-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-balance-kurtosis-monthly.1" ]
+}
