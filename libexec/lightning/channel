@@ -1241,10 +1241,11 @@ cmd_rebalance_auto() {
 	while [ $# -gt 0 ]; do
 		case "$1" in --threshold) threshold="$2"; shift 2 ;; *) shift ;; esac
 	done
-	cli listpeerchannels | python3 - "$threshold" <<'PYEOF'
+	local _ch_data; _ch_data=$(cli listpeerchannels)
+	python3 - "$_ch_data" "$threshold" <<'PYEOF'
 import sys, json
-chs = json.load(sys.stdin).get('channels', [])
-t = int(sys.argv[1])
+chs = json.loads(sys.argv[1]).get('channels', [])
+t = int(sys.argv[2])
 unbal = []
 for c in chs:
     total = c.get('total_msat', 0)
@@ -1299,10 +1300,11 @@ cmd_stuck() {
 		case "$1" in --minutes) minutes="$2"; shift 2 ;; *) shift ;; esac
 	done
 	local cutoff; cutoff=$(( $(date +%s) - minutes * 60 ))
-	cli listpeerchannels | python3 - "$cutoff" "$minutes" <<'PYEOF'
+	local _ch_data; _ch_data=$(cli listpeerchannels)
+	python3 - "$_ch_data" "$cutoff" "$minutes" <<'PYEOF'
 import sys, json
-chs = json.load(sys.stdin).get('channels', [])
-cutoff = int(sys.argv[1]); minutes = int(sys.argv[2])
+chs = json.loads(sys.argv[1]).get('channels', [])
+cutoff = int(sys.argv[2]); minutes = int(sys.argv[3])
 stuck = []
 for c in chs:
     old = [h for h in c.get('htlcs', []) if h.get('expiry', 0) and int(h.get('expiry',0)) < cutoff]
