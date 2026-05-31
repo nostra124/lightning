@@ -36911,3 +36911,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3580: channel-both-reserves-skewness-monthly man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-skewness-monthly.1" ]
 }
+
+@test "FEAT-3581: channel-both-reserves-kurtosis-monthly reports error or both_reserves_kurtosis_monthly_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-kurtosis-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_kurtosis_monthly_msat"
+}
+@test "FEAT-3581: channel-both-reserves-kurtosis-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-kurtosis-monthly.1" ]
+}
+
+@test "FEAT-3582: node-pay-fee-variance reports error or fee_variance_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_variance_msat"
+}
+@test "FEAT-3582: node-pay-fee-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-variance.1" ]
+}
+
+@test "FEAT-3583: peer-both-reserves-kurtosis reports error or both_reserves_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-both-reserves-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_kurtosis_peer"
+}
+@test "FEAT-3583: peer-both-reserves-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-both-reserves-kurtosis.1" ]
+}
+
+@test "FEAT-3584: channel-fee-earned-skewness-weekly reports error or fee_earned_skewness_weekly_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-skewness-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_skewness_weekly_msat"
+}
+@test "FEAT-3584: channel-fee-earned-skewness-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-skewness-weekly.1" ]
+}
+
+@test "FEAT-3585: node-pay-fee-range reports error or fee_range_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_range_msat"
+}
+@test "FEAT-3585: node-pay-fee-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-range.1" ]
+}
+
+@test "FEAT-3586: peer-fee-earned-skewness reports error or fee_earned_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_skewness_peer"
+}
+@test "FEAT-3586: peer-fee-earned-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-skewness.1" ]
+}
+
+@test "FEAT-3587: channel-fee-earned-kurtosis-weekly reports error or fee_earned_kurtosis_weekly_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_kurtosis_weekly_msat"
+}
+@test "FEAT-3587: channel-fee-earned-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-3588: node-invoice-amount-range reports error or invoice_amount_range_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_range_msat"
+}
+@test "FEAT-3588: node-invoice-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-range.1" ]
+}
+
+@test "FEAT-3589: peer-fee-earned-kurtosis reports error or fee_earned_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_kurtosis_peer"
+}
+@test "FEAT-3589: peer-fee-earned-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-kurtosis.1" ]
+}
+
+@test "FEAT-3590: channel-fee-earned-skewness-monthly reports error or fee_earned_skewness_monthly_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-skewness-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_skewness_monthly_msat"
+}
+@test "FEAT-3590: channel-fee-earned-skewness-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-skewness-monthly.1" ]
+}
