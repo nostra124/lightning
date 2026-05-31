@@ -35291,3 +35291,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3370: channel-remote-balance-top10 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-top10.1" ]
 }
+
+@test "FEAT-3371: channel-local-reserve-top10 reports error or top10_local_reserve gracefully" {
+    out=$(./libexec/lightning/channel-local-reserve-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_local_reserve"
+}
+@test "FEAT-3371: channel-local-reserve-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-reserve-top10.1" ]
+}
+
+@test "FEAT-3372: node-invoice-paid-amount-daily reports error or paid_amount_daily gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_daily"
+}
+@test "FEAT-3372: node-invoice-paid-amount-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-daily.1" ]
+}
+
+@test "FEAT-3373: peer-fee-ppm-avg reports error or fee_ppm_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_avg_peer"
+}
+@test "FEAT-3373: peer-fee-ppm-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-avg.1" ]
+}
+
+@test "FEAT-3374: channel-remote-reserve-top10 reports error or top10_remote_reserve gracefully" {
+    out=$(./libexec/lightning/channel-remote-reserve-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_remote_reserve"
+}
+@test "FEAT-3374: channel-remote-reserve-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-reserve-top10.1" ]
+}
+
+@test "FEAT-3375: node-invoice-paid-amount-weekly reports error or paid_amount_weekly gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_weekly"
+}
+@test "FEAT-3375: node-invoice-paid-amount-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-weekly.1" ]
+}
+
+@test "FEAT-3376: peer-fee-ppm-max reports error or fee_ppm_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_max_peer"
+}
+@test "FEAT-3376: peer-fee-ppm-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-max.1" ]
+}
+
+@test "FEAT-3377: channel-both-reserves-top10 reports error or top10_both_reserves gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_both_reserves"
+}
+@test "FEAT-3377: channel-both-reserves-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-top10.1" ]
+}
+
+@test "FEAT-3378: node-invoice-paid-amount-monthly reports error or paid_amount_monthly gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_monthly"
+}
+@test "FEAT-3378: node-invoice-paid-amount-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-monthly.1" ]
+}
+
+@test "FEAT-3379: peer-fee-ppm-min reports error or fee_ppm_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_min_peer"
+}
+@test "FEAT-3379: peer-fee-ppm-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-min.1" ]
+}
+
+@test "FEAT-3380: channel-both-balances-top10 reports error or top10_both_balances gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_both_balances"
+}
+@test "FEAT-3380: channel-both-balances-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-top10.1" ]
+}
