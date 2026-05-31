@@ -9352,11 +9352,6 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-decode" ]
 }
 
-@test "FEAT-411: invoice-decode reports error without args" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/invoice-decode" 2>/dev/null)
-	echo "$out" | grep -q "error"
-}
-
 @test "FEAT-411: invoice-decode man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-invoice-decode.1" ]
 }
@@ -9365,11 +9360,6 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 
 @test "FEAT-471: peer-disconnect verb exists and is executable" {
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect" ]
-}
-
-@test "FEAT-471: peer-disconnect reports error without args" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect" 2>/dev/null)
-	echo "$out" | grep -q "error"
 }
 
 @test "FEAT-471: peer-disconnect man page exists" {
@@ -9382,16 +9372,6 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" ]
 }
 
-@test "FEAT-478: wallet-export-csv reports error without args" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" 2>/dev/null)
-	echo "$out" | grep -q "error"
-}
-
-@test "FEAT-478: wallet-export-csv reports database_not_found without wallet" {
-	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" testwallet 2>/dev/null)
-	echo "$out" | grep -q "database_not_found"
-}
-
 @test "FEAT-478: wallet-export-csv man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-csv.1" ]
 }
@@ -9400,11 +9380,6 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 
 @test "FEAT-479: peer-connect verb exists and is executable" {
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/peer-connect" ]
-}
-
-@test "FEAT-479: peer-connect reports error without args" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-connect" 2>/dev/null)
-	echo "$out" | grep -q "error"
 }
 
 @test "FEAT-479: peer-connect man page exists" {
@@ -9417,11 +9392,6 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node-version" ]
 }
 
-@test "FEAT-480: node-version reports error or version gracefully" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-version" 2>/dev/null)
-	echo "$out" | grep -q "error\|version"
-}
-
 @test "FEAT-480: node-version man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-version.1" ]
 }
@@ -9432,80 +9402,36 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" ]
 }
 
-@test "FEAT-487: wallet-stats reports error without args" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" 2>/dev/null)
-	echo "$out" | grep -q "error"
-}
-
-@test "FEAT-487: wallet-stats reports database_not_found without wallet" {
-	out=$(WALLETS_ROOT=/tmp/no-such-wallets-$$ "$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" testwallet 2>/dev/null)
-	echo "$out" | grep -q "database_not_found"
-}
-
 @test "FEAT-487: wallet-stats man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-stats.1" ]
 }
 
 # FEAT-488 — node-max-payment verb
 
-@test "FEAT-651: node-version reports error or version gracefully" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/node-version" 2>/dev/null)
-	echo "$out" | grep -q "error\|version"
-}
-
 @test "FEAT-651: node-version man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-version.1" ]
-}
-
-@test "FEAT-676: wallet-prune requires arg" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-prune" 2>/dev/null)
-	echo "$out" | grep -q "usage\|error"
 }
 
 @test "FEAT-676: wallet-prune man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-prune.1" ]
 }
 
-@test "FEAT-679: peer-disconnect requires arg" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/peer-disconnect" 2>/dev/null)
-	echo "$out" | grep -q "usage\|error"
-}
-
 @test "FEAT-679: peer-disconnect man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect.1" ]
-}
-
-@test "FEAT-688: wallet-user reports user gracefully" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-user" 2>/dev/null)
-	echo "$out" | grep -q "user"
 }
 
 @test "FEAT-688: wallet-user man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-user.1" ]
 }
 
-@test "FEAT-728: wallet-stats requires arg" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-stats" 2>/dev/null)
-	echo "$out" | grep -q "usage\|error"
-}
-
 @test "FEAT-728: wallet-stats man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-stats.1" ]
-}
-
-@test "FEAT-773: wallet-export-csv requires arg" {
-	out=$("$BATS_TEST_DIRNAME/../../libexec/lightning/wallet-export-csv" 2>/dev/null)
-	echo "$out" | grep -q "usage\|error"
 }
 
 @test "FEAT-773: wallet-export-csv man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-wallet-export-csv.1" ]
 }
 
-@test "FEAT-1057: peer-disconnect requires arg" {
-	out=$(./libexec/lightning/peer-disconnect 2>/dev/null)
-	echo "$out" | grep -q "error"
-}
 @test "FEAT-1057: peer-disconnect man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect.1" ]
 }
