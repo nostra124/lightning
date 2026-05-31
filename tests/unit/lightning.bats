@@ -37471,3 +37471,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3650: channel-spendable-balance-variance man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-balance-variance.1" ]
 }
+
+@test "FEAT-3651: channel-receivable-balance-variance reports error or receivable_balance_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-receivable-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_balance_variance_msat"
+}
+@test "FEAT-3651: channel-receivable-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-balance-variance.1" ]
+}
+
+@test "FEAT-3652: node-listforwards-fee-variance reports error or fee_variance_msat gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_variance_msat"
+}
+@test "FEAT-3652: node-listforwards-fee-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-variance.1" ]
+}
+
+@test "FEAT-3653: peer-channel-count-skewness reports error or channel_count_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count_skewness_peer"
+}
+@test "FEAT-3653: peer-channel-count-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-skewness.1" ]
+}
+
+@test "FEAT-3654: channel-both-balances-variance reports error or both_balances_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_variance_msat"
+}
+@test "FEAT-3654: channel-both-balances-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-variance.1" ]
+}
+
+@test "FEAT-3655: node-listforwards-in-msat-variance reports error or in_msat_variance gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_variance"
+}
+@test "FEAT-3655: node-listforwards-in-msat-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-variance.1" ]
+}
+
+@test "FEAT-3656: peer-channel-count-kurtosis reports error or channel_count_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-channel-count-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|channel_count_kurtosis_peer"
+}
+@test "FEAT-3656: peer-channel-count-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-channel-count-kurtosis.1" ]
+}
+
+@test "FEAT-3657: channel-both-reserves-variance reports error or both_reserves_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_variance_msat"
+}
+@test "FEAT-3657: channel-both-reserves-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-variance.1" ]
+}
+
+@test "FEAT-3658: node-listforwards-out-msat-variance reports error or out_msat_variance gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_variance"
+}
+@test "FEAT-3658: node-listforwards-out-msat-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-variance.1" ]
+}
+
+@test "FEAT-3659: peer-local-balance-variance reports error or local_balance_variance_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_variance_peer"
+}
+@test "FEAT-3659: peer-local-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-variance.1" ]
+}
+
+@test "FEAT-3660: channel-fee-earned-variance reports error or fee_earned_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_variance_msat"
+}
+@test "FEAT-3660: channel-fee-earned-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-variance.1" ]
+}
