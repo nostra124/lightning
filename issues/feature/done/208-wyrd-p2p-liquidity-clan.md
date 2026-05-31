@@ -2,7 +2,7 @@
 id: FEAT-208
 type: feature
 priority: low
-status: research
+status: wont-implement
 ---
 
 # Wyrd integration — peer-to-peer Lightning liquidity marketplace / clan
