@@ -36061,3 +36061,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3470: channel-remote-pct-skewness man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-skewness.1" ]
 }
+@test "FEAT-3471: peer-remote-pct-skewness reports error or remote_pct_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-pct-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_skewness_peer"
+}
+@test "FEAT-3471: peer-remote-pct-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-pct-skewness.1" ]
+}
+@test "FEAT-3472: channel-local-pct-kurtosis reports error or local_pct_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_kurtosis"
+}
+@test "FEAT-3472: channel-local-pct-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-kurtosis.1" ]
+}
+@test "FEAT-3473: node-pay-fee-range reports error or fee_range_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_range_pay"
+}
+@test "FEAT-3473: node-pay-fee-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-range.1" ]
+}
+@test "FEAT-3474: peer-local-pct-kurtosis reports error or local_pct_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_kurtosis_peer"
+}
+@test "FEAT-3474: peer-local-pct-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-kurtosis.1" ]
+}
+@test "FEAT-3475: channel-remote-pct-kurtosis reports error or remote_pct_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_kurtosis"
+}
+@test "FEAT-3475: channel-remote-pct-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-kurtosis.1" ]
+}
+@test "FEAT-3476: node-invoice-count-today reports error or invoice_count_today gracefully" {
+    out=$(./libexec/lightning/node-invoice-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_count_today"
+}
+@test "FEAT-3476: node-invoice-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-count-today.1" ]
+}
+@test "FEAT-3477: peer-remote-pct-kurtosis reports error or remote_pct_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-pct-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_kurtosis_peer"
+}
+@test "FEAT-3477: peer-remote-pct-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-pct-kurtosis.1" ]
+}
+@test "FEAT-3478: channel-balance-ratio-skewness reports error or balance_ratio_skewness gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_skewness"
+}
+@test "FEAT-3478: channel-balance-ratio-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio-skewness.1" ]
+}
+@test "FEAT-3479: node-invoice-paid-count-today reports error or paid_count_today gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_count_today"
+}
+@test "FEAT-3479: node-invoice-paid-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-count-today.1" ]
+}
+@test "FEAT-3480: peer-balance-ratio-skewness reports error or balance_ratio_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-ratio-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_skewness_peer"
+}
+@test "FEAT-3480: peer-balance-ratio-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-skewness.1" ]
+}
