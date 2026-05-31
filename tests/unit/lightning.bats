@@ -34331,3 +34331,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3250: peer-htlc-count-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-max.1" ]
 }
+
+@test "FEAT-3251: peer-htlc-count-min reports error or htlc_count_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_min_peer"
+}
+@test "FEAT-3251: peer-htlc-count-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-min.1" ]
+}
+
+@test "FEAT-3252: channel-remote-balance-range reports error or remote_balance_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_range_channel"
+}
+@test "FEAT-3252: channel-remote-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-range.1" ]
+}
+
+@test "FEAT-3253: node-pay-fee-total-weekly reports error or fee_total_weekly_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-total-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_total_weekly_pay"
+}
+@test "FEAT-3253: node-pay-fee-total-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-total-weekly.1" ]
+}
+
+@test "FEAT-3254: peer-htlc-count-stddev reports error or htlc_count_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_stddev_peer"
+}
+@test "FEAT-3254: peer-htlc-count-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-stddev.1" ]
+}
+
+@test "FEAT-3255: channel-spendable-range reports error or spendable_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-spendable-range 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_range_channel"
+}
+@test "FEAT-3255: channel-spendable-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-range.1" ]
+}
+
+@test "FEAT-3256: node-invoice-pending-count-week reports error or pending_count_week gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-count-week 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_count_week"
+}
+@test "FEAT-3256: node-invoice-pending-count-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-count-week.1" ]
+}
+
+@test "FEAT-3257: peer-htlc-count-range reports error or htlc_count_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_range_peer"
+}
+@test "FEAT-3257: peer-htlc-count-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-range.1" ]
+}
+
+@test "FEAT-3258: channel-receivable-range reports error or receivable_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-receivable-range 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_range_channel"
+}
+@test "FEAT-3258: channel-receivable-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-range.1" ]
+}
+
+@test "FEAT-3259: node-invoice-pending-count-month reports error or pending_count_month gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-count-month 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_count_month"
+}
+@test "FEAT-3259: node-invoice-pending-count-month man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-count-month.1" ]
+}
+
+@test "FEAT-3260: peer-htlc-value-max reports error or htlc_value_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_max_peer"
+}
+@test "FEAT-3260: peer-htlc-value-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-max.1" ]
+}
