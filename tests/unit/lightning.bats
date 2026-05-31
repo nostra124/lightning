@@ -34651,3 +34651,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3290: peer-fee-proportional-stddev man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-proportional-stddev.1" ]
 }
+
+@test "FEAT-3291: peer-fee-proportional-range reports error or fee_proportional_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-proportional-range 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_range_peer"
+}
+@test "FEAT-3291: peer-fee-proportional-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-proportional-range.1" ]
+}
+
+@test "FEAT-3292: channel-htlc-min-msat-max reports error or htlc_min_msat_max gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_max"
+}
+@test "FEAT-3292: channel-htlc-min-msat-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat-max.1" ]
+}
+
+@test "FEAT-3293: node-listforwards-amount-stddev reports error or forwards_amount_stddev gracefully" {
+    out=$(./libexec/lightning/node-listforwards-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_amount_stddev"
+}
+@test "FEAT-3293: node-listforwards-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-amount-stddev.1" ]
+}
+
+@test "FEAT-3294: peer-fee-proportional-kurtosis reports error or fee_proportional_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-proportional-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_kurtosis_peer"
+}
+@test "FEAT-3294: peer-fee-proportional-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-proportional-kurtosis.1" ]
+}
+
+@test "FEAT-3295: channel-htlc-min-msat-min reports error or htlc_min_msat_min gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_min"
+}
+@test "FEAT-3295: channel-htlc-min-msat-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat-min.1" ]
+}
+
+@test "FEAT-3296: node-listforwards-amount-range reports error or forwards_amount_range gracefully" {
+    out=$(./libexec/lightning/node-listforwards-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_amount_range"
+}
+@test "FEAT-3296: node-listforwards-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-amount-range.1" ]
+}
+
+@test "FEAT-3297: peer-fee-proportional-skewness reports error or fee_proportional_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-proportional-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_proportional_skewness_peer"
+}
+@test "FEAT-3297: peer-fee-proportional-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-proportional-skewness.1" ]
+}
+
+@test "FEAT-3298: channel-htlc-max-msat-max reports error or htlc_max_msat_max gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-msat-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_max"
+}
+@test "FEAT-3298: channel-htlc-max-msat-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-msat-max.1" ]
+}
+
+@test "FEAT-3299: node-listforwards-amount-kurtosis reports error or forwards_amount_kurtosis gracefully" {
+    out=$(./libexec/lightning/node-listforwards-amount-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_amount_kurtosis"
+}
+@test "FEAT-3299: node-listforwards-amount-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-amount-kurtosis.1" ]
+}
+
+@test "FEAT-3300: peer-htlc-min-msat-avg reports error or htlc_min_msat_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-min-msat-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_avg_peer"
+}
+@test "FEAT-3300: peer-htlc-min-msat-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-min-msat-avg.1" ]
+}

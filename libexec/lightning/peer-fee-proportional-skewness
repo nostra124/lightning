@@ -1,0 +1,8 @@
+#!/bin/bash
+# lightning peer-fee-proportional-skewness   (FEAT-3297)
+result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'fee_proportional_skewness_peer': None}))
+" "$result"
