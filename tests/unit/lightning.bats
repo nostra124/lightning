@@ -36991,3 +36991,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3590: channel-fee-earned-skewness-monthly man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-skewness-monthly.1" ]
 }
+
+@test "FEAT-3591: channel-fee-earned-kurtosis-monthly reports error or fee_earned_kurtosis_monthly_msat gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-kurtosis-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_kurtosis_monthly_msat"
+}
+@test "FEAT-3591: channel-fee-earned-kurtosis-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-kurtosis-monthly.1" ]
+}
+
+@test "FEAT-3592: node-invoice-amount-skewness reports error or invoice_amount_skewness_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_skewness_msat"
+}
+@test "FEAT-3592: node-invoice-amount-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-skewness.1" ]
+}
+
+@test "FEAT-3593: peer-fee-earned-skewness-weekly reports error or fee_earned_skewness_weekly_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-skewness-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_skewness_weekly_peer"
+}
+@test "FEAT-3593: peer-fee-earned-skewness-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-skewness-weekly.1" ]
+}
+
+@test "FEAT-3594: channel-local-balance-range reports error or local_balance_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_range_msat"
+}
+@test "FEAT-3594: channel-local-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-range.1" ]
+}
+
+@test "FEAT-3595: node-invoice-amount-kurtosis reports error or invoice_amount_kurtosis_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_kurtosis_msat"
+}
+@test "FEAT-3595: node-invoice-amount-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-kurtosis.1" ]
+}
+
+@test "FEAT-3596: peer-fee-earned-kurtosis-weekly reports error or fee_earned_kurtosis_weekly_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_kurtosis_weekly_peer"
+}
+@test "FEAT-3596: peer-fee-earned-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-3597: channel-remote-balance-range reports error or remote_balance_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_range_msat"
+}
+@test "FEAT-3597: channel-remote-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-range.1" ]
+}
+
+@test "FEAT-3598: node-pay-amount-skewness reports error or amount_skewness_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_skewness_msat"
+}
+@test "FEAT-3598: node-pay-amount-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-skewness.1" ]
+}
+
+@test "FEAT-3599: peer-fee-earned-skewness-monthly reports error or fee_earned_skewness_monthly_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-skewness-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_skewness_monthly_peer"
+}
+@test "FEAT-3599: peer-fee-earned-skewness-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-skewness-monthly.1" ]
+}
+
+@test "FEAT-3600: channel-spendable-balance-range reports error or spendable_balance_range_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-balance-range 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_balance_range_msat"
+}
+@test "FEAT-3600: channel-spendable-balance-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-balance-range.1" ]
+}
