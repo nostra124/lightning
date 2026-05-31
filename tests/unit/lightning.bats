@@ -34411,3 +34411,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3260: peer-htlc-value-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-max.1" ]
 }
+
+@test "FEAT-3261: peer-htlc-value-min reports error or htlc_value_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_min_peer"
+}
+@test "FEAT-3261: peer-htlc-value-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-min.1" ]
+}
+
+@test "FEAT-3262: channel-our-reserve-range reports error or our_reserve_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-our-reserve-range 2>/dev/null)
+    echo "$out" | grep -q "error\|our_reserve_range_channel"
+}
+@test "FEAT-3262: channel-our-reserve-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-our-reserve-range.1" ]
+}
+
+@test "FEAT-3263: node-invoice-pending-count-year reports error or pending_count_year gracefully" {
+    out=$(./libexec/lightning/node-invoice-pending-count-year 2>/dev/null)
+    echo "$out" | grep -q "error\|pending_count_year"
+}
+@test "FEAT-3263: node-invoice-pending-count-year man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-pending-count-year.1" ]
+}
+
+@test "FEAT-3264: peer-htlc-value-stddev reports error or htlc_value_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_stddev_peer"
+}
+@test "FEAT-3264: peer-htlc-value-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-stddev.1" ]
+}
+
+@test "FEAT-3265: channel-their-reserve-range reports error or their_reserve_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-their-reserve-range 2>/dev/null)
+    echo "$out" | grep -q "error\|their_reserve_range_channel"
+}
+@test "FEAT-3265: channel-their-reserve-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-their-reserve-range.1" ]
+}
+
+@test "FEAT-3266: node-listforwards-count-today reports error or forwards_count_today gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-today 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_count_today"
+}
+@test "FEAT-3266: node-listforwards-count-today man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-today.1" ]
+}
+
+@test "FEAT-3267: peer-htlc-value-range reports error or htlc_value_range_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-value-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_value_range_peer"
+}
+@test "FEAT-3267: peer-htlc-value-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-value-range.1" ]
+}
+
+@test "FEAT-3268: channel-both-reserves-range reports error or both_reserves_range_channel gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-range 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_range_channel"
+}
+@test "FEAT-3268: channel-both-reserves-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-range.1" ]
+}
+
+@test "FEAT-3269: node-listforwards-count-week reports error or forwards_count_week gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-week 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_count_week"
+}
+@test "FEAT-3269: node-listforwards-count-week man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-week.1" ]
+}
+
+@test "FEAT-3270: peer-local-pct-kurtosis reports error or local_pct_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_kurtosis_peer"
+}
+@test "FEAT-3270: peer-local-pct-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-kurtosis.1" ]
+}
