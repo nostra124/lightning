@@ -14,7 +14,7 @@
     "type": "bearer",
     "scope": "per-account",
     "obtain": "POST /.well-known/lightning/v1/accounts (no auth) — the response contains the account_id and the lt_-prefixed bearer token to use for every subsequent call.",
-    "notes": "Tools marked 'no auth' (node_info, node_health, channel_list, node_funds, fee_list, forward_stats, peer_summary, invoice_decode, price) do not require a bearer token."
+    "notes": "Tools marked 'no auth' (node_info, node_health, channel_list, node_funds, fee_list, forward_stats, peer_summary, invoice_decode, price, payment_status, invoice_status, peers_score) do not require a bearer token."
   },
   "tools": [
     "account_create",
@@ -35,7 +35,10 @@
     "node_funds",
     "fee_list",
     "forward_stats",
-    "peer_summary"
+    "peer_summary",
+    "payment_status",
+    "invoice_status",
+    "peers_score"
   ],
   "resources": [
     "account://{id}",
