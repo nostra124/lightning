@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning peer-fee-earned-total   (FEAT-2533)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+totals = {}
+for ch in channels:
+    peer = ch.get('peer_id', '')
+    fee = ch.get('fee_proportional_millionths', 0)
+    fee_msat = ch.get('fee_base_msat', 0)
+    earned = ch.get('out_fulfilled_msat', 0)
+    if isinstance(earned, str):
+        earned = int(earned.rstrip('msat')) if earned.endswith('msat') else int(earned)
+    totals[peer] = totals.get(peer, 0) + earned
+best_peer = max(totals, key=lambda p: totals[p]) if totals else None
+print(json.dumps({'fee_earned_total_msat': totals.get(best_peer, 0), 'peer_id': best_peer}))
+" "$result"

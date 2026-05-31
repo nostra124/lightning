@@ -1,0 +1,20 @@
+.TH "LIGHTNING-CHANNEL-LAST-FORWARD" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-last-forward \- show the most recent settled forward
+.SH SYNOPSIS
+.B lightning channel-last-forward
+.RI [ channel_id ]
+.SH DESCRIPTION
+Returns the most recently settled forward, optionally filtered by channel.
+.PP
+Output:
+.nf
+{in_channel, out_channel, amount_msat, fee_msat, resolved_time}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-history (1),
+.BR lightning-node-fee-revenue (1)

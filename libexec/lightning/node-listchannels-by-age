@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-listchannels-by-age <max_age>   (FEAT-1864)
+if [ $# -lt 1 ]; then echo '{"error":"usage: node-listchannels-by-age <max_age>"}'; exit 0; fi
+max_age="$1"
+result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+max_age = int(sys.argv[2])
+now = int(time.time())
+channels = [c for c in data.get('channels', []) if now - c.get('last_update', now) <= max_age]
+print(json.dumps({'count': len(channels), 'max_age': max_age}))
+" "$result" "$max_age"

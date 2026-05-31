@@ -1,0 +1,51 @@
+#!/bin/bash
+# lightning node-close-all [--force]   (FEAT-312)
+#
+# Closes all channels gracefully (mutual close).
+# With --force uses unilateral close.
+# Returns {closed: [channel_id, ...], errors: [...]}
+
+set -e
+force=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --force) force="unilateral"; shift ;;
+        *) shift ;;
+    esac
+done
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+raw=$(lightning-cli $LD $NET listpeerchannels 2>/dev/null) || {
+    echo '{"closed":[],"errors":["listpeerchannels_failed"]}'; exit 0; }
+
+python3 -c "
+import sys, json, subprocess, shlex
+
+chans = json.loads(sys.argv[1]).get('channels', [])
+force = sys.argv[2]
+ld = sys.argv[3]; net = sys.argv[4]
+
+closed = []; errors = []
+for c in chans:
+    cid = c.get('channel_id') or c.get('short_channel_id', '')
+    if not cid:
+        continue
+    state = c.get('state', '')
+    if state in ('CLOSED', 'ONCHAIND_THEIR_UNILATERAL', 'ONCHAIND_OUR_UNILATERAL'):
+        continue
+    cmd = ['lightning-cli', ld, net, 'close', cid]
+    if force:
+        cmd.append(force)
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode == 0:
+        closed.append(cid)
+    else:
+        errors.append(f'{cid}: close_failed')
+
+print(json.dumps({'closed': closed, 'errors': errors}, separators=(',', ':')))
+" "$raw" "$force" "$LD" "$NET"

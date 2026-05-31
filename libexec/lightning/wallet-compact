@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning wallet-compact [<wallet>]   (FEAT-358)
+set -e
+wname="${1:-default}"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"ok":false,"reason":"database_not_found"}'
+    exit 0
+fi
+before=$(stat -c%s "$db" 2>/dev/null || stat -f%z "$db" 2>/dev/null || echo 0)
+sqlite3 "$db" "VACUUM;" 2>/dev/null || { echo '{"ok":false,"reason":"vacuum_failed"}'; exit 0; }
+after=$(stat -c%s "$db" 2>/dev/null || stat -f%z "$db" 2>/dev/null || echo 0)
+echo "{\"ok\":true,\"before_bytes\":$before,\"after_bytes\":$after,\"saved_bytes\":$(( before - after ))}"

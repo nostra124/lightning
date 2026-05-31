@@ -1,0 +1,18 @@
+.TH "LIGHTNING-NODE-LISTFORWARDS-FEE-TOTAL-MONTHLY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-listforwards-fee-total-monthly \- FEAT-2871 node-listforwards-fee-total-monthly
+.SH SYNOPSIS
+.B lightning node-listforwards-fee-total-monthly
+.SH DESCRIPTION
+Total forward fees earned this calendar month for the local node (FEAT-2871).
+.PP
+Queries settled forwards via lightning-cli listforwards and sums fee_msat for
+entries whose resolved_time falls within the current UTC calendar month.
+.PP
+Output: JSON from CLN.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

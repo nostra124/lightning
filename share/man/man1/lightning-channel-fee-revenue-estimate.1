@@ -1,0 +1,17 @@
+.TH "LIGHTNING-CHANNEL-FEE-REVENUE-ESTIMATE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-fee-revenue-estimate \- FEAT-2510 estimated fee revenue across all channels
+.SH SYNOPSIS
+.B lightning channel-fee-revenue-estimate
+.SH DESCRIPTION
+channel-fee-revenue-estimate for lightning CLI (FEAT-2510).
+.PP
+Returns the estimated fee revenue as the sum of fee_base_msat plus fee_proportional_millionths times capacity divided by 1,000,000 for each channel.
+.PP
+Output: JSON from CLN.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

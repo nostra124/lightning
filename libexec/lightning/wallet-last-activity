@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning wallet-last-activity <wallet_name>   (FEAT-918)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-last-activity <wallet_name>"}'; exit 0; fi
+wname="$1"; root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+if [ ! -d "$root/$wname" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo "{\"wallet\":\"$wname\",\"last_activity\":null}"; exit 0; fi
+ts=$(sqlite3 "$db" "SELECT MAX(created_at) FROM transactions;" 2>/dev/null) || ts=null
+echo "{\"wallet\":\"$wname\",\"last_activity\":\"$ts\"}"

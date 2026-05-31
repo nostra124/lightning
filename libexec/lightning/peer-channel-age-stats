@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning peer-channel-age-stats   (FEAT-2156)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+ages = [c.get('scratch_txid') and c.get('opened_msat') or c.get('funding_txid') and 0 for c in channels]
+vals = [c.get('age') for c in channels if c.get('age') is not None]
+if not vals:
+    print(json.dumps({'min': None, 'max': None, 'avg': None, 'count': len(channels)}))
+else:
+    print(json.dumps({'min': min(vals), 'max': max(vals), 'avg': sum(vals)/len(vals), 'count': len(vals)}))
+" "$result"

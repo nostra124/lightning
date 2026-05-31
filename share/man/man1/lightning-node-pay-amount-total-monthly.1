@@ -1,0 +1,18 @@
+.TH "LIGHTNING-NODE-PAY-AMOUNT-TOTAL-MONTHLY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-pay-amount-total-monthly \- FEAT-2874 node-pay-amount-total-monthly
+.SH SYNOPSIS
+.B lightning node-pay-amount-total-monthly
+.SH DESCRIPTION
+Total payment amount sent this calendar month (FEAT-2874).
+.PP
+Queries completed payments via lightning-cli listpays and sums amount_sent_msat
+for entries whose completed_at timestamp falls within the current UTC calendar month.
+.PP
+Output: JSON from CLN.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

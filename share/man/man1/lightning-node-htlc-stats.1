@@ -1,0 +1,22 @@
+.TH "LIGHTNING-NODE-HTLC-STATS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-htlc-stats \- aggregate HTLC statistics across all channels
+.SH SYNOPSIS
+.B lightning node-htlc-stats
+.SH DESCRIPTION
+Counts in-flight HTLCs across all channels and reports totals for
+offered (outbound), received (inbound), and channels that currently
+carry at least one HTLC.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{total_htlcs, offered, received, channels_with_htlcs}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-htlc-list (1),
+.BR lightning-channel-htlc-count (1)

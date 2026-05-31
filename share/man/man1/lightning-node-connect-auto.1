@@ -1,0 +1,20 @@
+.TH "LIGHTNING-NODE-CONNECT-AUTO" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-connect-auto \- schedule reconnection to disconnected peers
+.SH SYNOPSIS
+.B lightning node-connect-auto
+.SH DESCRIPTION
+Lists peers that are currently disconnected and have known network addresses,
+scheduling them for reconnection.
+.PP
+Output:
+.nf
+{"reconnect_scheduled":N, "peers":[{peer_id, addr, status}]}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-peer-connect (1),
+.BR lightning-peer-disconnect-all (1)

@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning channel-remote-balance-median   (FEAT-2317)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = sorted(ch.get('remote_msat', 0) for ch in channels if 'remote_msat' in ch)
+if not vals:
+    print(json.dumps({'median_remote_msat': None, 'channel_count': 0}))
+else:
+    n = len(vals)
+    if n % 2 == 1:
+        median = vals[n // 2]
+    else:
+        median = (vals[n // 2 - 1] + vals[n // 2]) / 2
+    print(json.dumps({'median_remote_msat': median, 'channel_count': n}))
+" "$result"

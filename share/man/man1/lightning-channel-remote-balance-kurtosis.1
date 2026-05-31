@@ -1,0 +1,16 @@
+.TH "LIGHTNING-CHANNEL_REMOTE_BALANCE_KURTOSIS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-remote-balance-kurtosis \- FEAT-2812 kurtosis of remote balance across channels
+.SH SYNOPSIS
+.B lightning channel-remote-balance-kurtosis
+.SH DESCRIPTION
+Computes the kurtosis of remote balance across channels for the lightning CLI (FEAT-2812).
+.PP
+Output: JSON object with key \fBremote_balance_kurtosis\fR and \fBcount\fR.
+Returns \fBnull\fR when fewer than the required minimum samples are available.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning (1)

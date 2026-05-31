@@ -1,0 +1,22 @@
+#!/bin/bash
+# lightning channel-capacity-max-btc   (FEAT-2487)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+best = None
+best_btc = None
+for ch in channels:
+    local = ch.get('local_msat', 0)
+    remote = ch.get('remote_msat', 0)
+    total_msat = local + remote
+    total_btc = total_msat / 1e11
+    if best_btc is None or total_btc > best_btc:
+        best_btc = total_btc
+        best = ch.get('peer_id')
+if best_btc is None:
+    print(json.dumps({'capacity_max_btc': None, 'peer_id': None}))
+else:
+    print(json.dumps({'capacity_max_btc': best_btc, 'peer_id': best}))
+" "$result"

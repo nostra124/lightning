@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning invoice-expire <label>   (FEAT-329)
+set -e
+[ $# -ge 1 ] || { echo '{"error":"usage: invoice-expire <label>"}'; exit 0; }
+label="$1"
+result=$(lightning-cli delinvoice "$label" unpaid 2>/dev/null) || {
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+}
+echo '{"ok":true}'

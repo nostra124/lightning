@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning channel-spendable-bottom10   (FEAT-2762)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+sorted_ch = sorted(channels, key=lambda c: c.get('spendable_msat', 0))
+bottom10 = sorted_ch[:10]
+out = []
+for c in bottom10:
+    out.append({'short_channel_id': c.get('short_channel_id'), 'spendable_msat': c.get('spendable_msat')})
+print(json.dumps({'bottom10_by_spendable': out}))
+" "$result"

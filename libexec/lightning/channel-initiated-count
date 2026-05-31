@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning channel-initiated-count   (FEAT-936)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+chs = data.get('channels', [])
+local = sum(1 for c in chs if c.get('opener') == 'local')
+remote = sum(1 for c in chs if c.get('opener') == 'remote')
+print(json.dumps({'local_initiated': local, 'remote_initiated': remote, 'total': len(chs)}))
+" "$result"

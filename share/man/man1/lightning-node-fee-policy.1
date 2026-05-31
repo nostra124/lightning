@@ -1,0 +1,23 @@
+.TH "LIGHTNING-NODE-FEE-POLICY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-fee-policy \- show local fee policy for all active channels
+.SH SYNOPSIS
+.B lightning node-fee-policy
+.SH DESCRIPTION
+Returns the locally-announced fee policy for each
+.B CHANNELD_NORMAL
+channel: base fee, proportional fee (ppm), and HTLC size limits.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+[{channel_id, peer_id, base_fee_msat, fee_ppm,
+  htlc_min_msat, htlc_max_msat}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-set-fee (1),
+.BR lightning-node-fee-revenue (1)

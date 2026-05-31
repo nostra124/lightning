@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning wallet-notes-has-key <wallet> <key>   (FEAT-1633)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-notes-has-key <wallet> <key>"}'; exit 0
+fi
+wname="$1"; key="$2"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+count=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes WHERE key='$key';" 2>/dev/null)
+if [ "$count" -gt 0 ] 2>/dev/null; then
+    echo "{\"wallet\":\"$wname\",\"key\":\"$key\",\"exists\":true}"
+else
+    echo "{\"wallet\":\"$wname\",\"key\":\"$key\",\"exists\":false}"
+fi

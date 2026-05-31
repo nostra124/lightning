@@ -1,0 +1,16 @@
+.TH "LIGHTNING-NODE_PAY_FEE_SKEWNESS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-pay-fee-skewness \- FEAT-2814 skewness of payment fees
+.SH SYNOPSIS
+.B lightning node-pay-fee-skewness
+.SH DESCRIPTION
+Computes the skewness of payment fees for the lightning CLI (FEAT-2814).
+.PP
+Output: JSON object with key \fBfee_skewness_pay\fR and \fBcount\fR.
+Returns \fBnull\fR when fewer than the required minimum samples are available.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning (1)

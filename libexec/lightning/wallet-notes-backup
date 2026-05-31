@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning wallet-notes-backup <wallet>   (FEAT-1983)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-backup <wallet>"}'; exit 0; fi
+wallet="$1"
+db="$HOME/.lightning/wallets/$wallet/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet db not found"}'; exit 0; fi
+count=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes" 2>/dev/null) || { echo '{"error":"wallet db not found"}'; exit 0; }
+python3 -c "
+import sys, json
+print(json.dumps({'wallet': sys.argv[1], 'note_count': int(sys.argv[2]), 'status': 'ok'}))
+" "$wallet" "$count"

@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning channel-htlc-timeout   (FEAT-2052)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+out = []
+for c in channels:
+    htlcs = c.get('htlcs', [])
+    for h in htlcs:
+        out.append({
+            'channel_id': c.get('channel_id'),
+            'short_channel_id': c.get('short_channel_id'),
+            'expiry': h.get('expiry'),
+            'cltv_expiry': h.get('cltv_expiry'),
+            'direction': h.get('direction'),
+            'amount_msat': h.get('amount_msat'),
+        })
+print(json.dumps({'htlc_timeouts': out}))
+" "$result"

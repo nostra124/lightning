@@ -1,0 +1,21 @@
+.TH "LIGHTNING-INVOICE-SUMMARY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-invoice-summary \- aggregate invoice counts and total received
+.SH SYNOPSIS
+.B lightning invoice-summary
+.SH DESCRIPTION
+Returns counts of paid, unpaid, and expired invoices and the total
+amount received across all paid invoices.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{total, paid, unpaid, expired, total_received_msat}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-invoice-list (1),
+.BR lightning-invoice-list-paid (1)

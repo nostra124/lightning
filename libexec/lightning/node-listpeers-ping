@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-listpeers-ping <peer_id>   (FEAT-1364)
+if [ $# -lt 1 ]; then echo '{"error":"usage: node-listpeers-ping <peer_id>"}'; exit 0; fi
+peer_id="$1"
+result=$(lightning-cli ping "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'peer_id': sys.argv[2], 'result': data}))
+" "$result" "$peer_id"

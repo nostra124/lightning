@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning channel-htlc-max-set <channel_id> <max_msat>   (FEAT-456)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: channel-htlc-max-set <channel_id> <max_msat>"}'
+    exit 0
+fi
+channel_id="$1"; max_msat="$2"
+result=$(lightning-cli setchannel "$channel_id" htlcmax "${max_msat}" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

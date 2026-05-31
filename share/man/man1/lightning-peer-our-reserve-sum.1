@@ -1,0 +1,18 @@
+.TH "LIGHTNING-PEER-OUR-RESERVE-SUM" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peer-our-reserve-sum \- FEAT-2873 peer-our-reserve-sum
+.SH SYNOPSIS
+.B lightning peer-our-reserve-sum
+.SH DESCRIPTION
+Sum of our_reserve_msat across all peer channels (FEAT-2873).
+.PP
+Queries all peer channels via lightning-cli listpeerchannels and sums
+our_reserve_msat for every channel.
+.PP
+Output: JSON from CLN.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

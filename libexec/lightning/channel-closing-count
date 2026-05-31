@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning channel-closing-count   (FEAT-1896)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+closing = [c for c in channels if 'CLOS' in c.get('state', '')]
+print(json.dumps({'total': len(channels), 'closing': len(closing)}))
+" "$result"

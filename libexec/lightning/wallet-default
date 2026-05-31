@@ -1,0 +1,7 @@
+#!/bin/bash
+# lightning wallet-default   (FEAT-938)
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+default_file="$root/.default"
+if [ ! -f "$default_file" ]; then echo '{"default":null}'; exit 0; fi
+default=$(cat "$default_file")
+echo "{\"default\":\"$default\"}"

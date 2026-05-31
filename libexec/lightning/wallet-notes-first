@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning wallet-notes-first   (FEAT-1903)
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+row=$(sqlite3 "$db" "SELECT key, value, tag FROM notes LIMIT 1;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+python3 -c "
+import sys, json
+row = sys.argv[1]
+if not row: print(json.dumps({'error': 'no notes'})); exit()
+parts = row.split('|')
+print(json.dumps({'key': parts[0], 'value': parts[1] if len(parts)>1 else '', 'tag': parts[2] if len(parts)>2 else ''}))
+" "$row"

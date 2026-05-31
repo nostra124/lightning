@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning channel-receivable-stats   (FEAT-2132)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = []
+for ch in channels:
+    r = ch.get('receivable_msat')
+    if r is not None:
+        try:
+            vals.append(int(str(r).replace('msat', '')))
+        except ValueError:
+            pass
+if not vals:
+    print(json.dumps({'count': 0, 'min_msat': None, 'max_msat': None, 'avg_msat': None}))
+else:
+    print(json.dumps({'count': len(vals), 'min_msat': min(vals), 'max_msat': max(vals), 'avg_msat': sum(vals)//len(vals)}))
+" "$result"

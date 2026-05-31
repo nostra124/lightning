@@ -1,0 +1,19 @@
+.TH "LIGHTNING-NODE-HTLC-LIST" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-htlc-list \- list all pending HTLCs across channels
+.SH SYNOPSIS
+.B lightning node-htlc-list
+.SH DESCRIPTION
+Returns all in-flight HTLCs from all channels.
+.PP
+Output:
+.nf
+[{channel_id, direction, amount_msat, expiry, payment_hash}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-htlc-count (1),
+.BR lightning-node-htlc-stats (1)

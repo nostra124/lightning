@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning channel-their-ppm <channel_id>   (FEAT-1836)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-their-ppm <channel_id>"}'; exit 0; fi
+channel_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+cid = sys.argv[2]
+for ch in data.get('channels', []):
+    if ch.get('channel_id') == cid or ch.get('short_channel_id') == cid:
+        print(json.dumps({'channel_id': ch.get('channel_id'), 'their_fee_proportional_millionths': ch.get('their_fee_proportional_millionths')}))
+        sys.exit(0)
+print(json.dumps({'error': 'channel not found'}))
+" "$result" "$channel_id"

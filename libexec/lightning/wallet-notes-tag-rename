@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning wallet-notes-tag-rename <old_tag> <new_tag>   (FEAT-1803)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-tag-rename <old_tag> <new_tag>"}'; exit 0; fi
+old_tag="$1"
+new_tag="$2"
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+sqlite3 "$db" "UPDATE notes SET tag='$new_tag' WHERE tag='$old_tag';" 2>/dev/null || { echo '{"error":"db error"}'; exit 0; }
+echo "{\"renamed\":true,\"from\":\"$old_tag\",\"to\":\"$new_tag\"}"

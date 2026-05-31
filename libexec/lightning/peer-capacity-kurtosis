@@ -1,0 +1,27 @@
+#!/bin/bash
+# lightning peer-capacity-kurtosis   (FEAT-2848)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+from collections import defaultdict
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peer_cap = defaultdict(int)
+for ch in channels:
+    pid = ch.get('peer_id', '')
+    total = ch.get('total_msat', 0)
+    if isinstance(total, str): total = int(total.rstrip('msat'))
+    peer_cap[pid] += int(total)
+values = list(peer_cap.values())
+n = len(values)
+if n < 4:
+    print(json.dumps({'capacity_kurtosis_peer': None, 'n': n}))
+    sys.exit(0)
+mean = sum(values) / n
+var = sum((x - mean)**2 for x in values) / n
+if var == 0:
+    print(json.dumps({'capacity_kurtosis_peer': None, 'n': n}))
+    sys.exit(0)
+kurt = (sum((x - mean)**4 for x in values) / n) / (var**2) - 3
+print(json.dumps({'capacity_kurtosis_peer': round(kurt, 6), 'n': n}))
+" "$result"

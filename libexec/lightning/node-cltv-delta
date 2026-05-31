@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning node-cltv-delta   (FEAT-549)
+if ! result=$(lightning-cli listconfigs 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+configs = data.get('configs', {})
+cltv = configs.get('cltv-delta', {}).get('value_int', None)
+final_cltv = configs.get('cltv-final', {}).get('value_int', None)
+print(json.dumps({'cltv_delta': cltv, 'cltv_final': final_cltv}))
+" "$result"

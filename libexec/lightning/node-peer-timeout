@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-peer-timeout   (FEAT-821)
+result=$(lightning-cli listconfigs 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+configs = d.get('configs', d)
+def get_val(k):
+    v = configs.get(k)
+    if isinstance(v, dict): return v.get('value_int') or v.get('value_str')
+    return v
+print(json.dumps({'connect-timeout': get_val('connect-timeout'), 'reconnect-timeout': get_val('reconnect-timeout')}))
+" "$result"

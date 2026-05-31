@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning node-check-route <dest_node_id> <amount_msat>   (FEAT-557)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: node-check-route <dest_node_id> <amount_msat>"}'
+    exit 0
+fi
+dest="$1"; amount="$2"
+result=$(lightning-cli getroute "$dest" "$amount" 1 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+if 'route' in data:
+    route = data['route']
+    print(json.dumps({'reachable': True, 'hops': len(route), 'route': route}))
+else:
+    print(json.dumps({'reachable': False, 'error': data.get('message', 'no route')}))
+" "$result"

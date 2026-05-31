@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning wallet-notes-find-value <wallet> <value>   (FEAT-1663)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-notes-find-value <wallet> <value>"}'; exit 0
+fi
+wname="$1"; value="$2"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+keys=$(sqlite3 "$db" "SELECT key FROM notes WHERE value='$value';" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+echo "{\"wallet\":\"$wname\",\"value\":\"$value\",\"keys\":\"$keys\"}"

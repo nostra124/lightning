@@ -1,0 +1,28 @@
+.TH "LIGHTNING-CHANNEL-OPEN-PRIVATE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-open-private \- open an unannounced (private) channel
+.SH SYNOPSIS
+.B lightning channel-open-private
+.I peer_id
+.I sat
+.SH DESCRIPTION
+Opens a channel with
+.I peer_id
+for
+.I sat
+satoshis and sets
+.B announce=false
+so the channel is not broadcast to the gossip network.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{"channel_id":..., "txid":..., "private":true}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-open (1),
+.BR lightning-channel-open-dual (1)

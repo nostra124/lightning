@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-notes-multi-tag <tag1,tag2,...>   (FEAT-1888)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-multi-tag <tag1,tag2,...>"}'; exit 0; fi
+tags="$1"
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+python3 -c "
+import subprocess, json, sys
+tags = sys.argv[1].split(',')
+placeholders = ','.join(['?' * len(tags)])
+result = subprocess.run(['sqlite3', sys.argv[2], 'SELECT COUNT(*) FROM notes WHERE tag IN (' + ','.join([repr(t) for t in tags]) + ');'], capture_output=True, text=True)
+count = int(result.stdout.strip()) if result.stdout.strip() else 0
+print(json.dumps({'tags': tags, 'count': count}))
+" "$tags" "$db"

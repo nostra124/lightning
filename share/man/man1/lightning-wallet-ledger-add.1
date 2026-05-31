@@ -1,0 +1,25 @@
+.TH "LIGHTNING-WALLET-LEDGER-ADD" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-ledger-add \- add a manual ledger entry
+.SH SYNOPSIS
+.B lightning wallet-ledger-add
+.I wallet_name direction amount_sat
+.RI [ note ]
+.SH DESCRIPTION
+Inserts a manual ledger entry into the wallet database.
+Direction is typically
+.B credit
+or
+.BR debit .
+.PP
+Output:
+.nf
+{"status":"added","wallet":"<name>","amount_sat":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-ledger-search (1),
+.BR lightning-wallet-transaction-log (1)

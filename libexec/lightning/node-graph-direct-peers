@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-graph-direct-peers   (FEAT-1984)
+result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+peers = data.get('peers', [])
+print(json.dumps({'peer_count': len(peers)}))
+" "$result"

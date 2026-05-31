@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning wallet-notes-import <wallet_name> <json_file>   (FEAT-1318)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-import <wallet_name> <json_file>"}'; exit 0; fi
+wname="$1"; jfile="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+if [ ! -f "$jfile" ]; then echo '{"error":"file_not_found"}'; exit 0; fi
+python3 -c "
+import sys, json, sqlite3
+db = sys.argv[1]; jfile = sys.argv[2]; wname = sys.argv[3]
+data = json.loads(open(jfile).read())
+notes = data.get('notes', [])
+conn = sqlite3.connect(db)
+count = 0
+for n in notes:
+    conn.execute('INSERT OR REPLACE INTO notes (key, value) VALUES (?, ?)', (n.get('key'), n.get('value')))
+    count += 1
+conn.commit(); conn.close()
+print(json.dumps({'wallet': wname, 'imported': count}))
+" "$db" "$jfile" "$wname" 2>/dev/null || echo '{"error":"import_failed"}'

@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning channel-remote-balance-variance   (FEAT-2572)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+balances = [c.get('to_them_msat', 0) for c in channels]
+if not balances:
+    print(json.dumps({'remote_balance_variance_msat': 0}))
+else:
+    mean = sum(balances) / len(balances)
+    variance = int(sum((b - mean) ** 2 for b in balances) / len(balances))
+    print(json.dumps({'remote_balance_variance_msat': variance}))
+" "$result"

@@ -1,0 +1,15 @@
+.TH "LIGHTNING-PEER-OLDEST-CHANNEL" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peer-oldest-channel \- FEAT-2243 peer with the oldest channel
+.SH SYNOPSIS
+.B lightning peer-oldest-channel
+.SH DESCRIPTION
+Peer with the oldest channel (lowest block in short_channel_id) for lightning CLI (FEAT-2243).
+.PP
+Output: JSON from CLN with keys peer_id and short_channel_id.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

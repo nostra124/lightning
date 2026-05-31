@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning node-listforwards-in-msat-median   (FEAT-2946)
+result=$(lightning-cli listforwards status=settled 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+vals = sorted([f.get('in_msat', 0) for f in forwards if 'in_msat' in f])
+if not vals:
+    median = 0
+elif len(vals) % 2 == 1:
+    median = vals[len(vals) // 2]
+else:
+    mid = len(vals) // 2
+    median = (vals[mid - 1] + vals[mid]) / 2
+print(json.dumps({'in_msat_median': median, 'forward_count': len(vals)}))
+" "$result"

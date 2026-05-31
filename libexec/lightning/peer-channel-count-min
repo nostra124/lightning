@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning peer-channel-count-min   (FEAT-2908)
+result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+peers = data.get('peers', [])
+if not peers:
+    print(json.dumps({'channel_count_min': 0}))
+else:
+    counts = [len(p.get('channels', [])) for p in peers]
+    print(json.dumps({'channel_count_min': min(counts)}))
+" "$result"

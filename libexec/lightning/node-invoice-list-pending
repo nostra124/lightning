@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-invoice-list-pending   (FEAT-1021)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pending = [i for i in data.get('invoices', []) if i.get('status') == 'unpaid']
+print(json.dumps(pending))
+" "$result"

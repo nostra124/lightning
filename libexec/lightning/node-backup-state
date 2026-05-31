@@ -1,0 +1,25 @@
+#!/bin/bash
+# lightning node-backup-state [<output_dir>]   (FEAT-500)
+out_dir="${1:-.}"
+ts=$(date +%Y%m%d_%H%M%S)
+if ! result=$(lightning-cli staticbackup 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json, os
+try:
+    data = json.loads(sys.argv[1]) if sys.argv[1] else {}
+    scb = data.get('scb', '')
+    out_dir = sys.argv[2]
+    ts = sys.argv[3]
+    if scb:
+        out = os.path.join(out_dir, 'node-backup-' + ts + '.bin')
+        with open(out, 'wb') as f:
+            f.write(bytes.fromhex(scb))
+        print(json.dumps({'ok': True, 'path': out, 'size': len(scb)//2}, separators=(',', ':')))
+    else:
+        print(json.dumps({'ok': False, 'reason': 'no_scb'}))
+except Exception as e:
+    print(json.dumps({'error': str(e)}))
+" "$result" "$out_dir" "$ts" || echo '{"error":"internal"}'

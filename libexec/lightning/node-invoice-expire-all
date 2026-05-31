@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-invoice-expire-all   (FEAT-714)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+unpaid = [i.get('label') for i in data.get('invoices', []) if i.get('status') == 'unpaid']
+print(json.dumps({'labels_to_expire': unpaid, 'count': len(unpaid)}))
+" "$result"

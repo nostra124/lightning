@@ -1,0 +1,6 @@
+#!/bin/bash
+# lightning node-getroute <node_id> <amount_msat>   (FEAT-771)
+if [ $# -lt 2 ]; then echo '{"error":"usage: node-getroute <node_id> <amount_msat>"}'; exit 0; fi
+node_id="$1"; amount="$2"
+result=$(lightning-cli getroute "$node_id" "$amount" 1 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps({'hops': len(d.get('route', [])), 'route': d.get('route', [])}))" "$result"

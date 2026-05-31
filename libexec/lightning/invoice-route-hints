@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning invoice-route-hints <bolt11>   (FEAT-815)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-route-hints <bolt11>"}'; exit 0; fi
+bolt11="$1"
+result=$(lightning-cli decodepay "$bolt11" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+hints = d.get('routes', [])
+print(json.dumps({'route_hint_count': len(hints), 'hints': hints}))
+" "$result"

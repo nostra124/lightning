@@ -1,0 +1,20 @@
+.TH "LIGHTNING-PEER-REPUTATION" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peer-reputation \- show connection and channel info for a peer
+.SH SYNOPSIS
+.B lightning peer-reputation
+.I peer_id
+.SH DESCRIPTION
+Returns connectivity status and aggregate channel capacity for the specified peer.
+.PP
+Output:
+.nf
+{"peer_id":..., "connected":bool, "num_channels":N, "total_capacity_msat":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-peer-score (1),
+.BR lightning-peer-alias (1)

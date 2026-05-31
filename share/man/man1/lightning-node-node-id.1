@@ -1,0 +1,24 @@
+.TH "LIGHTNING-NODE-NODE-ID" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-node-id \- print the node's public key (node ID)
+.SH SYNOPSIS
+.B lightning node-node-id
+.SH DESCRIPTION
+Returns only the
+.B id
+field from
+.B lightning-cli getinfo
+as a JSON object.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{"id":"<33-byte pubkey hex>"}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-alias (1),
+.BR lightning-node-network-info (1)

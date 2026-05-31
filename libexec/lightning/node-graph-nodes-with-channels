@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-graph-nodes-with-channels   (FEAT-1544)
+result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+nodes = set()
+for c in channels:
+    if c.get('source'): nodes.add(c['source'])
+    if c.get('destination'): nodes.add(c['destination'])
+print(json.dumps({'node_count': len(nodes), 'channel_count': len(channels)}))
+" "$result"

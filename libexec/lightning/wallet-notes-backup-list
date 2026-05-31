@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning wallet-notes-backup-list   (FEAT-2123)
+db="${LIGHTNING_WALLET_DB:-wallet.db}"
+if [ ! -f "$db" ]; then
+    echo '{"error":"wallet db not found","backups":[]}'
+    exit 0
+fi
+result=$(sqlite3 "$db" "SELECT id, created_at, note FROM backups ORDER BY created_at DESC;" 2>/dev/null) || { echo '{"error":"sqlite3 query failed","backups":[]}'; exit 0; }
+python3 -c "
+import sys, json
+lines = sys.argv[1].strip().split('\n') if sys.argv[1].strip() else []
+backups = []
+for line in lines:
+    parts = line.split('|', 2)
+    if len(parts) == 3:
+        backups.append({'id': parts[0], 'created_at': parts[1], 'note': parts[2]})
+print(json.dumps({'backups': backups, 'count': len(backups)}))
+" "$result"

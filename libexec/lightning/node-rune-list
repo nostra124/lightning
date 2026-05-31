@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-rune-list   (FEAT-406)
+result=$(lightning-cli listrunes 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+runes = [{'rune': r.get('rune',''), 'unique_id': r.get('unique_id',''),
+          'restrictions': r.get('restrictions',[])} for r in data.get('runes', [])]
+print(json.dumps(runes, separators=(',', ':')))
+" "$result"

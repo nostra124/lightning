@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning peer-receivable-min   (FEAT-2668)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = []
+for ch in channels:
+    v = ch.get('receivable_msat', None)
+    if v is None: continue
+    if isinstance(v, str): v = int(v.replace('msat',''))
+    vals.append(v)
+if vals:
+    print(json.dumps({'receivable_min_msat': min(vals)}))
+else:
+    print(json.dumps({'receivable_min_msat': None}))
+" "$result"

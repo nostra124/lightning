@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning node-listforwards-offered-rate   (FEAT-2701)
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+total = len(forwards)
+offered = sum(1 for f in forwards if f.get('status') == 'offered')
+rate = offered / total if total > 0 else 0.0
+print(json.dumps({'offered_rate': rate, 'offered': offered, 'total': total}))
+" "$result"

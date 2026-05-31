@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning channel-local-htlc-count   (FEAT-2042)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+total = 0
+for ch in channels:
+    htlcs = ch.get('htlcs', [])
+    local = [h for h in htlcs if h.get('direction') == 'out' or h.get('local', False)]
+    total += len(local)
+print(json.dumps({'local_htlc_count': total, 'channel_count': len(channels)}))
+" "$result"

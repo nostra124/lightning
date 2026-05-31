@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning wallet-backup-list <wallet_name>   (FEAT-1408)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-backup-list <wallet_name>"}'; exit 0; fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+bdir="$root/$wname/backups"
+if [ ! -d "$bdir" ]; then echo '{"wallet":"'"$wname"'","count":0,"backups":[]}'; exit 0; fi
+python3 -c "
+import sys, os, json
+bdir = sys.argv[1]; wname = sys.argv[2]
+files = [f for f in os.listdir(bdir) if os.path.isfile(os.path.join(bdir, f))]
+print(json.dumps({'wallet': wname, 'count': len(files), 'backups': sorted(files)}))
+" "$bdir" "$wname" 2>/dev/null || echo '{"error":"list_failed"}'

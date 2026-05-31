@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning channel-htlc-count-active   (FEAT-2885)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+count = sum(len(ch.get('htlcs', [])) for ch in channels)
+print(json.dumps({'active_htlc_count': count}))
+" "$result"

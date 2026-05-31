@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning node-graph-closeness   (FEAT-2214)
+result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+degree = {}
+for c in channels:
+    src = c.get('source', '')
+    dst = c.get('destination', '')
+    degree[src] = degree.get(src, 0) + 1
+    degree[dst] = degree.get(dst, 0) + 1
+if not degree:
+    print(json.dumps({'avg_closeness_proxy': 0.0, 'node_count': 0}))
+    sys.exit(0)
+vals = list(degree.values())
+avg_deg = sum(vals) / len(vals)
+closeness_proxy = round(1.0 / avg_deg if avg_deg > 0 else 0.0, 8)
+print(json.dumps({'avg_closeness_proxy': closeness_proxy, 'node_count': len(degree), 'avg_degree': round(avg_deg, 4)}))
+" "$result"

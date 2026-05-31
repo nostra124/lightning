@@ -1,0 +1,26 @@
+.TH "LIGHTNING-WALLET-LEDGER-SEARCH" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-wallet-ledger-search \- search ledger entries by note text
+.SH SYNOPSIS
+.B lightning wallet-ledger-search
+.I query
+.RB [ --account
+.IR address ]
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Performs a substring search over ledger entry notes.
+Default limit is 50 results.
+Returns an empty array if the wallet is not found or no entries match.
+.PP
+Output:
+.nf
+[{entry_id, account_id, direction, amount_sat, note, created_at}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-wallet-export-csv (1),
+.BR lightning-wallet-transaction-log (1)

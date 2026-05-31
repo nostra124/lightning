@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning invoice-bolt11-check <bolt11>   (FEAT-825)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-bolt11-check <bolt11>"}'; exit 0; fi
+bolt11="$1"
+result=$(lightning-cli decodepay "$bolt11" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+d = json.loads(sys.argv[1])
+if 'error' in d:
+    print(json.dumps({'valid': False, 'error': d.get('error')}))
+else:
+    expires = d.get('created_at', 0) + d.get('expiry', 3600)
+    print(json.dumps({'valid': True, 'payee': d.get('payee'), 'amount_msat': d.get('amount_msat'), 'expired': time.time() > expires}))
+" "$result"

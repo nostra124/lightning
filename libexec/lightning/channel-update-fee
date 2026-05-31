@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning channel-update-fee <channel_id> <base_msat> <ppm>   (FEAT-1162)
+if [ $# -lt 3 ]; then echo '{"error":"usage: channel-update-fee <channel_id> <base_msat> <ppm>"}'; exit 0; fi
+channel_id="$1"; base="$2"; ppm="$3"
+if ! result=$(lightning-cli setchannel "$channel_id" "$ppm" "$base" 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+echo "$result"

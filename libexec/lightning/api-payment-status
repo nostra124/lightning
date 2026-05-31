@@ -1,0 +1,7 @@
+#!/bin/bash
+# lightning api-payment-status <payment_hash>   (FEAT-291)
+# Thin CGI-callable wrapper over payment-status.
+set -e
+[ $# -ge 1 ] || { echo '{"error":"missing_payment_hash"}'; exit 0; }
+self_dir="$(cd "$(dirname "$0")" && pwd)"
+exec "$self_dir/payment-status" "$1"

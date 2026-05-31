@@ -1,0 +1,23 @@
+#!/bin/bash
+# lightning peer-local-pct-stddev   (FEAT-2708)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+pcts = []
+for ch in channels:
+    local = ch.get('to_us_msat', 0)
+    total = ch.get('total_msat', 0)
+    if isinstance(local, str): local = int(local)
+    if isinstance(total, str): total = int(total)
+    if total > 0:
+        pcts.append(local / total * 100.0)
+if pcts:
+    mean = sum(pcts) / len(pcts)
+    variance = sum((p - mean) ** 2 for p in pcts) / len(pcts)
+    stddev = math.sqrt(variance)
+else:
+    stddev = 0.0
+print(json.dumps({'local_pct_stddev_peer': stddev, 'sample_size': len(pcts)}))
+" "$result"

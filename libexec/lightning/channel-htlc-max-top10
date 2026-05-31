@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning channel-htlc-max-top10   (FEAT-2725)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+channels_with_max = [c for c in channels if 'htlc_maximum_msat' in c]
+top10 = sorted(channels_with_max, key=lambda c: c.get('htlc_maximum_msat', 0), reverse=True)[:10]
+print(json.dumps({'top10_by_htlc_max': top10}))
+" "$result"

@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning channel-local-balance-skewness   (FEAT-2567)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+balances = [c.get('to_us_msat', 0) for c in channels if 'to_us_msat' in c]
+if len(balances) < 3:
+    skewness = 0
+else:
+    n = len(balances)
+    mean = sum(balances) / n
+    variance = sum((x - mean) ** 2 for x in balances) / n
+    std = math.sqrt(variance) if variance > 0 else 0
+    if std == 0:
+        skewness = 0
+    else:
+        skewness = (sum((x - mean) ** 3 for x in balances) / n) / (std ** 3)
+print(json.dumps({'local_balance_skewness': skewness}))
+" "$result"

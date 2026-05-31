@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning node-channel-count-by-state   (FEAT-859)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+by_state = {}
+for c in data.get('channels', []):
+    s = c.get('state', 'unknown')
+    by_state[s] = by_state.get(s, 0) + 1
+print(json.dumps({'by_state': by_state, 'total': sum(by_state.values())}))
+" "$result"

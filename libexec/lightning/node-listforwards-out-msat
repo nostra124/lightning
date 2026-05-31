@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-listforwards-out-msat   (FEAT-1819)
+result=$(lightning-cli listforwards status=settled 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+fwds = data.get('forwards', [])
+total_out = sum(f.get('out_msat', 0) for f in fwds)
+print(json.dumps({'count': len(fwds), 'total_out_msat': total_out}))
+" "$result"

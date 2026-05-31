@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning peer-local-balance-avg   (FEAT-2423)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+by_peer = {}
+for c in channels:
+    pid = c.get('peer_id', '')
+    by_peer.setdefault(pid, []).append(c.get('local_msat', 0))
+peer_totals = [sum(v) for v in by_peer.values()]
+avg = int(sum(peer_totals) / len(peer_totals)) if peer_totals else 0
+print(json.dumps({'local_balance_avg_msat_per_peer': avg, 'peer_count': len(peer_totals)}))
+" "$result"

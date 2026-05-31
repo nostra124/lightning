@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning node-peer-score-detail <node_id>   (FEAT-799)
+if [ $# -lt 1 ]; then echo '{"error":"usage: node-peer-score-detail <node_id>"}'; exit 0; fi
+node_id="$1"
+result=$(lightning-cli listpeers "$node_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+result2=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+peers = json.loads(sys.argv[1]).get('peers', [])
+channels_data = json.loads(sys.argv[2]).get('channels', [])
+nid = sys.argv[3]
+channels = [c for c in channels_data if c.get('peer_id') == nid]
+total_cap = sum(c.get('total_msat', 0) for c in channels if isinstance(c.get('total_msat', 0), int))
+connected = peers[0].get('connected') if peers else False
+print(json.dumps({'node_id': nid, 'connected': connected, 'channels': len(channels), 'total_capacity_msat': total_cap}))
+" "$result" "$result2" "$node_id"

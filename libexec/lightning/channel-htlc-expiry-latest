@@ -1,0 +1,23 @@
+#!/bin/bash
+# lightning channel-htlc-expiry-latest   (FEAT-2512)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+latest_expiry = None
+latest_channel_id = None
+latest_htlc = None
+for ch in channels:
+    for htlc in ch.get('htlcs', []):
+        expiry = htlc.get('cltv_expiry')
+        if expiry is not None:
+            if latest_expiry is None or expiry > latest_expiry:
+                latest_expiry = expiry
+                latest_channel_id = ch.get('short_channel_id') or ch.get('channel_id')
+                latest_htlc = htlc
+if latest_htlc is None:
+    print(json.dumps({'cltv_expiry': None, 'channel_id': None, 'htlc_count': 0}))
+else:
+    print(json.dumps({'cltv_expiry': latest_expiry, 'channel_id': latest_channel_id, 'amount_msat': latest_htlc.get('amount_msat')}))
+" "$result"

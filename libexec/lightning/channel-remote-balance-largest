@@ -1,0 +1,23 @@
+#!/bin/bash
+# lightning channel-remote-balance-largest   (FEAT-2190)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+best = None
+best_remote = -1
+for c in channels:
+    total = c.get('total_msat', 0)
+    local = c.get('to_us_msat', 0)
+    if isinstance(total, str): total = int(total.replace('msat',''))
+    if isinstance(local, str): local = int(local.replace('msat',''))
+    remote = total - local
+    if remote > best_remote:
+        best_remote = remote
+        best = c
+if best:
+    print(json.dumps({'peer_id': best.get('peer_id'), 'channel_id': best.get('channel_id'), 'remote_msat': best_remote}))
+else:
+    print(json.dumps({'peer_id': None, 'channel_id': None, 'remote_msat': None}))
+" "$result"

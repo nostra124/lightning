@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning invoice-webhook-send <url> <bolt11>   (FEAT-489)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: invoice-webhook-send <url> <bolt11>"}'
+    exit 0
+fi
+url="$1"; bolt11="$2"
+payload="{\"bolt11\":\"$bolt11\"}"
+result=$(curl -s -X POST -H 'Content-Type: application/json' -d "$payload" "$url" 2>/dev/null) || { echo '{"error":"curl failed"}'; exit 0; }
+echo '{"ok":true,"url":"'"$url"'","response":'"$(echo "$result" | python3 -c 'import sys,json; print(json.dumps(sys.stdin.read()))')"'}'

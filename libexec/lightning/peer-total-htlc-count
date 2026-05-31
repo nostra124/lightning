@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning peer-total-htlc-count <peer_id>   (FEAT-1297)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-total-htlc-count <peer_id>"}'; exit 0; fi
+peer_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pid = sys.argv[2]
+channels = [c for c in data.get('channels', []) if c.get('peer_id') == pid]
+total = sum(len(c.get('htlcs', [])) for c in channels)
+print(json.dumps({'peer_id': pid, 'total_htlcs': total, 'channel_count': len(channels)}))
+" "$result" "$peer_id"

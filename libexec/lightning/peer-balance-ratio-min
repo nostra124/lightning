@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning peer-balance-ratio-min   (FEAT-3001)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+ratios = []
+for ch in channels:
+    total = ch.get('total_msat', 0)
+    spendable = ch.get('spendable_msat', 0)
+    if isinstance(total, str): total = int(total.replace('msat',''))
+    if isinstance(spendable, str): spendable = int(spendable.replace('msat',''))
+    if total > 0:
+        ratios.append(spendable / total)
+if ratios:
+    print(json.dumps({'balance_ratio_min_peer': min(ratios)}))
+else:
+    print(json.dumps({'balance_ratio_min_peer': None}))
+" "$result"

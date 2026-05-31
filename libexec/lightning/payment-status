@@ -1,0 +1,37 @@
+#!/bin/bash
+# lightning payment-status <payment_hash>   (FEAT-290)
+#
+# Checks the status of an outbound payment by payment hash.
+# Returns {payment_hash, status, amount_msat, fee_msat, destination, created_at}
+# status: "complete" | "failed" | "pending"
+
+set -e
+[ $# -ge 1 ] || { printf 'usage: payment-status <payment_hash>\n' >&2; exit 1; }
+phash="$1"
+
+command -v lightning-cli >/dev/null || {
+    echo '{"error":"lightning-cli not found"}'; exit 0; }
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+raw=$(lightning-cli $LD $NET listpays "$phash" 2>/dev/null) || {
+    echo '{"error":"listpays_failed"}'; exit 0; }
+
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+pays = d.get('pays', [])
+if not pays:
+    print(json.dumps({'error': 'not_found'}))
+    sys.exit(0)
+p = pays[0]
+print(json.dumps({
+    'payment_hash': p.get('payment_hash', ''),
+    'status': p.get('status', 'unknown'),
+    'amount_msat': p.get('amount_msat', 0),
+    'fee_msat': p.get('amount_sent_msat', 0) - p.get('amount_msat', 0),
+    'destination': p.get('destination', ''),
+    'created_at': p.get('created_at'),
+}, separators=(',', ':')))
+" "$raw"

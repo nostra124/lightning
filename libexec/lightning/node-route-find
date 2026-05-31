@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-route-find <destination> <amount_msat>   (FEAT-498)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: node-route-find <destination> <amount_msat>"}'
+    exit 0
+fi
+dest="$1"; amount="$2"
+result=$(lightning-cli getroute "$dest" "$amount" 1 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

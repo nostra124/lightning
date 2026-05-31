@@ -1,0 +1,22 @@
+.TH "LIGHTNING-CHANNEL-REBALANCE-HISTORY" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-rebalance-history \- list past rebalance payments
+.SH SYNOPSIS
+.B lightning channel-rebalance-history
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Returns payments whose description contains "rebalance".
+Default limit is 20.
+.PP
+Output:
+.nf
+[{payment_hash, status, amount_msat, created_at}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-rebalance (1),
+.BR lightning-channel-rebalance-check (1)

@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning wallet-meta-list <wallet>   (FEAT-1538)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-meta-list <wallet>"}'; exit 0; fi
+wname="$1"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+rows=$(sqlite3 "$db" "SELECT key||'='||value FROM meta ORDER BY key;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+python3 -c "
+import sys, json
+pairs = {}
+for r in sys.argv[1].split('\n'):
+    if '=' in r:
+        k, v = r.split('=', 1)
+        pairs[k] = v
+print(json.dumps({'wallet': sys.argv[2], 'meta': pairs}))
+" "$rows" "$wname"

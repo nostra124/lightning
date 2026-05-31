@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning payment-retry <bolt11>   (FEAT-435)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: payment-retry <bolt11>"}'
+    exit 0
+fi
+bolt11="$1"
+result=$(lightning-cli pay "$bolt11" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

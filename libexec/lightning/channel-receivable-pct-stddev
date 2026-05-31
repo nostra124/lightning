@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning channel-receivable-pct-stddev   (FEAT-2797)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = []
+for c in channels:
+    total = c.get('total_msat', 0)
+    recv = c.get('receivable_msat', 0)
+    if total > 0:
+        vals.append(recv / total * 100)
+if len(vals) >= 2:
+    mean = sum(vals) / len(vals)
+    variance = sum((v - mean) ** 2 for v in vals) / len(vals)
+    stddev = math.sqrt(variance)
+else:
+    stddev = 0.0
+print(json.dumps({'receivable_pct_stddev': round(stddev, 6), 'count': len(vals)}))
+" "$result"

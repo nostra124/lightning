@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning wallet-migrate <wallet_name> <new_root>   (FEAT-663)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-migrate <wallet_name> <new_root>"}'; exit 0; fi
+wname="$1"; new_root="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+src="$root/$wname"
+if [ ! -d "$src" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+if mv "$src" "$new_root/$wname" 2>/dev/null; then
+    echo "{\"ok\":true,\"wallet\":\"$wname\",\"new_path\":\"$new_root/$wname\"}"
+else
+    echo '{"error":"migration failed"}'
+fi

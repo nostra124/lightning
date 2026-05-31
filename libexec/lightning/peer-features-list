@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning peer-features-list <peer_id>   (FEAT-547)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: peer-features-list <peer_id>"}'
+    exit 0
+fi
+peer_id="$1"
+result=$(lightning-cli listpeers "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+peers = data.get('peers', [])
+if peers:
+    p = peers[0]
+    print(json.dumps({'peer_id': p.get('id'), 'features': p.get('features', '')}))
+else:
+    print(json.dumps({'error': 'peer not found'}))
+" "$result"

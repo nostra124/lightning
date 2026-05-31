@@ -1,0 +1,15 @@
+.TH "LIGHTNING-CHANNEL-LOCAL-PCT-AVG" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-local-pct-avg \- FEAT-2285 average local balance percentage across channels
+.SH SYNOPSIS
+.B lightning channel-local-pct-avg
+.SH DESCRIPTION
+Average of local_msat/(local_msat+remote_msat) across channels verb for lightning CLI (FEAT-2285).
+.PP
+Output: JSON from CLN with local_pct_avg as a percentage value.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning channel-fee-earned-variance   (FEAT-2951)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+fees = [c.get('fee_earned_msat', 0) for c in channels if 'fee_earned_msat' in c]
+if not fees:
+    print(json.dumps({'fee_earned_variance_msat': 0, 'channel_count': 0}))
+else:
+    mean = sum(fees) / len(fees)
+    variance = sum((f - mean) ** 2 for f in fees) / len(fees)
+    print(json.dumps({'fee_earned_variance_msat': variance, 'channel_count': len(fees)}))
+" "$result"

@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning node-channel-open-history [--limit N]   (FEAT-427)
+limit=50
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --limit) limit="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+channels = json.loads(sys.argv[1]).get('channels', [])
+limit = int(sys.argv[2])
+out = [{'channel_id': c.get('channel_id',''), 'peer_id': c.get('peer_id',''),
+        'state': c.get('state',''), 'funding_txid': c.get('funding_txid',''),
+        'total_msat': c.get('total_msat', 0)} for c in channels[:limit]]
+print(json.dumps(out, separators=(',', ':')))
+" "$result" "$limit"

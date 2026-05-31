@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning node-htlc-list   (FEAT-429)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+channels = json.loads(sys.argv[1]).get('channels', [])
+htlcs = []
+for c in channels:
+    for h in c.get('htlcs', []):
+        htlcs.append({'channel_id': c.get('channel_id',''), 'direction': h.get('direction',''),
+            'amount_msat': h.get('amount_msat', 0), 'expiry': h.get('expiry', 0),
+            'payment_hash': h.get('payment_hash','')})
+print(json.dumps(htlcs, separators=(',', ':')))
+" "$result"

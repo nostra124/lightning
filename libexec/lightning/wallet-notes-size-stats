@@ -1,0 +1,25 @@
+#!/bin/bash
+# lightning wallet-notes-size-stats   (FEAT-2163)
+db="${LIGHTNING_WALLET_DB:-$HOME/.lightning/wallet.db}"
+if [ ! -f "$db" ]; then
+    echo '{"error":"wallet.db not found"}'
+    exit 0
+fi
+result=$(sqlite3 "$db" "SELECT COUNT(*), MIN(LENGTH(value)), MAX(LENGTH(value)), AVG(LENGTH(value)) FROM notes;" 2>/dev/null) || { echo '{"error":"sqlite3 query failed"}'; exit 0; }
+python3 -c "
+import sys, json
+line = sys.argv[1].strip()
+if not line:
+    print(json.dumps({'error': 'no notes table or empty'}))
+    sys.exit(0)
+parts = line.split('|')
+if len(parts) != 4:
+    print(json.dumps({'error': 'unexpected output'}))
+    sys.exit(0)
+print(json.dumps({
+    'count': int(parts[0]) if parts[0] else 0,
+    'min_size': int(float(parts[1])) if parts[1] else 0,
+    'max_size': int(float(parts[2])) if parts[2] else 0,
+    'avg_size': int(float(parts[3])) if parts[3] else 0,
+}))
+" "$result"

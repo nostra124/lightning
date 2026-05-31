@@ -1,0 +1,24 @@
+#!/bin/bash
+# lightning payment-list-failed [--limit N]   (FEAT-387)
+set -e
+limit=50
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --limit) limit="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+result=$(lightning-cli listpays 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+limit = int(sys.argv[2])
+failed = [
+    {'payment_hash': p.get('payment_hash', ''), 'destination': p.get('destination', ''),
+     'amount_msat': p.get('amount_msat', 0), 'created_at': p.get('created_at', 0)}
+    for p in data.get('pays', [])
+    if p.get('status') == 'failed'
+]
+failed.sort(key=lambda x: x['created_at'], reverse=True)
+print(json.dumps(failed[:limit], separators=(',', ':')))
+" "$result" "$limit"

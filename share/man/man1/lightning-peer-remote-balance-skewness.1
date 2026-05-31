@@ -1,0 +1,16 @@
+.TH "LIGHTNING-PEER_REMOTE_BALANCE_SKEWNESS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peer-remote-balance-skewness \- FEAT-2818 skewness of remote balance per peer
+.SH SYNOPSIS
+.B lightning peer-remote-balance-skewness
+.SH DESCRIPTION
+Computes the skewness of remote balance per peer for the lightning CLI (FEAT-2818).
+.PP
+Output: JSON object with key \fBremote_balance_skewness_peer\fR and \fBcount\fR.
+Returns \fBnull\fR when fewer than the required minimum samples are available.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning (1)

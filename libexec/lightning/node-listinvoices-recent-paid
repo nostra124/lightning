@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning node-listinvoices-recent-paid   (FEAT-2319)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+paid = [i for i in invoices if i.get('status') == 'paid']
+paid.sort(key=lambda i: i.get('paid_at', 0), reverse=True)
+recent = paid[:5]
+print(json.dumps({'recent_paid_invoices': recent, 'count': len(recent)}))
+" "$result"

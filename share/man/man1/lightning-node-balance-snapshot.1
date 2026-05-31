@@ -1,0 +1,19 @@
+.TH "LIGHTNING-NODE-BALANCE-SNAPSHOT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-balance-snapshot \- show total node balance at current moment
+.SH SYNOPSIS
+.B lightning node-balance-snapshot
+.SH DESCRIPTION
+Returns a timestamped snapshot of on-chain and off-chain balances combined.
+.PP
+Output:
+.nf
+{"timestamp":N, "node_id":..., "onchain_msat":N, "offchain_msat":N, "total_msat":N}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-listfunds (1),
+.BR lightning-node-payment-summary (1)

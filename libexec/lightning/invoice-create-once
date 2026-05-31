@@ -1,0 +1,7 @@
+#!/bin/bash
+# lightning invoice-create-once <amount_msat> <description>   (FEAT-835)
+if [ $# -lt 2 ]; then echo '{"error":"usage: invoice-create-once <amount_msat> <description>"}'; exit 0; fi
+amount="$1"; desc="$2"
+label="once-$(date +%s%N 2>/dev/null || date +%s)"
+result=$(lightning-cli invoice "$amount" "$label" "$desc" 1 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps(d))" "$result"

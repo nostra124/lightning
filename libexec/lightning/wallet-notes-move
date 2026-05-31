@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-notes-move <src_wallet> <dst_wallet> <key>   (FEAT-1613)
+if [ $# -lt 3 ]; then
+    echo '{"error":"usage: wallet-notes-move <src_wallet> <dst_wallet> <key>"}'; exit 0
+fi
+src="$1"; dst="$2"; key="$3"
+src_db="${WALLETS_ROOT:-$HOME/.wallets}/$src/state.db"
+dst_db="${WALLETS_ROOT:-$HOME/.wallets}/$dst/state.db"
+if [ ! -f "$src_db" ]; then echo '{"error":"source wallet not found"}'; exit 0; fi
+if [ ! -f "$dst_db" ]; then echo '{"error":"destination wallet not found"}'; exit 0; fi
+value=$(sqlite3 "$src_db" "SELECT value FROM notes WHERE key='$key';" 2>/dev/null)
+if [ -z "$value" ]; then echo '{"error":"key not found"}'; exit 0; fi
+sqlite3 "$dst_db" "INSERT OR REPLACE INTO notes(key,value) VALUES('$key','$value');" 2>/dev/null
+sqlite3 "$src_db" "DELETE FROM notes WHERE key='$key';" 2>/dev/null
+echo "{\"moved\":true,\"key\":\"$key\",\"from\":\"$src\",\"to\":\"$dst\"}"

@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning channel-open-dual <peer_id> <amount_sat>   (FEAT-502)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: channel-open-dual <peer_id> <amount_sat>"}'
+    exit 0
+fi
+peer_id="$1"; amount_sat="$2"
+result=$(lightning-cli openchannel_init "$peer_id" "${amount_sat}sat" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

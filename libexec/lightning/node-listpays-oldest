@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-listpays-oldest   (FEAT-2121)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = [p for p in data.get('pays', []) if p.get('status') == 'complete' and 'created_at' in p]
+if not pays:
+    print(json.dumps({'oldest': None, 'count': 0}))
+else:
+    oldest = min(pays, key=lambda p: p['created_at'])
+    print(json.dumps({'oldest': oldest, 'count': len(pays)}))
+" "$result"

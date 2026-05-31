@@ -1,0 +1,8 @@
+#!/bin/bash
+# lightning wallet-notes-prune-untagged <wallet>   (FEAT-1508)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-prune-untagged <wallet>"}'; exit 0; fi
+wname="$1"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+count=$(sqlite3 "$db" "DELETE FROM notes WHERE tag IS NULL AND pinned=0; SELECT changes();" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+echo "{\"wallet\":\"$wname\",\"deleted\":$count}"

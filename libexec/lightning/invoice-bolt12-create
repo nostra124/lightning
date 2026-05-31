@@ -1,0 +1,8 @@
+#!/bin/bash
+# lightning invoice-bolt12-create [<description>]   (FEAT-545)
+desc="${1:-lightning invoice}"
+if ! result=$(lightning-cli offer any "$desc" 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+echo "$result"

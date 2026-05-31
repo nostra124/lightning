@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning wallet-notes-copy <src_key> <dst_key>   (FEAT-1833)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-copy <src_key> <dst_key>"}'; exit 0; fi
+src="$1"
+dst="$2"
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+row=$(sqlite3 "$db" "SELECT value, tag FROM notes WHERE key='$src' LIMIT 1;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+if [ -z "$row" ]; then echo '{"error":"source key not found"}'; exit 0; fi
+value=$(echo "$row" | cut -d'|' -f1)
+tag=$(echo "$row" | cut -d'|' -f2)
+sqlite3 "$db" "INSERT OR REPLACE INTO notes (key, value, tag) VALUES ('$dst', '$value', '$tag');" 2>/dev/null
+echo "{\"copied\":true,\"from\":\"$src\",\"to\":\"$dst\"}"

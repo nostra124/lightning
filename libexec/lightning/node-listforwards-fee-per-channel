@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning node-listforwards-fee-per-channel   (FEAT-3010)
+result=$(lightning-cli listforwards status=settled 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+per_channel = {}
+for fwd in forwards:
+    ch_in = fwd.get('in_channel', 'unknown')
+    fee = fwd.get('fee_msat', 0)
+    if isinstance(fee, str): fee = int(fee.replace('msat',''))
+    per_channel[ch_in] = per_channel.get(ch_in, 0) + fee
+print(json.dumps({'fee_per_channel': per_channel}))
+" "$result"

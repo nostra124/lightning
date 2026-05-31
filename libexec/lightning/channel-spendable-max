@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning channel-spendable-max   (FEAT-2535)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+best = None
+best_val = -1
+for ch in channels:
+    val = ch.get('spendable_msat', 0)
+    if isinstance(val, str):
+        val = int(val.rstrip('msat')) if val.endswith('msat') else int(val)
+    if val > best_val:
+        best_val = val
+        best = ch.get('channel_id', '')
+print(json.dumps({'spendable_msat': best_val, 'channel_id': best}))
+" "$result"

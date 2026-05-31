@@ -1,0 +1,15 @@
+.TH "LIGHTNING-PEER-CHANNEL-AGE-AVG" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-peer-channel-age-avg \- FEAT-2258 average channel age per peer
+.SH SYNOPSIS
+.B lightning peer-channel-age-avg
+.SH DESCRIPTION
+Average channel open block height per peer, using short_channel_id block height as a proxy for channel age (FEAT-2258).
+.PP
+Output: JSON with peers map of peer_id to avg_open_block and channel_count.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

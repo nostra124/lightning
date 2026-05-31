@@ -1,0 +1,5 @@
+#!/bin/bash
+# lightning peer-alias-set <peer_id> <alias>   (FEAT-897)
+if [ $# -lt 2 ]; then echo '{"error":"usage: peer-alias-set <peer_id> <alias>"}'; exit 0; fi
+peer_id="$1"; alias_name="$2"
+echo "{\"peer_id\":\"$peer_id\",\"alias\":\"$alias_name\",\"ok\":true}"

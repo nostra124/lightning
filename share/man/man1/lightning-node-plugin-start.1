@@ -1,0 +1,24 @@
+.TH "LIGHTNING-NODE-PLUGIN-START" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-plugin-start \- dynamically load a plugin into the running daemon
+.SH SYNOPSIS
+.B lightning node-plugin-start
+.I plugin_path
+.SH DESCRIPTION
+Calls
+.B lightning-cli plugin start
+to hot-load a plugin from
+.IR plugin_path .
+Returns an error object if the daemon is unreachable or the path is invalid.
+.PP
+Output:
+.nf
+{"ok":true}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-plugin-list (1),
+.BR lightning-node-plugin-stop (1)

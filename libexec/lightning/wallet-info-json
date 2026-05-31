@@ -1,0 +1,24 @@
+#!/bin/bash
+# lightning wallet-info-json <wallet_name>   (FEAT-433)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: wallet-info-json <wallet_name>"}'
+    exit 0
+fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+meta=$(sqlite3 "$db" "SELECT key,value FROM meta;" 2>/dev/null) || meta=""
+python3 -c "
+import sys, json, os
+meta_rows = sys.argv[1].strip().split('\n') if sys.argv[1].strip() else []
+meta = {}
+for r in meta_rows:
+    if '|' in r:
+        k, v = r.split('|', 1)
+        meta[k] = v
+print(json.dumps({'wallet': sys.argv[2], 'meta': meta, 'db_path': sys.argv[3]}, separators=(',', ':')))
+" "$meta" "$wname" "$db"

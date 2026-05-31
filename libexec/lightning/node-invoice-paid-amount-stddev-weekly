@@ -1,0 +1,16 @@
+#!/bin/bash
+# lightning node-invoice-paid-amount-stddev-weekly   (FEAT-2836)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time, math
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+week_ago = time.time() - 7 * 86400
+vals = [i['amount_received_msat'] for i in invoices if i.get('status') == 'paid' and 'amount_received_msat' in i and i.get('paid_at', 0) >= week_ago]
+if not vals:
+    print(json.dumps({'paid_amount_stddev_weekly': 0, 'sample_count': 0}))
+    sys.exit(0)
+mean = sum(vals) / len(vals)
+stddev = math.sqrt(sum((x - mean) ** 2 for x in vals) / len(vals)) if len(vals) > 1 else 0
+print(json.dumps({'paid_amount_stddev_weekly': round(stddev, 4), 'sample_count': len(vals)}))
+" "$result"

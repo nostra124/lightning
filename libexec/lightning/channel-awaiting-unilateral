@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning channel-awaiting-unilateral   (FEAT-1660)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = [c for c in data.get('channels', []) if c.get('state') == 'AWAITING_UNILATERAL']
+print(json.dumps({'count': len(channels), 'channels': [c.get('channel_id') for c in channels]}))
+" "$result"

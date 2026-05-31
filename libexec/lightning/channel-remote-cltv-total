@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning channel-remote-cltv-total   (FEAT-1366)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+vals = [ch.get('updates', {}).get('remote', {}).get('cltv_expiry_delta', 0) for ch in data.get('channels', [])]
+total = sum(vals)
+print(json.dumps({'channel_count': len(vals), 'total_cltv_delta': total}))
+" "$result"

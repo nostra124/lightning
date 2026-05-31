@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-graph-nodes-by-alias <alias_pattern>   (FEAT-1979)
+if [ $# -lt 1 ]; then echo '{"error":"usage: node-graph-nodes-by-alias <alias_pattern>"}'; exit 0; fi
+arg="$1"
+result=$(lightning-cli listnodes 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pattern = sys.argv[2].lower()
+nodes = data.get('nodes', [])
+matched = [n for n in nodes if pattern in n.get('alias', '').lower()]
+print(json.dumps({'pattern': sys.argv[2], 'count': len(matched), 'nodes': matched[:10]}))
+" "$result" "$arg"

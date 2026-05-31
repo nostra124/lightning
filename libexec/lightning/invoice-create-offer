@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning invoice-create-offer <amount_msat|any> [<description>]   (FEAT-424)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: invoice-create-offer <amount_msat|any> [<description>]"}'
+    exit 0
+fi
+amount="$1"; desc="${2:-lightning offer}"
+result=$(lightning-cli offer "$amount" "$desc" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

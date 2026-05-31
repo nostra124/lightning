@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning node-rebalance-status   (FEAT-958)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+chs = [c for c in data.get('channels', []) if c.get('state') == 'CHANNELD_NORMAL']
+imbalanced = []
+for ch in chs:
+    total = ch.get('total_msat', 0)
+    local = ch.get('to_us_msat', 0)
+    if total > 0:
+        ratio = local / total
+        if ratio > 0.8 or ratio < 0.2:
+            imbalanced.append(ch.get('channel_id'))
+print(json.dumps({'active_channels': len(chs), 'imbalanced_count': len(imbalanced), 'imbalanced': imbalanced}))
+" "$result"

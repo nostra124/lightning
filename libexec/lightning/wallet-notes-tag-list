@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning wallet-notes-tag-list   (FEAT-1743)
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+tags=$(sqlite3 "$db" "SELECT DISTINCT tag FROM notes WHERE tag IS NOT NULL AND tag != '' ORDER BY tag;" 2>/dev/null) || { echo '{"error":"db error"}'; exit 0; }
+python3 -c "
+import sys, json
+tags = [t for t in sys.argv[1].splitlines() if t]
+print(json.dumps({'tags': tags, 'count': len(tags)}))
+" "$tags"

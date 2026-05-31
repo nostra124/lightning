@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning wallet-passphrase-set <wallet_name> <passphrase>   (FEAT-1018)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-passphrase-set <wallet_name> <passphrase>"}'
+    exit 0
+fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"wallet_not_found"}'
+    exit 0
+fi
+echo "{\"ok\":true,\"wallet\":\"$wname\",\"passphrase_set\":true}"

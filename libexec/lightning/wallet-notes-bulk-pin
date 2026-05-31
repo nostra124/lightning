@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning wallet-notes-bulk-pin <wallet> <key1> [key2...]   (FEAT-1588)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-bulk-pin <wallet> <key1> [key2...]"}'; exit 0; fi
+wname="$1"; shift
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+count=0
+for key in "$@"; do
+    sqlite3 "$db" "UPDATE notes SET pinned=1 WHERE key='$key';" 2>/dev/null && count=$((count+1))
+done
+echo "{\"wallet\":\"$wname\",\"pinned_count\":$count}"

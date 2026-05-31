@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning peer-local-balance <peer_id>   (FEAT-1807)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-local-balance <peer_id>"}'; exit 0; fi
+peer_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pid = sys.argv[2]
+channels = [c for c in data.get('channels', []) if c.get('peer_id') == pid]
+to_us = sum(c.get('to_us_msat', 0) for c in channels)
+print(json.dumps({'peer_id': pid, 'local_balance_msat': to_us, 'channel_count': len(channels)}))
+" "$result" "$peer_id"

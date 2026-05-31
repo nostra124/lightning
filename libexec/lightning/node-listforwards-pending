@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-listforwards-pending   (FEAT-1519)
+result=$(lightning-cli listforwards status=offered 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+fwds = data.get('forwards', [])
+print(json.dumps({'count': len(fwds), 'forwards': fwds}))
+" "$result"

@@ -1,0 +1,15 @@
+.TH "LIGHTNING-CHANNEL-BOTH-RESERVES-STDDEV" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-both-reserves-stddev \- FEAT-2845 channel-both-reserves-stddev
+.SH SYNOPSIS
+.B lightning channel-both-reserves-stddev
+.SH DESCRIPTION
+Computes the standard deviation of the combined reserve (our_reserve + their_reserve) in msat across all peer channels for the lightning CLI (FEAT-2845).
+.PP
+Output: JSON from CLN with key \fBboth_reserves_stddev_msat\fR.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

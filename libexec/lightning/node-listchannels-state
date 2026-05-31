@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning node-listchannels-state <state>   (FEAT-954)
+if [ $# -lt 1 ]; then echo '{"error":"usage: node-listchannels-state <state>"}'; exit 0; fi
+state="$1"
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); st = sys.argv[2]
+chs = [c for c in data.get('channels', []) if c.get('state') == st]
+print(json.dumps({'state': st, 'count': len(chs), 'channels': [c.get('channel_id') for c in chs]}))
+" "$result" "$state"

@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning wallet-notes-move-tag <key> <new_tag>   (FEAT-1843)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-move-tag <key> <new_tag>"}'; exit 0; fi
+key="$1"
+new_tag="$2"
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+sqlite3 "$db" "UPDATE notes SET tag='$new_tag' WHERE key='$key';" 2>/dev/null || { echo '{"error":"db error"}'; exit 0; }
+echo "{\"moved\":true,\"key\":\"$key\",\"tag\":\"$new_tag\"}"

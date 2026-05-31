@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning invoice-hash <label>   (FEAT-965)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-hash <label>"}'; exit 0; fi
+label="$1"
+if ! result=$(lightning-cli listinvoices "$label" 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1]); invs = data.get('invoices', [])
+if invs:
+    print(json.dumps({'label': sys.argv[2], 'payment_hash': invs[0].get('payment_hash')}))
+else:
+    print(json.dumps({'error': 'invoice not found'}))
+" "$result" "$label"

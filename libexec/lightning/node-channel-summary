@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning node-channel-summary   (FEAT-367)
+set -e
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+normal = [c for c in channels if c.get('state') == 'CHANNELD_NORMAL']
+total_cap = sum(c.get('total_msat', 0) for c in normal)
+local_bal = sum(c.get('to_us_msat', 0) for c in normal)
+remote_bal = total_cap - local_bal
+print(json.dumps({
+    'total_channels': len(channels),
+    'active_channels': len(normal),
+    'total_capacity_msat': total_cap,
+    'local_balance_msat': local_bal,
+    'remote_balance_msat': remote_bal,
+    'avg_local_ratio': round(local_bal / total_cap, 4) if total_cap else 0,
+}, separators=(',', ':')))
+" "$result"

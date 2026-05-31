@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-invoice-expiry-avg   (FEAT-2227)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pending = [i for i in data.get('invoices', []) if i.get('status') == 'unpaid']
+if not pending:
+    print(json.dumps({'avg_expiry_seconds': 0, 'count': 0}))
+else:
+    total = sum(int(i.get('expiry', 0)) for i in pending)
+    print(json.dumps({'avg_expiry_seconds': total // len(pending), 'count': len(pending)}))
+" "\$result"

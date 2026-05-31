@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning channel-fee-base-avg   (FEAT-2265)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+if not channels:
+    print(json.dumps({'fee_base_msat_avg': None}))
+    sys.exit(0)
+vals = [int(c.get('fee_base_msat', 0)) for c in channels]
+avg = sum(vals) / len(vals)
+print(json.dumps({'fee_base_msat_avg': round(avg, 3)}))
+" "$result"

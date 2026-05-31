@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-send-custom-msg <peer_id> <msg_hex>   (FEAT-577)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: node-send-custom-msg <peer_id> <msg_hex>"}'
+    exit 0
+fi
+peer_id="$1"; msg_hex="$2"
+result=$(lightning-cli sendcustommsg "$peer_id" "$msg_hex" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

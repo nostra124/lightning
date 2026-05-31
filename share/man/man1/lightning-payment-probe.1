@@ -1,0 +1,31 @@
+.TH "LIGHTNING-PAYMENT-PROBE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-payment-probe \- probe route reachability to a node
+.SH SYNOPSIS
+.B lightning payment-probe
+.I node_id
+.I amount_msat
+.SH DESCRIPTION
+Uses
+.B lightning-cli getroute
+to check whether a route exists to
+.I node_id
+for the given
+.IR amount_msat .
+Reports hop count and estimated fee when reachable.
+Returns
+.B {"reachable":false}
+if no route is found or the daemon is unreachable.
+.PP
+Output:
+.nf
+{"reachable":true,"hops":N,"fee_msat":N}
+{"reachable":false}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-route-find (1),
+.BR lightning-node-reachability (1)

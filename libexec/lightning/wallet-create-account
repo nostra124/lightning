@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning wallet-create-account <wallet_name> <account_name>   (FEAT-428)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-create-account <wallet_name> <account_name>"}'
+    exit 0
+fi
+wname="$1"; acct="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+ts=$(date -u +%s)
+sqlite3 "$db" "CREATE TABLE IF NOT EXISTS accounts (account_id TEXT PRIMARY KEY, name TEXT, created_at INTEGER);"
+sqlite3 "$db" "INSERT OR IGNORE INTO accounts VALUES ('$acct','$acct',$ts);"
+echo '{"status":"created","wallet":"'"$wname"'","account":"'"$acct"'"}'

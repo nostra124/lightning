@@ -1,0 +1,16 @@
+.TH "LIGHTNING-CHANNEL_FEE_BASE_KURTOSIS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-fee-base-kurtosis \- FEAT-2820 kurtosis of fee_base_msat across channels
+.SH SYNOPSIS
+.B lightning channel-fee-base-kurtosis
+.SH DESCRIPTION
+Computes the kurtosis of fee_base_msat across channels for the lightning CLI (FEAT-2820).
+.PP
+Output: JSON object with key \fBfee_base_kurtosis\fR and \fBcount\fR.
+Returns \fBnull\fR when fewer than the required minimum samples are available.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning (1)

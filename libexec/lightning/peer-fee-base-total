@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning peer-fee-base-total   (FEAT-2853)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peers = {}
+for ch in channels:
+    pid = ch.get('peer_id', 'unknown')
+    fee = ch.get('fee_base_msat', 0)
+    peers[pid] = peers.get(pid, 0) + fee
+print(json.dumps({'fee_base_total_peer_msat': peers}))
+" "$result"

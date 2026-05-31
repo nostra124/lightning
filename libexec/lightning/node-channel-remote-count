@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-channel-remote-count   (FEAT-1079)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+remote_opened = [ch for ch in channels if ch.get('opener') == 'remote']
+print(json.dumps({'total': len(channels), 'remote_opened': len(remote_opened)}))
+" "$result"

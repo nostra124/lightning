@@ -1,0 +1,23 @@
+#!/bin/bash
+# lightning channel-close-all-peers <peer_id>   (FEAT-350)
+# Close all channels with a specific peer
+set -e
+[ $# -ge 1 ] || { echo '{"error":"usage: channel-close-all-peers <peer_id>"}'; exit 0; }
+peer_id="$1"
+result=$(lightning-cli listpeerchannels "$peer_id" 2>/dev/null) || {
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+}
+python3 -c "
+import sys, json, subprocess
+data = json.loads(sys.argv[1])
+peer_id = sys.argv[2]
+channels = [c for c in data.get('channels', [])
+            if c.get('peer_id') == peer_id and c.get('state') == 'CHANNELD_NORMAL']
+results = []
+for c in channels:
+    ch_id = c.get('channel_id', '')
+    r = subprocess.run(['lightning-cli', 'close', ch_id], capture_output=True, text=True)
+    results.append({'channel_id': ch_id, 'ok': r.returncode == 0})
+print(json.dumps({'peer_id': peer_id, 'closed': results}, separators=(',', ':')))
+" "$result" "$peer_id"

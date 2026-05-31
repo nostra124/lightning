@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning channel-htlc-timeout-min   (FEAT-2352)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+min_expiry = None
+min_channel_id = None
+for ch in channels:
+    for htlc in ch.get('htlcs', []):
+        exp = htlc.get('expiry')
+        if exp is not None and (min_expiry is None or exp < min_expiry):
+            min_expiry = exp
+            min_channel_id = ch.get('short_channel_id') or ch.get('channel_id')
+print(json.dumps({'channel_id': min_channel_id, 'min_htlc_expiry': min_expiry}))
+" "$result"

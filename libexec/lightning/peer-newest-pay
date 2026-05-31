@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning peer-newest-pay   (FEAT-2216)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = [p for p in data.get('pays', []) if p.get('status') == 'complete']
+newest = {}
+for p in pays:
+    dest = p.get('destination', '')
+    if not dest: continue
+    t = p.get('completed_at', p.get('created_at', 0))
+    if dest not in newest or t > newest[dest]['completed_at']:
+        newest[dest] = {'destination': dest, 'completed_at': t, 'amount_msat': p.get('amount_msat', 0)}
+result = sorted(newest.values(), key=lambda x: x['completed_at'], reverse=True)
+print(json.dumps({'peers': result, 'peer_count': len(result)}))
+" "$result"

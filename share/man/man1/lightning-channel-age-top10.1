@@ -1,0 +1,15 @@
+.TH "LIGHTNING-CHANNEL-AGE-TOP10" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-age-top10 \- FEAT-2732 channel-age-top10 verb
+.SH SYNOPSIS
+.B lightning channel-age-top10
+.SH DESCRIPTION
+Show the top 10 oldest channels sorted by short channel ID (which encodes block height).
+.PP
+Output: JSON from CLN with key \fBtop10_oldest\fR containing an array of channel objects.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

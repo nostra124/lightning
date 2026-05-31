@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-capacity-total   (FEAT-589)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = [c for c in data.get('channels', []) if c.get('state') == 'CHANNELD_NORMAL']
+total = sum(c.get('total_msat', 0) for c in channels)
+print(json.dumps({'active_channels': len(channels), 'total_capacity_msat': total, 'total_capacity_sat': total // 1000}))
+" "$result"

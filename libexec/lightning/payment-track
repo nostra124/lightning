@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning payment-track <payment_hash>   (FEAT-510)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: payment-track <payment_hash>"}'
+    exit 0
+fi
+payment_hash="$1"
+result=$(lightning-cli listpays payment_hash="$payment_hash" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+pays = json.loads(sys.argv[1]).get('pays', [])
+pay = next(iter(pays), None)
+if pay:
+    print(json.dumps({'payment_hash': pay.get('payment_hash',''), 'status': pay.get('status',''),
+        'amount_msat': pay.get('amount_sent_msat', 0)}, separators=(',', ':')))
+else:
+    print(json.dumps({'error': 'payment_not_found'}))
+" "$result"

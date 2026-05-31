@@ -1,0 +1,23 @@
+.TH "LIGHTNING-CHANNEL-ENABLE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-enable \- re-enable a channel by restoring normal fees
+.SH SYNOPSIS
+.B lightning channel-enable
+.I channel_id
+.RI [ base_msat
+.IR ppm ]
+.SH DESCRIPTION
+Restores reasonable fees on a channel, effectively re-enabling it for routing.
+Default base fee is 1000 msat and default ppm is 1.
+.PP
+Output:
+.nf
+{"status":"enabled","channel_id":"<id>"}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-disable (1),
+.BR lightning-channel-fee-set-all (1)

@@ -1,0 +1,7 @@
+#!/bin/bash
+# lightning invoice-create-auto <amount_msat> <description>   (FEAT-955)
+if [ $# -lt 2 ]; then echo '{"error":"usage: invoice-create-auto <amount_msat> <description>"}'; exit 0; fi
+amount_msat="$1"; desc="$2"
+label="auto_$(date +%s%N 2>/dev/null || date +%s)"
+if ! result=$(lightning-cli invoice "$amount_msat" "$label" "$desc" 2>/dev/null); then echo '{"error":"lightning-cli not found"}'; exit 0; fi
+echo "$result"

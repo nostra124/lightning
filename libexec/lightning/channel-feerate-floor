@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning channel-feerate-floor   (FEAT-1376)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+rates = [ch.get('feerate', {}).get('perkw', 0) for ch in data.get('channels', [])]
+if rates:
+    print(json.dumps({'min_feerate_perkw': min(rates), 'channel_count': len(rates)}))
+else:
+    print(json.dumps({'min_feerate_perkw': 0, 'channel_count': 0}))
+" "$result"

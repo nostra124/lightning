@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-graph-nodes-with-alias   (FEAT-1674)
+result=$(lightning-cli listnodes 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+nodes = data.get('nodes', [])
+with_alias = [n for n in nodes if n.get('alias')]
+print(json.dumps({'total': len(nodes), 'with_alias': len(with_alias)}))
+" "$result"

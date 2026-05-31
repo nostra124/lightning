@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning invoice-bolt11-cltvexpiry <label>   (FEAT-1595)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-bolt11-cltvexpiry <label>"}'; exit 0; fi
+label="$1"
+result=$(lightning-cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invs = data.get('invoices', [])
+if not invs:
+    print(json.dumps({'error': 'invoice not found'}))
+    sys.exit(0)
+i = invs[0]
+print(json.dumps({'label': i.get('label'), 'min_final_cltv_expiry': i.get('min_final_cltv_expiry')}))
+" "$result"

@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning node-listforwards-revenue   (FEAT-1334)
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+fwds = [f for f in data.get('forwards', []) if f.get('status') == 'settled']
+total = sum(f.get('fee_msat', 0) for f in fwds)
+print(json.dumps({'settled_count': len(fwds), 'total_fee_msat': total}))
+" "$result"

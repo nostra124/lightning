@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-graph-min-capacity   (FEAT-2044)
+result=$(lightning-cli listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+sats = [ch.get('satoshis', 0) for ch in channels if 'satoshis' in ch]
+if sats:
+    print(json.dumps({'channel_count': len(channels), 'min_capacity_sat': min(sats)}))
+else:
+    print(json.dumps({'channel_count': len(channels), 'min_capacity_sat': None}))
+" "$result"

@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning wallet-balance-spendable   (FEAT-1173)
+result=$(lightning-cli listfunds 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+spendable = sum(c.get('our_amount_msat', 0) for c in channels if isinstance(c.get('our_amount_msat'), int))
+print(json.dumps({'spendable_msat': spendable}))
+" "$result"

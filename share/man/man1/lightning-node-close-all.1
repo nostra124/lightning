@@ -1,0 +1,23 @@
+.TH "LIGHTNING-NODE-CLOSE-ALL" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-close-all \- close all channels
+.SH SYNOPSIS
+.B lightning node-close-all
+.RB [ --force ]
+.SH DESCRIPTION
+Issues a mutual close request for every open channel.
+Use
+.B --force
+for unilateral close (on-chain, slower and more expensive).
+.PP
+Output:
+.nf
+{"closed":["channel_id",...], "errors":["channel_id: msg",...]}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-channel-close (1),
+.BR lightning-channel-list (1)

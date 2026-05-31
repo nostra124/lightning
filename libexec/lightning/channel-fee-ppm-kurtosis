@@ -1,0 +1,24 @@
+#!/bin/bash
+# lightning channel-fee-ppm-kurtosis   (FEAT-2847)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+values = []
+for ch in channels:
+    ppm = ch.get('fee_proportional_millionths')
+    if ppm is not None:
+        values.append(float(ppm))
+n = len(values)
+if n < 4:
+    print(json.dumps({'fee_ppm_kurtosis': None, 'n': n}))
+    sys.exit(0)
+mean = sum(values) / n
+var = sum((x - mean)**2 for x in values) / n
+if var == 0:
+    print(json.dumps({'fee_ppm_kurtosis': None, 'n': n}))
+    sys.exit(0)
+kurt = (sum((x - mean)**4 for x in values) / n) / (var**2) - 3
+print(json.dumps({'fee_ppm_kurtosis': round(kurt, 6), 'n': n}))
+" "$result"

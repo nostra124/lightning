@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning node-fee-revenue [--since <unix_timestamp>]   (FEAT-409)
+since=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --since) since="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+result=$(lightning-cli listforwards status=settled 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+fwds = json.loads(sys.argv[1]).get('forwards', [])
+since = int(sys.argv[2])
+if since:
+    fwds = [f for f in fwds if f.get('resolved_time', 0) >= since]
+total_fee = sum(f.get('fee_msat', 0) for f in fwds)
+print(json.dumps({'count': len(fwds), 'total_fee_msat': total_fee,
+    'total_fee_sat': total_fee // 1000}, separators=(',', ':')))
+" "$result" "$since"

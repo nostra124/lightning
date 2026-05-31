@@ -1,0 +1,26 @@
+#!/bin/bash
+# lightning payment-mpp-status <payment_hash>   (FEAT-368)
+set -e
+[ $# -ge 1 ] || { echo '{"error":"usage: payment-mpp-status <payment_hash>"}'; exit 0; }
+phash="$1"
+result=$(lightning-cli listpays payment_hash="$phash" 2>/dev/null) || {
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+}
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+if not pays:
+    print(json.dumps({'error': 'not_found'}))
+    exit()
+pay = pays[0]
+parts = pay.get('parts', 1)
+print(json.dumps({
+    'payment_hash': pay.get('payment_hash', ''),
+    'status': pay.get('status', ''),
+    'parts': parts,
+    'amount_msat': pay.get('amount_msat', 0),
+    'amount_sent_msat': pay.get('amount_sent_msat', 0),
+}, separators=(',', ':')))
+" "$result"

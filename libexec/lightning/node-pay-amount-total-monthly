@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning node-pay-amount-total-monthly   (FEAT-2874)
+result=$(lightning-cli listpays status=complete 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time, calendar
+data = json.loads(sys.argv[1])
+now = time.time()
+t = time.gmtime(now)
+month_start = calendar.timegm((t.tm_year, t.tm_mon, 1, 0, 0, 0, 0, 0, 0))
+total = sum(p.get('amount_sent_msat', 0) for p in data.get('pays', []) if p.get('completed_at', 0) >= month_start)
+print(json.dumps({'amount_total_monthly_msat': total}))
+" "$result"

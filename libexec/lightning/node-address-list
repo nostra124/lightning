@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning node-address-list   (FEAT-422)
+result=$(lightning-cli getinfo 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+info = json.loads(sys.argv[1])
+addrs = info.get('address', [])
+binding = info.get('binding', [])
+print(json.dumps({'addresses': addrs, 'binding': binding, 'node_id': info.get('id','')},
+    separators=(',', ':')))
+" "$result"

@@ -1,0 +1,24 @@
+#!/bin/bash
+# lightning wallet-pin-check <wallet_name> <pin>   (FEAT-543)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: wallet-pin-check <wallet_name> <pin>"}'
+    exit 0
+fi
+wname="$1"; pin="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then
+    echo '{"error":"database_not_found"}'
+    exit 0
+fi
+stored=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='pin_hash';" 2>/dev/null) || { echo '{"error":"sqlite3 not found"}'; exit 0; }
+if [ -z "$stored" ]; then
+    echo '{"ok":true,"pin_set":false}'
+    exit 0
+fi
+input_hash=$(echo -n "$pin" | sha256sum | cut -d' ' -f1)
+if [ "$input_hash" = "$stored" ]; then
+    echo '{"ok":true,"pin_correct":true}'
+else
+    echo '{"ok":false,"pin_correct":false}'
+fi

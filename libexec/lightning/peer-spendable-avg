@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning peer-spendable-avg   (FEAT-2613)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peers = {}
+for ch in channels:
+    pid = ch.get('peer_id', '')
+    spendable = ch.get('spendable_msat', 0) or 0
+    peers.setdefault(pid, []).append(spendable)
+result = {}
+for pid, vals in peers.items():
+    result[pid] = sum(vals) / len(vals) if vals else 0
+print(json.dumps({'spendable_avg_msat': result}))
+" "$result"

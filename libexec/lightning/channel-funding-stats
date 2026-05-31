@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning channel-funding-stats   (FEAT-2142)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+amounts = []
+for c in channels:
+    amt = c.get('funding', {}).get('local_funds_msat') or c.get('total_msat') or c.get('capacity_msat')
+    if amt is None:
+        amt = c.get('funding_msat') or c.get('funding_sat')
+    if amt is None: continue
+    if isinstance(amt, str): amt = int(amt.replace('msat','').replace('sat',''))
+    amounts.append(amt)
+if not amounts:
+    print(json.dumps({'count': 0, 'min': None, 'max': None, 'avg': None}))
+    sys.exit(0)
+print(json.dumps({'count': len(amounts), 'min': min(amounts), 'max': max(amounts), 'avg': sum(amounts)/len(amounts)}))
+" "$result"

@@ -1,0 +1,18 @@
+.TH "LIGHTNING-CHANNEL-COUNT-ACTIVE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-channel-count-active \- FEAT-2875 channel-count-active
+.SH SYNOPSIS
+.B lightning channel-count-active
+.SH DESCRIPTION
+Count of active (CHANNELD_NORMAL + peer connected) channels (FEAT-2875).
+.PP
+Queries all peer channels via lightning-cli listpeerchannels and counts those
+in state CHANNELD_NORMAL with peer_connected true.
+.PP
+Output: JSON from CLN.
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning(1)

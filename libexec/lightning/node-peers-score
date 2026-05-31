@@ -1,0 +1,25 @@
+#!/bin/bash
+# lightning node-peers-score   (FEAT-436)
+# Shows weighted health scores for all peers
+result_peers=$(lightning-cli listpeers 2>/dev/null) || { echo '[]'; exit 0; }
+result_chans=$(lightning-cli listpeerchannels 2>/dev/null) || result_chans='{"channels":[]}'
+python3 -c "
+import sys, json, time
+peers = json.loads(sys.argv[1]).get('peers', [])
+channels = json.loads(sys.argv[2]).get('channels', [])
+now = int(time.time())
+out = []
+for p in peers:
+    pid = p.get('id', '')
+    pchans = [c for c in channels if c.get('peer_id') == pid]
+    total_cap = sum(c.get('total_msat', 0) for c in pchans)
+    local = sum(c.get('to_us_msat', 0) for c in pchans)
+    balance_ratio = round(local / total_cap, 3) if total_cap else 0
+    connected_score = 100 if p.get('connected') else 0
+    chan_score = min(100, len(pchans) * 20)
+    balance_score = 100 - int(abs(balance_ratio - 0.5) * 200)
+    overall = round((connected_score * 0.4 + chan_score * 0.3 + balance_score * 0.3), 1)
+    out.append({'peer_id': pid, 'score': overall, 'connected': p.get('connected', False),
+        'num_channels': len(pchans), 'balance_ratio': balance_ratio})
+print(json.dumps(out, separators=(',', ':')))
+" "$result_peers" "$result_chans"

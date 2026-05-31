@@ -1,0 +1,23 @@
+#!/bin/bash
+# lightning peer-local-balance-kurtosis   (FEAT-2833)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, math
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peer_totals = {}
+for ch in channels:
+    pid = ch.get('peer_id')
+    if pid and 'to_us_msat' in ch:
+        peer_totals[pid] = peer_totals.get(pid, 0) + ch['to_us_msat']
+vals = list(peer_totals.values())
+if len(vals) < 4:
+    print(json.dumps({'local_balance_kurtosis_peer': None, 'peer_count': len(vals)}))
+    sys.exit(0)
+n = len(vals)
+mean = sum(vals) / n
+m2 = sum((x - mean) ** 2 for x in vals) / n
+m4 = sum((x - mean) ** 4 for x in vals) / n
+kurtosis = (m4 / (m2 ** 2)) - 3 if m2 != 0 else None
+print(json.dumps({'local_balance_kurtosis_peer': round(kurtosis, 4) if kurtosis is not None else None, 'peer_count': n}))
+" "$result"

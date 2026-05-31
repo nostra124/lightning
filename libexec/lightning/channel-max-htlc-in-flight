@@ -1,0 +1,20 @@
+#!/bin/bash
+# lightning channel-max-htlc-in-flight <channel_id>   (FEAT-1968)
+if [ $# -lt 1 ]; then echo '{"error":"usage: channel-max-htlc-in-flight <channel_id>"}'; exit 0; fi
+channel_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+cid = sys.argv[2]
+channels = data.get('channels', [])
+found = None
+for c in channels:
+    if c.get('channel_id') == cid or c.get('short_channel_id') == cid:
+        found = c
+        break
+if found is None:
+    print(json.dumps({'error': 'channel not found'}))
+else:
+    print(json.dumps({'channel_id': cid, 'max_total_htlc_value_in_flight_msat': found.get('max_total_htlc_value_in_flight_msat')}))
+" "$result" "$channel_id"

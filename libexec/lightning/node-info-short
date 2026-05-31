@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning node-info-short   (FEAT-641)
+if ! result=$(lightning-cli getinfo 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'id': data.get('id'), 'alias': data.get('alias'), 'color': data.get('color'), 'blockheight': data.get('blockheight'), 'network': data.get('network'), 'num_peers': data.get('num_peers'), 'num_active_channels': data.get('num_active_channels')}))
+" "$result"

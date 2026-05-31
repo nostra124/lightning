@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning wallet-balance-msat <wallet_name>   (FEAT-1233)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-balance-msat <wallet_name>"}'; exit 0; fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+balance=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='balance_msat';" 2>/dev/null) || balance=0
+echo "{\"wallet\":\"$wname\",\"balance_msat\":\"${balance:-0}\"}"

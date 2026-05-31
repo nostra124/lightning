@@ -1,0 +1,47 @@
+#!/bin/bash
+# lightning channel-history [<channel_id>] [--limit N]   (FEAT-318)
+#
+# Returns forwarded payments through a channel.
+# [{in_channel, out_channel, amount_msat, fee_msat, resolved_time, status}]
+
+set -e
+channel_id=""; limit=50
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --limit) limit="$2"; shift 2 ;;
+        -*) shift ;;
+        *) channel_id="$1"; shift ;;
+    esac
+done
+
+LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
+NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
+
+command -v lightning-cli >/dev/null || { echo '[]'; exit 0; }
+
+raw=$(lightning-cli $LD $NET listforwards 2>/dev/null) || { echo '[]'; exit 0; }
+
+python3 -c "
+import sys, json
+fwds = json.loads(sys.argv[1]).get('forwards', [])
+channel_id = sys.argv[2]
+limit = int(sys.argv[3])
+
+result = []
+for f in fwds:
+    in_ch = f.get('in_channel', '')
+    out_ch = f.get('out_channel', '')
+    if channel_id and channel_id not in (in_ch, out_ch):
+        continue
+    result.append({
+        'in_channel': in_ch,
+        'out_channel': out_ch,
+        'amount_msat': f.get('in_msat', 0),
+        'fee_msat': f.get('fee_msat', 0),
+        'resolved_time': f.get('resolved_time'),
+        'status': f.get('status', ''),
+    })
+
+result = result[-limit:]
+print(json.dumps(result, separators=(',', ':')))
+" "$raw" "$channel_id" "$limit"

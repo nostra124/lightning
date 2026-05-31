@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning node-channel-count-active   (FEAT-581)
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+active = sum(1 for c in channels if c.get('state') == 'CHANNELD_NORMAL')
+pending = sum(1 for c in channels if 'WAIT' in c.get('state', '') or 'OPEN' in c.get('state', ''))
+closing = sum(1 for c in channels if 'CLOS' in c.get('state', ''))
+print(json.dumps({'total': len(channels), 'active': active, 'pending': pending, 'closing': closing}))
+" "$result"

@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning channel-sat-per-vbyte   (FEAT-512)
+if ! result=$(lightning-cli feerates perkb 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+rates = data.get('perkb', data)
+urgent = rates.get('urgent', 0)
+normal = rates.get('normal', 0)
+slow = rates.get('slow', 0)
+print(json.dumps({'urgent_sat_per_vbyte': urgent // 4000,
+    'normal_sat_per_vbyte': normal // 4000,
+    'slow_sat_per_vbyte': slow // 4000}, separators=(',', ':')))
+" "$result"

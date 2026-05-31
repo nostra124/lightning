@@ -1,0 +1,12 @@
+#!/bin/bash
+# lightning node-bandwidth   (FEAT-382)
+# Liquidity available for routing: sum of min(local, remote) per channel
+set -e
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = [c for c in data.get('channels', []) if c.get('state') == 'CHANNELD_NORMAL']
+bandwidth = sum(min(c.get('to_us_msat', 0), c.get('total_msat', 0) - c.get('to_us_msat', 0)) for c in channels)
+print(json.dumps({'bandwidth_msat': bandwidth, 'channels': len(channels)}, separators=(',', ':')))
+" "$result"

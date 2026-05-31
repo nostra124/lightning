@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning peer-scid-list <peer_id>   (FEAT-1547)
+if [ $# -lt 1 ]; then echo '{"error":"usage: peer-scid-list <peer_id>"}'; exit 0; fi
+peer_id="$1"
+result=$(lightning-cli listpeerchannels "$peer_id" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+scids = [c.get('short_channel_id') for c in data.get('channels', []) if c.get('short_channel_id')]
+print(json.dumps({'peer_id': sys.argv[2], 'scids': scids}))
+" "$result" "$peer_id"

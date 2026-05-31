@@ -1,0 +1,21 @@
+#!/bin/bash
+# lightning peer-remote-balance-total   (FEAT-2086)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+totals = {}
+for ch in channels:
+    peer = ch.get('peer_id', '')
+    cap = ch.get('total_msat', 0)
+    if isinstance(cap, str):
+        cap = int(cap.replace('msat',''))
+    us = ch.get('to_us_msat', 0)
+    if isinstance(us, str):
+        us = int(us.replace('msat',''))
+    remote = cap - us
+    totals[peer] = totals.get(peer, 0) + remote
+out = [{'peer_id': k, 'remote_balance_msat': v} for k, v in totals.items()]
+print(json.dumps({'peer_remote_balances': out}))
+" "$result"

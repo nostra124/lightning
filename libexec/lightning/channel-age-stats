@@ -1,0 +1,28 @@
+#!/bin/bash
+# lightning channel-age-stats   (FEAT-2112)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+now = int(time.time())
+ages = []
+for ch in channels:
+    opener = ch.get('opener')
+    created = ch.get('created_index')
+    # Use funding_txid presence as proxy; age via 'scratch_txid' or fallback
+    open_block = ch.get('funding', {})
+    # best available: state_changes or spendable/receivable age not available directly
+    # use 'to_us_msat' change timestamp not available; skip channels without age info
+    pass
+# Try state or last_stable_connection
+for ch in channels:
+    ts = ch.get('last_stable_connection') or ch.get('created_at')
+    if ts:
+        ages.append(now - ts)
+if ages:
+    result = {'min_age_s': min(ages), 'max_age_s': max(ages), 'avg_age_s': int(sum(ages)/len(ages)), 'count': len(ages)}
+else:
+    result = {'min_age_s': None, 'max_age_s': None, 'avg_age_s': None, 'count': 0}
+print(json.dumps(result))
+" "$result"

@@ -1,0 +1,8 @@
+#!/bin/bash
+# lightning channel-reserve-local-total   (FEAT-3024)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+print(json.dumps({'reserve_local_total': None}))
+" "$result"

@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning channel-normal-count   (FEAT-1656)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+normal = sum(1 for c in channels if c.get('state') == 'CHANNELD_NORMAL')
+print(json.dumps({'total': len(channels), 'normal': normal, 'other': len(channels) - normal}))
+" "$result"

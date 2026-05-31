@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning invoice-qr-data <bolt11>   (FEAT-620)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: invoice-qr-data <bolt11>"}'
+    exit 0
+fi
+bolt11="$1"
+upper=$(echo "$bolt11" | tr '[:lower:]' '[:upper:]')
+echo "{\"bolt11\":\"$bolt11\",\"qr_data\":\"LIGHTNING:$upper\"}"

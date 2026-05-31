@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning wallet-notes-bulk-delete <wallet_name> <prefix>   (FEAT-1353)
+if [ $# -lt 2 ]; then echo '{"error":"usage: wallet-notes-bulk-delete <wallet_name> <prefix>"}'; exit 0; fi
+wname="$1"; prefix="$2"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet_not_found"}'; exit 0; fi
+python3 -c "
+import sys, sqlite3, json
+db = sys.argv[1]; prefix = sys.argv[2]; wname = sys.argv[3]
+conn = sqlite3.connect(db)
+cur = conn.execute('DELETE FROM notes WHERE key LIKE ?', (prefix+'%',))
+count = cur.rowcount; conn.commit(); conn.close()
+print(json.dumps({'wallet': wname, 'deleted': count}))
+" "$db" "$prefix" "$wname" 2>/dev/null || echo '{"error":"db_error"}'

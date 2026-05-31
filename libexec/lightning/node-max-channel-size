@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-max-channel-size   (FEAT-559)
+if ! result=$(lightning-cli listconfigs 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+configs = data.get('configs', {})
+max_size = configs.get('max-channel-size', {}).get('value_msat', None)
+print(json.dumps({'max_channel_size_msat': max_size}))
+" "$result"

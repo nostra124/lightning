@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning node-forward-stats   (FEAT-454)
+if ! result=$(lightning-cli listforwards 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+fwds = json.loads(sys.argv[1]).get('forwards', [])
+settled = [f for f in fwds if f.get('status') == 'settled']
+failed = [f for f in fwds if f.get('status') == 'failed']
+total_fee = sum(f.get('fee_msat', 0) for f in settled)
+print(json.dumps({'total': len(fwds), 'settled': len(settled), 'failed': len(failed),
+    'total_fee_msat': total_fee}, separators=(',', ':')))
+" "$result"

@@ -1,0 +1,18 @@
+#!/bin/bash
+# lightning node-invoice-preimage <payment_hash>   (FEAT-1104)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: node-invoice-preimage <payment_hash>"}'
+    exit 0
+fi
+phash="$1"
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+phash = sys.argv[2]
+for inv in data.get('invoices', []):
+    if inv.get('payment_hash') == phash:
+        print(json.dumps({'payment_hash': phash, 'payment_preimage': inv.get('payment_preimage')}))
+        sys.exit(0)
+print(json.dumps({'error': 'invoice not found'}))
+" "$result" "$phash"

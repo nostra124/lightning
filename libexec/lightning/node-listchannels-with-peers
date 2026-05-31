@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning node-listchannels-with-peers   (FEAT-1394)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = [{'channel_id': c.get('channel_id'), 'peer_id': c.get('peer_id'), 'state': c.get('state')} for c in data.get('channels', [])]
+print(json.dumps({'count': len(channels), 'channels': channels}))
+" "$result"

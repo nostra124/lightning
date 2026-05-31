@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning wallet-notes-merge   (FEAT-2203)
+wallet_db="${LIGHTNING_WALLET_DB:-$HOME/.lightning/wallet.db}"
+if [ ! -f "$wallet_db" ]; then
+    echo '{"error":"wallet db not found"}'
+    exit 0
+fi
+result=$(sqlite3 "$wallet_db" "SELECT id, note FROM notes ORDER BY id;" 2>/dev/null) || { echo '{"error":"sqlite3 query failed"}'; exit 0; }
+python3 -c "
+import sys, json
+lines = sys.argv[1].strip().split('\n') if sys.argv[1].strip() else []
+notes = []
+for line in lines:
+    parts = line.split('|', 1)
+    if len(parts) == 2:
+        notes.append({'id': parts[0], 'note': parts[1]})
+merged = ' | '.join(n['note'] for n in notes)
+print(json.dumps({'note_count': len(notes), 'merged': merged}))
+" "$result"

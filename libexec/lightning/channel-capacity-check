@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning channel-capacity-check <min_sat>   (FEAT-481)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: channel-capacity-check <min_sat>"}'
+    exit 0
+fi
+min_sat="$1"
+if ! result=$(lightning-cli listpeerchannels 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+python3 -c "
+import sys, json
+channels = json.loads(sys.argv[1]).get('channels', [])
+min_msat = int(sys.argv[2]) * 1000
+low = [{'peer_id': c.get('peer_id',''), 'total_msat': c.get('total_msat', 0)}
+    for c in channels if c.get('total_msat', 0) < min_msat]
+print(json.dumps({'below_minimum': len(low), 'min_msat': min_msat, 'channels': low}, separators=(',', ':')))
+" "$result" "$min_sat"

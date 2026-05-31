@@ -1,0 +1,17 @@
+#!/bin/bash
+# lightning invoice-bolt11-type <label>   (FEAT-1565)
+if [ $# -lt 1 ]; then echo '{"error":"usage: invoice-bolt11-type <label>"}'; exit 0; fi
+label="$1"
+result=$(lightning-cli listinvoices "$label" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invs = data.get('invoices', [])
+if not invs:
+    print(json.dumps({'error': 'invoice not found'}))
+    sys.exit(0)
+i = invs[0]
+bolt11 = i.get('bolt11', '')
+bolt12 = i.get('bolt12', '')
+print(json.dumps({'label': i.get('label'), 'type': 'bolt12' if bolt12 else 'bolt11', 'status': i.get('status')}))
+" "$result"

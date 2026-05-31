@@ -43,12 +43,12 @@ def test_create_post_returns_201(api_dir, bin_shim, lightning_stub, cgi, parse):
     assert ID in body_out
 
 
-def test_create_get_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
-    lightning_stub({"api-accounts-create": (0, "{}")})
+def test_create_get_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-list": (0, "[]")})
     proc = cgi(api_dir / SCRIPT,
                env=env(bin_shim, REQUEST_METHOD="GET"))
     status, _, _ = parse(proc)
-    assert "405" in status
+    assert "401" in status
 
 
 def test_create_with_hint_passes_it_through(api_dir, bin_shim, lightning_stub, cgi, parse):
@@ -1190,3 +1190,58 @@ def test_apikey_post_is_405(api_dir, bin_shim, lightning_stub, cgi, parse):
                                    REQUEST_METHOD="POST")))
     status, _, _ = parse(proc)
     assert "405" in status
+
+
+# FEAT-286 — GET /v1/accounts operator listing
+
+def test_list_accounts_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({})
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim, PATH_INFO="", REQUEST_METHOD="GET"))
+    status, _, _ = parse(proc)
+    assert "401" in status
+
+
+def test_list_accounts_happy_path(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = f'[{{"address":"{ID}","description":"test","balance_sat":0}}]'
+    lightning_stub({"api-account-list": (0, body)})
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim, PATH_INFO="", REQUEST_METHOD="GET")))
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    import json
+    j = json.loads(body_out)
+    assert isinstance(j, list)
+    assert j[0]["address"] == ID
+
+
+# FEAT-287 — PATCH /v1/accounts/<id>/describe
+
+def test_describe_updates_description(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, ""),
+                    "api-account-describe": (0, '{"ok":true}')})
+    import json
+    payload = json.dumps({"description": "My account"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=with_bearer(env(bin_shim,
+                                   PATH_INFO=f"/{ID}/describe",
+                                   REQUEST_METHOD="PATCH",
+                                   CONTENT_LENGTH=str(len(payload)))),
+               body=payload)
+    status, _, body_out = parse(proc)
+    assert "200" in status
+    assert json.loads(body_out)["ok"] is True
+
+
+def test_describe_requires_bearer(api_dir, bin_shim, lightning_stub, cgi, parse):
+    lightning_stub({"api-account-verify": (0, "")})
+    import json
+    payload = json.dumps({"description": "x"}).encode()
+    proc = cgi(api_dir / SCRIPT,
+               env=env(bin_shim,
+                       PATH_INFO=f"/{ID}/describe",
+                       REQUEST_METHOD="PATCH",
+                       CONTENT_LENGTH=str(len(payload))),
+               body=payload)
+    status, _, _ = parse(proc)
+    assert "401" in status

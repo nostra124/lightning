@@ -1,57 +1,9 @@
 #!/bin/bash
-# lightning wallet-export-csv [--limit N] [--account <addr>]   (FEAT-279)
-#
-# Exports ledger entries as CSV to stdout.
-# Columns: id,account,ts,direction,amount_msat,amount_sat,peer,
-#          payment_hash,message,note
-# Sorted oldest-first (ascending id).
-
-set -e
-limit=10000
-account=""
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --limit)   limit="$2";   shift 2 ;;
-        --account) account="$2"; shift 2 ;;
-        *) shift ;;
-    esac
-done
-
-WALLETS_ROOT="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning/wallet}"
-ACTIVE_LINK="${LIGHTNING_WALLETS_ROOT:-$HOME/.lightning}/active"
-wname="default"; [ -f "$ACTIVE_LINK" ] && wname=$(cat "$ACTIVE_LINK")
-db="$WALLETS_ROOT/$wname/state.db"
-
-if [ ! -f "$db" ]; then
-    printf 'id,account,ts,direction,amount_msat,amount_sat,peer,payment_hash,message,note\n'
-    exit 0
-fi
-
-python3 -c "
-import sys, csv, sqlite3, io
-
-db_path   = sys.argv[1]
-limit_val = int(sys.argv[2])
-acct_filt = sys.argv[3]
-
-conn = sqlite3.connect(db_path)
-conn.row_factory = sqlite3.Row
-
-where = 'WHERE account = ?' if acct_filt else ''
-params = (acct_filt, limit_val) if acct_filt else (limit_val,)
-
-rows = conn.execute(
-    f'SELECT id, account, ts, direction, amount_msat, '
-    f'CAST(ABS(amount_msat)/1000 AS INTEGER) AS amount_sat, '
-    f'peer, payment_hash, message, note '
-    f'FROM ledger {where} ORDER BY id ASC LIMIT ?',
-    params).fetchall()
-
-out = io.StringIO()
-w = csv.writer(out)
-w.writerow(['id','account','ts','direction','amount_msat','amount_sat',
-            'peer','payment_hash','message','note'])
-for r in rows:
-    w.writerow(list(r))
-print(out.getvalue(), end='')
-" "$db" "$limit" "$account"
+# lightning wallet-export-csv <wallet_name>   (FEAT-773)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-export-csv <wallet_name>"}'; exit 0; fi
+wname="$1"
+root="${WALLETS_ROOT:-$HOME/.lightning/wallets}"
+db="$root/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+rows=$(sqlite3 -csv "$db" "SELECT * FROM transactions ORDER BY created_at DESC LIMIT 100" 2>/dev/null) || rows=""
+echo "{\"wallet\":\"$wname\",\"csv\":$(python3 -c "import sys,json; print(json.dumps(sys.argv[1]))" "$rows")}"

@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning channel-spendable-min   (FEAT-2585)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+if not channels:
+    print(json.dumps({'spendable_msat': None}))
+    sys.exit(0)
+min_ch = min(channels, key=lambda c: int(c.get('spendable_msat', 0)))
+print(json.dumps({'spendable_msat': min_ch.get('spendable_msat'), 'channel_id': min_ch.get('channel_id'), 'peer_id': min_ch.get('peer_id')}))
+" "$result"

@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning peer-fee-proportional-avg   (FEAT-2543)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+vals = [c['fee_proportional_millionths'] for c in channels if 'fee_proportional_millionths' in c]
+avg = sum(vals) / len(vals) if vals else 0
+print(json.dumps({'fee_proportional_avg': avg}))
+" "$result"

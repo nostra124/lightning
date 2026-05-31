@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning wallet-notes-trim <key>   (FEAT-1863)
+if [ $# -lt 1 ]; then echo '{"error":"usage: wallet-notes-trim <key>"}'; exit 0; fi
+key="$1"
+wname="${LIGHTNING_WALLET:-default}"
+db="$HOME/.lightning/wallets/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+sqlite3 "$db" "UPDATE notes SET value = TRIM(value) WHERE key='$key';" 2>/dev/null || { echo '{"error":"db error"}'; exit 0; }
+echo "{\"trimmed\":true,\"key\":\"$key\"}"

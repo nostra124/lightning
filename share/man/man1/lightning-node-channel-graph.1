@@ -1,0 +1,23 @@
+.TH "LIGHTNING-NODE-CHANNEL-GRAPH" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node-channel-graph \- list channels from the gossip graph
+.SH SYNOPSIS
+.B lightning node-channel-graph
+.RB [ --limit
+.IR N ]
+.SH DESCRIPTION
+Returns channels visible in the local gossip graph via
+.BR listchannels .
+Default limit is 100.
+.PP
+Output:
+.nf
+[{source, destination, short_channel_id, satoshis, active}]
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-node-gossip (1),
+.BR lightning-route-find (1)

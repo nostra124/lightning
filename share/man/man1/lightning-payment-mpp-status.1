@@ -1,0 +1,26 @@
+.TH "LIGHTNING-PAYMENT-MPP-STATUS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-payment-mpp-status \- show multi-part payment status and part count
+.SH SYNOPSIS
+.B lightning payment-mpp-status
+.I payment_hash
+.SH DESCRIPTION
+Looks up a payment by
+.I payment_hash
+and returns its status plus the number of payment parts (MPP).
+Returns
+.B {"error":"not_found"}
+if the hash is unknown.
+Returns an error object if the daemon is unreachable.
+.PP
+Output:
+.nf
+{payment_hash, status, parts, amount_msat, amount_sent_msat}
+.fi
+.SH EXIT STATUS
+.TP
+.B 0
+Always.
+.SH SEE ALSO
+.BR lightning-payment-status (1),
+.BR lightning-payment-list (1)

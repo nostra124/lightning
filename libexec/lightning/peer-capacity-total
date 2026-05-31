@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning peer-capacity-total   (FEAT-1986)
+result=$(lightning-cli listpeers 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+peers = data.get('peers', [])
+total = 0
+for p in peers:
+    for ch in p.get('channels', []):
+        msat = ch.get('funding_amount_msat') or ch.get('total_msat') or 0
+        total += msat
+print(json.dumps({'peer_count': len(peers), 'total_capacity_sat': total // 1000}))
+" "$result"

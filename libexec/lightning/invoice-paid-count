@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning invoice-paid-count   (FEAT-1745)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+paid = [i for i in invoices if i.get('status') == 'paid']
+print(json.dumps({'count': len(paid)}))
+" "$result"

@@ -1,0 +1,30 @@
+#!/bin/bash
+# lightning channel-rebalance-report   (FEAT-330)
+set -e
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '[]'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = [c for c in data.get('channels', []) if c.get('state') == 'CHANNELD_NORMAL']
+total_cap = sum(c.get('total_msat', 0) for c in channels)
+if total_cap == 0:
+    print('[]')
+    exit()
+report = []
+for c in channels:
+    cap = c.get('total_msat', 0)
+    local = c.get('to_us_msat', 0)
+    if cap == 0:
+        continue
+    ratio = local / cap
+    report.append({
+        'channel_id': c.get('channel_id', ''),
+        'peer_id': c.get('peer_id', ''),
+        'local_ratio': round(ratio, 4),
+        'local_msat': local,
+        'total_msat': cap,
+        'imbalance': 'local_heavy' if ratio > 0.7 else ('remote_heavy' if ratio < 0.3 else 'balanced'),
+    })
+report.sort(key=lambda x: abs(x['local_ratio'] - 0.5), reverse=True)
+print(json.dumps(report, separators=(',', ':')))
+" "$result"

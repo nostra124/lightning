@@ -1,0 +1,26 @@
+#!/bin/bash
+# lightning channel-local-pct-stats   (FEAT-2138)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+pcts = []
+for ch in channels:
+    local = ch.get('to_us_msat')
+    total = ch.get('total_msat')
+    if local is None or total is None:
+        continue
+    try:
+        l = int(str(local).replace('msat', ''))
+        t = int(str(total).replace('msat', ''))
+        if t == 0:
+            continue
+        pcts.append(l * 100 // t)
+    except ValueError:
+        pass
+if not pcts:
+    print(json.dumps({'count': 0, 'min_pct': None, 'max_pct': None, 'avg_pct': None}))
+else:
+    print(json.dumps({'count': len(pcts), 'min_pct': min(pcts), 'max_pct': max(pcts), 'avg_pct': sum(pcts)//len(pcts)}))
+" "$result"

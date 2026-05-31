@@ -1,27 +1,14 @@
-.TH "LIGHTNING-PEER-CONNECT" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-PEER_CONNECT" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-peer-connect \- connect to a Lightning network peer
+lightning-peer-connect \- connect to a remote peer
 .SH SYNOPSIS
 .B lightning peer-connect
-.I pubkey@host[:port]
+.I peer_id host\n.RI [ port ]
 .SH DESCRIPTION
-Connects to a Lightning peer at the given address.
-The address must be in the form
-.IR pubkey@host:port
-or
-.IR pubkey@host
-(port defaults to 9735).
-Returns JSON
-.B {"peer_id":"...","connected":true}
-on success.
+Connects to a peer by node ID, host, and optional port (default 9735).
 .SH EXIT STATUS
 .TP
 .B 0
-Connection established.
-.TP
-.B 5
-Connection failed.
+Always.
 .SH SEE ALSO
-.BR lightning-peer (1),
-.BR lightning-peer-disconnect (1),
-.BR lightning-peer-list (1)
+.BR lightning(1)

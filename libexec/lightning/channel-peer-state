@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning channel-peer-state <peer_id>   (FEAT-1020)
+if [ $# -lt 1 ]; then
+    echo '{"error":"usage: channel-peer-state <peer_id>"}'
+    exit 0
+fi
+peer_id="$1"
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pid = sys.argv[2]
+states = [{'channel_id': ch.get('channel_id'), 'state': ch.get('state')} for ch in data.get('channels', []) if ch.get('peer_id') == pid]
+print(json.dumps({'peer_id': pid, 'channels': states}))
+" "$result" "$peer_id"

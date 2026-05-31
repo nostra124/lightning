@@ -1,0 +1,7 @@
+#!/bin/bash
+# lightning node-plugin-list   (FEAT-461)
+if ! result=$(lightning-cli plugin list 2>/dev/null); then
+    echo '{"error":"lightning-cli not found"}'
+    exit 0
+fi
+echo "$result"

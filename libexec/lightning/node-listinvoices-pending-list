@@ -1,0 +1,13 @@
+#!/bin/bash
+# lightning node-listinvoices-pending-list   (FEAT-2299)
+result=$(lightning-cli listinvoices 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+invoices = data.get('invoices', [])
+pending = [
+    {'label': inv.get('label', ''), 'expires_at': inv.get('expires_at')}
+    for inv in invoices if inv.get('status') == 'unpaid'
+]
+print(json.dumps({'pending_invoices': pending}))
+" "$result"

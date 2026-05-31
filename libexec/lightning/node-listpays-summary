@@ -1,0 +1,14 @@
+#!/bin/bash
+# lightning node-listpays-summary   (FEAT-2101)
+result=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+pays = data.get('pays', [])
+total = len(pays)
+complete = sum(1 for p in pays if p.get('status') == 'complete')
+failed = sum(1 for p in pays if p.get('status') == 'failed')
+pending = sum(1 for p in pays if p.get('status') not in ('complete', 'failed'))
+total_msat = sum(p.get('amount_sent_msat', 0) for p in pays if p.get('status') == 'complete')
+print(json.dumps({'total': total, 'complete': complete, 'failed': failed, 'pending': pending, 'total_msat': total_msat}))
+" "$result"

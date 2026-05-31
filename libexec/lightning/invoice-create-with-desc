@@ -1,0 +1,6 @@
+#!/bin/bash
+# lightning invoice-create-with-desc <amount_msat> <label> <description>   (FEAT-755)
+if [ $# -lt 3 ]; then echo '{"error":"usage: invoice-create-with-desc <amount_msat> <label> <description>"}'; exit 0; fi
+amount="$1"; label="$2"; desc="$3"
+result=$(lightning-cli invoice "$amount" "$label" "$desc" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps(d))" "$result"

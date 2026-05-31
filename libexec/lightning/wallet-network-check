@@ -1,0 +1,8 @@
+#!/bin/bash
+# lightning wallet-network-check   (FEAT-788)
+result=$(lightning-cli getinfo 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'network': d.get('network'), 'id': d.get('id'), 'synced_to_chain': d.get('warning_bitcoind_sync') is None and d.get('warning_lightningd_sync') is None}))
+" "$result"

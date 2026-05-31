@@ -1,0 +1,25 @@
+#!/bin/bash
+# lightning peer-newest-invoice-paid   (FEAT-2413)
+result_pays=$(lightning-cli listpays 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+result_peers=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+pays_data = json.loads(sys.argv[1])
+peers_data = json.loads(sys.argv[2])
+pays = pays_data.get('pays', [])
+channels = peers_data.get('channels', [])
+dest_to_peer = {}
+for ch in channels:
+    peer = ch.get('peer_id')
+    dest = ch.get('peer_id')
+    if peer:
+        dest_to_peer[peer] = peer
+completed = [p for p in pays if p.get('status') == 'complete']
+if not completed:
+    print(json.dumps({'peer_id': None, 'destination': None, 'paid_at': None}))
+    sys.exit(0)
+newest = max(completed, key=lambda p: p.get('created_at', 0))
+dest = newest.get('destination')
+peer = dest_to_peer.get(dest)
+print(json.dumps({'peer_id': peer, 'destination': dest, 'paid_at': newest.get('created_at')}))
+" "$result_pays" "$result_peers"

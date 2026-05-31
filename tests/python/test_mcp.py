@@ -106,7 +106,7 @@ def test_tools_list_returns_tools(api_dir, bin_shim, lightning_stub, cgi, parse)
         "account_recv_reusable", "account_history", "account_close",
         "node_info", "channel_list", "node_funds", "account_transfer",
         "invoice_decode", "price", "fee_list", "forward_stats", "peer_summary",
-        "node_health",
+        "node_health", "payment_status", "invoice_status", "peers_score",
     }
     # No `auth` / `verb` / `argmap` keys leak into the public schema.
     for t in tools:
@@ -446,3 +446,33 @@ def test_ping(api_dir, bin_shim, lightning_stub, cgi, parse):
     status, _, body_out = post(api_dir, bin_shim, cgi, parse, rpc("ping"))
     j = json.loads(body_out)
     assert j["result"] == {}
+
+
+def test_tools_call_payment_status(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"payment_hash":"abc123","status":"complete","amount_msat":10000,"fee_msat":1,"destination":"02aaa","created_at":1700000000}'
+    lightning_stub({"api-payment-status": (0, body)})
+    payload = rpc("tools/call", {"name": "payment_status", "arguments": {"payment_hash": "abc123"}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["status"] == "complete"
+
+
+def test_tools_call_invoice_status(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '{"payment_hash":"abc123","label":"my-label","status":"paid","amount_msat":5000,"paid_at":1700000001}'
+    lightning_stub({"api-invoice-status": (0, body)})
+    payload = rpc("tools/call", {"name": "invoice_status", "arguments": {"query": "my-label"}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"]["status"] == "paid"
+
+
+def test_tools_call_peers_score(api_dir, bin_shim, lightning_stub, cgi, parse):
+    body = '[{"peer_id":"02aaa","alias":"bob","score":80,"num_channels":2,"local_sat":500000,"remote_sat":500000,"connected":true,"local_ratio":0.5}]'
+    lightning_stub({"api-node-peers-score": (0, body)})
+    payload = rpc("tools/call", {"name": "peers_score", "arguments": {}})
+    status, _, body_out = post(api_dir, bin_shim, cgi, parse, payload)
+    j = json.loads(body_out)
+    assert j["result"]["isError"] is False
+    assert j["result"]["structuredContent"][0]["score"] == 80

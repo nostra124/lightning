@@ -1,0 +1,19 @@
+#!/bin/bash
+# lightning peer-fee-ppm-range   (FEAT-2808)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+peer_ppm = {}
+for c in channels:
+    peer = c.get('peer_id', '')
+    ppm = c.get('fee_proportional_millionths', 0)
+    peer_ppm.setdefault(peer, []).append(ppm)
+peer_avgs = [sum(v)/len(v) for v in peer_ppm.values() if v]
+if len(peer_avgs) >= 2:
+    fee_ppm_range_peer = max(peer_avgs) - min(peer_avgs)
+else:
+    fee_ppm_range_peer = 0.0
+print(json.dumps({'fee_ppm_range_peer': round(fee_ppm_range_peer, 6), 'count': len(peer_avgs)}))
+" "$result"

@@ -1,0 +1,10 @@
+#!/bin/bash
+# lightning channel-local-msat-total   (FEAT-812)
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+total = sum(c.get('to_us_msat', 0) for c in channels if isinstance(c.get('to_us_msat', 0), int))
+print(json.dumps({'total_local_msat': total, 'channels': len(channels)}))
+" "$result"

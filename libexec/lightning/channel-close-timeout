@@ -1,0 +1,9 @@
+#!/bin/bash
+# lightning channel-close-timeout <channel_id> <timeout_secs>   (FEAT-610)
+if [ $# -lt 2 ]; then
+    echo '{"error":"usage: channel-close-timeout <channel_id> <timeout_secs>"}'
+    exit 0
+fi
+channel_id="$1"; timeout="$2"
+result=$(lightning-cli close "$channel_id" "$timeout" 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+echo "$result"

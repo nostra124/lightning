@@ -1,0 +1,15 @@
+#!/bin/bash
+# lightning node-listforwards-fee-total-weekly   (FEAT-2851)
+result=$(lightning-cli listforwards status=settled 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+week_ago = time.time() - 7 * 86400
+total = 0
+for f in forwards:
+    resolved = f.get('resolved_time') or f.get('received_time') or 0
+    if resolved >= week_ago:
+        total += f.get('fee_msat', 0)
+print(json.dumps({'fee_total_weekly_msat': total}))
+" "$result"

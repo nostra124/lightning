@@ -1,0 +1,8 @@
+#!/bin/bash
+# lightning wallet-notes-rotate-key <wallet> <old_key> <new_key>   (FEAT-1488)
+if [ $# -lt 3 ]; then echo '{"error":"usage: wallet-notes-rotate-key <wallet> <old_key> <new_key>"}'; exit 0; fi
+wname="$1"; old_key="$2"; new_key="$3"
+db="${WALLETS_ROOT:-$HOME/.wallets}/$wname/state.db"
+if [ ! -f "$db" ]; then echo '{"error":"wallet not found"}'; exit 0; fi
+sqlite3 "$db" "UPDATE notes SET key='$new_key' WHERE key='$old_key';" 2>/dev/null || { echo '{"error":"db error"}'; exit 0; }
+echo "{\"wallet\":\"$wname\",\"old_key\":\"$old_key\",\"new_key\":\"$new_key\"}"

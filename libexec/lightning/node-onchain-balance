@@ -1,0 +1,11 @@
+#!/bin/bash
+# lightning node-onchain-balance   (FEAT-1599)
+result=$(lightning-cli listfunds 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+outputs = data.get('outputs', [])
+confirmed = sum(o.get('amount_msat', 0) for o in outputs if o.get('status') == 'confirmed')
+total = sum(o.get('amount_msat', 0) for o in outputs)
+print(json.dumps({'total_msat': total, 'confirmed_msat': confirmed, 'output_count': len(outputs)}))
+" "$result"
