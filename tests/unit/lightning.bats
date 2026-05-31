@@ -34971,3 +34971,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3330: node-listforwards-fee-avg-daily man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg-daily.1" ]
 }
+
+@test "FEAT-3331: peer-htlc-max-msat-kurtosis reports error or htlc_max_msat_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-max-msat-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_kurtosis_peer"
+}
+@test "FEAT-3331: peer-htlc-max-msat-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-max-msat-kurtosis.1" ]
+}
+
+@test "FEAT-3332: channel-htlc-max-msat-top10 reports error or top10_htlc_max_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-msat-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_htlc_max_msat"
+}
+@test "FEAT-3332: channel-htlc-max-msat-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-msat-top10.1" ]
+}
+
+@test "FEAT-3333: node-listforwards-fee-avg-weekly reports error or fee_avg_weekly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_avg_weekly"
+}
+@test "FEAT-3333: node-listforwards-fee-avg-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg-weekly.1" ]
+}
+
+@test "FEAT-3334: peer-htlc-min-msat-skewness reports error or htlc_min_msat_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-min-msat-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_skewness_peer"
+}
+@test "FEAT-3334: peer-htlc-min-msat-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-min-msat-skewness.1" ]
+}
+
+@test "FEAT-3335: channel-htlc-count-top10 reports error or top10_htlc_count gracefully" {
+    out=$(./libexec/lightning/channel-htlc-count-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_htlc_count"
+}
+@test "FEAT-3335: channel-htlc-count-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-count-top10.1" ]
+}
+
+@test "FEAT-3336: node-listforwards-fee-avg-monthly reports error or fee_avg_monthly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_avg_monthly"
+}
+@test "FEAT-3336: node-listforwards-fee-avg-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg-monthly.1" ]
+}
+
+@test "FEAT-3337: peer-htlc-max-msat-skewness reports error or htlc_max_msat_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-max-msat-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_skewness_peer"
+}
+@test "FEAT-3337: peer-htlc-max-msat-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-max-msat-skewness.1" ]
+}
+
+@test "FEAT-3338: channel-htlc-value-top10 reports error or top10_htlc_value gracefully" {
+    out=$(./libexec/lightning/channel-htlc-value-top10 2>/dev/null)
+    echo "$out" | grep -q "error\|top10_htlc_value"
+}
+@test "FEAT-3338: channel-htlc-value-top10 man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-value-top10.1" ]
+}
+
+@test "FEAT-3339: node-pay-fee-avg-daily reports error or fee_avg_daily_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-avg-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_avg_daily_pay"
+}
+@test "FEAT-3339: node-pay-fee-avg-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-avg-daily.1" ]
+}
+
+@test "FEAT-3340: peer-htlc-count-kurtosis reports error or htlc_count_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-count-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_count_kurtosis_peer"
+}
+@test "FEAT-3340: peer-htlc-count-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-count-kurtosis.1" ]
+}
