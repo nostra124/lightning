@@ -35611,3 +35611,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3410: node-invoice-amount-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-max.1" ]
 }
+
+@test "FEAT-3411: node-invoice-amount-min reports error or invoice_amount_min gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_min"
+}
+@test "FEAT-3411: node-invoice-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-min.1" ]
+}
+
+@test "FEAT-3412: peer-fee-base-kurtosis reports error or fee_base_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_kurtosis_peer"
+}
+@test "FEAT-3412: peer-fee-base-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-kurtosis.1" ]
+}
+
+@test "FEAT-3413: channel-fee-base-kurtosis reports error or fee_base_kurtosis_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_kurtosis_ch"
+}
+@test "FEAT-3413: channel-fee-base-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-kurtosis.1" ]
+}
+
+@test "FEAT-3414: node-invoice-amount-stddev reports error or invoice_amount_stddev gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_stddev"
+}
+@test "FEAT-3414: node-invoice-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-stddev.1" ]
+}
+
+@test "FEAT-3415: peer-fee-ppm-kurtosis reports error or fee_ppm_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_kurtosis_peer"
+}
+@test "FEAT-3415: peer-fee-ppm-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-kurtosis.1" ]
+}
+
+@test "FEAT-3416: channel-fee-earned-avg reports error or fee_earned_avg_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_avg_ch"
+}
+@test "FEAT-3416: channel-fee-earned-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-avg.1" ]
+}
+
+@test "FEAT-3417: node-invoice-amount-median reports error or invoice_amount_median gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-median 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_median"
+}
+@test "FEAT-3417: node-invoice-amount-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-median.1" ]
+}
+
+@test "FEAT-3418: peer-fee-earned-avg reports error or fee_earned_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_avg_peer"
+}
+@test "FEAT-3418: peer-fee-earned-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-avg.1" ]
+}
+
+@test "FEAT-3419: channel-fee-earned-max reports error or fee_earned_max_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_max_ch"
+}
+@test "FEAT-3419: channel-fee-earned-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-max.1" ]
+}
+
+@test "FEAT-3420: node-invoice-amount-variance reports error or invoice_amount_variance gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_variance"
+}
+@test "FEAT-3420: node-invoice-amount-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-variance.1" ]
+}
