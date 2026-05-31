@@ -9236,6 +9236,8 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 
 @test "channel man page has SUBCOMMANDS section" {
 	grep -q "^.SH SUBCOMMANDS" share/man/man1/lightning-channel.1
+}
+
 # FEAT-286 — GET /v1/accounts operator listing
 
 @test "FEAT-286: accounts.py routes GET /v1/accounts to list" {
@@ -9506,5 +9508,4 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 }
 @test "FEAT-1057: peer-disconnect man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-disconnect.1" ]
-}
 }
