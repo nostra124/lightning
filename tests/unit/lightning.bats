@@ -35451,3 +35451,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3390: peer-fee-base-stddev man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-stddev.1" ]
 }
+
+@test "FEAT-3391: channel-fee-base-stddev reports error or fee_base_stddev_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_stddev_ch"
+}
+@test "FEAT-3391: channel-fee-base-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-stddev.1" ]
+}
+
+@test "FEAT-3392: node-pay-amount-stddev reports error or amount_stddev_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_stddev_pay"
+}
+@test "FEAT-3392: node-pay-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-stddev.1" ]
+}
+
+@test "FEAT-3393: peer-fee-base-median reports error or fee_base_median_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_median_peer"
+}
+@test "FEAT-3393: peer-fee-base-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-median.1" ]
+}
+
+@test "FEAT-3394: channel-fee-base-median reports error or fee_base_median_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_median_ch"
+}
+@test "FEAT-3394: channel-fee-base-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-median.1" ]
+}
+
+@test "FEAT-3395: node-pay-amount-median reports error or amount_median_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-median 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_median_pay"
+}
+@test "FEAT-3395: node-pay-amount-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-median.1" ]
+}
+
+@test "FEAT-3396: peer-fee-base-variance reports error or fee_base_variance_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_variance_peer"
+}
+@test "FEAT-3396: peer-fee-base-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-variance.1" ]
+}
+
+@test "FEAT-3397: channel-fee-base-variance reports error or fee_base_variance_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_variance_ch"
+}
+@test "FEAT-3397: channel-fee-base-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-variance.1" ]
+}
+
+@test "FEAT-3398: node-pay-amount-variance reports error or amount_variance_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_variance_pay"
+}
+@test "FEAT-3398: node-pay-amount-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-variance.1" ]
+}
+
+@test "FEAT-3399: peer-fee-ppm-median reports error or fee_ppm_median_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_median_peer"
+}
+@test "FEAT-3399: peer-fee-ppm-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-median.1" ]
+}
+
+@test "FEAT-3400: channel-fee-ppm-median reports error or fee_ppm_median_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_median_ch"
+}
+@test "FEAT-3400: channel-fee-ppm-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-median.1" ]
+}
