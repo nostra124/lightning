@@ -36131,3 +36131,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3480: peer-balance-ratio-skewness man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-skewness.1" ]
 }
+@test "FEAT-3481: channel-balance-ratio-kurtosis reports error or balance_ratio_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-balance-ratio-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_kurtosis"
+}
+@test "FEAT-3481: channel-balance-ratio-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-balance-ratio-kurtosis.1" ]
+}
+@test "FEAT-3482: node-listforwards-in-msat-range reports error or in_msat_range gracefully" {
+    out=$(./libexec/lightning/node-listforwards-in-msat-range 2>/dev/null)
+    echo "$out" | grep -q "error\|in_msat_range"
+}
+@test "FEAT-3482: node-listforwards-in-msat-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-in-msat-range.1" ]
+}
+@test "FEAT-3483: peer-balance-ratio-kurtosis reports error or balance_ratio_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-balance-ratio-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|balance_ratio_kurtosis_peer"
+}
+@test "FEAT-3483: peer-balance-ratio-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-balance-ratio-kurtosis.1" ]
+}
+@test "FEAT-3484: channel-spendable-pct-stddev reports error or spendable_pct_stddev gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_stddev"
+}
+@test "FEAT-3484: channel-spendable-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-stddev.1" ]
+}
+@test "FEAT-3485: node-listforwards-out-msat-range reports error or out_msat_range gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-range 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_range"
+}
+@test "FEAT-3485: node-listforwards-out-msat-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-range.1" ]
+}
+@test "FEAT-3486: peer-spendable-pct-avg reports error or spendable_pct_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-spendable-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_avg_peer"
+}
+@test "FEAT-3486: peer-spendable-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-pct-avg.1" ]
+}
+@test "FEAT-3487: channel-receivable-pct-stddev reports error or receivable_pct_stddev gracefully" {
+    out=$(./libexec/lightning/channel-receivable-pct-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_stddev"
+}
+@test "FEAT-3487: channel-receivable-pct-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-pct-stddev.1" ]
+}
+@test "FEAT-3488: node-pay-amount-range reports error or amount_range_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_range_pay"
+}
+@test "FEAT-3488: node-pay-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-range.1" ]
+}
+@test "FEAT-3489: peer-receivable-pct-avg reports error or receivable_pct_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-receivable-pct-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_pct_avg_peer"
+}
+@test "FEAT-3489: peer-receivable-pct-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-pct-avg.1" ]
+}
+@test "FEAT-3490: channel-spendable-pct-skewness reports error or spendable_pct_skewness gracefully" {
+    out=$(./libexec/lightning/channel-spendable-pct-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_pct_skewness"
+}
+@test "FEAT-3490: channel-spendable-pct-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-pct-skewness.1" ]
+}
