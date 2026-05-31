@@ -35771,3 +35771,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3430: node-invoice-paid-amount-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-max.1" ]
 }
+
+@test "FEAT-3431: node-invoice-paid-amount-min reports error or paid_amount_min gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_min"
+}
+@test "FEAT-3431: node-invoice-paid-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-min.1" ]
+}
+
+@test "FEAT-3432: peer-fee-earned-median reports error or fee_earned_median_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-median 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_median_peer"
+}
+@test "FEAT-3432: peer-fee-earned-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-median.1" ]
+}
+
+@test "FEAT-3433: channel-fee-earned-kurtosis reports error or fee_earned_kurtosis_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-earned-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_kurtosis_ch"
+}
+@test "FEAT-3433: channel-fee-earned-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-kurtosis.1" ]
+}
+
+@test "FEAT-3434: node-invoice-paid-amount-stddev reports error or paid_amount_stddev gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_stddev"
+}
+@test "FEAT-3434: node-invoice-paid-amount-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-stddev.1" ]
+}
+
+@test "FEAT-3435: peer-fee-earned-variance reports error or fee_earned_variance_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_variance_peer"
+}
+@test "FEAT-3435: peer-fee-earned-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-variance.1" ]
+}
+
+@test "FEAT-3436: channel-local-balance-skewness reports error or local_balance_skewness gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_skewness"
+}
+@test "FEAT-3436: channel-local-balance-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-skewness.1" ]
+}
+
+@test "FEAT-3437: node-invoice-paid-amount-median reports error or paid_amount_median gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-median 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_median"
+}
+@test "FEAT-3437: node-invoice-paid-amount-median man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-median.1" ]
+}
+
+@test "FEAT-3438: peer-fee-earned-skewness reports error or fee_earned_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_skewness_peer"
+}
+@test "FEAT-3438: peer-fee-earned-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-skewness.1" ]
+}
+
+@test "FEAT-3439: channel-remote-balance-skewness reports error or remote_balance_skewness gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_skewness"
+}
+@test "FEAT-3439: channel-remote-balance-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-skewness.1" ]
+}
+
+@test "FEAT-3440: node-invoice-paid-amount-variance reports error or paid_amount_variance gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_variance"
+}
+@test "FEAT-3440: node-invoice-paid-amount-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-variance.1" ]
+}
