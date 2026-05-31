@@ -35921,3 +35921,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3450: node-pay-fee-kurtosis man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-kurtosis.1" ]
 }
+@test "FEAT-3451: peer-local-balance-kurtosis reports error or local_balance_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_kurtosis_peer"
+}
+@test "FEAT-3451: peer-local-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-kurtosis.1" ]
+}
+@test "FEAT-3452: channel-remote-balance-kurtosis reports error or remote_balance_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_kurtosis"
+}
+@test "FEAT-3452: channel-remote-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-kurtosis.1" ]
+}
+@test "FEAT-3453: node-pay-amount-skewness-daily reports error or amount_skewness_daily gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-skewness-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_skewness_daily"
+}
+@test "FEAT-3453: node-pay-amount-skewness-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-skewness-daily.1" ]
+}
+@test "FEAT-3454: peer-remote-balance-kurtosis reports error or remote_balance_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_kurtosis_peer"
+}
+@test "FEAT-3454: peer-remote-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-kurtosis.1" ]
+}
+@test "FEAT-3455: channel-spendable-skewness reports error or spendable_skewness gracefully" {
+    out=$(./libexec/lightning/channel-spendable-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_skewness"
+}
+@test "FEAT-3455: channel-spendable-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-skewness.1" ]
+}
+@test "FEAT-3456: node-pay-amount-kurtosis-daily reports error or amount_kurtosis_daily gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-kurtosis-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_kurtosis_daily"
+}
+@test "FEAT-3456: node-pay-amount-kurtosis-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-kurtosis-daily.1" ]
+}
+@test "FEAT-3457: peer-spendable-skewness reports error or spendable_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-spendable-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_skewness_peer"
+}
+@test "FEAT-3457: peer-spendable-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-skewness.1" ]
+}
+@test "FEAT-3458: channel-receivable-skewness reports error or receivable_skewness gracefully" {
+    out=$(./libexec/lightning/channel-receivable-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_skewness"
+}
+@test "FEAT-3458: channel-receivable-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-skewness.1" ]
+}
+@test "FEAT-3459: node-listforwards-fee-skewness-daily reports error or fee_skewness_daily gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-skewness-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_skewness_daily"
+}
+@test "FEAT-3459: node-listforwards-fee-skewness-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-skewness-daily.1" ]
+}
+@test "FEAT-3460: peer-receivable-skewness reports error or receivable_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-receivable-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_skewness_peer"
+}
+@test "FEAT-3460: peer-receivable-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-skewness.1" ]
+}
