@@ -1,7 +1,7 @@
 #!/bin/bash
 # lightning liquidity — channel-liquidity management.
 #
-# Implements FEAT-175.
+# Implements FEAT-175, FEAT-210.
 #
 # Subcommands:
 #   status                  TSV: channel inbound / outbound (sat)
@@ -11,6 +11,8 @@
 #   boltz in|out <sat>              Boltz wrapper
 #   lsp <name> buy <sat>            LSPS1 channel purchase
 #   provider default <name>         set the default
+#   blocktank info|buy|orders       Blocktank (Synonym) LSP — HTTP REST
+#   nostr offers|buy|sell           Nostr Kind 39735 liquidity discovery
 
 set -e
 
@@ -37,6 +39,13 @@ default_provider() {
 	[ -f "$f" ] && cat "$f" || echo "lsp"
 }
 
+BLOCKTANK_API="${BLOCKTANK_API:-https://blocktank.synonym.to/api/v2}"
+BLOCKTANK_REFERRAL="${BLOCKTANK_REFERRAL:-}"   # set to your referral code
+
+# Default Nostr relays for Kind 39735 liquidity offers.
+# Override with $LIGHTNING_NOSTR_RELAYS (space-separated wss:// URLs).
+NOSTR_RELAYS="${LIGHTNING_NOSTR_RELAYS:-wss://lightning.bawee.site wss://relay.damus.io wss://nos.lol}"
+
 usage() {
 	cat >&2 <<EOF
 usage: lightning liquidity <subcommand>
@@ -50,6 +59,18 @@ usage: lightning liquidity <subcommand>
                                        requires the cln-lsps plugin;
                                        install via 'daemon install --lsps'
    provider default <name>             set the default for liquidity in
+
+   blocktank info                      show Blocktank pricing + limits
+   blocktank buy <sat> [--yes]         buy inbound from Blocktank (Synonym LSP)
+   blocktank orders                    list your Blocktank orders (by node pubkey)
+
+   nostr offers [--relay <wss>] [--max-ppm <n>] [--min-sat <n>] [--json]
+                                       list Kind 39735 LSP offers from Nostr
+   nostr buy <sat> [--from <npub>] [--relay <wss>] [--yes]
+                                       accept a Nostr offer + settle via LSPS1
+   nostr sell <sat> --price <ppm> [--expiry <h>] [--relay <wss>]
+                                       broadcast your own LSP offer (Kind 39735)
+   nostr revoke [--relay <wss>]        delete your active offer event
 EOF
 }
 
@@ -271,18 +292,571 @@ cmd_provider() {
 	echo "lightning liquidity: default provider = $2"
 }
 
+# ---------------------------------------------------------------------------
+# FEAT-210: Blocktank (Synonym LSP) integration — REST API, no plugin needed.
+# ---------------------------------------------------------------------------
+
+cmd_blocktank() {
+	local sub="${1:-info}"; shift || true
+	case "$sub" in
+		info)    _blocktank_info "$@" ;;
+		buy)     _blocktank_buy  "$@" ;;
+		orders)  _blocktank_orders "$@" ;;
+		*) echo "lightning liquidity blocktank: unknown subcommand '$sub'" >&2
+		   echo "  try: info | buy <sat> [--yes] | orders" >&2; exit 1 ;;
+	esac
+}
+
+_blocktank_info() {
+	local resp
+	resp=$(curl -fsSL "${BLOCKTANK_API}/channel-open" 2>&1) || {
+		echo "lightning liquidity blocktank: Blocktank API unreachable (${BLOCKTANK_API})" >&2
+		return 1
+	}
+	echo "$resp" | python3 - <<'PYEOF'
+import sys, json, os
+d = json.load(sys.stdin)
+opts = d.get("options", d)
+print(f"Blocktank LSP — {d.get('lspNodePubKey','?')}")
+print(f"  min channel:  {opts.get('minChannelCapacitySat','?')} sat")
+print(f"  max channel:  {opts.get('maxChannelCapacitySat','?')} sat")
+print(f"  min client:   {opts.get('minInitialClientBalanceSat','?')} sat (your side)")
+print(f"  max client:   {opts.get('maxInitialClientBalanceSat','?')} sat")
+print(f"  min lsp:      {opts.get('minInitialLspBalanceSat','?')} sat (their side / your inbound)")
+print(f"  max lsp:      {opts.get('maxInitialLspBalanceSat','?')} sat")
+print(f"  fixed cost:   {opts.get('channelFeesSat', d.get('channelFeesSat','?'))} sat")
+print(f"  variable fee: {opts.get('channelFeesVariablePercentage', d.get('channelFeesVariablePercentage','?'))} %")
+print(f"  max expiry:   {opts.get('maxChannelExpiryBlocks','?')} blocks")
+PYEOF
+}
+
+_blocktank_buy() {
+	local sat="" yes=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--yes|-y) yes=1; shift ;;
+			--*)      echo "lightning liquidity blocktank buy: unknown flag '$1'" >&2; exit 1 ;;
+			*)        sat="$1"; shift ;;
+		esac
+	done
+	[ -n "$sat" ] || { echo "usage: lightning liquidity blocktank buy <sat> [--yes]" >&2; exit 1; }
+
+	# Fetch quote.
+	local info_resp
+	info_resp=$(curl -fsSL "${BLOCKTANK_API}/channel-open") || {
+		echo "lightning liquidity blocktank: cannot reach Blocktank API" >&2; return 1; }
+
+	local lsp_pubkey fee_sat
+	lsp_pubkey=$(echo "$info_resp" | jq -r '.lspNodePubKey // empty')
+	fee_sat=$(echo "$info_resp" | jq -r '.channelFeesSat // .options.channelFeesSat // "?"')
+
+	echo "  Provider:   Blocktank (Synonym)"
+	echo "  LSP pubkey: $lsp_pubkey"
+	echo "  Inbound:    $sat sat"
+	echo "  Fee:        $fee_sat sat"
+
+	if [ "$yes" != "1" ]; then
+		if [ ! -t 0 ]; then
+			echo "lightning liquidity blocktank: stdin is not a TTY; pass --yes to skip the prompt" >&2
+			return 1
+		fi
+		printf "Proceed? [y/N] "
+		local ans; read -r ans
+		case "$ans" in y|Y|yes|YES) ;;
+		*) echo "lightning liquidity blocktank: declined" >&2; return 1 ;;
+		esac
+	fi
+
+	# Get our own node pubkey for the order.
+	local our_pubkey our_addr
+	our_pubkey=$(cli getinfo | jq -r '.id')
+	our_addr=$(cli newaddr | jq -r '.bech32')
+
+	# Build order payload. Referral code is appended only when set.
+	local payload
+	payload=$(python3 - "$sat" "$our_pubkey" "$our_addr" "${BLOCKTANK_REFERRAL:-}" <<'PYEOF'
+import sys, json
+lsp_balance = int(sys.argv[1])
+pubkey      = sys.argv[2]
+refund_addr = sys.argv[3]
+referral    = sys.argv[4]
+body = {
+    "lspBalanceSat": lsp_balance,
+    "clientBalanceSat": 0,
+    "channelExpiryBlocks": 6480,
+    "announceChannel": True,
+    "refundOnchainAddress": refund_addr,
+}
+if referral:
+    body["token"] = referral
+print(json.dumps(body))
+PYEOF
+)
+
+	local order_resp
+	order_resp=$(curl -fsSL -X POST \
+		-H "Content-Type: application/json" \
+		-d "$payload" \
+		"${BLOCKTANK_API}/channel-open") || {
+		echo "lightning liquidity blocktank: order creation failed" >&2; return 1; }
+
+	local order_id invoice
+	order_id=$(echo "$order_resp" | jq -r '.id // empty')
+	invoice=$(echo  "$order_resp" | jq -r '.payment.bolt11 // empty')
+
+	[ -n "$order_id" ] && [ -n "$invoice" ] || {
+		echo "lightning liquidity blocktank: unexpected response" >&2
+		echo "$order_resp" >&2; return 1; }
+
+	echo "Order ID: $order_id"
+	echo "Paying invoice..."
+	cli pay "$invoice" >/dev/null || {
+		echo "lightning liquidity blocktank: payment failed" >&2; return 6; }
+
+	# Poll for channel open (same pattern as call_lsp).
+	local timeout="${LIGHTNING_LSP_TIMEOUT_S:-600}" elapsed=0 state="" last_state=""
+	echo "Waiting for channel open (up to ${timeout}s)..."
+	while [ "$elapsed" -lt "$timeout" ]; do
+		local status_resp
+		status_resp=$(curl -fsSL "${BLOCKTANK_API}/channel-open/${order_id}") || {
+			echo "lightning liquidity blocktank: status poll failed" >&2; return 7; }
+		state=$(echo "$status_resp" | jq -r '.state // .status // empty')
+		if [ -n "$state" ] && [ "$state" != "$last_state" ]; then
+			echo "  state: $state"; last_state=$state
+		fi
+		case "$state" in
+			OPEN|open|FUNDED|funded)
+				local scid; scid=$(echo "$status_resp" | jq -r '.channel.shortChannelId // .shortChannelId // empty')
+				echo "✓ channel open${scid:+: $scid}"
+				return 0 ;;
+			EXPIRED|expired|FAILED|failed|REFUNDED|refunded)
+				echo "lightning liquidity blocktank: order ended in state '$state'" >&2
+				return 8 ;;
+		esac
+		sleep "${LIGHTNING_LSP_POLL_INTERVAL_S:-15}"
+		elapsed=$((elapsed + ${LIGHTNING_LSP_POLL_INTERVAL_S:-15}))
+	done
+	echo "lightning liquidity blocktank: timed out after ${timeout}s" >&2
+	return 7
+}
+
+_blocktank_orders() {
+	local pubkey
+	pubkey=$(cli getinfo | jq -r '.id') || { echo "lightning liquidity blocktank: cannot reach lightningd" >&2; return 1; }
+	local resp
+	resp=$(curl -fsSL "${BLOCKTANK_API}/channel-open?nodeId=${pubkey}") || {
+		echo "lightning liquidity blocktank: API unreachable" >&2; return 1; }
+	echo "$resp" | jq -r '
+		if type == "array" then .[] else . end |
+		[.id, .state, (.lspBalanceSat // "-"), (.payment.amountSat // "-"),
+		 (.channel.shortChannelId // "-")] | @tsv' \
+	| { printf "order_id\tstate\tinbound_sat\tfee_sat\tscid\n"; cat; }
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-210: Nostr Kind 39735 liquidity discovery.
+# Requires python3 + websocket-client (pip install websocket-client).
+# ---------------------------------------------------------------------------
+
+_nostr_check_deps() {
+	command -v python3 >/dev/null || { echo "lightning liquidity nostr: python3 required" >&2; return 1; }
+	python3 -c "import websocket" 2>/dev/null || {
+		echo "lightning liquidity nostr: python websocket-client not installed" >&2
+		echo "  pip install websocket-client" >&2
+		return 1
+	}
+}
+
+cmd_nostr() {
+	local sub="${1:-offers}"; shift || true
+	case "$sub" in
+		offers)  _nostr_offers "$@" ;;
+		buy)     _nostr_buy    "$@" ;;
+		sell)    _nostr_sell   "$@" ;;
+		revoke)  _nostr_revoke "$@" ;;
+		*) echo "lightning liquidity nostr: unknown subcommand '$sub'" >&2
+		   echo "  try: offers | buy <sat> | sell <sat> --price <ppm> | revoke" >&2; exit 1 ;;
+	esac
+}
+
+_nostr_offers() {
+	_nostr_check_deps || return $?
+	local relay="" max_ppm="" min_sat="" json_out=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--relay)   relay="$2";   shift 2 ;;
+			--max-ppm) max_ppm="$2"; shift 2 ;;
+			--min-sat) min_sat="$2"; shift 2 ;;
+			--json)    json_out=1;   shift ;;
+			*) echo "lightning liquidity nostr offers: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	[ -n "$relay" ] || relay=$(echo "$NOSTR_RELAYS" | awk '{print $1}')
+
+	python3 - "$relay" "$max_ppm" "$min_sat" "$json_out" <<'PYEOF'
+import sys, json, time, uuid
+try:
+    import websocket
+except ImportError:
+    print("websocket-client not installed: pip install websocket-client", file=sys.stderr)
+    sys.exit(1)
+
+relay, max_ppm, min_sat, json_out = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4] == "1"
+sub_id = str(uuid.uuid4())[:8]
+results = []
+deadline = time.time() + 10  # 10s fetch window
+
+ws = websocket.create_connection(relay, timeout=8)
+ws.send(json.dumps(["REQ", sub_id, {"kinds": [39735], "limit": 200}]))
+
+while time.time() < deadline:
+    try:
+        ws.settimeout(max(0.5, deadline - time.time()))
+        msg = json.loads(ws.recv())
+    except Exception:
+        break
+    if msg[0] == "EOSE":
+        break
+    if msg[0] == "EVENT" and msg[1] == sub_id:
+        ev = msg[2]
+        tags = {t[0]: t[1] for t in ev.get("tags", []) if len(t) >= 2}
+        offer = {
+            "pubkey":       ev.get("pubkey", "")[:16] + "...",
+            "npub_full":    ev.get("pubkey", ""),
+            "lsp_pubkey":   tags.get("node_id", tags.get("lsp_pubkey", "")),
+            "min_sat":      int(tags.get("min_channel_balance_sat", tags.get("min_sat", 0))),
+            "max_sat":      int(tags.get("max_channel_balance_sat", tags.get("max_sat", 0))),
+            "fixed_cost":   int(tags.get("fixed_cost_sats", 0)),
+            "variable_ppm": int(tags.get("variable_cost_ppm", 0)),
+            "expiry":       int(ev.get("created_at", 0)) + int(tags.get("channel_expiry_blocks", 6480)) * 600,
+            "status":       tags.get("status", "active"),
+            "relay":        relay,
+            "event_id":     ev.get("id", ""),
+        }
+        if offer["status"] != "active":
+            continue
+        if max_ppm and offer["variable_ppm"] > int(max_ppm):
+            continue
+        if min_sat and offer["min_sat"] < int(min_sat):
+            continue
+        results.append(offer)
+
+ws.close()
+
+if json_out:
+    print(json.dumps(results, indent=2))
+else:
+    if not results:
+        print("No active offers found on relay:", relay, file=sys.stderr)
+        sys.exit(0)
+    print("\t".join(["npub", "lsp_node_id", "min_sat", "max_sat", "fixed_sat", "ppm", "expires"]))
+    for o in results:
+        exp = time.strftime("%Y-%m-%d", time.localtime(o["expiry"])) if o["expiry"] else "?"
+        print("\t".join([
+            o["pubkey"], o["lsp_pubkey"][:20] + "..." if len(o["lsp_pubkey"]) > 20 else o["lsp_pubkey"],
+            str(o["min_sat"]), str(o["max_sat"]), str(o["fixed_cost"]), str(o["variable_ppm"]), exp,
+        ]))
+PYEOF
+}
+
+_nostr_buy() {
+	_nostr_check_deps || return $?
+	local sat="" npub="" relay="" yes=0
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--from)  npub="$2";  shift 2 ;;
+			--relay) relay="$2"; shift 2 ;;
+			--yes|-y) yes=1;     shift ;;
+			--*) echo "lightning liquidity nostr buy: unknown flag '$1'" >&2; exit 1 ;;
+			*)   sat="$1"; shift ;;
+		esac
+	done
+	[ -n "$sat" ] || { echo "usage: lightning liquidity nostr buy <sat> [--from <npub>] [--relay <wss>] [--yes]" >&2; exit 1; }
+	[ -n "$relay" ] || relay=$(echo "$NOSTR_RELAYS" | awk '{print $1}')
+
+	# Fetch offers and pick the best match (lowest ppm, sat within range).
+	local offers_json
+	offers_json=$(_nostr_offers --relay "$relay" --json 2>/dev/null)
+	[ -n "$offers_json" ] || { echo "lightning liquidity nostr buy: no offers available" >&2; return 1; }
+
+	local chosen
+	chosen=$(echo "$offers_json" | python3 - "$sat" "$npub" <<'PYEOF'
+import sys, json
+offers = json.load(sys.stdin)
+sat = int(sys.argv[1])
+npub = sys.argv[2]
+candidates = [o for o in offers
+              if o["min_sat"] <= sat <= o["max_sat"]
+              and (not npub or o["npub_full"] == npub)]
+if not candidates:
+    sys.exit(1)
+best = min(candidates, key=lambda o: o["variable_ppm"] * sat // 1_000_000 + o["fixed_cost"])
+print(json.dumps(best))
+PYEOF
+) || { echo "lightning liquidity nostr buy: no offer matches ${sat} sat${npub:+ from $npub}" >&2; return 1; }
+
+	local lsp_node ppm fixed
+	lsp_node=$(echo "$chosen" | jq -r '.lsp_pubkey')
+	ppm=$(echo "$chosen"      | jq -r '.variable_ppm')
+	fixed=$(echo "$chosen"    | jq -r '.fixed_cost')
+
+	echo "  Offer from: $(echo "$chosen" | jq -r '.pubkey')"
+	echo "  LSP node:   $lsp_node"
+	echo "  Inbound:    $sat sat"
+	echo "  Fee:        $fixed sat fixed + ${ppm} ppm"
+
+	if [ "$yes" != "1" ]; then
+		if [ ! -t 0 ]; then
+			echo "lightning liquidity nostr buy: stdin is not a TTY; pass --yes" >&2; return 1; fi
+		printf "Accept and settle via LSPS1? [y/N] "
+		local ans; read -r ans
+		case "$ans" in y|Y|yes|YES) ;;
+		*) echo "lightning liquidity nostr buy: declined" >&2; return 1 ;;
+		esac
+	fi
+
+	# Connect to the LSP node and run LSPS1 settlement (same as call_lsp).
+	cli connect "$lsp_node" >/dev/null 2>&1 || {
+		echo "lightning liquidity nostr buy: cannot connect to LSP $lsp_node" >&2; return 4; }
+
+	if ! cli help lsps1-get-info 2>/dev/null | grep -q lsps1-get-info; then
+		echo "lightning liquidity nostr buy: cln-lsps plugin not loaded" >&2
+		echo "  install:  lightning daemon install --lsps" >&2; return 3; fi
+
+	local order_json invoice order_id
+	order_json=$(cli lsps1-create-order "$lsp_node" "$sat") || {
+		echo "lightning liquidity nostr buy: lsps1-create-order failed" >&2; return 5; }
+	invoice=$(jq -r '.payment.bolt11 // empty' <<<"$order_json")
+	order_id=$(jq -r '.order_id // empty'      <<<"$order_json")
+	[ -n "$invoice" ] && [ -n "$order_id" ] || {
+		echo "lightning liquidity nostr buy: malformed order response" >&2; echo "$order_json" >&2; return 5; }
+
+	echo "Paying order $order_id..."
+	cli pay "$invoice" >/dev/null || { echo "lightning liquidity nostr buy: payment failed" >&2; return 6; }
+
+	local timeout="${LIGHTNING_LSP_TIMEOUT_S:-600}" elapsed=0 state="" last_state=""
+	echo "Waiting for channel (up to ${timeout}s)..."
+	while [ "$elapsed" -lt "$timeout" ]; do
+		local st_json; st_json=$(cli lsps1-get-order "$order_id") || {
+			echo "lightning liquidity nostr buy: poll failed" >&2; return 7; }
+		state=$(jq -r '.payment.state // empty' <<<"$st_json")
+		local ch_id; ch_id=$(jq -r '.channel.channel_id // empty' <<<"$st_json")
+		[ "$state" = "$last_state" ] || { echo "  state: $state"; last_state=$state; }
+		case "$state" in REFUNDED|FAILED|CANCELLED)
+			echo "lightning liquidity nostr buy: order ended '$state'" >&2; return 8 ;; esac
+		[ -z "$ch_id" ] || { echo "✓ channel open: $ch_id"; return 0; }
+		sleep "${LIGHTNING_LSP_POLL_INTERVAL_S:-10}"
+		elapsed=$((elapsed + ${LIGHTNING_LSP_POLL_INTERVAL_S:-10}))
+	done
+	echo "lightning liquidity nostr buy: timed out after ${timeout}s" >&2; return 7
+}
+
+_nostr_sell() {
+	_nostr_check_deps || return $?
+	local sat="" ppm="" expiry_h=720 relay=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--price)  ppm="$2";     shift 2 ;;
+			--expiry) expiry_h="$2"; shift 2 ;;
+			--relay)  relay="$2";   shift 2 ;;
+			--*) echo "lightning liquidity nostr sell: unknown flag '$1'" >&2; exit 1 ;;
+			*)   sat="$1"; shift ;;
+		esac
+	done
+	[ -n "$sat" ] && [ -n "$ppm" ] || {
+		echo "usage: lightning liquidity nostr sell <sat> --price <ppm> [--expiry <h>] [--relay <wss>]" >&2; exit 1; }
+	[ -n "$relay" ] || relay=$(echo "$NOSTR_RELAYS" | awk '{print $1}')
+
+	local our_pubkey our_alias
+	our_pubkey=$(cli getinfo | jq -r '.id')
+	our_alias=$(cli getinfo  | jq -r '.alias')
+
+	# Build and publish a Kind 39735 event.
+	# The operator's Nostr key lives at $LIGHTNING_NOSTR_KEY (nsec) or we
+	# generate an ephemeral one and print the npub for the operator to save.
+	local expiry_blocks=$(( expiry_h * 6 ))
+
+	python3 - "$relay" "$our_pubkey" "$our_alias" "$sat" "$ppm" "$expiry_blocks" \
+		"${LIGHTNING_NOSTR_KEY:-}" <<'PYEOF'
+import sys, json, time, hashlib, hmac, os, secrets
+
+relay, node_id, alias, sat, ppm, expiry_blocks, nsec = sys.argv[1:]
+sat, ppm, expiry_blocks = int(sat), int(ppm), int(expiry_blocks)
+
+# Key handling: use provided nsec or generate ephemeral.
+if nsec and nsec.startswith("nsec"):
+    # bech32-decode nsec (requires bech32 lib or manual decode)
+    try:
+        import bech32  # type: ignore
+        _, data = bech32.bech32_decode(nsec)
+        privkey_bytes = bytes(bech32.convertbits(data, 5, 8, False))
+    except Exception:
+        print("lightning liquidity nostr sell: bech32 decode failed; install bech32 package", file=sys.stderr)
+        sys.exit(1)
+elif nsec and len(nsec) == 64:
+    privkey_bytes = bytes.fromhex(nsec)
+else:
+    privkey_bytes = secrets.token_bytes(32)
+    print(f"  Generated ephemeral Nostr key: {privkey_bytes.hex()}", file=sys.stderr)
+    print(f"  Set LIGHTNING_NOSTR_KEY={privkey_bytes.hex()} to reuse this key.", file=sys.stderr)
+
+# Derive public key via secp256k1 (requires coincurve or cryptography).
+try:
+    from coincurve import PublicKey  # type: ignore
+    pubkey_hex = PublicKey.from_secret(privkey_bytes).format(compressed=True)[1:].hex()
+except ImportError:
+    try:
+        from cryptography.hazmat.primitives.asymmetric.ec import (
+            SECP256K1, generate_private_key, EllipticCurvePrivateKey)
+        from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
+        import cryptography.hazmat.backends as be
+        # Use the raw scalar directly.
+        from cryptography.hazmat.primitives.asymmetric.ec import (
+            EllipticCurvePrivateNumbers, EllipticCurvePublicNumbers, SECP256K1)
+        priv_int = int.from_bytes(privkey_bytes, "big")
+        priv_key_obj = EllipticCurvePrivateNumbers(
+            priv_int, EllipticCurvePublicNumbers(
+                # We don't have the public point without computing it — fall through.
+                0, 0, SECP256K1())).private_key()
+        pubkey_hex = None  # force fallback
+    except Exception:
+        pubkey_hex = None
+
+if pubkey_hex is None:
+    print("lightning liquidity nostr sell: secp256k1 library not available", file=sys.stderr)
+    print("  pip install coincurve   OR   pip install cryptography", file=sys.stderr)
+    sys.exit(1)
+
+now = int(time.time())
+tags = [
+    ["d", node_id],
+    ["node_id", node_id],
+    ["k", "39735"],
+    ["status", "active"],
+    ["alias", alias],
+    ["min_channel_balance_sat", str(sat)],
+    ["max_channel_balance_sat", str(sat * 10)],
+    ["min_initial_client_balance_sat", "0"],
+    ["max_initial_client_balance_sat", str(sat)],
+    ["min_initial_lsp_balance_sat", str(sat)],
+    ["max_initial_lsp_balance_sat", str(sat)],
+    ["fixed_cost_sats", "0"],
+    ["variable_cost_ppm", str(ppm)],
+    ["channel_expiry_blocks", str(expiry_blocks)],
+    ["supports_zero_channel_reserve", "true"],
+    ["supports_private_channels", "true"],
+]
+event = {
+    "pubkey":     pubkey_hex,
+    "created_at": now,
+    "kind":       39735,
+    "tags":       tags,
+    "content":    f"Inbound liquidity offer — {alias}",
+}
+# Compute event id.
+serial = json.dumps([0, event["pubkey"], event["created_at"], event["kind"],
+                     event["tags"], event["content"]], separators=(",", ":"), ensure_ascii=False)
+event["id"] = hashlib.sha256(serial.encode()).hexdigest()
+
+# Sign (schnorr — simplified BIP340 via coincurve).
+try:
+    from coincurve import PrivateKey as CPrivKey
+    aux = secrets.token_bytes(32)
+    sig = CPrivKey(privkey_bytes).sign_schnorr(bytes.fromhex(event["id"]), aux)
+    event["sig"] = sig.hex()
+except Exception as e:
+    print(f"lightning liquidity nostr sell: signing failed: {e}", file=sys.stderr)
+    sys.exit(1)
+
+# Publish.
+try:
+    import websocket
+    ws = websocket.create_connection(relay, timeout=8)
+    ws.send(json.dumps(["EVENT", event]))
+    resp = json.loads(ws.recv())
+    ws.close()
+    if resp[0] == "OK" and resp[2]:
+        print(f"✓ offer published — event id: {event['id']}")
+        print(f"  relay: {relay}")
+        print(f"  npub:  {pubkey_hex}")
+    else:
+        reason = resp[3] if len(resp) > 3 else "unknown"
+        print(f"lightning liquidity nostr sell: relay rejected event: {reason}", file=sys.stderr)
+        sys.exit(1)
+except Exception as e:
+    print(f"lightning liquidity nostr sell: relay error: {e}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+}
+
+_nostr_revoke() {
+	_nostr_check_deps || return $?
+	local relay=""
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--relay) relay="$2"; shift 2 ;;
+			*) echo "lightning liquidity nostr revoke: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+	[ -n "$relay" ] || relay=$(echo "$NOSTR_RELAYS" | awk '{print $1}')
+
+	local our_pubkey
+	our_pubkey=$(cli getinfo | jq -r '.id')
+
+	# Publish a Kind 39735 event with status=inactive (NIP-09 delete is
+	# kind 5; for parameterised replaceable events, publishing a new event
+	# with status=inactive and the same d-tag supersedes the offer).
+	LIGHTNING_NOSTR_KEY="${LIGHTNING_NOSTR_KEY:-}" \
+	python3 - "$relay" "$our_pubkey" <<'PYEOF'
+import sys, json, time, hashlib, secrets
+try:
+    import websocket
+    from coincurve import PublicKey, PrivateKey as CPrivKey
+except ImportError:
+    print("lightning liquidity nostr revoke: pip install websocket-client coincurve", file=sys.stderr)
+    sys.exit(1)
+
+relay, node_id = sys.argv[1], sys.argv[2]
+nsec = sys.stdin.read().strip() if not sys.stdin.isatty() else ""
+import os; nsec = os.environ.get("LIGHTNING_NOSTR_KEY", "")
+if not nsec or len(nsec) < 32:
+    print("lightning liquidity nostr revoke: set LIGHTNING_NOSTR_KEY", file=sys.stderr)
+    sys.exit(1)
+privkey_bytes = bytes.fromhex(nsec) if len(nsec) == 64 else bytes.fromhex(nsec)
+pubkey_hex = PublicKey.from_secret(privkey_bytes).format(compressed=True)[1:].hex()
+now = int(time.time())
+tags = [["d", node_id], ["node_id", node_id], ["status", "inactive"]]
+event = {"pubkey": pubkey_hex, "created_at": now, "kind": 39735, "tags": tags, "content": ""}
+serial = json.dumps([0, event["pubkey"], event["created_at"], event["kind"],
+                     event["tags"], event["content"]], separators=(",",":"), ensure_ascii=False)
+event["id"] = hashlib.sha256(serial.encode()).hexdigest()
+aux = secrets.token_bytes(32)
+event["sig"] = CPrivKey(privkey_bytes).sign_schnorr(bytes.fromhex(event["id"]), aux).hex()
+ws = websocket.create_connection(relay, timeout=8)
+ws.send(json.dumps(["EVENT", event]))
+resp = json.loads(ws.recv())
+ws.close()
+if resp[0] == "OK" and resp[2]:
+    print(f"✓ offer revoked on {relay}")
+else:
+    print(f"relay rejected revoke: {resp}", file=sys.stderr)
+    sys.exit(1)
+PYEOF
+}
+
 case "${1:-}" in
-	status)   shift; cmd_status "$@" ;;
-	in)       shift; cmd_in "$@" ;;
-	out)      shift; cmd_out "$@" ;;
-	loop)     shift; call_loop  "$1" "$2" ;;
-	boltz)    shift; call_boltz "$1" "$2" ;;
-	lsp)      shift
-	          [ "$2" = "buy" ] || { echo "usage: lightning liquidity lsp <name> buy <sat> [--yes]" >&2; exit 1; }
-	          # Consume an optional --yes anywhere after the sat arg.
-	          for arg in "$@"; do [ "$arg" = "--yes" ] && export LIGHTNING_LSP_YES=1; done
-	          call_lsp in "$1" "$3" ;;
-	provider) shift; cmd_provider "$@" ;;
-	"")       usage; exit 1 ;;
-	*)        echo "lightning liquidity: unknown subcommand '$1'" >&2; usage; exit 1 ;;
+	status)     shift; cmd_status "$@" ;;
+	in)         shift; cmd_in "$@" ;;
+	out)        shift; cmd_out "$@" ;;
+	loop)       shift; call_loop  "$1" "$2" ;;
+	boltz)      shift; call_boltz "$1" "$2" ;;
+	lsp)        shift
+	            [ "$2" = "buy" ] || { echo "usage: lightning liquidity lsp <name> buy <sat> [--yes]" >&2; exit 1; }
+	            for arg in "$@"; do [ "$arg" = "--yes" ] && export LIGHTNING_LSP_YES=1; done
+	            call_lsp in "$1" "$3" ;;
+	provider)   shift; cmd_provider "$@" ;;
+	blocktank)  shift; cmd_blocktank "$@" ;;
+	nostr)      shift; cmd_nostr "$@" ;;
+	"")         usage; exit 1 ;;
+	*)          echo "lightning liquidity: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac

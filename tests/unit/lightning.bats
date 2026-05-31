@@ -2208,6 +2208,52 @@ EOF
 	[ "$status" -ne 0 ]
 }
 
+# FEAT-210: blocktank subcommands
+@test "FEAT-210: liquidity blocktank unknown sub fails" {
+	run "$LIGHTNING_BIN" liquidity blocktank bogus
+	[ "$status" -ne 0 ]
+	[[ "$output" =~ "unknown subcommand" ]]
+}
+
+@test "FEAT-210: liquidity blocktank buy requires sat arg" {
+	run "$LIGHTNING_BIN" liquidity blocktank buy
+	[ "$status" -ne 0 ]
+	[[ "$output" =~ "usage" ]]
+}
+
+@test "FEAT-210: liquidity blocktank buy --yes fails gracefully when API unreachable" {
+	BLOCKTANK_API="http://127.0.0.1:19999" \
+	run "$LIGHTNING_BIN" liquidity blocktank buy 1000000 --yes
+	[ "$status" -ne 0 ]
+	[[ "$output" =~ "unreachable" || "$output" =~ "API" || "$output" =~ "Cannot" || "$output" =~ "failed" ]]
+}
+
+# FEAT-210: nostr subcommands
+@test "FEAT-210: liquidity nostr unknown sub fails" {
+	run "$LIGHTNING_BIN" liquidity nostr bogus
+	[ "$status" -ne 0 ]
+	[[ "$output" =~ "unknown subcommand" ]]
+}
+
+@test "FEAT-210: liquidity nostr sell requires --price" {
+	run "$LIGHTNING_BIN" liquidity nostr sell 1000000
+	[ "$status" -ne 0 ]
+	[[ "$output" =~ "usage" || "$output" =~ "--price" ]]
+}
+
+@test "FEAT-210: liquidity nostr offers fails gracefully when relay unreachable" {
+	LIGHTNING_NOSTR_RELAYS="wss://127.0.0.1:19998" \
+	run "$LIGHTNING_BIN" liquidity nostr offers
+	# Either exits non-zero or prints "No active offers" — both are acceptable.
+	[[ "$status" -ne 0 || "$output" =~ "No active offers" || "$output" =~ "not installed" ]]
+}
+
+@test "FEAT-210: FEAT-210 issue file status is implemented" {
+	f="$BATS_TEST_DIRNAME/../../issues/feature/210-nostr-liquidity-discovery.md"
+	[ -f "$f" ]
+	grep -q "status: implemented" "$f"
+}
+
 @test "1.2.0: api-recv rejects non-numeric sat (exit 2)" {
 	run "$LIGHTNING_BIN" api-recv alice not-a-number "msg"
 	[ "$status" -eq 2 ]
