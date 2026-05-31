@@ -35851,3 +35851,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3440: node-invoice-paid-amount-variance man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-variance.1" ]
 }
+@test "FEAT-3441: node-invoice-paid-amount-skewness reports error or paid_amount_skewness gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_skewness"
+}
+@test "FEAT-3441: node-invoice-paid-amount-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-skewness.1" ]
+}
+@test "FEAT-3442: peer-fee-earned-kurtosis reports error or fee_earned_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-earned-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_earned_kurtosis_peer"
+}
+@test "FEAT-3442: peer-fee-earned-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-earned-kurtosis.1" ]
+}
+@test "FEAT-3443: channel-capacity-skewness reports error or capacity_skewness gracefully" {
+    out=$(./libexec/lightning/channel-capacity-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_skewness"
+}
+@test "FEAT-3443: channel-capacity-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-skewness.1" ]
+}
+@test "FEAT-3444: node-invoice-paid-amount-kurtosis reports error or paid_amount_kurtosis gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_kurtosis"
+}
+@test "FEAT-3444: node-invoice-paid-amount-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-kurtosis.1" ]
+}
+@test "FEAT-3445: peer-local-balance-skewness reports error or local_balance_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_skewness_peer"
+}
+@test "FEAT-3445: peer-local-balance-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-skewness.1" ]
+}
+@test "FEAT-3446: channel-capacity-kurtosis reports error or capacity_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-capacity-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_kurtosis"
+}
+@test "FEAT-3446: channel-capacity-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-kurtosis.1" ]
+}
+@test "FEAT-3447: node-pay-fee-skewness reports error or fee_skewness_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_skewness_pay"
+}
+@test "FEAT-3447: node-pay-fee-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-skewness.1" ]
+}
+@test "FEAT-3448: peer-remote-balance-skewness reports error or remote_balance_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_skewness_peer"
+}
+@test "FEAT-3448: peer-remote-balance-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-skewness.1" ]
+}
+@test "FEAT-3449: channel-local-balance-kurtosis reports error or local_balance_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_kurtosis"
+}
+@test "FEAT-3449: channel-local-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-kurtosis.1" ]
+}
+@test "FEAT-3450: node-pay-fee-kurtosis reports error or fee_kurtosis_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_kurtosis_pay"
+}
+@test "FEAT-3450: node-pay-fee-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-kurtosis.1" ]
+}
