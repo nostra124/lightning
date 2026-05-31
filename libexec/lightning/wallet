@@ -233,6 +233,250 @@ cmd_sync() {
 
 _sibling() { echo "$(dirname "$0")/$1"; }
 
+# LC helper for lightning-cli calls
+LDIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LNET="${LIGHTNING_NETWORK:-bitcoin}"
+LC() { lightning-cli --lightning-dir="$LDIR" --network="$LNET" "$@"; }
+
+# resolve active wallet DB path
+wallet_db_path() {
+	local wname="${1:-$(active_name)}"
+	echo "$WALLETS_ROOT/$wname/state.db"
+}
+
+# -----------------------------------------------------------------------------
+# Operational subcommands from wallet-* micro-verbs
+# -----------------------------------------------------------------------------
+
+cmd_count() {
+	local count; count=$(find "$WALLETS_ROOT" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+	echo "{\"count\":$count}"
+}
+
+cmd_balance_lightning() {
+	local result; result=$(LC listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+chs = [c for c in data.get('channels', []) if c.get('state') == 'CHANNELD_NORMAL']
+spendable = sum(c.get('spendable_msat', 0) for c in chs)
+receivable = sum(c.get('receivable_msat', 0) for c in chs)
+print(json.dumps({'spendable_msat': spendable, 'receivable_msat': receivable}))
+" "$result"
+}
+
+cmd_balance_onchain() {
+	local result; result=$(LC listfunds 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+outputs = data.get('outputs', [])
+total = sum(o.get('amount_msat', 0) for o in outputs if o.get('status') == 'confirmed')
+print(json.dumps({'onchain_confirmed_msat': total, 'output_count': len(outputs)}))
+" "$result"
+}
+
+cmd_balance_total() {
+	local result; result=$(LC listfunds 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+onchain = sum(o.get('amount_msat', 0) for o in data.get('outputs', []) if o.get('status') == 'confirmed')
+lightning = sum(ch.get('our_amount_msat', 0) for ch in data.get('channels', []))
+print(json.dumps({'onchain_msat': onchain, 'lightning_msat': lightning, 'total_msat': onchain + lightning}))
+" "$result"
+}
+
+cmd_check_integrity() {
+	local wname="${1:-$(active_name)}"
+	local db; db=$(wallet_db_path "$wname")
+	[ -f "$db" ] || { echo '{"error":"wallet_not_found"}'; return; }
+	local result; result=$(sqlite3 "$db" "PRAGMA integrity_check;" 2>/dev/null) || { echo '{"error":"sqlite3 not available"}'; return; }
+	if [ "$result" = "ok" ]; then
+		echo "{\"wallet\":\"$wname\",\"integrity\":\"ok\"}"
+	else
+		echo "{\"wallet\":\"$wname\",\"integrity\":\"error\",\"details\":\"$result\"}"
+	fi
+}
+
+cmd_history_export() {
+	local wname="${1:-$(active_name)}"
+	local db; db=$(wallet_db_path "$wname")
+	[ -f "$db" ] || { echo '[]'; return; }
+	sqlite3 -json "$db" "SELECT * FROM transactions ORDER BY created_at DESC LIMIT 100" 2>/dev/null || echo "[]"
+}
+
+cmd_info_json() {
+	local wname="${1:-$(active_name)}"
+	local db; db=$(wallet_db_path "$wname")
+	[ -f "$db" ] || { echo '{"error":"wallet_not_found"}'; return; }
+	local meta; meta=$(sqlite3 "$db" "SELECT json_group_object(key,value) FROM meta;" 2>/dev/null) || meta="{}"
+	python3 -c "import sys,json; print(json.dumps({'wallet': sys.argv[1], 'meta': json.loads(sys.argv[2] or '{}'), 'path': sys.argv[3]}))" "$wname" "$meta" "$db"
+}
+
+cmd_address_new() {
+	local wname="${1:-$(active_name)}"
+	local result; result=$(LC newaddr 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+addr = data.get('bech32') or data.get('p2sh-segwit') or data.get('address', '')
+print(json.dumps({'wallet': sys.argv[2], 'address': addr}))
+" "$result" "$wname"
+}
+
+cmd_address_list() {
+	local result; result=$(LC listaddresses 2>/dev/null) || { echo '[]'; return; }
+	python3 -c "import sys, json; d=json.loads(sys.argv[1]); print(json.dumps(d.get('addresses', d)))" "$result"
+}
+
+cmd_network() {
+	local result; result=$(LC getinfo 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json; data = json.loads(sys.argv[1])
+print(json.dumps({'network': data.get('network'), 'chain': data.get('id')}))
+" "$result"
+}
+
+cmd_backup_create() {
+	local wname="${1:-$(active_name)}"
+	local db; db=$(wallet_db_path "$wname")
+	[ -f "$db" ] || { echo '{"error":"wallet_not_found"}'; return; }
+	local ts; ts=$(date +%Y%m%d_%H%M%S)
+	local dest="$WALLETS_ROOT/$wname/backup_${ts}.db"
+	if cp "$db" "$dest" 2>/dev/null; then
+		echo "{\"ok\":true,\"wallet\":\"$wname\",\"backup\":\"$dest\"}"
+	else
+		echo '{"error":"backup_failed"}'
+	fi
+}
+
+cmd_export_json() {
+	local wname="${1:-$(active_name)}"
+	local db; db=$(wallet_db_path "$wname")
+	[ -f "$db" ] || { echo '{"error":"wallet_not_found"}'; return; }
+	local meta; meta=$(sqlite3 "$db" "SELECT json_group_object(key,value) FROM meta;" 2>/dev/null) || meta="{}"
+	python3 -c "import sys,json; print(json.dumps({'wallet': sys.argv[1], 'meta': json.loads(sys.argv[2] or '{}')}))" "$wname" "$meta"
+}
+
+cmd_ledger_add() {
+	[ $# -lt 3 ] && { echo '{"error":"usage: wallet ledger-add <wallet> <direction> <amount_sat> [note]"}' >&2; exit 1; }
+	local wname="$1" direction="$2" amount_sat="$3" note="${4:-}"
+	local db; db=$(wallet_db_path "$wname")
+	[ -f "$db" ] || { echo '{"error":"wallet_not_found"}'; return; }
+	local ts; ts=$(date -u +%s)
+	sqlite3 "$db" "CREATE TABLE IF NOT EXISTS ledger (entry_id INTEGER PRIMARY KEY AUTOINCREMENT, account TEXT, direction TEXT, amount_msat INTEGER, note TEXT, ts TEXT);" 2>/dev/null || true
+	sqlite3 "$db" "INSERT INTO ledger (direction,amount_msat,note,ts) VALUES ('$direction',$(( amount_sat * 1000 )),'$note',datetime('now'));" 2>/dev/null
+	echo "{\"ok\":true,\"wallet\":\"$wname\",\"amount_sat\":$amount_sat}"
+}
+
+cmd_pin_set() {
+	[ $# -lt 2 ] && { echo '{"error":"usage: wallet pin-set <wallet> <pin>"}' >&2; exit 1; }
+	local wname="$1" pin="$2"
+	local db; db=$(wallet_db_path "$wname")
+	[ -f "$db" ] || { echo '{"error":"wallet_not_found"}'; return; }
+	local hash; hash=$(echo -n "$pin" | sha256sum | cut -d' ' -f1)
+	sqlite3 "$db" "INSERT OR REPLACE INTO meta(key,value) VALUES('pin_hash','$hash');" 2>/dev/null
+	echo "{\"ok\":true,\"wallet\":\"$wname\",\"pin_set\":true}"
+}
+
+cmd_pin_verify() {
+	[ $# -lt 2 ] && { echo '{"error":"usage: wallet pin-verify <wallet> <pin>"}' >&2; exit 1; }
+	local wname="$1" pin="$2"
+	local db; db=$(wallet_db_path "$wname")
+	[ -f "$db" ] || { echo '{"error":"wallet_not_found"}'; return; }
+	local stored; stored=$(sqlite3 "$db" "SELECT value FROM meta WHERE key='pin_hash';" 2>/dev/null)
+	local computed; computed=$(echo -n "$pin" | sha256sum | awk '{print $1}')
+	if [ "$stored" = "$computed" ]; then echo '{"ok":true,"verified":true}'; else echo '{"ok":false,"verified":false}'; fi
+}
+
+cmd_encrypt_check() {
+	local wname="${1:-$(active_name)}"
+	local db; db=$(wallet_db_path "$wname")
+	[ -f "$db" ] || { echo '{"error":"wallet_not_found"}'; return; }
+	local has; has=$(sqlite3 "$db" "SELECT COUNT(*) FROM meta WHERE key='enc_hash';" 2>/dev/null) || has=0
+	echo "{\"wallet\":\"$wname\",\"encrypted\":$([ "${has:-0}" -gt 0 ] && echo true || echo false)}"
+}
+
+# -----------------------------------------------------------------------------
+# cmd_stats — wallet-wide statistics via SQLite + lightning-cli
+# -----------------------------------------------------------------------------
+cmd_wallet_stats() {
+	local field=""
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--field) field="$2"; shift 2 ;;
+			--field=*) field="${1#--field=}"; shift ;;
+			*) error "wallet stats: unknown option '$1'"; exit 1 ;;
+		esac
+	done
+
+	local wname; wname=$(active_name)
+	local db; db=$(wallet_db_path "$wname")
+	local funds_raw; funds_raw=$(LC listfunds 2>/dev/null) || funds_raw='{"outputs":[],"channels":[]}'
+	local invoices_raw; invoices_raw=$(LC listinvoices 2>/dev/null) || invoices_raw='{"invoices":[]}'
+
+	# DB stats via sqlite3 (best-effort; tables may not exist)
+	local wallet_count tx_count invoice_count label_count note_count meta_count
+	wallet_count=$(find "$WALLETS_ROOT" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+	tx_count=0; invoice_count=0; label_count=0; note_count=0; meta_count=0
+	if [ -f "$db" ]; then
+		tx_count=$(sqlite3 "$db" "SELECT COUNT(*) FROM transactions;" 2>/dev/null) || tx_count=0
+		invoice_count=$(sqlite3 "$db" "SELECT COUNT(*) FROM invoices;" 2>/dev/null) || invoice_count=0
+		label_count=$(sqlite3 "$db" "SELECT COUNT(*) FROM labels;" 2>/dev/null) || label_count=0
+		note_count=$(sqlite3 "$db" "SELECT COUNT(*) FROM notes;" 2>/dev/null) || note_count=0
+		meta_count=$(sqlite3 "$db" "SELECT COUNT(*) FROM meta;" 2>/dev/null) || meta_count=0
+	fi
+
+	export _STAT_FIELD="$field"
+	export _WC="$wallet_count" _TC="$tx_count" _IC="$invoice_count"
+	export _LC="$label_count" _NC="$note_count" _MC="$meta_count"
+	python3 - "$funds_raw" "$invoices_raw" <<'PYEOF'
+import sys, json, os
+
+funds    = json.loads(sys.argv[1])
+invoices = json.loads(sys.argv[2]).get('invoices', [])
+
+outputs  = funds.get('outputs', [])
+channels = funds.get('channels', [])
+
+onchain_conf = sum(o.get('amount_msat', 0) for o in outputs if o.get('status') == 'confirmed')
+onchain_unconf = sum(o.get('amount_msat', 0) for o in outputs if o.get('status') != 'confirmed')
+lightning_spendable = sum(c.get('our_amount_msat', 0) for c in channels)
+lightning_receivable= sum(c.get('channel_sat', 0)*1000 - c.get('our_amount_msat', 0) for c in channels)
+
+paid_invs   = [i for i in invoices if i.get('status') == 'paid']
+unpaid_invs = [i for i in invoices if i.get('status') == 'unpaid']
+expired_invs= [i for i in invoices if i.get('status') == 'expired']
+total_received = sum(i.get('amount_received_msat', 0) for i in paid_invs)
+
+result = {
+    "wallet_count":             int(os.environ.get('_WC', 0)),
+    "active_wallet_db_exists":  onchain_conf >= 0,
+    "transaction_count":        int(os.environ.get('_TC', 0)),
+    "invoice_db_count":         int(os.environ.get('_IC', 0)),
+    "label_count":              int(os.environ.get('_LC', 0)),
+    "note_count":               int(os.environ.get('_NC', 0)),
+    "meta_count":               int(os.environ.get('_MC', 0)),
+    "onchain_confirmed_msat":   onchain_conf,
+    "onchain_unconfirmed_msat": onchain_unconf,
+    "lightning_spendable_msat": lightning_spendable,
+    "lightning_receivable_msat":lightning_receivable,
+    "total_msat":               onchain_conf + lightning_spendable,
+    "invoice_paid_count":       len(paid_invs),
+    "invoice_unpaid_count":     len(unpaid_invs),
+    "invoice_expired_count":    len(expired_invs),
+    "invoice_total_received_msat": total_received,
+}
+
+field = os.environ.get("_STAT_FIELD", "")
+if field:
+    print(json.dumps(result.get(field)))
+else:
+    print(json.dumps(result))
+PYEOF
+}
+
 case "${1:-}" in
 	new)    shift; cmd_new "$@" ;;
 	use)    shift; cmd_use "$@" ;;
@@ -252,6 +496,24 @@ case "${1:-}" in
 	restore) shift; exec "$(_sibling restore)" "$@" ;;
 	scb)     shift; exec "$(_sibling scb)" "$@" ;;
 	peers)   echo "lightning wallet peers is deprecated — use 'peer list'" >&2; exit 2 ;;
+	# New subcommands (consolidated from wallet-* micro-verbs)
+	stats)            shift; cmd_wallet_stats "$@" ;;
+	count)            shift; cmd_count "$@" ;;
+	balance-lightning) shift; cmd_balance_lightning "$@" ;;
+	balance-onchain)  shift; cmd_balance_onchain "$@" ;;
+	balance-total)    shift; cmd_balance_total "$@" ;;
+	check-integrity)  shift; cmd_check_integrity "$@" ;;
+	history-export)   shift; cmd_history_export "$@" ;;
+	info-json)        shift; cmd_info_json "$@" ;;
+	address-new)      shift; cmd_address_new "$@" ;;
+	address-list)     shift; cmd_address_list "$@" ;;
+	network)          shift; cmd_network "$@" ;;
+	backup-create)    shift; cmd_backup_create "$@" ;;
+	export-json)      shift; cmd_export_json "$@" ;;
+	ledger-add)       shift; cmd_ledger_add "$@" ;;
+	pin-set)          shift; cmd_pin_set "$@" ;;
+	pin-verify)       shift; cmd_pin_verify "$@" ;;
+	encrypt-check)    shift; cmd_encrypt_check "$@" ;;
 	"")     usage; exit 1 ;;
 	*)      echo "lightning wallet: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac
