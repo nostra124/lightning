@@ -35371,3 +35371,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3380: channel-both-balances-top10 man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-top10.1" ]
 }
+
+@test "FEAT-3381: peer-fee-base-avg reports error or fee_base_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_avg_peer"
+}
+@test "FEAT-3381: peer-fee-base-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-avg.1" ]
+}
+
+@test "FEAT-3382: channel-fee-base-avg reports error or fee_base_avg_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_avg_ch"
+}
+@test "FEAT-3382: channel-fee-base-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-avg.1" ]
+}
+
+@test "FEAT-3383: node-pay-amount-avg reports error or amount_avg_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_avg_pay"
+}
+@test "FEAT-3383: node-pay-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-avg.1" ]
+}
+
+@test "FEAT-3384: peer-fee-base-max reports error or fee_base_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_max_peer"
+}
+@test "FEAT-3384: peer-fee-base-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-max.1" ]
+}
+
+@test "FEAT-3385: channel-fee-base-max reports error or fee_base_max_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-max 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_max_ch"
+}
+@test "FEAT-3385: channel-fee-base-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-max.1" ]
+}
+
+@test "FEAT-3386: node-pay-amount-max reports error or amount_max_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_max_pay"
+}
+@test "FEAT-3386: node-pay-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-max.1" ]
+}
+
+@test "FEAT-3387: peer-fee-base-min reports error or fee_base_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_min_peer"
+}
+@test "FEAT-3387: peer-fee-base-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-min.1" ]
+}
+
+@test "FEAT-3388: channel-fee-base-min reports error or fee_base_min_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-min 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_min_ch"
+}
+@test "FEAT-3388: channel-fee-base-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-min.1" ]
+}
+
+@test "FEAT-3389: node-pay-amount-min reports error or amount_min_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-min 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_min_pay"
+}
+@test "FEAT-3389: node-pay-amount-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-min.1" ]
+}
+
+@test "FEAT-3390: peer-fee-base-stddev reports error or fee_base_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_stddev_peer"
+}
+@test "FEAT-3390: peer-fee-base-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-stddev.1" ]
+}
