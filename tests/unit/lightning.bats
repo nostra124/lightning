@@ -37311,3 +37311,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3630: channel-capacity-skewness man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-skewness.1" ]
 }
+
+@test "FEAT-3631: channel-capacity-kurtosis reports error or capacity_kurtosis_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_kurtosis_msat"
+}
+@test "FEAT-3631: channel-capacity-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-kurtosis.1" ]
+}
+
+@test "FEAT-3632: node-invoice-amount-variance reports error or invoice_amount_variance_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_variance_msat"
+}
+@test "FEAT-3632: node-invoice-amount-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-variance.1" ]
+}
+
+@test "FEAT-3633: peer-capacity-skewness reports error or capacity_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_skewness_peer"
+}
+@test "FEAT-3633: peer-capacity-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-skewness.1" ]
+}
+
+@test "FEAT-3634: channel-uptime-skewness reports error or uptime_skewness gracefully" {
+    out=$(./libexec/lightning/channel-uptime-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_skewness"
+}
+@test "FEAT-3634: channel-uptime-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime-skewness.1" ]
+}
+
+@test "FEAT-3635: node-pay-amount-range reports error or amount_range_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-range 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_range_msat"
+}
+@test "FEAT-3635: node-pay-amount-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-range.1" ]
+}
+
+@test "FEAT-3636: peer-capacity-kurtosis reports error or capacity_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-capacity-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_kurtosis_peer"
+}
+@test "FEAT-3636: peer-capacity-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-capacity-kurtosis.1" ]
+}
+
+@test "FEAT-3637: channel-uptime-kurtosis reports error or uptime_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-uptime-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_kurtosis"
+}
+@test "FEAT-3637: channel-uptime-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-uptime-kurtosis.1" ]
+}
+
+@test "FEAT-3638: node-listforwards-fee-avg-monthly reports error or avg_fee_msat_monthly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_msat_monthly"
+}
+@test "FEAT-3638: node-listforwards-fee-avg-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg-monthly.1" ]
+}
+
+@test "FEAT-3639: peer-uptime-skewness reports error or uptime_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-uptime-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_skewness_peer"
+}
+@test "FEAT-3639: peer-uptime-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-uptime-skewness.1" ]
+}
+
+@test "FEAT-3640: channel-age-skewness reports error or age_skewness_days gracefully" {
+    out=$(./libexec/lightning/channel-age-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|age_skewness_days"
+}
+@test "FEAT-3640: channel-age-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-skewness.1" ]
+}
