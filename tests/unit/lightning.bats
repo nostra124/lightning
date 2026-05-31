@@ -9133,3 +9133,28 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "node bash syntax is valid" {
 	bash -n "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
 }
+
+# consolidated wallet-* micro-verbs
+
+@test "wallet stats subcommand returns JSON" {
+	out=$(LIGHTNING_DIR=/nonexistent libexec/lightning/wallet stats 2>/dev/null) || true
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'wallet_count' in d"
+}
+
+@test "wallet stats --field returns single value" {
+	out=$(LIGHTNING_DIR=/nonexistent libexec/lightning/wallet stats --field wallet_count 2>/dev/null) || true
+	python3 -c "import json; json.loads('$out')"
+}
+
+@test "wallet count subcommand returns JSON" {
+	out=$(LIGHTNING_WALLETS_ROOT=/tmp/no-wallets-test libexec/lightning/wallet count 2>/dev/null) || true
+	echo "$out" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'count' in d"
+}
+
+@test "wallet stats man page exists with correct NAME" {
+	grep -q "lightning-wallet" share/man/man1/lightning-wallet.1
+}
+
+@test "wallet stats arm present in dispatcher" {
+	grep -q "stats)" libexec/lightning/wallet
+}
