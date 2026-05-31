@@ -1,15 +1,9 @@
-.TH "LIGHTNING-PEER-FEE-PPM-KURTOSIS" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH LIGHTNING-PEER-FEE-PPM-KURTOSIS 1
 .SH NAME
-lightning-peer-fee-ppm-kurtosis \- FEAT-3223 verb
+lightning-peer-fee-ppm-kurtosis \- compute fee_ppm_kurtosis_peer via listpeers
 .SH SYNOPSIS
 .B lightning peer-fee-ppm-kurtosis
 .SH DESCRIPTION
-peer-fee-ppm-kurtosis for lightning CLI (FEAT-3223).
-.PP
-Output: JSON from CLN.
-.SH EXIT STATUS
-.TP
-.B 0
-Always.
+Queries the node via \fBlightning-cli listpeers\fR and computes fee_ppm_kurtosis_peer.
 .SH SEE ALSO
-.BR lightning(1)
+lightning(1)

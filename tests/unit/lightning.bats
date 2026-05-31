@@ -37551,3 +37551,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3660: channel-fee-earned-variance man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-earned-variance.1" ]
 }
+
+@test "FEAT-3661: peer-remote-balance-variance reports error or remote_balance_variance_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_variance_peer"
+}
+@test "FEAT-3661: peer-remote-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-variance.1" ]
+}
+
+@test "FEAT-3662: node-listforwards-fee-skewness-weekly reports error or fee_skewness_weekly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-skewness-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_skewness_weekly"
+}
+@test "FEAT-3662: node-listforwards-fee-skewness-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-skewness-weekly.1" ]
+}
+
+@test "FEAT-3663: channel-local-pct-skewness reports error or local_pct_skewness gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_skewness"
+}
+@test "FEAT-3663: channel-local-pct-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-skewness.1" ]
+}
+
+@test "FEAT-3664: node-pay-count-skewness reports error or pay_count_skewness gracefully" {
+    out=$(./libexec/lightning/node-pay-count-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_skewness"
+}
+@test "FEAT-3664: node-pay-count-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-skewness.1" ]
+}
+
+@test "FEAT-3665: peer-fee-ppm-skewness reports error or fee_ppm_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_skewness_peer"
+}
+@test "FEAT-3665: peer-fee-ppm-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-skewness.1" ]
+}
+
+@test "FEAT-3666: channel-local-pct-kurtosis reports error or local_pct_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_kurtosis"
+}
+@test "FEAT-3666: channel-local-pct-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-kurtosis.1" ]
+}
+
+@test "FEAT-3667: node-pay-count-kurtosis reports error or pay_count_kurtosis gracefully" {
+    out=$(./libexec/lightning/node-pay-count-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|pay_count_kurtosis"
+}
+@test "FEAT-3667: node-pay-count-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-count-kurtosis.1" ]
+}
+
+@test "FEAT-3668: peer-fee-ppm-kurtosis reports error or fee_ppm_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_kurtosis_peer"
+}
+@test "FEAT-3668: peer-fee-ppm-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-kurtosis.1" ]
+}
+
+@test "FEAT-3669: channel-remote-pct-skewness reports error or remote_pct_skewness gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_skewness"
+}
+@test "FEAT-3669: channel-remote-pct-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-skewness.1" ]
+}
+
+@test "FEAT-3670: node-invoice-skewness reports error or invoice_skewness gracefully" {
+    out=$(./libexec/lightning/node-invoice-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_skewness"
+}
+@test "FEAT-3670: node-invoice-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-skewness.1" ]
+}
