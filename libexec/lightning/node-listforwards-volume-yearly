@@ -1,0 +1,11 @@
+#!/bin/bash
+result=$(lightning-cli listforwards 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json, time
+data = json.loads(sys.argv[1])
+forwards = data.get('forwards', [])
+now = time.time()
+year_ago = now - 365 * 86400
+volume = sum(f.get('out_msat', 0) for f in forwards if f.get('resolved_time', 0) >= year_ago and f.get('status') == 'settled')
+print(json.dumps({'volume_msat_yearly': volume}))
+" "$result"

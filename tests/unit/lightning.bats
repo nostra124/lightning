@@ -37391,3 +37391,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3640: channel-age-skewness man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-skewness.1" ]
 }
+
+@test "FEAT-3641: channel-age-kurtosis reports error or age_kurtosis_days gracefully" {
+    out=$(./libexec/lightning/channel-age-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|age_kurtosis_days"
+}
+@test "FEAT-3641: channel-age-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-age-kurtosis.1" ]
+}
+
+@test "FEAT-3642: node-listforwards-fee-avg-yearly reports error or avg_fee_msat_yearly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-avg-yearly 2>/dev/null)
+    echo "$out" | grep -q "error\|avg_fee_msat_yearly"
+}
+@test "FEAT-3642: node-listforwards-fee-avg-yearly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-avg-yearly.1" ]
+}
+
+@test "FEAT-3643: peer-uptime-kurtosis reports error or uptime_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-uptime-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|uptime_kurtosis_peer"
+}
+@test "FEAT-3643: peer-uptime-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-uptime-kurtosis.1" ]
+}
+
+@test "FEAT-3644: channel-local-balance-variance reports error or local_balance_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-local-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_variance_msat"
+}
+@test "FEAT-3644: channel-local-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-balance-variance.1" ]
+}
+
+@test "FEAT-3645: node-listforwards-volume-yearly reports error or volume_msat_yearly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-volume-yearly 2>/dev/null)
+    echo "$out" | grep -q "error\|volume_msat_yearly"
+}
+@test "FEAT-3645: node-listforwards-volume-yearly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-volume-yearly.1" ]
+}
+
+@test "FEAT-3646: peer-age-skewness reports error or age_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-age-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|age_skewness_peer"
+}
+@test "FEAT-3646: peer-age-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-age-skewness.1" ]
+}
+
+@test "FEAT-3647: channel-remote-balance-variance reports error or remote_balance_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-remote-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_variance_msat"
+}
+@test "FEAT-3647: channel-remote-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-balance-variance.1" ]
+}
+
+@test "FEAT-3648: node-listforwards-count-yearly reports error or forward_count_yearly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-count-yearly 2>/dev/null)
+    echo "$out" | grep -q "error\|forward_count_yearly"
+}
+@test "FEAT-3648: node-listforwards-count-yearly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-count-yearly.1" ]
+}
+
+@test "FEAT-3649: peer-age-kurtosis reports error or age_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-age-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|age_kurtosis_peer"
+}
+@test "FEAT-3649: peer-age-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-age-kurtosis.1" ]
+}
+
+@test "FEAT-3650: channel-spendable-balance-variance reports error or spendable_balance_variance_msat gracefully" {
+    out=$(./libexec/lightning/channel-spendable-balance-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_balance_variance_msat"
+}
+@test "FEAT-3650: channel-spendable-balance-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-balance-variance.1" ]
+}

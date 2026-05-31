@@ -1,0 +1,27 @@
+#!/bin/bash
+result=$(lightning-cli listpeerchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; exit 0; }
+python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+channels = data.get('channels', [])
+import time
+now = time.time()
+ages = []
+for c in channels:
+    opened = c.get('funding_txid') and c.get('short_channel_id')
+    # use in_payments_offered as proxy or just length
+    age = c.get('age_blocks', 0)
+    if age:
+        ages.append(age / 144.0)  # blocks to days
+if len(ages) < 4:
+    kurtosis = 0.0
+else:
+    n = len(ages)
+    mean = sum(ages) / n
+    variance = sum((x - mean) ** 2 for x in ages) / n
+    if variance == 0:
+        kurtosis = 0.0
+    else:
+        kurtosis = (sum((x - mean) ** 4 for x in ages) / n) / (variance ** 2) - 3
+print(json.dumps({'age_kurtosis_days': kurtosis}))
+" "$result"
