@@ -35991,3 +35991,73 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3460: peer-receivable-skewness man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-skewness.1" ]
 }
+@test "FEAT-3461: channel-receivable-kurtosis reports error or receivable_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-receivable-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_kurtosis"
+}
+@test "FEAT-3461: channel-receivable-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-kurtosis.1" ]
+}
+@test "FEAT-3462: node-listforwards-fee-kurtosis-daily reports error or fee_kurtosis_daily gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-kurtosis-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_kurtosis_daily"
+}
+@test "FEAT-3462: node-listforwards-fee-kurtosis-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-kurtosis-daily.1" ]
+}
+@test "FEAT-3463: peer-receivable-kurtosis reports error or receivable_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-receivable-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_kurtosis_peer"
+}
+@test "FEAT-3463: peer-receivable-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-kurtosis.1" ]
+}
+@test "FEAT-3464: channel-spendable-kurtosis reports error or spendable_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-spendable-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_kurtosis"
+}
+@test "FEAT-3464: channel-spendable-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-spendable-kurtosis.1" ]
+}
+@test "FEAT-3465: node-listforwards-fee-skewness-monthly reports error or fee_skewness_monthly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-skewness-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_skewness_monthly"
+}
+@test "FEAT-3465: node-listforwards-fee-skewness-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-skewness-monthly.1" ]
+}
+@test "FEAT-3466: peer-spendable-kurtosis reports error or spendable_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-spendable-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_kurtosis_peer"
+}
+@test "FEAT-3466: peer-spendable-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-kurtosis.1" ]
+}
+@test "FEAT-3467: channel-local-pct-skewness reports error or local_pct_skewness gracefully" {
+    out=$(./libexec/lightning/channel-local-pct-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_skewness"
+}
+@test "FEAT-3467: channel-local-pct-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-local-pct-skewness.1" ]
+}
+@test "FEAT-3468: node-listforwards-fee-kurtosis-monthly reports error or fee_kurtosis_monthly gracefully" {
+    out=$(./libexec/lightning/node-listforwards-fee-kurtosis-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_kurtosis_monthly"
+}
+@test "FEAT-3468: node-listforwards-fee-kurtosis-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-fee-kurtosis-monthly.1" ]
+}
+@test "FEAT-3469: peer-local-pct-skewness reports error or local_pct_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-pct-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|local_pct_skewness_peer"
+}
+@test "FEAT-3469: peer-local-pct-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-pct-skewness.1" ]
+}
+@test "FEAT-3470: channel-remote-pct-skewness reports error or remote_pct_skewness gracefully" {
+    out=$(./libexec/lightning/channel-remote-pct-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_pct_skewness"
+}
+@test "FEAT-3470: channel-remote-pct-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-remote-pct-skewness.1" ]
+}
