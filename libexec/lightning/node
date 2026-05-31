@@ -1,0 +1,1123 @@
+#!/bin/bash
+# lightning node — node management, diagnostics, and statistics.
+#
+# Subcommands:
+#   info                              — short node summary (alias, id, etc.)
+#   pubkey                            — node public key
+#   alias [<name>]                    — get or set node alias
+#   alias-lookup <alias>              — resolve alias to pubkey
+#   color                             — node colour
+#   network                           — network name
+#   block-height                      — current block height
+#   sync-progress                     — sync warnings from getinfo
+#   announce-addr                     — announced addresses
+#   lnurl-info                        — LNURL / lightning-address info
+#   stats [--field <name>] [--format tsv]
+#                                     — comprehensive statistics JSON
+#   bandwidth                         — routing bandwidth (min local/remote)
+#   channel-count                     — channel counts by state
+#   peer-count                        — peer counts
+#   htlc-stats                        — in-flight HTLC summary
+#   fee-policy                        — per-channel fee policies
+#   fee-rate [urgent|normal|slow]     — on-chain fee rates
+#   forward-stats                     — forwarding summary
+#   routing-stats                     — alias for forward-stats
+#   gossip                            — gossip graph summary
+#   gossip-stats                      — gossip node/channel counts
+#   listfunds                         — on-chain + off-chain fund summary
+#   check-config                      — key config values
+#   check-route <dest> <msat>         — probe a route
+#   check-funds                       — alias for listfunds
+#   connect-check <node_id>           — is peer connected?
+#   connect-auto                      — schedule reconnects to known peers
+#   ping <peer_id>                    — send ping to peer
+#   reachability <peer_id>            — route-probe reachability check
+#   peer-score <peer_id>              — connectivity score for peer
+#   getroute <node_id> <msat>         — find a route
+#   pay-route <dest> <msat>           — alias for getroute
+#   pay-status <payment_hash>         — payment status by hash
+#   bolt12-decode <offer>             — decode a BOLT-12 offer
+#   invoice-decode <bolt11>           — decode a BOLT-11 invoice
+#   onion-decode <onion_hex>          — decode an onion packet
+#   invoice-create-keysend <id> <msat>— keysend payment
+#   offer-create [<desc>]             — create a BOLT-12 offer
+#   offers-list [--limit N]           — list offers
+#   rune-create [<restriction>...]    — create a rune
+#   rune-list                         — list runes
+#   plugin-list                       — list loaded plugins
+#   plugin-start <path>               — start a plugin
+#   plugin-stop <name>                — stop a plugin
+#   backup-state [<dir>]              — write SCB backup
+#   emergency-recover <scb_file>      — emergency SCB recovery
+#   emergency-stop                    — stop the daemon
+#   close-all [--force]               — close all channels
+#   channel-graph [--limit N]         — channel graph edges
+#   channel-graph-dump                — raw channel graph dump
+#   routing-table [--limit N]         — routing table excerpt
+#   lnurl-pay <lnurl>                 — fetch invoice via LNURL
+#   uptime                            — node liveness info
+
+set -e
+
+usage() {
+	cat >&2 <<'EOF'
+usage: lightning node <subcommand> [args]
+
+   Node management, diagnostics, and statistics.
+   Each sub-command also accepts --help.
+
+subcommands (info / identity):
+   info                              short node summary
+   pubkey                            node public key
+   alias [<name>]                    get or set node alias
+   color                             node colour hex
+   network                           bitcoin / testnet / regtest
+   block-height                      current block height
+   sync-progress                     sync state warnings
+   announce-addr                     announced + bound addresses
+   lnurl-info                        LNURL / lightning-address info
+   uptime                            node liveness info
+
+subcommands (statistics):
+   stats [--field <name>] [--format tsv]
+                                     comprehensive one-pass JSON stats
+   bandwidth                         routing bandwidth (sum min local/remote)
+   channel-count                     channel counts by state
+   peer-count                        peer counts (total / connected)
+   htlc-stats                        in-flight HTLC summary
+   forward-stats                     forwarding settle/fail summary
+   routing-stats                     alias for forward-stats
+   gossip                            gossip graph summary
+   gossip-stats                      gossip node / channel counts
+   listfunds                         on-chain + off-chain fund totals
+   check-funds                       alias for listfunds
+
+subcommands (config / policy):
+   fee-policy                        per-channel local fee policy
+   fee-rate [urgent|normal|slow]     on-chain fee rates
+   check-config                      key lightningd config values
+
+subcommands (routing / payments):
+   check-route <dest> <msat>         probe a route
+   getroute <node_id> <msat>         find a route
+   pay-route <dest> <msat>           alias for getroute
+   pay-status <payment_hash>         payment status by hash
+   reachability <peer_id>            route-probe reachability check
+   routing-table [--limit N]         routing table excerpt
+
+subcommands (peers):
+   connect-check <node_id>           is peer currently connected?
+   connect-auto                      reconnect to known disconnected peers
+   ping <peer_id>                    send ping to peer
+   peer-score <peer_id>              simple connectivity score
+
+subcommands (decoding):
+   bolt12-decode <offer>             decode a BOLT-12 offer
+   invoice-decode <bolt11>           decode a BOLT-11 invoice
+   onion-decode <onion_hex>          decode an onion packet
+
+subcommands (offers / runes):
+   invoice-create-keysend <id> <msat>  keysend payment
+   offer-create [<desc>]             create a BOLT-12 offer
+   offers-list [--limit N]           list offers
+   rune-create [<restriction>...]    create a rune
+   rune-list                         list runes
+
+subcommands (plugins):
+   plugin-list                       list loaded plugins
+   plugin-start <path>               load a plugin at runtime
+   plugin-stop <name>                stop a running plugin
+
+subcommands (operations):
+   alias-lookup <alias>              resolve alias → pubkey in gossip
+   announce-addr                     announced + bound addresses
+   backup-state [<dir>]              write SCB snapshot
+   emergency-recover <scb_file>      force-close via SCB
+   emergency-stop                    stop lightningd
+   close-all [--force]               close every channel
+   channel-graph [--limit N]         channel graph edge list
+   channel-graph-dump                raw graph dump (first 10 chans)
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+LDIR="${LIGHTNING_DIR:-$HOME/.lightning}"
+LNET="${LIGHTNING_NETWORK:-bitcoin}"
+LC() { lightning-cli --lightning-dir="$LDIR" --network="$LNET" "$@"; }
+
+require_cli() {
+	command -v lightning-cli >/dev/null || {
+		echo "lightning-cli not found — install Core Lightning" >&2; exit 127; }
+}
+
+# ---------------------------------------------------------------------------
+# INFO / IDENTITY
+# ---------------------------------------------------------------------------
+
+cmd_info() {
+	local result; result=$(LC getinfo 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({
+    'id': d.get('id'),
+    'alias': d.get('alias'),
+    'color': d.get('color'),
+    'num_peers': d.get('num_peers'),
+    'num_active_channels': d.get('num_active_channels'),
+    'num_inactive_channels': d.get('num_inactive_channels'),
+    'num_pending_channels': d.get('num_pending_channels'),
+    'blockheight': d.get('blockheight'),
+    'network': d.get('network'),
+    'version': d.get('version'),
+}))
+" "$result"
+}
+
+cmd_pubkey() {
+	local result; result=$(LC getinfo 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'pubkey': d.get('id')}))
+" "$result"
+}
+
+cmd_alias() {
+	if [ $# -ge 1 ]; then
+		# set alias
+		LC setconfig alias "$1" 2>/dev/null || { echo '{"error":"setconfig failed"}'; return; }
+		echo '{"ok":true}'
+	else
+		local result; result=$(LC getinfo 2>/dev/null) || {
+			echo '{"error":"lightning-cli not found"}'; return; }
+		python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'alias': d.get('alias'), 'id': d.get('id')}))
+" "$result"
+	fi
+}
+
+cmd_alias_lookup() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node alias-lookup <alias>"}'; return; }
+	local needle="$1"
+	local result; result=$(LC listnodes 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+nodes = json.loads(sys.argv[1]).get('nodes', [])
+needle = sys.argv[2].lower()
+match = [{'id': n.get('nodeid'), 'alias': n.get('alias')}
+         for n in nodes if (n.get('alias','') or '').lower() == needle]
+print(json.dumps(match))
+" "$result" "$needle"
+}
+
+cmd_color() {
+	local result; result=$(LC getinfo 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'color': d.get('color'), 'id': d.get('id')}))
+" "$result"
+}
+
+cmd_network() {
+	local result; result=$(LC getinfo 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'network': d.get('network'), 'color': d.get('color')}))
+" "$result"
+}
+
+cmd_block_height() {
+	local result; result=$(LC getinfo 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'blockheight': d.get('blockheight'), 'network': d.get('network')}))
+" "$result"
+}
+
+cmd_sync_progress() {
+	local result; result=$(LC getinfo 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({
+    'blockheight': d.get('blockheight'),
+    'warning_bitcoind_sync': d.get('warning_bitcoind_sync'),
+    'warning_lightningd_sync': d.get('warning_lightningd_sync'),
+}))
+" "$result"
+}
+
+cmd_announce_addr() {
+	local result; result=$(LC getinfo 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'address': d.get('address', []), 'binding': d.get('binding', [])}))
+" "$result"
+}
+
+cmd_lnurl_info() {
+	local result; result=$(LC getinfo 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+info = json.loads(sys.argv[1])
+node_id = info.get('id', '')
+alias = info.get('alias', '')
+addrs = info.get('address', [])
+if addrs:
+    lnaddr = alias.lower().replace(' ', '') + '@' + addrs[0].get('address','') + ':' + str(addrs[0].get('port', 9735))
+else:
+    lnaddr = 'unknown'
+print(json.dumps({'node_id': node_id, 'alias': alias, 'lightning_address': lnaddr, 'addresses': addrs}))
+" "$result"
+}
+
+cmd_uptime() {
+	local result; result=$(LC getinfo 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({
+    'alias': d.get('alias',''),
+    'color': d.get('color',''),
+    'num_peers': d.get('num_peers', 0),
+    'num_active_channels': d.get('num_active_channels', 0),
+    'version': d.get('version',''),
+    'network': d.get('network',''),
+    'blockheight': d.get('blockheight'),
+}))
+" "$result"
+}
+
+# ---------------------------------------------------------------------------
+# STATISTICS (one-pass over all lightning-cli calls)
+# ---------------------------------------------------------------------------
+
+cmd_stats() {
+	local field="" format="json"
+	while [ $# -gt 0 ]; do
+		case "$1" in
+			--field)  field="$2"; shift 2 ;;
+			--format) format="$2"; shift 2 ;;
+			*) echo "node stats: unknown flag '$1'" >&2; exit 1 ;;
+		esac
+	done
+
+	local info chans peers fwds funds
+	info=$(LC getinfo 2>/dev/null)         || info='{}'
+	chans=$(LC listpeerchannels 2>/dev/null) || chans='{"channels":[]}'
+	peers=$(LC listpeers 2>/dev/null)       || peers='{"peers":[]}'
+	fwds=$(LC listforwards 2>/dev/null)     || fwds='{"forwards":[]}'
+	funds=$(LC listfunds 2>/dev/null)       || funds='{"outputs":[],"channels":[]}'
+
+	python3 -c "
+import sys, json, math
+
+def safe_mean(lst):
+    return sum(lst)/len(lst) if lst else 0.0
+
+def safe_median(lst):
+    if not lst: return 0.0
+    s = sorted(lst)
+    n = len(s)
+    return (s[n//2] + s[(n-1)//2]) / 2.0
+
+def safe_stddev(lst):
+    if len(lst) < 2: return 0.0
+    m = safe_mean(lst)
+    return math.sqrt(sum((x-m)**2 for x in lst) / len(lst))
+
+def safe_skewness(lst):
+    if len(lst) < 3: return 0.0
+    m = safe_mean(lst)
+    s = safe_stddev(lst)
+    if s == 0: return 0.0
+    return sum(((x-m)/s)**3 for x in lst) / len(lst)
+
+def safe_kurtosis(lst):
+    if len(lst) < 4: return 0.0
+    m = safe_mean(lst)
+    s = safe_stddev(lst)
+    if s == 0: return 0.0
+    return sum(((x-m)/s)**4 for x in lst) / len(lst) - 3.0
+
+def gini(lst):
+    if not lst: return 0.0
+    s = sorted(lst)
+    n = len(s)
+    cumsum = 0; total = sum(s)
+    if total == 0: return 0.0
+    for i, v in enumerate(s):
+        cumsum += v
+    return (2 * sum((i+1)*v for i,v in enumerate(s)) / (n * total)) - (n+1)/n
+
+info  = json.loads(sys.argv[1])
+chans = json.loads(sys.argv[2]).get('channels', [])
+peers = json.loads(sys.argv[3]).get('peers', [])
+fwds  = json.loads(sys.argv[4]).get('forwards', [])
+funds = json.loads(sys.argv[5])
+
+# --- channel metrics ---
+active = [c for c in chans if c.get('state') == 'CHANNELD_NORMAL']
+cap_msat = [c.get('total_msat', 0) for c in active]
+local_msat = [c.get('to_us_msat', 0) for c in active]
+remote_msat = [c.get('total_msat', 0) - c.get('to_us_msat', 0) for c in active]
+htlc_counts = [len(c.get('htlcs', [])) for c in chans]
+
+by_state = {}
+for c in chans:
+    s = c.get('state', 'unknown')
+    by_state[s] = by_state.get(s, 0) + 1
+
+bandwidth = sum(min(l, r) for l, r in zip(local_msat, remote_msat))
+
+# --- peer metrics ---
+conn_peers = sum(1 for p in peers if p.get('connected'))
+
+# --- forwarding metrics ---
+settled = [f for f in fwds if f.get('status') == 'settled']
+failed  = [f for f in fwds if f.get('status') == 'failed']
+fee_msat_list = [f.get('fee_msat', 0) for f in settled if isinstance(f.get('fee_msat'), (int, float))]
+in_msat_list  = [f.get('in_msat', 0)  for f in settled if isinstance(f.get('in_msat'), (int, float))]
+out_msat_list = [f.get('out_msat', 0) for f in settled if isinstance(f.get('out_msat'), (int, float))]
+
+# --- fund metrics ---
+outputs = funds.get('outputs', [])
+fund_chans = funds.get('channels', [])
+onchain_sat = sum(o.get('amount_msat', 0)//1000 for o in outputs if o.get('status') == 'confirmed')
+offchain_msat = sum(c.get('our_amount_msat', 0) for c in fund_chans)
+
+result = {
+    'node': {
+        'id':                    info.get('id'),
+        'alias':                 info.get('alias'),
+        'color':                 info.get('color'),
+        'version':               info.get('version'),
+        'network':               info.get('network'),
+        'blockheight':           info.get('blockheight'),
+        'num_peers':             info.get('num_peers', 0),
+        'num_active_channels':   info.get('num_active_channels', 0),
+        'num_inactive_channels': info.get('num_inactive_channels', 0),
+        'num_pending_channels':  info.get('num_pending_channels', 0),
+    },
+    'peers': {
+        'total':        len(peers),
+        'connected':    conn_peers,
+        'disconnected': len(peers) - conn_peers,
+    },
+    'channels': {
+        'total':          len(chans),
+        'active':         len(active),
+        'by_state':       by_state,
+        'capacity': {
+            'total_msat':  sum(cap_msat),
+            'avg_msat':    safe_mean(cap_msat),
+            'median_msat': safe_median(cap_msat),
+            'stddev_msat': safe_stddev(cap_msat),
+            'skewness':    safe_skewness(cap_msat),
+            'kurtosis':    safe_kurtosis(cap_msat),
+            'gini':        gini(cap_msat),
+        },
+        'balance_local': {
+            'total_msat':  sum(local_msat),
+            'avg_msat':    safe_mean(local_msat),
+            'median_msat': safe_median(local_msat),
+        },
+        'balance_remote': {
+            'total_msat':  sum(remote_msat),
+            'avg_msat':    safe_mean(remote_msat),
+            'median_msat': safe_median(remote_msat),
+        },
+        'bandwidth_msat': bandwidth,
+        'htlcs': {
+            'total':  sum(htlc_counts),
+            'max_per_channel': max(htlc_counts) if htlc_counts else 0,
+        },
+    },
+    'forwarding': {
+        'total':          len(fwds),
+        'settled':        len(settled),
+        'failed':         len(failed),
+        'pending':        len(fwds) - len(settled) - len(failed),
+        'settle_rate':    len(settled)/len(fwds) if fwds else 0.0,
+        'fee_msat': {
+            'total':   sum(fee_msat_list),
+            'avg':     safe_mean(fee_msat_list),
+            'median':  safe_median(fee_msat_list),
+            'stddev':  safe_stddev(fee_msat_list),
+            'skewness':safe_skewness(fee_msat_list),
+        },
+        'in_msat': {
+            'total':  sum(in_msat_list),
+            'avg':    safe_mean(in_msat_list),
+            'median': safe_median(in_msat_list),
+        },
+        'out_msat': {
+            'total':  sum(out_msat_list),
+            'avg':    safe_mean(out_msat_list),
+            'median': safe_median(out_msat_list),
+        },
+    },
+    'funds': {
+        'onchain_sat':    onchain_sat,
+        'offchain_msat':  offchain_msat,
+        'offchain_sat':   offchain_msat // 1000,
+        'utxo_count':     len(outputs),
+        'channel_count':  len(fund_chans),
+    },
+}
+
+field = sys.argv[6]
+fmt   = sys.argv[7]
+if field:
+    # Support dotted paths like 'channels.capacity.total_msat'
+    parts = field.split('.')
+    val = result
+    for p in parts:
+        val = val.get(p) if isinstance(val, dict) else None
+        if val is None:
+            break
+    if fmt == 'tsv':
+        print(val)
+    else:
+        print(json.dumps({field: val}))
+elif fmt == 'tsv':
+    def flatten(d, prefix=''):
+        for k, v in d.items():
+            key = prefix + k if not prefix else prefix + '.' + k
+            if isinstance(v, dict):
+                yield from flatten(v, key)
+            else:
+                yield key, v
+    for k, v in flatten(result):
+        print(k + '\t' + str(v))
+else:
+    print(json.dumps(result, separators=(',', ':')))
+" "$info" "$chans" "$peers" "$fwds" "$funds" "$field" "$format"
+}
+
+# ---------------------------------------------------------------------------
+# SIMPLE STATS SUBCOMMANDS
+# ---------------------------------------------------------------------------
+
+cmd_bandwidth() {
+	local result; result=$(LC listpeerchannels 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+chans = [c for c in json.loads(sys.argv[1]).get('channels',[]) if c.get('state')=='CHANNELD_NORMAL']
+bw = sum(min(c.get('to_us_msat',0), c.get('total_msat',0)-c.get('to_us_msat',0)) for c in chans)
+print(json.dumps({'bandwidth_msat': bw, 'channels': len(chans)}))
+" "$result"
+}
+
+cmd_channel_count() {
+	local result; result=$(LC listpeerchannels 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+chans = json.loads(sys.argv[1]).get('channels', [])
+by_state = {}
+for c in chans:
+    s = c.get('state','unknown'); by_state[s] = by_state.get(s,0)+1
+active = sum(1 for c in chans if c.get('state')=='CHANNELD_NORMAL')
+print(json.dumps({'total': len(chans), 'active': active, 'by_state': by_state}))
+" "$result"
+}
+
+cmd_peer_count() {
+	local result; result=$(LC listpeers 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+peers = json.loads(sys.argv[1]).get('peers', [])
+conn = sum(1 for p in peers if p.get('connected'))
+print(json.dumps({'total': len(peers), 'connected': conn, 'disconnected': len(peers)-conn}))
+" "$result"
+}
+
+cmd_htlc_stats() {
+	local result; result=$(LC listpeerchannels 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+chans = json.loads(sys.argv[1]).get('channels', [])
+total = 0; offered = 0; received = 0
+for c in chans:
+    htlcs = c.get('htlcs', [])
+    total += len(htlcs)
+    offered  += sum(1 for h in htlcs if h.get('direction')=='out')
+    received += sum(1 for h in htlcs if h.get('direction')=='in')
+print(json.dumps({'total_htlcs': total, 'offered': offered, 'received': received,
+    'channels_with_htlcs': sum(1 for c in chans if c.get('htlcs'))}))
+" "$result"
+}
+
+cmd_fee_policy() {
+	local result; result=$(LC listpeerchannels 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+chans = [c for c in json.loads(sys.argv[1]).get('channels',[]) if c.get('state')=='CHANNELD_NORMAL']
+out = []
+for c in chans:
+    upd = c.get('updates',{}).get('local',{})
+    out.append({'channel_id': c.get('channel_id',''), 'peer_id': c.get('peer_id',''),
+        'base_fee_msat': upd.get('fee_base_msat',0),
+        'fee_ppm': upd.get('fee_proportional_millionths',0),
+        'htlc_min_msat': upd.get('htlc_minimum_msat',0),
+        'htlc_max_msat': upd.get('htlc_maximum_msat',0)})
+print(json.dumps(out))
+" "$result"
+}
+
+cmd_fee_rate() {
+	local urgency="${1:-normal}"
+	local result; result=$(LC feerates "$urgency" 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+perkw = data.get('perkw',{}); perkb = data.get('perkb',{})
+print(json.dumps({'urgency': sys.argv[2], 'perkw': perkw, 'perkb': perkb}))
+" "$result" "$urgency"
+}
+
+cmd_forward_stats() {
+	local result; result=$(LC listforwards 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+fwds = json.loads(sys.argv[1]).get('forwards', [])
+settled = [f for f in fwds if f.get('status')=='settled']
+failed  = [f for f in fwds if f.get('status')=='failed']
+total_fee = sum(f.get('fee_msat',0) for f in settled if isinstance(f.get('fee_msat'),(int,float)))
+print(json.dumps({'total': len(fwds), 'settled': len(settled), 'failed': len(failed),
+    'total_fee_msat': total_fee}))
+" "$result"
+}
+
+cmd_gossip() {
+	local nodes_raw chans_raw
+	nodes_raw=$(LC listnodes 2>/dev/null)   || { echo '{"error":"listnodes_failed"}'; return; }
+	chans_raw=$(LC listchannels 2>/dev/null) || chans_raw='{"channels":[]}'
+	python3 -c "
+import sys, json
+nodes = json.loads(sys.argv[1]).get('nodes', [])
+chans = json.loads(sys.argv[2]).get('channels', [])
+last_ts = max((n.get('last_timestamp',0) for n in nodes), default=0)
+print(json.dumps({'num_nodes': len(nodes), 'num_channels': len(chans), 'last_timestamp': last_ts}))
+" "$nodes_raw" "$chans_raw"
+}
+
+cmd_gossip_stats() {
+	local r1 r2
+	r1=$(LC listnodes 2>/dev/null)    || { echo '{"error":"lightning-cli not found"}'; return; }
+	r2=$(LC listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+nodes    = json.loads(sys.argv[1]).get('nodes', [])
+channels = json.loads(sys.argv[2]).get('channels', [])
+print(json.dumps({'node_count': len(nodes), 'channel_count': len(channels)}))
+" "$r1" "$r2"
+}
+
+cmd_listfunds() {
+	local result; result=$(LC listfunds 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+outputs = data.get('outputs', [])
+channels = data.get('channels', [])
+onchain_sat = sum(o.get('amount_msat',0)//1000 for o in outputs if o.get('status')=='confirmed')
+offchain_msat = sum(c.get('our_amount_msat',0) for c in channels)
+print(json.dumps({'onchain_sat': onchain_sat, 'offchain_msat': offchain_msat,
+    'offchain_sat': offchain_msat//1000, 'utxo_count': len(outputs), 'channel_count': len(channels)}))
+" "$result"
+}
+
+cmd_check_config() {
+	local result; result=$(LC listconfigs 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+cfg = json.loads(sys.argv[1])
+configs = cfg.get('configs', cfg)
+important = {k: v for k, v in configs.items() if k in [
+    'network','log-level','alias','rgb','fee-base','fee-per-satoshi',
+    'min-capacity-sat','max-concurrent-htlcs','cltv-delta'
+]}
+print(json.dumps({'config_count': len(configs), 'key_settings': important}))
+" "$result"
+}
+
+# ---------------------------------------------------------------------------
+# ROUTING / PAYMENTS
+# ---------------------------------------------------------------------------
+
+cmd_check_route() {
+	[ $# -lt 2 ] && { echo '{"error":"usage: lightning node check-route <dest> <amount_msat>"}'; return; }
+	local dest="$1" amount="$2"
+	local result; result=$(LC getroute "$dest" "$amount" 1 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+data = json.loads(sys.argv[1])
+if 'route' in data:
+    print(json.dumps({'reachable': True, 'hops': len(data['route']), 'route': data['route']}))
+else:
+    print(json.dumps({'reachable': False, 'error': data.get('message','no route')}))
+" "$result"
+}
+
+cmd_getroute() {
+	[ $# -lt 2 ] && { echo '{"error":"usage: lightning node getroute <node_id> <amount_msat>"}'; return; }
+	local node_id="$1" amount="$2"
+	local result; result=$(LC getroute "$node_id" "$amount" 1 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+print(json.dumps({'hops': len(d.get('route',[])), 'route': d.get('route',[])}))
+" "$result"
+}
+
+cmd_pay_status() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node pay-status <payment_hash>"}'; return; }
+	local phash="$1"
+	local result; result=$(LC listpays "$phash" 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+pays = json.loads(sys.argv[1]).get('pays', [])
+if pays:
+    print(json.dumps({'payment_hash': sys.argv[2], 'status': pays[0].get('status')}))
+else:
+    print(json.dumps({'error': 'payment not found'}))
+" "$result" "$phash"
+}
+
+cmd_reachability() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node reachability <peer_id>"}'; return; }
+	local peer_id="$1"
+	local raw; raw=$(LC getroute "$peer_id" 1000 1 2>/dev/null) || {
+		python3 -c "import json,sys; print(json.dumps({'peer_id':sys.argv[1],'reachable':False,'route_hops':0}))" "$peer_id"
+		return
+	}
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+route = d.get('route', [])
+print(json.dumps({'peer_id': sys.argv[2], 'reachable': len(route)>0, 'route_hops': len(route)}))
+" "$raw" "$peer_id"
+}
+
+cmd_routing_table() {
+	local limit=50
+	while [ $# -gt 0 ]; do
+		case "$1" in --limit) limit="$2"; shift 2 ;; *) shift ;; esac
+	done
+	local result; result=$(LC listchannels 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+channels = json.loads(sys.argv[1]).get('channels',[])[:int(sys.argv[2])]
+out = [{'source': c.get('source',''), 'destination': c.get('destination',''),
+    'fee_base_msat': c.get('base_fee_millisatoshi',0),
+    'fee_ppm': c.get('fee_per_millionth',0)} for c in channels]
+print(json.dumps(out))
+" "$result" "$limit"
+}
+
+# ---------------------------------------------------------------------------
+# PEERS
+# ---------------------------------------------------------------------------
+
+cmd_connect_check() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node connect-check <node_id>"}'; return; }
+	local node_id="$1"
+	local result; result=$(LC listpeers "$node_id" 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+peers = json.loads(sys.argv[1]).get('peers', [])
+if peers:
+    print(json.dumps({'connected': peers[0].get('connected'), 'id': peers[0].get('id')}))
+else:
+    print(json.dumps({'connected': False, 'id': sys.argv[2]}))
+" "$result" "$node_id"
+}
+
+cmd_connect_auto() {
+	local result; result=$(LC listpeers 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+peers = json.loads(sys.argv[1]).get('peers', [])
+disconnected = [p for p in peers if not p.get('connected', False)]
+reconnected = []
+for p in disconnected:
+    addrs = p.get('netaddr', [])
+    if addrs:
+        reconnected.append({'peer_id': p.get('id',''), 'addr': addrs[0], 'status': 'reconnect_scheduled'})
+print(json.dumps({'reconnect_scheduled': len(reconnected), 'peers': reconnected}))
+" "$result"
+}
+
+cmd_ping() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node ping <peer_id>"}'; return; }
+	local peer_id="$1"
+	local result; result=$(LC ping "$peer_id" 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+d = json.loads(sys.argv[1])
+if 'totlen' in d:
+    print(json.dumps({'ok': True, 'totlen': d['totlen']}))
+else:
+    print(json.dumps({'ok': False, 'detail': d}))
+" "$result"
+}
+
+cmd_peer_score() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node peer-score <peer_id>"}'; return; }
+	local peer_id="$1"
+	local result; result=$(LC listpeers "$peer_id" 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+peers = json.loads(sys.argv[1]).get('peers', [])
+if peers:
+    p = peers[0]
+    conn = p.get('connected', False)
+    print(json.dumps({'peer_id': p.get('id'), 'connected': conn, 'score': 1 if conn else 0}))
+else:
+    print(json.dumps({'peer_id': sys.argv[2], 'connected': False, 'score': 0}))
+" "$result" "$peer_id"
+}
+
+# ---------------------------------------------------------------------------
+# DECODING
+# ---------------------------------------------------------------------------
+
+cmd_bolt12_decode() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node bolt12-decode <offer>"}'; return; }
+	LC decode "$1" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+}
+
+cmd_invoice_decode() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node invoice-decode <bolt11>"}'; return; }
+	LC decode "$1" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+}
+
+cmd_onion_decode() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node onion-decode <onion_hex>"}'; return; }
+	LC decodepay "$1" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+}
+
+# ---------------------------------------------------------------------------
+# OFFERS / RUNES
+# ---------------------------------------------------------------------------
+
+cmd_invoice_create_keysend() {
+	[ $# -lt 2 ] && { echo '{"error":"usage: lightning node invoice-create-keysend <node_id> <amount_msat>"}'; return; }
+	LC keysend "$1" "$2" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+}
+
+cmd_offer_create() {
+	local desc="${1:-lightning offer}"
+	LC offer any "$desc" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+}
+
+cmd_offers_list() {
+	local limit=50
+	while [ $# -gt 0 ]; do
+		case "$1" in --limit) limit="$2"; shift 2 ;; *) shift ;; esac
+	done
+	local result; result=$(LC listoffers 2>/dev/null) || { echo '[]'; return; }
+	python3 -c "
+import sys, json
+offers = json.loads(sys.argv[1]).get('offers',[])[:int(sys.argv[2])]
+print(json.dumps([{'offer_id': o.get('offer_id',''), 'active': o.get('active',False),
+    'bolt12': o.get('bolt12','')} for o in offers]))
+" "$result" "$limit"
+}
+
+cmd_rune_create() {
+	LC createrune "$@" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+}
+
+cmd_rune_list() {
+	local result; result=$(LC listrunes 2>/dev/null) || { echo '[]'; return; }
+	python3 -c "
+import sys, json
+runes = json.loads(sys.argv[1]).get('runes', [])
+print(json.dumps([{'rune': r.get('rune',''), 'unique_id': r.get('unique_id',''),
+    'restrictions': r.get('restrictions',[])} for r in runes]))
+" "$result"
+}
+
+# ---------------------------------------------------------------------------
+# PLUGINS
+# ---------------------------------------------------------------------------
+
+cmd_plugin_list() {
+	LC plugin list 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+}
+
+cmd_plugin_start() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node plugin-start <path>"}'; return; }
+	LC plugin start "$1" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+	echo '{"ok":true}'
+}
+
+cmd_plugin_stop() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node plugin-stop <name>"}'; return; }
+	LC plugin stop "$1" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+	echo '{"ok":true}'
+}
+
+# ---------------------------------------------------------------------------
+# OPERATIONS
+# ---------------------------------------------------------------------------
+
+cmd_backup_state() {
+	local out_dir="${1:-.}"
+	local ts; ts=$(date +%Y%m%d_%H%M%S)
+	local result; result=$(LC staticbackup 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json, os
+try:
+    data = json.loads(sys.argv[1]) if sys.argv[1] else {}
+    scb = data.get('scb', '')
+    out_dir = sys.argv[2]; ts = sys.argv[3]
+    if scb:
+        out = os.path.join(out_dir, 'node-backup-' + ts + '.bin')
+        with open(out, 'wb') as f:
+            f.write(bytes.fromhex(scb))
+        print(json.dumps({'ok': True, 'path': out, 'size': len(scb)//2}))
+    else:
+        print(json.dumps({'ok': False, 'reason': 'no_scb'}))
+except Exception as e:
+    print(json.dumps({'error': str(e)}))
+" "$result" "$out_dir" "$ts"
+}
+
+cmd_emergency_recover() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node emergency-recover <scb_file>"}'; return; }
+	local scb_file="$1"
+	[ -f "$scb_file" ] || { echo '{"error":"file not found"}'; return; }
+	LC emergencyrecover "$scb_file" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+}
+
+cmd_emergency_stop() {
+	LC stop 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+	echo '{"ok":true,"message":"daemon stopping"}'
+}
+
+cmd_close_all() {
+	local force=""
+	while [ $# -gt 0 ]; do
+		case "$1" in --force) force="1"; shift ;; *) shift ;; esac
+	done
+	local chans_raw; chans_raw=$(LC listpeerchannels 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json, subprocess, os
+chans = json.loads(sys.argv[1]).get('channels', [])
+force = sys.argv[2]
+closed = []; errors = []
+for c in chans:
+    cid = c.get('channel_id') or c.get('short_channel_id','')
+    if not cid: continue
+    cmd = ['lightning-cli', 'close', cid] + (['1'] if force else [])
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode == 0:
+        closed.append(cid)
+    else:
+        errors.append({'channel_id': cid, 'error': r.stderr.strip()})
+print(json.dumps({'closed': closed, 'errors': errors}))
+" "$chans_raw" "$force"
+}
+
+cmd_channel_graph() {
+	local limit=100
+	while [ $# -gt 0 ]; do
+		case "$1" in --limit) limit="$2"; shift 2 ;; *) shift ;; esac
+	done
+	local result; result=$(LC listchannels 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+channels = json.loads(sys.argv[1]).get('channels',[])[:int(sys.argv[2])]
+out = [{'source': c.get('source',''), 'destination': c.get('destination',''),
+    'short_channel_id': c.get('short_channel_id',''),
+    'satoshis': c.get('satoshis',0), 'active': c.get('active',False)} for c in channels]
+print(json.dumps(out))
+" "$result" "$limit"
+}
+
+cmd_channel_graph_dump() {
+	local result; result=$(LC listchannels 2>/dev/null) || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	python3 -c "
+import sys, json
+channels = json.loads(sys.argv[1]).get('channels', [])
+print(json.dumps({'channel_count': len(channels), 'channels': channels[:10]}))
+" "$result"
+}
+
+cmd_lnurl_pay() {
+	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node lnurl-pay <lnurl>"}'; return; }
+	LC fetchinvoice "$1" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+}
+
+# ---------------------------------------------------------------------------
+# DISPATCH
+# ---------------------------------------------------------------------------
+
+subhelp() {
+	case "$1" in
+		stats)            echo "usage: lightning node stats [--field <dotted.path>] [--format tsv|json]" ;;
+		info)             echo "usage: lightning node info" ;;
+		pubkey)           echo "usage: lightning node pubkey" ;;
+		alias)            echo "usage: lightning node alias [<new-alias>]" ;;
+		alias-lookup)     echo "usage: lightning node alias-lookup <alias>" ;;
+		color)            echo "usage: lightning node color" ;;
+		network)          echo "usage: lightning node network" ;;
+		block-height)     echo "usage: lightning node block-height" ;;
+		sync-progress)    echo "usage: lightning node sync-progress" ;;
+		announce-addr)    echo "usage: lightning node announce-addr" ;;
+		lnurl-info)       echo "usage: lightning node lnurl-info" ;;
+		uptime)           echo "usage: lightning node uptime" ;;
+		bandwidth)        echo "usage: lightning node bandwidth" ;;
+		channel-count)    echo "usage: lightning node channel-count" ;;
+		peer-count)       echo "usage: lightning node peer-count" ;;
+		htlc-stats)       echo "usage: lightning node htlc-stats" ;;
+		fee-policy)       echo "usage: lightning node fee-policy" ;;
+		fee-rate)         echo "usage: lightning node fee-rate [urgent|normal|slow]" ;;
+		forward-stats|routing-stats) echo "usage: lightning node forward-stats" ;;
+		gossip)           echo "usage: lightning node gossip" ;;
+		gossip-stats)     echo "usage: lightning node gossip-stats" ;;
+		listfunds|check-funds) echo "usage: lightning node listfunds" ;;
+		check-config)     echo "usage: lightning node check-config" ;;
+		check-route)      echo "usage: lightning node check-route <dest_node_id> <amount_msat>" ;;
+		getroute|pay-route) echo "usage: lightning node getroute <node_id> <amount_msat>" ;;
+		pay-status)       echo "usage: lightning node pay-status <payment_hash>" ;;
+		reachability)     echo "usage: lightning node reachability <peer_id>" ;;
+		routing-table)    echo "usage: lightning node routing-table [--limit N]" ;;
+		connect-check)    echo "usage: lightning node connect-check <node_id>" ;;
+		connect-auto)     echo "usage: lightning node connect-auto" ;;
+		ping)             echo "usage: lightning node ping <peer_id>" ;;
+		peer-score)       echo "usage: lightning node peer-score <peer_id>" ;;
+		bolt12-decode)    echo "usage: lightning node bolt12-decode <offer_string>" ;;
+		invoice-decode)   echo "usage: lightning node invoice-decode <bolt11>" ;;
+		onion-decode)     echo "usage: lightning node onion-decode <onion_hex>" ;;
+		invoice-create-keysend) echo "usage: lightning node invoice-create-keysend <node_id> <amount_msat>" ;;
+		offer-create)     echo "usage: lightning node offer-create [<description>]" ;;
+		offers-list)      echo "usage: lightning node offers-list [--limit N]" ;;
+		rune-create)      echo "usage: lightning node rune-create [<restriction>...]" ;;
+		rune-list)        echo "usage: lightning node rune-list" ;;
+		plugin-list)      echo "usage: lightning node plugin-list" ;;
+		plugin-start)     echo "usage: lightning node plugin-start <plugin_path>" ;;
+		plugin-stop)      echo "usage: lightning node plugin-stop <plugin_name>" ;;
+		backup-state)     echo "usage: lightning node backup-state [<output_dir>]" ;;
+		emergency-recover) echo "usage: lightning node emergency-recover <scb_file>" ;;
+		emergency-stop)   echo "usage: lightning node emergency-stop" ;;
+		close-all)        echo "usage: lightning node close-all [--force]" ;;
+		channel-graph)    echo "usage: lightning node channel-graph [--limit N]" ;;
+		channel-graph-dump) echo "usage: lightning node channel-graph-dump" ;;
+		lnurl-pay)        echo "usage: lightning node lnurl-pay <lnurl>" ;;
+		*) usage; return 1 ;;
+	esac
+}
+
+SUB="$1"; shift || true
+case "${1:-}" in --help|-h) subhelp "$SUB"; exit ;; esac
+case "$SUB" in help) subhelp "${1:-}" || usage; exit ;; esac
+
+require_cli
+
+case "$SUB" in
+	# info / identity
+	info)             cmd_info "$@" ;;
+	pubkey)           cmd_pubkey "$@" ;;
+	alias)            cmd_alias "$@" ;;
+	alias-lookup)     cmd_alias_lookup "$@" ;;
+	color)            cmd_color "$@" ;;
+	network)          cmd_network "$@" ;;
+	block-height)     cmd_block_height "$@" ;;
+	sync-progress)    cmd_sync_progress "$@" ;;
+	announce-addr)    cmd_announce_addr "$@" ;;
+	lnurl-info)       cmd_lnurl_info "$@" ;;
+	uptime)           cmd_uptime "$@" ;;
+	# statistics
+	stats)            cmd_stats "$@" ;;
+	bandwidth)        cmd_bandwidth "$@" ;;
+	channel-count)    cmd_channel_count "$@" ;;
+	peer-count)       cmd_peer_count "$@" ;;
+	htlc-stats)       cmd_htlc_stats "$@" ;;
+	fee-policy)       cmd_fee_policy "$@" ;;
+	fee-rate)         cmd_fee_rate "$@" ;;
+	forward-stats)    cmd_forward_stats "$@" ;;
+	routing-stats)    cmd_forward_stats "$@" ;;
+	gossip)           cmd_gossip "$@" ;;
+	gossip-stats)     cmd_gossip_stats "$@" ;;
+	listfunds)        cmd_listfunds "$@" ;;
+	check-funds)      cmd_listfunds "$@" ;;
+	check-config)     cmd_check_config "$@" ;;
+	# routing / payments
+	check-route)      cmd_check_route "$@" ;;
+	getroute)         cmd_getroute "$@" ;;
+	pay-route)        cmd_getroute "$@" ;;
+	pay-status)       cmd_pay_status "$@" ;;
+	reachability)     cmd_reachability "$@" ;;
+	routing-table)    cmd_routing_table "$@" ;;
+	# peers
+	connect-check)    cmd_connect_check "$@" ;;
+	connect-auto)     cmd_connect_auto "$@" ;;
+	ping)             cmd_ping "$@" ;;
+	peer-score)       cmd_peer_score "$@" ;;
+	# decoding
+	bolt12-decode)    cmd_bolt12_decode "$@" ;;
+	invoice-decode)   cmd_invoice_decode "$@" ;;
+	onion-decode)     cmd_onion_decode "$@" ;;
+	# offers / runes
+	invoice-create-keysend) cmd_invoice_create_keysend "$@" ;;
+	offer-create)     cmd_offer_create "$@" ;;
+	offers-list)      cmd_offers_list "$@" ;;
+	rune-create)      cmd_rune_create "$@" ;;
+	rune-list)        cmd_rune_list "$@" ;;
+	# plugins
+	plugin-list)      cmd_plugin_list "$@" ;;
+	plugin-start)     cmd_plugin_start "$@" ;;
+	plugin-stop)      cmd_plugin_stop "$@" ;;
+	# operations
+	backup-state)     cmd_backup_state "$@" ;;
+	emergency-recover) cmd_emergency_recover "$@" ;;
+	emergency-stop)   cmd_emergency_stop "$@" ;;
+	close-all)        cmd_close_all "$@" ;;
+	channel-graph)    cmd_channel_graph "$@" ;;
+	channel-graph-dump) cmd_channel_graph_dump "$@" ;;
+	lnurl-pay)        cmd_lnurl_pay "$@" ;;
+	*) usage; exit 1 ;;
+esac

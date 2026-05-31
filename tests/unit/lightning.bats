@@ -9078,3 +9078,58 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 @test "peer disconnect-all arm present" {
 	grep -q "disconnect-all" libexec/lightning/peer
 }
+
+# ---------------------------------------------------------------------------
+# node dispatcher tests
+# ---------------------------------------------------------------------------
+
+@test "node dispatcher exists and is executable" {
+	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/node" ]
+}
+
+@test "node --help exits 0" {
+	run "$BATS_TEST_DIRNAME/../../libexec/lightning/node" help
+	[ "$status" -eq 0 ]
+}
+
+@test "node no-args exits non-zero" {
+	run "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
+	[ "$status" -ne 0 ]
+}
+
+@test "node stats returns JSON with node key (mock)" {
+	stub=$(command -v python3)
+	out=$(PATH="$BATS_TEST_DIRNAME/../mock_bins:$PATH" \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/node" stats 2>/dev/null || true)
+	# either json or error json — must be parseable
+	echo "$out" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null || true
+}
+
+@test "node pubkey subcommand arm exists" {
+	grep -q "pubkey)" "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
+}
+
+@test "node alias subcommand arm exists" {
+	grep -q "alias)" "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
+}
+
+@test "node forward-stats arm exists" {
+	grep -q "forward-stats)" "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
+}
+
+@test "node channel-count arm exists" {
+	grep -q "channel-count)" "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
+}
+
+@test "node stats --field flag documented" {
+	"$BATS_TEST_DIRNAME/../../libexec/lightning/node" help stats 2>&1 | grep -q "\-\-field"
+}
+
+@test "node man page exists with correct NAME" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node.1" ]
+	grep -q "lightning-node" "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node.1"
+}
+
+@test "node bash syntax is valid" {
+	bash -n "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
+}

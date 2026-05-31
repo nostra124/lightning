@@ -1,0 +1,118 @@
+.TH "LIGHTNING-NODE" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-node \- node management, diagnostics, and statistics
+.SH SYNOPSIS
+.B lightning node
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning node — node management, diagnostics, and statistics.
+
+Consolidates the node-* micro-verb family into a single dispatcher.
+Covers identity, comprehensive statistics, routing, peers, decoding,
+offers, runes, plugins, and operational commands.
+.fi
+.SH USAGE
+.nf
+usage: lightning node <subcommand> [args]
+
+Info / identity:
+   info                              short node summary (JSON)
+   pubkey                            node public key
+   alias [<name>]                    get or set node alias
+   alias-lookup <alias>              resolve alias to pubkey via gossip
+   color                             node colour hex
+   network                           bitcoin / testnet / regtest
+   block-height                      current block height
+   sync-progress                     bitcoind / lightningd sync warnings
+   announce-addr                     announced + bound addresses
+   lnurl-info                        LNURL / lightning-address info
+   uptime                            node liveness snapshot
+
+Statistics:
+   stats [--field <path>] [--format tsv|json]
+                                     comprehensive one-pass statistics
+   bandwidth                         routing bandwidth (sum min local/remote)
+   channel-count                     channel counts by state
+   peer-count                        peer counts (total / connected)
+   htlc-stats                        in-flight HTLC summary
+   forward-stats                     forwarding settle/fail/fee summary
+   routing-stats                     alias for forward-stats
+   gossip                            gossip graph summary
+   gossip-stats                      gossip node / channel counts
+   listfunds / check-funds           on-chain + off-chain fund totals
+
+Config / policy:
+   fee-policy                        per-channel local fee policies
+   fee-rate [urgent|normal|slow]     on-chain fee rates
+   check-config                      key lightningd config values
+
+Routing / payments:
+   check-route <dest> <msat>         probe a route
+   getroute <node_id> <msat>         find a route
+   pay-route <dest> <msat>           alias for getroute
+   pay-status <payment_hash>         payment status by hash
+   reachability <peer_id>            route-probe reachability check
+   routing-table [--limit N]         routing table excerpt
+
+Peers:
+   connect-check <node_id>           is peer currently connected?
+   connect-auto                      schedule reconnects to known peers
+   ping <peer_id>                    send ping to peer
+   peer-score <peer_id>              simple connectivity score
+
+Decoding:
+   bolt12-decode <offer>             decode a BOLT-12 offer
+   invoice-decode <bolt11>           decode a BOLT-11 invoice
+   onion-decode <onion_hex>          decode an onion packet
+
+Offers / runes:
+   invoice-create-keysend <id> <msat>  keysend payment
+   offer-create [<desc>]             create a BOLT-12 offer
+   offers-list [--limit N]           list offers
+   rune-create [<restriction>...]    create a rune
+   rune-list                         list runes
+
+Plugins:
+   plugin-list                       list loaded plugins
+   plugin-start <path>               load a plugin at runtime
+   plugin-stop <name>                stop a running plugin
+
+Operations:
+   backup-state [<dir>]              write SCB snapshot to directory
+   emergency-recover <scb_file>      force-close via SCB
+   emergency-stop                    stop lightningd
+   close-all [--force]               close every channel (use with care)
+   channel-graph [--limit N]         channel graph edge list
+   channel-graph-dump                raw graph dump (first 10 channels)
+   lnurl-pay <lnurl>                 fetch invoice via LNURL
+.fi
+.SH "STATS SUBCOMMAND"
+.nf
+lightning node stats
+
+Makes one pass over getinfo, listpeerchannels, listpeers, listforwards,
+and listfunds and returns a comprehensive JSON object with the following
+top-level sections:
+
+  node         — identity + blockheight + channel / peer counts
+  peers        — total / connected / disconnected
+  channels     — total, active, by_state, capacity stats (avg, median,
+                 stddev, skewness, kurtosis, gini), balance_local,
+                 balance_remote, bandwidth_msat, htlcs
+  forwarding   — total, settled, failed, pending, settle_rate,
+                 fee_msat (total/avg/median/stddev/skewness),
+                 in_msat, out_msat
+  funds        — onchain_sat, offchain_msat, utxo_count, channel_count
+
+Options:
+  --field <dotted.path>   extract one field, e.g. --field channels.capacity.total_msat
+  --format tsv            flat key\\tvalue output instead of JSON
+.fi
+.SH "SEE ALSO"
+.BR lightning (1),
+.BR lightning-channel (1),
+.BR lightning-fee (1),
+.BR lightning-balance (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.
