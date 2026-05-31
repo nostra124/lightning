@@ -37231,3 +37231,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3620: channel-htlc-min-skewness man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-skewness.1" ]
 }
+
+@test "FEAT-3621: channel-htlc-min-kurtosis reports error or htlc_min_kurtosis_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_kurtosis_msat"
+}
+@test "FEAT-3621: channel-htlc-min-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-kurtosis.1" ]
+}
+
+@test "FEAT-3622: node-listforwards-out-msat-kurtosis reports error or out_msat_kurtosis gracefully" {
+    out=$(./libexec/lightning/node-listforwards-out-msat-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|out_msat_kurtosis"
+}
+@test "FEAT-3622: node-listforwards-out-msat-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-out-msat-kurtosis.1" ]
+}
+
+@test "FEAT-3623: peer-local-balance-kurtosis reports error or local_balance_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-local-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|local_balance_kurtosis_peer"
+}
+@test "FEAT-3623: peer-local-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-local-balance-kurtosis.1" ]
+}
+
+@test "FEAT-3624: channel-htlc-max-skewness reports error or htlc_max_skewness_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_skewness_msat"
+}
+@test "FEAT-3624: channel-htlc-max-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-skewness.1" ]
+}
+
+@test "FEAT-3625: node-pay-fee-skewness reports error or fee_skewness_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_skewness_msat"
+}
+@test "FEAT-3625: node-pay-fee-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-skewness.1" ]
+}
+
+@test "FEAT-3626: peer-remote-balance-skewness reports error or remote_balance_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_skewness_peer"
+}
+@test "FEAT-3626: peer-remote-balance-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-skewness.1" ]
+}
+
+@test "FEAT-3627: channel-htlc-max-kurtosis reports error or htlc_max_kurtosis_msat gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_kurtosis_msat"
+}
+@test "FEAT-3627: channel-htlc-max-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-kurtosis.1" ]
+}
+
+@test "FEAT-3628: node-pay-fee-kurtosis reports error or fee_kurtosis_msat gracefully" {
+    out=$(./libexec/lightning/node-pay-fee-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_kurtosis_msat"
+}
+@test "FEAT-3628: node-pay-fee-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-fee-kurtosis.1" ]
+}
+
+@test "FEAT-3629: peer-remote-balance-kurtosis reports error or remote_balance_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-remote-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|remote_balance_kurtosis_peer"
+}
+@test "FEAT-3629: peer-remote-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-remote-balance-kurtosis.1" ]
+}
+
+@test "FEAT-3630: channel-capacity-skewness reports error or capacity_skewness_msat gracefully" {
+    out=$(./libexec/lightning/channel-capacity-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|capacity_skewness_msat"
+}
+@test "FEAT-3630: channel-capacity-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-capacity-skewness.1" ]
+}
