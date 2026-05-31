@@ -36511,3 +36511,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3530: channel-receivable-balance-kurtosis-monthly man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-receivable-balance-kurtosis-monthly.1" ]
 }
+
+@test "FEAT-3531: peer-receivable-balance-kurtosis reports error or receivable_balance_kurtosis_peer gracefully" {
+    out=$(./libexec/lightning/peer-receivable-balance-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_balance_kurtosis_peer"
+}
+@test "FEAT-3531: peer-receivable-balance-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-balance-kurtosis.1" ]
+}
+
+@test "FEAT-3532: node-invoice-paid-amount-daily reports error or paid_amount_daily_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-daily 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_daily_msat"
+}
+@test "FEAT-3532: node-invoice-paid-amount-daily man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-daily.1" ]
+}
+
+@test "FEAT-3533: channel-both-balances-skewness reports error or both_balances_skewness_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_skewness_msat"
+}
+@test "FEAT-3533: channel-both-balances-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-skewness.1" ]
+}
+
+@test "FEAT-3534: peer-receivable-balance-kurtosis-weekly reports error or receivable_balance_kurtosis_weekly_peer gracefully" {
+    out=$(./libexec/lightning/peer-receivable-balance-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|receivable_balance_kurtosis_weekly_peer"
+}
+@test "FEAT-3534: peer-receivable-balance-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-receivable-balance-kurtosis-weekly.1" ]
+}
+
+@test "FEAT-3535: node-invoice-paid-amount-weekly reports error or paid_amount_weekly_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_weekly_msat"
+}
+@test "FEAT-3535: node-invoice-paid-amount-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-weekly.1" ]
+}
+
+@test "FEAT-3536: channel-both-balances-kurtosis reports error or both_balances_kurtosis_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-balances-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|both_balances_kurtosis_msat"
+}
+@test "FEAT-3536: channel-both-balances-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-balances-kurtosis.1" ]
+}
+
+@test "FEAT-3537: peer-spendable-balance-skewness-weekly reports error or spendable_balance_skewness_weekly_peer gracefully" {
+    out=$(./libexec/lightning/peer-spendable-balance-skewness-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_balance_skewness_weekly_peer"
+}
+@test "FEAT-3537: peer-spendable-balance-skewness-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-balance-skewness-weekly.1" ]
+}
+
+@test "FEAT-3538: node-invoice-paid-amount-monthly reports error or paid_amount_monthly_msat gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-amount-monthly 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_amount_monthly_msat"
+}
+@test "FEAT-3538: node-invoice-paid-amount-monthly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-amount-monthly.1" ]
+}
+
+@test "FEAT-3539: channel-both-reserves-skewness reports error or both_reserves_skewness_msat gracefully" {
+    out=$(./libexec/lightning/channel-both-reserves-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|both_reserves_skewness_msat"
+}
+@test "FEAT-3539: channel-both-reserves-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-both-reserves-skewness.1" ]
+}
+
+@test "FEAT-3540: peer-spendable-balance-kurtosis-weekly reports error or spendable_balance_kurtosis_weekly_peer gracefully" {
+    out=$(./libexec/lightning/peer-spendable-balance-kurtosis-weekly 2>/dev/null)
+    echo "$out" | grep -q "error\|spendable_balance_kurtosis_weekly_peer"
+}
+@test "FEAT-3540: peer-spendable-balance-kurtosis-weekly man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-spendable-balance-kurtosis-weekly.1" ]
+}
