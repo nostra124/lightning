@@ -1744,7 +1744,7 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "FEAT-180: SKILL.md describes the full 0.6.0 surface" {
-	f="$BATS_TEST_DIRNAME/../../skills/lightning-wallet/SKILL.md"
+	f="$BATS_TEST_DIRNAME/../../.rpk/skills/lightning-wallet.md"
 	[ -f "$f" ]
 	for term in "channel open" "lightning invoice" "address pay" "account create" \
 	            "liquidity in" "backup" "restore" "BOLT" "LUD" "Tor" "force-close"; do
@@ -1753,7 +1753,7 @@ EOF
 }
 
 @test "FEAT-180: SKILL.md frontmatter has name + description" {
-	f="$BATS_TEST_DIRNAME/../../skills/lightning-wallet/SKILL.md"
+	f="$BATS_TEST_DIRNAME/../../.rpk/skills/lightning-wallet.md"
 	head -10 "$f" | grep -q "^name: lightning-wallet"
 	head -20 "$f" | grep -q "^description:"
 }
