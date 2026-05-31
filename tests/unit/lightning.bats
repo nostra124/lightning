@@ -34731,3 +34731,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3300: peer-htlc-min-msat-avg man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-min-msat-avg.1" ]
 }
+
+@test "FEAT-3301: peer-htlc-min-msat-max reports error or htlc_min_msat_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-min-msat-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_max_peer"
+}
+@test "FEAT-3301: peer-htlc-min-msat-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-min-msat-max.1" ]
+}
+
+@test "FEAT-3302: channel-htlc-max-msat-min reports error or htlc_max_msat_min gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-msat-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_min"
+}
+@test "FEAT-3302: channel-htlc-max-msat-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-msat-min.1" ]
+}
+
+@test "FEAT-3303: node-listforwards-amount-skewness reports error or forwards_amount_skewness gracefully" {
+    out=$(./libexec/lightning/node-listforwards-amount-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_amount_skewness"
+}
+@test "FEAT-3303: node-listforwards-amount-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-amount-skewness.1" ]
+}
+
+@test "FEAT-3304: peer-htlc-min-msat-min reports error or htlc_min_msat_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-min-msat-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_min_peer"
+}
+@test "FEAT-3304: peer-htlc-min-msat-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-min-msat-min.1" ]
+}
+
+@test "FEAT-3305: channel-htlc-min-msat-stddev reports error or htlc_min_msat_stddev gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_stddev"
+}
+@test "FEAT-3305: channel-htlc-min-msat-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat-stddev.1" ]
+}
+
+@test "FEAT-3306: node-listforwards-amount-total reports error or forwards_amount_total gracefully" {
+    out=$(./libexec/lightning/node-listforwards-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|forwards_amount_total"
+}
+@test "FEAT-3306: node-listforwards-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-listforwards-amount-total.1" ]
+}
+
+@test "FEAT-3307: peer-htlc-max-msat-avg reports error or htlc_max_msat_avg_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-max-msat-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_avg_peer"
+}
+@test "FEAT-3307: peer-htlc-max-msat-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-max-msat-avg.1" ]
+}
+
+@test "FEAT-3308: channel-htlc-max-msat-stddev reports error or htlc_max_msat_stddev gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-msat-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_stddev"
+}
+@test "FEAT-3308: channel-htlc-max-msat-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-msat-stddev.1" ]
+}
+
+@test "FEAT-3309: node-pay-amount-total reports error or amount_total_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-total 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_total_pay"
+}
+@test "FEAT-3309: node-pay-amount-total man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-total.1" ]
+}
+
+@test "FEAT-3310: peer-htlc-max-msat-max reports error or htlc_max_msat_max_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-max-msat-max 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_max_peer"
+}
+@test "FEAT-3310: peer-htlc-max-msat-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-max-msat-max.1" ]
+}
