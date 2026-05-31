@@ -35531,3 +35531,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3400: channel-fee-ppm-median man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-median.1" ]
 }
+
+@test "FEAT-3401: node-pay-amount-skewness reports error or amount_skewness_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_skewness_pay"
+}
+@test "FEAT-3401: node-pay-amount-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-skewness.1" ]
+}
+
+@test "FEAT-3402: peer-fee-ppm-variance reports error or fee_ppm_variance_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-variance 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_variance_peer"
+}
+@test "FEAT-3402: peer-fee-ppm-variance man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-variance.1" ]
+}
+
+@test "FEAT-3403: channel-fee-ppm-skewness reports error or fee_ppm_skewness_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_skewness_ch"
+}
+@test "FEAT-3403: channel-fee-ppm-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-skewness.1" ]
+}
+
+@test "FEAT-3404: node-pay-amount-kurtosis reports error or amount_kurtosis_pay gracefully" {
+    out=$(./libexec/lightning/node-pay-amount-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|amount_kurtosis_pay"
+}
+@test "FEAT-3404: node-pay-amount-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-pay-amount-kurtosis.1" ]
+}
+
+@test "FEAT-3405: peer-fee-ppm-skewness reports error or fee_ppm_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-ppm-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_skewness_peer"
+}
+@test "FEAT-3405: peer-fee-ppm-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-ppm-skewness.1" ]
+}
+
+@test "FEAT-3406: channel-fee-ppm-kurtosis reports error or fee_ppm_kurtosis_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-ppm-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_ppm_kurtosis_ch"
+}
+@test "FEAT-3406: channel-fee-ppm-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-ppm-kurtosis.1" ]
+}
+
+@test "FEAT-3407: node-invoice-amount-avg reports error or invoice_amount_avg gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_avg"
+}
+@test "FEAT-3407: node-invoice-amount-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-avg.1" ]
+}
+
+@test "FEAT-3408: peer-fee-base-skewness reports error or fee_base_skewness_peer gracefully" {
+    out=$(./libexec/lightning/peer-fee-base-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_skewness_peer"
+}
+@test "FEAT-3408: peer-fee-base-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-fee-base-skewness.1" ]
+}
+
+@test "FEAT-3409: channel-fee-base-skewness reports error or fee_base_skewness_ch gracefully" {
+    out=$(./libexec/lightning/channel-fee-base-skewness 2>/dev/null)
+    echo "$out" | grep -q "error\|fee_base_skewness_ch"
+}
+@test "FEAT-3409: channel-fee-base-skewness man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-fee-base-skewness.1" ]
+}
+
+@test "FEAT-3410: node-invoice-amount-max reports error or invoice_amount_max gracefully" {
+    out=$(./libexec/lightning/node-invoice-amount-max 2>/dev/null)
+    echo "$out" | grep -q "error\|invoice_amount_max"
+}
+@test "FEAT-3410: node-invoice-amount-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-amount-max.1" ]
+}
