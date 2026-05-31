@@ -34811,3 +34811,83 @@ assert '\"auth\": None' in window or \"'auth': None\" in window, 'auth not None'
 @test "FEAT-3310: peer-htlc-max-msat-max man page exists" {
     [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-max-msat-max.1" ]
 }
+
+@test "FEAT-3311: channel-htlc-min-msat-range reports error or htlc_min_msat_range gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_range"
+}
+@test "FEAT-3311: channel-htlc-min-msat-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat-range.1" ]
+}
+
+@test "FEAT-3312: node-invoice-paid-fee-avg reports error or paid_fee_avg gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-fee-avg 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_fee_avg"
+}
+@test "FEAT-3312: node-invoice-paid-fee-avg man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-fee-avg.1" ]
+}
+
+@test "FEAT-3313: peer-htlc-max-msat-min reports error or htlc_max_msat_min_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-max-msat-min 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_min_peer"
+}
+@test "FEAT-3313: peer-htlc-max-msat-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-max-msat-min.1" ]
+}
+
+@test "FEAT-3314: channel-htlc-max-msat-range reports error or htlc_max_msat_range gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-msat-range 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_range"
+}
+@test "FEAT-3314: channel-htlc-max-msat-range man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-msat-range.1" ]
+}
+
+@test "FEAT-3315: node-invoice-paid-fee-max reports error or paid_fee_max gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-fee-max 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_fee_max"
+}
+@test "FEAT-3315: node-invoice-paid-fee-max man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-fee-max.1" ]
+}
+
+@test "FEAT-3316: peer-htlc-max-msat-stddev reports error or htlc_max_msat_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-max-msat-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_stddev_peer"
+}
+@test "FEAT-3316: peer-htlc-max-msat-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-max-msat-stddev.1" ]
+}
+
+@test "FEAT-3317: channel-htlc-min-msat-kurtosis reports error or htlc_min_msat_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-htlc-min-msat-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_kurtosis"
+}
+@test "FEAT-3317: channel-htlc-min-msat-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-min-msat-kurtosis.1" ]
+}
+
+@test "FEAT-3318: node-invoice-paid-fee-min reports error or paid_fee_min gracefully" {
+    out=$(./libexec/lightning/node-invoice-paid-fee-min 2>/dev/null)
+    echo "$out" | grep -q "error\|paid_fee_min"
+}
+@test "FEAT-3318: node-invoice-paid-fee-min man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-invoice-paid-fee-min.1" ]
+}
+
+@test "FEAT-3319: peer-htlc-min-msat-stddev reports error or htlc_min_msat_stddev_peer gracefully" {
+    out=$(./libexec/lightning/peer-htlc-min-msat-stddev 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_min_msat_stddev_peer"
+}
+@test "FEAT-3319: peer-htlc-min-msat-stddev man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-peer-htlc-min-msat-stddev.1" ]
+}
+
+@test "FEAT-3320: channel-htlc-max-msat-kurtosis reports error or htlc_max_msat_kurtosis gracefully" {
+    out=$(./libexec/lightning/channel-htlc-max-msat-kurtosis 2>/dev/null)
+    echo "$out" | grep -q "error\|htlc_max_msat_kurtosis"
+}
+@test "FEAT-3320: channel-htlc-max-msat-kurtosis man page exists" {
+    [ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-channel-htlc-max-msat-kurtosis.1" ]
+}
