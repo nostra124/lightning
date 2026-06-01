@@ -486,16 +486,21 @@ case "${1:-}" in
 	push)   shift; cmd_push "$@" ;;
 	pull)   shift; cmd_pull "$@" ;;
 	sync)   shift; cmd_sync "$@" ;;
-	# Node-side subcommands delegate to the standalone implementation verbs.
-	info)    shift; exec "$(_sibling info)" "$@" ;;
-	id)      shift; exec "$(_sibling node-id)" "$@" ;;
-	balance) shift; exec "$(_sibling balance)" "$@" ;;
-	unlock)  shift; exec "$(_sibling unlock)" "$@" ;;
-	seed)    shift; exec "$(_sibling seed)" "$@" ;;
-	backup)  shift; exec "$(_sibling backup)" "$@" ;;
-	restore) shift; exec "$(_sibling restore)" "$@" ;;
-	scb)     shift; exec "$(_sibling scb)" "$@" ;;
-	peers)   echo "lightning wallet peers is deprecated — use 'peer list'" >&2; exit 2 ;;
+	# Delegating subcommands (implementations live in _-prefixed siblings).
+	info)       shift; exec "$(_sibling _info)" "$@" ;;
+	id)         shift; exec "$(_sibling _node_id)" "$@" ;;
+	balance)    shift; exec "$(_sibling _balance)" "$@" ;;
+	unlock)     shift; exec "$(_sibling _unlock)" "$@" ;;
+	seed)       shift; exec "$(_sibling _seed)" "$@" ;;
+	backup)     shift; exec "$(_sibling _backup)" "$@" ;;
+	restore)    shift; exec "$(_sibling _restore)" "$@" ;;
+	scb)        shift; exec "$(_sibling _scb)" "$@" ;;
+	peers)      echo "lightning wallet peers is deprecated — use 'peer list'" >&2; exit 2 ;;
+	ledger)     shift; exec "$(_sibling _ledger)" "$@" ;;
+	history)    shift; exec "$(_sibling _ledger)" list "$@" ;;
+	export)     shift; exec "$(_sibling _export)" "$@" ;;
+	compliance) shift; exec "$(_sibling _compliance)" "$@" ;;
+	user)       shift; exec "$(_sibling _wallet-user)" "$@" ;;
 	# New subcommands (consolidated from wallet-* micro-verbs)
 	stats)            shift; cmd_wallet_stats "$@" ;;
 	count)            shift; cmd_count "$@" ;;

@@ -1,0 +1,39 @@
+.TH "LIGHTNING-REQ" 1 "June 2026" "lightning 0.6.0" "User Commands"
+.SH NAME
+lightning-req \- request payments (invoice, offer, decode, QR)
+.SH SYNOPSIS
+.B lightning req invoice
+[\fIargs\fR]
+.br
+.B lightning req offer
+[\fIargs\fR]
+.br
+.B lightning req decode
+\fI<string>\fR
+.br
+.B lightning req qr
+\fI<text>\fR
+.SH DESCRIPTION
+Create and manage incoming payment requests.
+.TP
+.B req invoice [args]
+BOLT-11 invoice management: create, list, cancel, status, decode.
+Delegates to the \fBinvoice\fR subcommand dispatcher.
+.TP
+.B req offer [args]
+BOLT-12 reusable offer management: create, pay.
+A single offer string can be paid many times.
+.TP
+.B req decode <string>
+Detect and decode any Lightning string: BOLT-11 invoice, BOLT-12 offer,
+LNURL (bech32), or Lightning Address (user@domain).
+.TP
+.B req qr <text>
+Render a string as a QR code (ANSI terminal output by default;
+\fB--png\fR/\fB--svg\fR write to a file).
+.SH "SEE ALSO"
+.BR lightning (1),
+.BR lightning-pay (1),
+.BR lightning-invoice (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

@@ -493,7 +493,7 @@ cmd_autopilot_run() {
 	if [ "$dry_run" -eq 1 ]; then
 		echo "would run: lightning fee policy $fee_policy"
 	else
-		"$SELF_LIBEXEC/lightning/fee" policy "$fee_policy" >/dev/null 2>&1 || {
+		"$SELF_LIBEXEC/lightning/_fee" policy "$fee_policy" >/dev/null 2>&1 || {
 			warn "channel autopilot: fee policy '$fee_policy' failed (continuing)"
 		}
 	fi
@@ -522,7 +522,7 @@ cmd_autopilot_run() {
 				actions_log="${actions_log}would-rebalance: $cid pct=$pct%\n"
 			else
 				echo "rebalancing $cid (pct=$pct%, delta=$delta_sat sat)"
-				if "$SELF_LIBEXEC/lightning/rebalance" "$delta_sat" --max-fee "$would_spend" >/dev/null 2>&1; then
+				if "$SELF_LIBEXEC/lightning/_rebalance" "$delta_sat" --max-fee "$would_spend" >/dev/null 2>&1; then
 					budget_used=$(( budget_used + would_spend ))
 					actions_log="${actions_log}rebalanced: $cid pct=$pct% spent=$would_spend\n"
 				else
@@ -1481,11 +1481,20 @@ case "$SUB" in
 	help) subhelp "${1:-}" || usage; exit ;;
 esac
 
+# Dispatch to sub-scripts before require_cli since they manage their own checks.
+case "$SUB" in
+	fee)              exec "$(dirname "$0")/_fee" "$@" ;;
+	fee-policy)       exec "$(dirname "$0")/_fee-policy" "$@" ;;
+	rebalance)        exec "$(dirname "$0")/_rebalance" "$@" ;;
+	forward)          exec "$(dirname "$0")/_forward" "$@" ;;
+	alert)            exec "$(dirname "$0")/_alert" "$@" ;;
+esac
+
 require_cli
 
 case "$SUB" in
 	# --- original verbs ---
-	list)        cmd_list "$@" ;;
+	list)        exec "$(dirname "$0")/_channels" "$@" ;;
 	open)        cmd_open "$@" ;;
 	close)       cmd_close "$@" ;;
 	force-close) cmd_force_close "$@" ;;
@@ -1541,5 +1550,11 @@ case "$SUB" in
 	set-public)       cmd_set_public "$@" ;;
 	stuck)            cmd_stuck "$@" ;;
 	top-earners)      cmd_top_earners "$@" ;;
+	# delegating: absorbed flat verbs
+	fee)              shift; exec "$(dirname "$0")/_fee" "$@" ;;
+	fee-policy)       shift; exec "$(dirname "$0")/_fee-policy" "$@" ;;
+	rebalance)        shift; exec "$(dirname "$0")/_rebalance" "$@" ;;
+	forward)          shift; exec "$(dirname "$0")/_forward" "$@" ;;
+	alert)            shift; exec "$(dirname "$0")/_alert" "$@" ;;
 	*) usage; exit 1 ;;
 esac

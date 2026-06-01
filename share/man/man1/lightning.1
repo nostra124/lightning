@@ -91,36 +91,31 @@ Per-channel local / remote msat.
 .B channel pending
 Opening / closing channels.
 
-.SS Payments (BOLT-11, BOLT-12, LNURL)
-.TP
-.B invoice \fI<sat>\fR \fI<label>\fR \fR[\fB--description\fR \fI<text>\fR] [\fB--expiry\fR \fI<sec>\fR] [\fB--qr\fR]
-Mint a BOLT-11 invoice.
+.SS Send payments (BOLT-11, BOLT-12, keysend)
 .TP
 .B pay \fI<bolt11>\fR \fR[\fB--max-fee-sat\fR \fIN\fR] [\fB--timeout\fR \fIS\fR]
 Pay a BOLT-11 invoice.
 .TP
-.B send \fI<node-id>\fR \fI<sat>\fR \fR[\fB--message\fR \fI<text>\fR]
-Keysend payment.
+.B pay offer \fI<bolt12-offer>\fR \fR[\fI<sat>\fR] [\fB--message\fR \fI<text>\fR]
+Fetch invoice via BOLT-12 offer + pay.
 .TP
-.B decode \fI<string>\fR
+.B pay keysend \fI<node-id>\fR \fI<sat>\fR \fR[\fB--message\fR \fI<text>\fR]
+Keysend payment.
+
+.SS Request / receive payments (req)
+.TP
+.B req invoice \fI<sat>\fR \fI<label>\fR \fR[\fB--description\fR \fI<text>\fR] [\fB--expiry\fR \fI<sec>\fR] [\fB--qr\fR]
+Mint a BOLT-11 invoice.
+.TP
+.B req offer \fI<sat>\fR|\fIany\fR \fI<description>\fR \fR[\fB--qr\fR]
+Create a BOLT-12 reusable offer.
+.TP
+.B req decode \fI<string>\fR
 Detect + decode any of: BOLT-11, BOLT-12 offer, BOLT-12 invoice,
 LNURL, Lightning Address. Strips a leading \fIlightning:\fR BIP-21
 prefix.
 .TP
-.B offer \fI<sat>\fR|\fIany\fR \fI<description>\fR \fR[\fB--qr\fR]
-Create a BOLT-12 offer.
-.TP
-.B offer-pay \fI<bolt12-offer>\fR \fR[\fI<sat>\fR] [\fB--message\fR \fI<text>\fR]
-Fetch invoice + pay.
-.TP
-.B lnurl decode \fI<lnurl>\fR
-.TP
-.B lnurl pay \fI<lnurl-or-address>\fR \fI<sat>\fR \fR[\fB--comment\fR \fI<text>\fR]
-LUD-06 + LUD-12 round-trip.
-
-.SS QR codes
-.TP
-.B qr \fI<text>\fR \fR[\fB--png\fR \fIFILE\fR | \fB--svg\fR \fIFILE\fR | \fB--ansi\fR]
+.B req qr \fI<text>\fR \fR[\fB--png\fR \fIFILE\fR | \fB--svg\fR \fIFILE\fR | \fB--ansi\fR]
 Render a QR. ANSI to stdout by default.
 
 .SS Wallet + accounts

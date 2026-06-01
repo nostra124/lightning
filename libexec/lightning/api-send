@@ -53,12 +53,12 @@ fi
 
 # Pay via the LNURL pay flow (FEAT-176 / FEAT-173).
 if [ -n "$message" ]; then
-	result=$("$(dirname "$0")/lnurl" pay "$to" "$sat" --comment "$message" 2>&1) || {
+	result=$("$(dirname "$0")/_lnurl" pay "$to" "$sat" --comment "$message" 2>&1) || {
 		printf '{"error":"pay_failed","detail":%s}\n' "$(printf '%s' "$result" | jq -Rs .)"
 		exit 5
 	}
 else
-	result=$("$(dirname "$0")/lnurl" pay "$to" "$sat" 2>&1) || {
+	result=$("$(dirname "$0")/_lnurl" pay "$to" "$sat" 2>&1) || {
 		printf '{"error":"pay_failed","detail":%s}\n' "$(printf '%s' "$result" | jq -Rs .)"
 		exit 5
 	}
