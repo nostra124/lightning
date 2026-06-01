@@ -43,13 +43,13 @@ EOF
 cmd_resolve() {
 	[ $# -lt 1 ] && { echo "usage: lightning address resolve <addr>" >&2; exit 1; }
 	# Reuse `lnurl decode` for the work.
-	exec "$(dirname "$0")/lnurl" decode "$1"
+	exec "$(dirname "$0")/_lnurl" decode "$1"
 }
 
 cmd_pay() {
 	[ $# -lt 2 ] && { echo "usage: lightning address pay <addr> <sat> [--comment <text>]" >&2; exit 1; }
 	# Reuse `lnurl pay`.
-	exec "$(dirname "$0")/lnurl" pay "$@"
+	exec "$(dirname "$0")/_lnurl" pay "$@"
 }
 
 cmd_create() {
@@ -150,6 +150,7 @@ case "${1:-}" in
 	list)           shift; cmd_list "$@" ;;
 	remove)         shift; cmd_remove "$@" ;;
 	apache-snippet) shift; cmd_apache_snippet "$@" ;;
+	lnurl)          shift; exec "$(dirname "$0")/_lnurl" "$@" ;;
 	"")             usage; exit 1 ;;
 	*)              echo "lightning address: unknown subcommand '$1'" >&2; usage; exit 1 ;;
 esac

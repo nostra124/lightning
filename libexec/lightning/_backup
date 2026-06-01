@@ -16,7 +16,7 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 		--seed) include_seed=1; shift ;;
 		--remote) remote="$2"; shift 2 ;;
-		verify) shift; exec "$(dirname "$0")/scb" emit --out /dev/null ;;
+		verify) shift; exec "$(dirname "$0")/_scb" emit --out /dev/null ;;
 		*) echo "lightning backup: unknown flag '$1'" >&2; exit 1 ;;
 	esac
 done
@@ -27,7 +27,7 @@ name="default"; [ -f "$ACTIVE_LINK" ] && name=$(cat "$ACTIVE_LINK")
 dir="$WALLETS_ROOT/$name"
 
 # 1. Emit SCB into the active wallet repo.
-"$(dirname "$0")/scb" emit
+"$(dirname "$0")/_scb" emit
 
 # 2. Optional: also dump the seed (mnemonic) into the wallet repo.
 if [ "$include_seed" = "1" ]; then

@@ -52,18 +52,22 @@ Options:
 | `info`   | `<channel-id>`                             | JSON            |
 | `pending`| —                                          | TSV             |
 
-### Payments / invoices / decode
+### Send payments (`pay`)
 
-| Verb       | Args                                                 | Output                |
-|------------|------------------------------------------------------|-----------------------|
-| `invoice`  | `<sat> <label> [--description T] [--expiry S] [--qr]`| BOLT-11 (+ QR)        |
-| `pay`      | `<bolt11> [--max-fee-sat N] [--timeout S]`           | `ok` + hash + fee     |
-| `send`     | `<node-id> <sat> [--message T]`                      | keysend; hash         |
-| `decode`   | `<string>`                                           | `type:` + decoded JSON|
-| `offer`    | `<sat>\|any <desc> [--qr]`                           | BOLT-12               |
-| `offer-pay`| `<bolt12> [<sat>] [--message T]`                     | hash                  |
-| `lnurl`    | `decode <url>` / `pay <addr> <sat> [--comment T]`    | metadata or hash      |
-| `qr`       | `<text> [--png F\|--svg F\|--ansi]`                  | QR (terminal or file) |
+| Verb             | Args                                                 | Output                |
+|------------------|------------------------------------------------------|-----------------------|
+| `pay`            | `<bolt11> [--max-fee-sat N] [--timeout S]`           | `ok` + hash + fee     |
+| `pay offer`      | `<bolt12> [<sat>] [--message T]`                     | hash                  |
+| `pay keysend`    | `<node-id> <sat> [--message T]`                      | keysend; hash         |
+
+### Request / receive payments (`req`)
+
+| Verb             | Args                                                 | Output                |
+|------------------|------------------------------------------------------|-----------------------|
+| `req invoice`    | `<sat> <label> [--description T] [--expiry S] [--qr]`| BOLT-11 (+ QR)       |
+| `req offer`      | `<sat>\|any <desc> [--qr]`                           | BOLT-12               |
+| `req decode`     | `<string>`                                           | `type:` + decoded JSON|
+| `req qr`         | `<text> [--png F\|--svg F\|--ansi]`                  | QR (terminal or file) |
 
 ### Wallet + accounts + ledger
 
@@ -111,13 +115,19 @@ Options:
 | `address resolve`    | `<addr>`                                                     |
 | `address list / remove / apache-snippet` | various                                  |
 
+### Price oracle
+
+| Verb       | Args                                                                |
+|------------|---------------------------------------------------------------------|
+| `price`    | `[<currency>] [--sat N]` — fiat/sat exchange rate                   |
+
 ### Daemon control + unlock + tor
 
 | Verb       | Args                                                                |
 |------------|---------------------------------------------------------------------|
 | `daemon`   | `start / stop / restart / status / logs / install [--system] [--migrate]` |
-| `unlock`   | `[--stored \| rotate \| forget] [--wallet N]`                       |
-| `tor`      | `on / off / status`                                                 |
+| `node unlock` | `[--stored \| rotate \| forget] [--wallet N]`                    |
+| `node tor` | `on / off / status`                                                 |
 
 ### Sudo-bridge (internal — used by the FEAT-196 CGI)
 

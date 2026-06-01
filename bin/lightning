@@ -142,46 +142,17 @@ Options:
   -f                Force mode (bypass safety checks)
 
 Commands:
-  account           Manage virtual accounts
-  address           Manage Lightning Addresses (LUD-16)
-  alert             Configure threshold webhooks
-  backup            Backup wallet (SCB + git push)
-  balance           Show on-chain + Lightning balance
-  channel           Manage channels (open, close, balance)
-  channels          List channels (TSV)
-  compliance        Export compliance data
-  daemon            Start/stop lightningd
-  decode            Decode Lightning strings
-  export            Export tax-relevant data
-  fee               Get/set channel fees
-  fee-policy        Manage operator fee rates
-  forward           Inspect forwarded HTLCs
+  node              Node identity, plugins, Tor, watchtower
+  daemon            Start/stop/install lightningd
+  wallet            Balance, keys, backup, history, compliance
+  channel           Open/close, fees, rebalance, liquidity, forwarding
+  peer              Connect, list, score peers
+  pay               Send payments (BOLT-11, BOLT-12, keysend)
+  req               Request payments (invoice, offer, decode, QR)
+  account           Virtual accounts
+  address           Lightning Address + LNURL
+  price             Sat/fiat price oracle
   help              Show this help
-  history           Show transaction history
-  info              Show node info
-  invoice           Create BOLT-11 invoices
-  ledger            View the transaction ledger
-  liquidity         Manage channel liquidity
-  lnurl             Handle LNURL flows
-  node-id           Show node public key
-  offer             Create BOLT-12 offers
-  offer-pay         Pay a BOLT-12 offer
-  pay               Pay a BOLT-11 invoice
-  peer              Manage peers
-  peers             List peers (TSV)
-  plugin            Manage clightning plugins
-  price             Query sat/fiat price oracle
-  qr                Generate QR codes
-  rebalance         Rebalance channels
-  restore           Restore wallet from backup
-  scb               Manage static channel backups
-  seed              Export/import hsm_secret
-  send              Send keysend payments
-  tor               Configure Tor
-  tower             Manage watchtowers
-  unlock            Unlock the HSM
-  wallet            Manage wallet store
-  wallet-user       Manage user identities
 
 Environment:
   LIGHTNING_DIR       Lightning data directory (default: \$HOME/.lightning)

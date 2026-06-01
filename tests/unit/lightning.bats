@@ -150,28 +150,20 @@ EOF
 	[[ "$output" == *"account"* ]]
 	[[ "$output" == *"channel"* ]]
 	[[ "$output" == *"daemon"* ]]
-	[[ "$output" == *"invoice"* ]]
-	[[ "$output" == *"offer"* ]]
+	[[ "$output" == *"node"* ]]
+	[[ "$output" == *"pay"* ]]
+	[[ "$output" == *"req"* ]]
 	[[ "$output" == *"address"* ]]
-	[[ "$output" == *"lnurl"* ]]
-	[[ "$output" == *"liquidity"* ]]
-	[[ "$output" == *"ledger"* ]]
 }
 
 @test "help lists the one-shot verbs" {
 	run "$LIGHTNING_BIN" help
-	[[ "$output" == *"send"* ]]
-	[[ "$output" == *"decode"* ]]
-	[[ "$output" == *"qr"* ]]
 	[[ "$output" == *"wallet"* ]]
 	[[ "$output" == *"account"* ]]
-	[[ "$output" == *"ledger"* ]]
-	[[ "$output" == *"seed"* ]]
-	[[ "$output" == *"scb"* ]]
-	[[ "$output" == *"backup"* ]]
 	[[ "$output" == *"address"* ]]
-	[[ "$output" == *"liquidity"* ]]
-	[[ "$output" == *"tor"* ]]
+	[[ "$output" == *"node"* ]]
+	[[ "$output" == *"channel"* ]]
+	[[ "$output" == *"peer"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -742,19 +734,19 @@ EOF
 }
 
 @test "FEAT-173: lightning offer create makes a BOLT-12 offer" {
-	run "$LIGHTNING_BIN" offer create 500 donations
+	run "$LIGHTNING_BIN" req offer create 500 donations
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == lno* ]]
 }
 
 @test "FEAT-173: lightning offer pay fetches and pays" {
-	run "$LIGHTNING_BIN" offer pay lno1pgmocktest
+	run "$LIGHTNING_BIN" req offer pay lno1pgmocktest
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"ok"* ]]
 }
 
 @test "FEAT-173: lightning offer (no args) prints usage" {
-	run "$LIGHTNING_BIN" offer
+	run "$LIGHTNING_BIN" req offer
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"subcommands"* ]]
 }
@@ -766,13 +758,13 @@ EOF
 }
 
 @test "FEAT-173: lightning send (keysend) succeeds" {
-	run "$LIGHTNING_BIN" send 020000000000000000000000000000000000000000000000000000000000000002 100
+	run "$LIGHTNING_BIN" pay keysend 020000000000000000000000000000000000000000000000000000000000000002 100
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"ok"* ]]
 }
 
 @test "FEAT-173: lightning lnurl (no args) prints usage" {
-	run "$LIGHTNING_BIN" lnurl
+	run "$LIGHTNING_BIN" address lnurl
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"usage"* ]]
 }
@@ -937,11 +929,11 @@ EOF
 	"$LIGHTNING_BIN" account create rent >/dev/null
 
 	# Receive 1000 sat (1_000_000 msat) into rent.
-	"$LIGHTNING_BIN" ledger add in 1000000 --account rent --peer bob@example.com --message "march" --note "march budget"
+	"$LIGHTNING_BIN" wallet ledger add in 1000000 --account rent --peer bob@example.com --message "march" --note "march budget"
 	# Pay 250 sat (-250_000 msat) from rent.
-	"$LIGHTNING_BIN" ledger add out -250000 --account rent --peer carol@example.com --message "coffee"
+	"$LIGHTNING_BIN" wallet ledger add out -250000 --account rent --peer carol@example.com --message "coffee"
 
-	run "$LIGHTNING_BIN" ledger list --account rent
+	run "$LIGHTNING_BIN" wallet ledger list --account rent
 	[ "$status" -eq 0 ]
 	# Header row + 2 data rows.
 	[ "${#lines[@]}" -ge 3 ]
@@ -949,12 +941,12 @@ EOF
 	[[ "$output" == *"coffee"* ]]
 	[[ "$output" == *"march budget"* ]]
 
-	run "$LIGHTNING_BIN" ledger balance rent
+	run "$LIGHTNING_BIN" wallet ledger balance rent
 	[ "$status" -eq 0 ]
 	# 1_000_000 - 250_000 = 750_000 msat.
 	[ "$output" = "750000" ]
 
-	run "$LIGHTNING_BIN" ledger sum --by account
+	run "$LIGHTNING_BIN" wallet ledger sum --by account
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"rent"* ]]
 	[[ "$output" == *"750000"* ]]
@@ -965,13 +957,13 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000000 --account rent --payment-hash deadbeef --message "test"
+	"$LIGHTNING_BIN" wallet ledger add in 1000000 --account rent --payment-hash deadbeef --message "test"
 
-	run "$LIGHTNING_BIN" ledger annotate deadbeef "april budget"
+	run "$LIGHTNING_BIN" wallet ledger annotate deadbeef "april budget"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"1 row"* ]]
 
-	run "$LIGHTNING_BIN" ledger list --account rent
+	run "$LIGHTNING_BIN" wallet ledger list --account rent
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"april budget"* ]]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
@@ -981,8 +973,8 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000000 --account rent --message "test"
-	run "$LIGHTNING_BIN" ledger export csv
+	"$LIGHTNING_BIN" wallet ledger add in 1000000 --account rent --message "test"
+	run "$LIGHTNING_BIN" wallet ledger export csv
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == *"ts,account,direction"* ]]
 	[[ "$output" == *"rent"* ]]
@@ -993,8 +985,8 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000 --account rent --message "ping"
-	run "$LIGHTNING_BIN" history
+	"$LIGHTNING_BIN" wallet ledger add in 1000 --account rent --message "ping"
+	run "$LIGHTNING_BIN" wallet history
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"ping"* ]]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
@@ -1010,19 +1002,19 @@ EOF
 	# A completed pay our verbs never booked: out 50000 + fee 500 msat.
 	export MOCK_LISTPAYS='[{"payment_hash":"aaa111","status":"complete","amount_msat":50000,"amount_sent_msat":50500}]'
 
-	run "$LIGHTNING_BIN" ledger reconcile run
+	run "$LIGHTNING_BIN" wallet ledger reconcile run
 	[ "$status" -eq 0 ]
 
 	# others = -(out 50000) + -(fee 500) = -50500 msat.
-	run "$LIGHTNING_BIN" ledger balance others
+	run "$LIGHTNING_BIN" wallet ledger balance others
 	[ "$status" -eq 0 ]
 	[ "$output" = "-50500" ]
 
 	# Second pass is a no-op (deduped by payment_hash).
-	run "$LIGHTNING_BIN" ledger reconcile run
+	run "$LIGHTNING_BIN" wallet ledger reconcile run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"already-booked 1"* ]]
-	run "$LIGHTNING_BIN" ledger balance others
+	run "$LIGHTNING_BIN" wallet ledger balance others
 	[ "$output" = "-50500" ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -1036,13 +1028,13 @@ EOF
 	sqlite3 "$db" "INSERT INTO invoices(bolt11, payment_hash, account, amount_msat, expiry, message, state) VALUES('lnbcrttest','bbb222','rent',30000,'2030-01-01T00:00:00Z','rent','pending');"
 	export MOCK_LISTINVOICES='[{"payment_hash":"bbb222","status":"paid","amount_received_msat":30000}]'
 
-	run "$LIGHTNING_BIN" ledger reconcile run
+	run "$LIGHTNING_BIN" wallet ledger reconcile run
 	[ "$status" -eq 0 ]
 
 	# Credited to rent, not others.
-	run "$LIGHTNING_BIN" ledger balance rent
+	run "$LIGHTNING_BIN" wallet ledger balance rent
 	[ "$output" = "30000" ]
-	run "$LIGHTNING_BIN" ledger balance others
+	run "$LIGHTNING_BIN" wallet ledger balance others
 	[ "$output" = "0" ]
 	# Invoice marked settled.
 	state=$(sqlite3 "$db" "SELECT state FROM invoices WHERE payment_hash='bbb222';")
@@ -1055,9 +1047,9 @@ EOF
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	export MOCK_LISTINVOICES='[{"payment_hash":"ccc333","status":"paid","amount_received_msat":20000}]'
 
-	run "$LIGHTNING_BIN" ledger reconcile run
+	run "$LIGHTNING_BIN" wallet ledger reconcile run
 	[ "$status" -eq 0 ]
-	run "$LIGHTNING_BIN" ledger balance others
+	run "$LIGHTNING_BIN" wallet ledger balance others
 	[ "$output" = "20000" ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -1067,16 +1059,16 @@ EOF
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent >/dev/null
 	# Our verb already booked this payment_hash.
-	"$LIGHTNING_BIN" ledger add out -12345 --account rent --payment-hash ddd444 >/dev/null
+	"$LIGHTNING_BIN" wallet ledger add out -12345 --account rent --payment-hash ddd444 >/dev/null
 	export MOCK_LISTPAYS='[{"payment_hash":"ddd444","status":"complete","amount_msat":12000,"amount_sent_msat":12345}]'
 
-	run "$LIGHTNING_BIN" ledger reconcile run
+	run "$LIGHTNING_BIN" wallet ledger reconcile run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"already-booked 1"* ]]
 	# others untouched; rent unchanged.
-	run "$LIGHTNING_BIN" ledger balance others
+	run "$LIGHTNING_BIN" wallet ledger balance others
 	[ "$output" = "0" ]
-	run "$LIGHTNING_BIN" ledger balance rent
+	run "$LIGHTNING_BIN" wallet ledger balance rent
 	[ "$output" = "-12345" ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -1086,11 +1078,11 @@ EOF
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	export MOCK_LISTPAYS='[{"payment_hash":"eee555","status":"complete","amount_msat":9000,"amount_sent_msat":9000}]'
 
-	run "$LIGHTNING_BIN" ledger reconcile dry-run
+	run "$LIGHTNING_BIN" wallet ledger reconcile dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"would-book"* ]]
 	# Nothing committed.
-	run "$LIGHTNING_BIN" ledger balance others
+	run "$LIGHTNING_BIN" wallet ledger balance others
 	[ "$output" = "0" ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -1099,9 +1091,9 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	export MOCK_LISTPAYS='[{"payment_hash":"fff666","status":"complete","amount_msat":7000,"amount_sent_msat":7000}]'
-	"$LIGHTNING_BIN" ledger reconcile run >/dev/null 2>&1
+	"$LIGHTNING_BIN" wallet ledger reconcile run >/dev/null 2>&1
 
-	run "$LIGHTNING_BIN" ledger reconcile status
+	run "$LIGHTNING_BIN" wallet ledger reconcile status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"reconciled_pays:"* ]]
 	[[ "$output" == *"others_balance_sat:"* ]]
@@ -1116,18 +1108,18 @@ EOF
 	# to the same $HOME/.lightning/wallet/default DB.
 	"$LIGHTNING_BIN" wallet new default >/dev/null
 	"$LIGHTNING_BIN" account create spend >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000000 --account spend >/dev/null
+	"$LIGHTNING_BIN" wallet ledger add in 1000000 --account spend >/dev/null
 
 	# mock pay: amount_msat 1000 + amount_sent_msat 1001 => out -1000, fee -1.
 	run "$LIGHTNING_BIN" invoice pay lnbcrt10n1pmocktest --account spend
 	[ "$status" -eq 0 ]
-	run "$LIGHTNING_BIN" ledger balance spend
+	run "$LIGHTNING_BIN" wallet ledger balance spend
 	[ "$output" = "998999" ]
 
 	# keysend 100 sat => out -100000 msat.
-	run "$LIGHTNING_BIN" send 020000000000000000000000000000000000000000000000000000000000000002 100 --account spend
+	run "$LIGHTNING_BIN" pay keysend 020000000000000000000000000000000000000000000000000000000000000002 100 --account spend
 	[ "$status" -eq 0 ]
-	run "$LIGHTNING_BIN" ledger balance spend
+	run "$LIGHTNING_BIN" wallet ledger balance spend
 	[ "$output" = "898999" ]
 	rm -rf "$HOME/.lightning"
 }
@@ -1141,16 +1133,16 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create spend >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000000 --account spend >/dev/null
+	"$LIGHTNING_BIN" wallet ledger add in 1000000 --account spend >/dev/null
 
 	run "$LIGHTNING_BIN" invoice pay lnbcrt10n1pmocktest --account spend
 	[ "$status" -eq 0 ]
-	run "$LIGHTNING_BIN" ledger balance spend
+	run "$LIGHTNING_BIN" wallet ledger balance spend
 	[ "$output" = "998999" ]   # 1000000 - 1000 - 1, booked in alice's DB
 
-	run "$LIGHTNING_BIN" send 020000000000000000000000000000000000000000000000000000000000000002 100 --account spend
+	run "$LIGHTNING_BIN" pay keysend 020000000000000000000000000000000000000000000000000000000000000002 100 --account spend
 	[ "$status" -eq 0 ]
-	run "$LIGHTNING_BIN" ledger balance spend
+	run "$LIGHTNING_BIN" wallet ledger balance spend
 	[ "$output" = "898999" ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -1160,7 +1152,7 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "FEAT-185: lightning scb (no args) prints usage" {
-	run "$LIGHTNING_BIN" scb
+	run "$LIGHTNING_BIN" wallet scb
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"usage"* ]]
 }
@@ -1168,7 +1160,7 @@ EOF
 @test "FEAT-185: lightning scb emit writes a non-empty file" {
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
-	run "$LIGHTNING_BIN" scb emit
+	run "$LIGHTNING_BIN" wallet scb emit
 	[ "$status" -eq 0 ]
 	# Find the file emit wrote.
 	scb=$(ls "$LIGHTNING_WALLETS_ROOT/alice/scb/"scb-*.hex)
@@ -1208,7 +1200,7 @@ EOF
 }
 
 @test "FEAT-185: lightning seed (no args) prints usage" {
-	run "$LIGHTNING_BIN" seed
+	run "$LIGHTNING_BIN" wallet seed
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"export"* ]]
 }
@@ -1223,7 +1215,7 @@ EOF
 	bare="$BATS_TMPDIR/bare.$$"
 	git init --bare --quiet "$bare"
 	(cd "$LIGHTNING_WALLETS_ROOT/alice" && git remote add origin "$bare")
-	run "$LIGHTNING_BIN" backup --remote origin
+	run "$LIGHTNING_BIN" wallet backup --remote origin
 	[ "$status" -eq 0 ]
 	# Bare repo should now have the SCB file.
 	clone="$BATS_TMPDIR/clone.$$"
@@ -1277,7 +1269,7 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent --limit 50000 --overdraft deny >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000000 --account rent
+	"$LIGHTNING_BIN" wallet ledger add in 1000000 --account rent
 
 	run "$LIGHTNING_BIN" account list --balances
 	[ "$status" -eq 0 ]
@@ -1291,12 +1283,12 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000000 --account rent --message "march"
-	"$LIGHTNING_BIN" ledger add out -250000 --account rent --message "coffee"
+	"$LIGHTNING_BIN" wallet ledger add in 1000000 --account rent --message "march"
+	"$LIGHTNING_BIN" wallet ledger add out -250000 --account rent --message "coffee"
 	year=$(date -u +%Y)
 	month=$(date -u +%Y-%m)
 
-	run "$LIGHTNING_BIN" ledger statement --account rent --period "$month"
+	run "$LIGHTNING_BIN" wallet ledger statement --account rent --period "$month"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Statement for rent"* ]]
 	[[ "$output" == *"Closing balance"* ]]
@@ -1570,7 +1562,7 @@ EOF
 	"$LIGHTNING_BIN" account create alice --limit 50000 --overdraft deny >/dev/null
 	ln -sf /bin/true "$BIN_SHIM/apache2"
 	"$LIGHTNING_BIN" address create alice@example.com --account alice >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1234000 --account alice
+	"$LIGHTNING_BIN" wallet ledger add in 1234000 --account alice
 
 	run "$LIGHTNING_BIN" api-balance alice
 	[ "$status" -eq 0 ]
@@ -1612,7 +1604,7 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "FEAT-189: lightning tor (no args) prints usage" {
-	run "$LIGHTNING_BIN" tor
+	run "$LIGHTNING_BIN" node tor
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"usage"* ]]
 }
@@ -1624,7 +1616,7 @@ EOF
 	# Avoid the restart hop reaching the real daemon.
 	ln -sf /bin/true "$BIN_SHIM/lightningd"
 
-	run "$LIGHTNING_BIN" tor on
+	run "$LIGHTNING_BIN" node tor on
 	# May fail to find an onion in the mock; the config edit is what matters.
 	grep -q '^proxy=127.0.0.1:9050' "$LIGHTNING_DIR/bitcoin/config"
 	grep -q '^addr=statictor:127.0.0.1:9051' "$LIGHTNING_DIR/bitcoin/config"
@@ -1641,7 +1633,7 @@ proxy=127.0.0.1:9050
 addr=statictor:127.0.0.1:9051
 always-use-proxy=true
 EOF
-	run "$LIGHTNING_BIN" tor off
+	run "$LIGHTNING_BIN" node tor off
 	[ "$status" -eq 0 ]
 	! grep -q '^proxy=' "$LIGHTNING_DIR/bitcoin/config"
 	! grep -q '^addr=statictor:' "$LIGHTNING_DIR/bitcoin/config"
@@ -1698,7 +1690,7 @@ EOF
 	grep -q "^.SH SUBCOMMANDS" "$f"
 	grep -q "^.SH STANDARDS" "$f"
 	grep -q "^.SH EXIT STATUS" "$f"
-	for verb in invoice pay channel wallet account ledger backup liquidity address tor daemon; do
+	for verb in pay req channel wallet account node address daemon; do
 		grep -qw "$verb" "$f"
 	done
 }
@@ -1718,9 +1710,8 @@ EOF
 @test "FEAT-177: docs/lightning.md covers every 0.6.0 verb" {
 	f="$BATS_TEST_DIRNAME/../../docs/lightning.md"
 	[ -f "$f" ]
-	for verb in info node-id peers channels balance channel invoice pay send decode \
-	            offer offer-pay lnurl qr wallet account ledger history seed scb \
-	            backup restore liquidity address daemon unlock tor; do
+	for verb in node wallet channel peer pay req account address daemon \
+	            liquidity price; do
 		grep -qw "$verb" "$f"
 	done
 }
@@ -1870,75 +1861,75 @@ EOF
 # ---------------------------------------------------------------------------
 
 @test "FEAT-186: lightning tower (no args) prints usage" {
-	run "$LIGHTNING_BIN" tower
+	run "$LIGHTNING_BIN" node tower
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"usage"* ]]
 }
 
 @test "FEAT-186: tower client-add exits 3 when plugin not loaded" {
-	run "$LIGHTNING_BIN" tower client-add 020000000000000000000000000000000000000000000000000000000000000002@127.0.0.1:9814
+	run "$LIGHTNING_BIN" node tower client-add 020000000000000000000000000000000000000000000000000000000000000002@127.0.0.1:9814
 	[ "$status" -eq 3 ]
 	[[ "$output" == *"altruistwatchtower"* ]]
 }
 
 @test "FEAT-186: tower client-add succeeds with plugin loaded" {
 	export MOCK_HELP_INCLUDES='"addtower","listtowers"'
-	run "$LIGHTNING_BIN" tower client-add 020000000000000000000000000000000000000000000000000000000000000002@127.0.0.1:9814
+	run "$LIGHTNING_BIN" node tower client-add 020000000000000000000000000000000000000000000000000000000000000002@127.0.0.1:9814
 	[ "$status" -eq 0 ]
 }
 
 @test "FEAT-186: tower client-list returns TSV header" {
 	export MOCK_HELP_INCLUDES='"addtower","listtowers"'
-	run "$LIGHTNING_BIN" tower client-list
+	run "$LIGHTNING_BIN" node tower client-list
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "pubkey	host	port	sessions" ]]
 }
 
 @test "FEAT-188: lightning fee (no args) prints usage" {
-	run "$LIGHTNING_BIN" fee
+	run "$LIGHTNING_BIN" channel fee
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"usage"* ]]
 }
 
 @test "FEAT-188: fee get returns the TSV header" {
-	run "$LIGHTNING_BIN" fee get
+	run "$LIGHTNING_BIN" channel fee get
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "channel_id	base_msat	ppm" ]]
 }
 
 @test "FEAT-188: fee set with non-numeric base rejects" {
-	run "$LIGHTNING_BIN" fee set chan-1 not-a-number 100
+	run "$LIGHTNING_BIN" channel fee set chan-1 not-a-number 100
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"integer required"* ]]
 }
 
 @test "FEAT-188: fee set with valid args round-trips" {
-	run "$LIGHTNING_BIN" fee set 0000000000000000000000000000000000000000000000000000000000000001 1000 5
+	run "$LIGHTNING_BIN" channel fee set 0000000000000000000000000000000000000000000000000000000000000001 1000 5
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"fee_base_msat"* ]]
 	[[ "$output" == *"1000"* ]]
 }
 
 @test "FEAT-188: fee policy rejects unknown name" {
-	run "$LIGHTNING_BIN" fee policy bogus
+	run "$LIGHTNING_BIN" channel fee policy bogus
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"unknown"* ]]
 }
 
 @test "FEAT-188: forward (no args) prints usage" {
-	run "$LIGHTNING_BIN" forward
+	run "$LIGHTNING_BIN" channel forward
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"usage"* ]]
 }
 
 @test "FEAT-188: forward list returns TSV header" {
-	run "$LIGHTNING_BIN" forward list
+	run "$LIGHTNING_BIN" channel forward list
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "received_time	in_channel	out_channel	in_msat	out_msat	fee_msat	status" ]]
 }
 
 @test "FEAT-188: forward stats returns JSON with success_rate" {
-	run "$LIGHTNING_BIN" forward stats
+	run "$LIGHTNING_BIN" channel forward stats
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"success_rate"* ]]
 	[[ "$output" == *"forwarded_msat"* ]]
@@ -1964,7 +1955,7 @@ EOF
 }
 
 @test "1.1.1: fee policy match-peer returns NOT IMPLEMENTED + exit 2" {
-	run "$LIGHTNING_BIN" fee policy match-peer
+	run "$LIGHTNING_BIN" channel fee policy match-peer
 	[ "$status" -eq 2 ]
 	[[ "$output" == *"NOT IMPLEMENTED"* ]]
 }
@@ -1974,7 +1965,7 @@ EOF
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Commands:"* ]]
 	[[ "$output" == *"help <command>"* ]]
-	[[ "$output" == *"wallet-user"* ]]
+	[[ "$output" == *"wallet"* ]]
 	[[ "$output" == *"account"* ]]
 	[[ "$output" == *"channel"* ]]
 	# No subcommand details in top-level help
@@ -2052,7 +2043,7 @@ EOF
 		[ -x "/bin/$tool" ]     && ln -sf "/bin/$tool" "$NOJQ_BIN/$tool"
 	done
 	# Pass PATH inline to the run command; don't export.
-	run -127 env -i HOME="$HOME" PATH="$NOJQ_BIN" SELF_QUIET=1 "$LIGHTNING_BIN" info
+	run -127 env -i HOME="$HOME" PATH="$NOJQ_BIN" SELF_QUIET=1 "$LIGHTNING_BIN" node info
 	[[ "$output" == *"jq not found"* ]]
 }
 
@@ -2060,14 +2051,14 @@ EOF
 
 @test "1.2.0: MOCK_FAIL_GETINFO makes info exit 2 with daemon-down hint" {
 	export MOCK_FAIL_GETINFO=1
-	run "$LIGHTNING_BIN" info
+	run "$LIGHTNING_BIN" node info
 	[ "$status" -eq 2 ]
 	[[ "$output" == *"daemon"* ]]
 }
 
 @test "1.2.0: MOCK_FAIL_LISTPEERCHANNELS makes channels exit non-zero" {
 	export MOCK_FAIL_LISTPEERCHANNELS=1
-	run "$LIGHTNING_BIN" channels
+	run "$LIGHTNING_BIN" channel list
 	[ "$status" -ne 0 ]
 }
 
@@ -2101,13 +2092,13 @@ EOF
 
 @test "1.2.0: MOCK_FAIL_OFFER surfaces BOLT-12 offer failure" {
 	export MOCK_FAIL_OFFER=1
-	run "$LIGHTNING_BIN" offer 500 donations
+	run "$LIGHTNING_BIN" req offer 500 donations
 	[ "$status" -ne 0 ]
 }
 
 @test "1.2.0: MOCK_FAIL_NEWADDR surfaces balance --on-chain failure" {
 	export MOCK_FAIL_NEWADDR=1
-	run "$LIGHTNING_BIN" balance --on-chain
+	run "$LIGHTNING_BIN" wallet balance --on-chain
 	[ "$status" -ne 0 ]
 }
 
@@ -2155,7 +2146,7 @@ EOF
 @test "1.2.0: ledger add rejects non-numeric amount" {
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
-	run "$LIGHTNING_BIN" ledger add in not-a-number
+	run "$LIGHTNING_BIN" wallet ledger add in not-a-number
 	[ "$status" -eq 1 ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -2163,7 +2154,7 @@ EOF
 @test "1.2.0: ledger add rejects unknown direction" {
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
-	run "$LIGHTNING_BIN" ledger add sideways 1000
+	run "$LIGHTNING_BIN" wallet ledger add sideways 1000
 	[ "$status" -eq 1 ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -2171,7 +2162,7 @@ EOF
 @test "1.2.0: ledger statement without --account fails" {
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
-	run "$LIGHTNING_BIN" ledger statement --period 2026-01
+	run "$LIGHTNING_BIN" wallet ledger statement --period 2026-01
 	[ "$status" -eq 1 ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -2180,7 +2171,7 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent >/dev/null
-	run "$LIGHTNING_BIN" ledger statement --account rent --period notadate
+	run "$LIGHTNING_BIN" wallet ledger statement --account rent --period notadate
 	[ "$status" -eq 1 ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -2374,7 +2365,7 @@ EOF
 exit 0
 EOF
 	chmod +x "$BIN_SHIM/secret"
-	run "$LIGHTNING_BIN" unlock --stored
+	run "$LIGHTNING_BIN" node unlock --stored
 	[ "$status" -eq 4 ]
 }
 
@@ -2417,7 +2408,7 @@ EOF
 # --- offer ------------------------------------------------------------------
 
 @test "1.2.0 ext: offer accepts 'any' amount" {
-	run "$LIGHTNING_BIN" offer create any tip-jar
+	run "$LIGHTNING_BIN" req offer create any tip-jar
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == lno* ]]
 }
@@ -2483,9 +2474,9 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000 --account rent --message a
-	"$LIGHTNING_BIN" ledger add in 2000 --account rent --message b
-	run "$LIGHTNING_BIN" ledger sum --by day
+	"$LIGHTNING_BIN" wallet ledger add in 1000 --account rent --message a
+	"$LIGHTNING_BIN" wallet ledger add in 2000 --account rent --message b
+	run "$LIGHTNING_BIN" wallet ledger sum --by day
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "bucket"*"total_msat"*"rows" ]]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
@@ -2495,8 +2486,8 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000 --account rent --message a
-	run "$LIGHTNING_BIN" ledger sum --by year
+	"$LIGHTNING_BIN" wallet ledger add in 1000 --account rent --message a
+	run "$LIGHTNING_BIN" wallet ledger sum --by year
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "bucket"*"total_msat"*"rows" ]]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
@@ -2505,7 +2496,7 @@ EOF
 @test "1.2.0 ext: ledger sum --by with invalid bucket fails" {
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
-	run "$LIGHTNING_BIN" ledger sum --by century
+	run "$LIGHTNING_BIN" wallet ledger sum --by century
 	[ "$status" -ne 0 ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -2514,8 +2505,8 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000 --account rent --message a
-	run "$LIGHTNING_BIN" ledger export tsv
+	"$LIGHTNING_BIN" wallet ledger add in 1000 --account rent --message a
+	run "$LIGHTNING_BIN" wallet ledger export tsv
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "ts"*"account"*"direction"* ]]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
@@ -2525,8 +2516,8 @@ EOF
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create rent >/dev/null
-	"$LIGHTNING_BIN" ledger add in 1000 --account rent --message a
-	run "$LIGHTNING_BIN" ledger export jsonl
+	"$LIGHTNING_BIN" wallet ledger add in 1000 --account rent --message a
+	run "$LIGHTNING_BIN" wallet ledger export jsonl
 	[ "$status" -eq 0 ]
 	[[ "$output" == *'"ts"'* ]]
 	[[ "$output" == *'"account":"rent"'* ]]
@@ -2536,7 +2527,7 @@ EOF
 @test "1.2.0 ext: ledger export with invalid format fails" {
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
-	run "$LIGHTNING_BIN" ledger export xml
+	run "$LIGHTNING_BIN" wallet ledger export xml
 	[ "$status" -ne 0 ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
@@ -2544,7 +2535,7 @@ EOF
 @test "1.2.0 ext: ledger annotate of non-existent hash reports 0 rows" {
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
-	run "$LIGHTNING_BIN" ledger annotate cafef00d "no such hash"
+	run "$LIGHTNING_BIN" wallet ledger annotate cafef00d "no such hash"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"0 row"* ]]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
@@ -2553,7 +2544,7 @@ EOF
 @test "1.2.0 ext: ledger balance for unknown account returns 0" {
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
-	run "$LIGHTNING_BIN" ledger balance never-existed
+	run "$LIGHTNING_BIN" wallet ledger balance never-existed
 	[ "$status" -eq 0 ]
 	[ "$output" = "0" ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
@@ -2607,31 +2598,31 @@ EOF
 
 @test "1.2.0 ext: fee policy flat runs without error on an empty channel set" {
 	# listpeerchannels returns {"channels":[]} → no setchannel calls.
-	run "$LIGHTNING_BIN" fee policy flat
+	run "$LIGHTNING_BIN" channel fee policy flat
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"applied 'flat'"* ]]
 }
 
 @test "1.2.0 ext: fee policy lsp-style runs without error on empty set" {
-	run "$LIGHTNING_BIN" fee policy lsp-style
+	run "$LIGHTNING_BIN" channel fee policy lsp-style
 	[ "$status" -eq 0 ]
 }
 
 # --- forward filters -------------------------------------------------------
 
 @test "1.2.0 ext: forward list --status settled returns header" {
-	run "$LIGHTNING_BIN" forward list --status settled
+	run "$LIGHTNING_BIN" channel forward list --status settled
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "received_time"*"status" ]]
 }
 
 @test "1.2.0 ext: forward list --since accepts a date" {
-	run "$LIGHTNING_BIN" forward list --since 2026-01-01
+	run "$LIGHTNING_BIN" channel forward list --since 2026-01-01
 	[ "$status" -eq 0 ]
 }
 
 @test "1.2.0 ext: forward list with unknown flag fails" {
-	run "$LIGHTNING_BIN" forward list --bogus
+	run "$LIGHTNING_BIN" channel forward list --bogus
 	[ "$status" -ne 0 ]
 }
 
@@ -2639,7 +2630,7 @@ EOF
 
 @test "1.2.0 ext: tower client-stats returns JSON with plugin loaded" {
 	export MOCK_HELP_INCLUDES='"addtower","listtowers"'
-	run "$LIGHTNING_BIN" tower client-stats
+	run "$LIGHTNING_BIN" node tower client-stats
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"sessions"* ]]
 	[[ "$output" == *"towers"* ]]
@@ -2647,7 +2638,7 @@ EOF
 
 @test "1.2.0 ext: tower server-status without plugin loaded fails" {
 	# MOCK_HELP_INCLUDES is unset → mock returns empty help list.
-	run "$LIGHTNING_BIN" tower server-status
+	run "$LIGHTNING_BIN" node tower server-status
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"not running"* ]]
 }
@@ -2676,13 +2667,13 @@ EOF
 @test "1.2.0 ext: tor status with no lightning-cli returns non-zero" {
 	export PATH="/usr/bin:/bin"
 	hash -r
-	run "$LIGHTNING_BIN" tor status
+	run "$LIGHTNING_BIN" node tor status
 	# Reports tor not running and no lightning-cli, exits non-zero.
 	[ "$status" -ne 0 ]
 }
 
 @test "1.2.0 ext: tor with unknown subcommand prints usage" {
-	run "$LIGHTNING_BIN" tor sideways
+	run "$LIGHTNING_BIN" node tor sideways
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"usage"* ]]
 }
@@ -4116,7 +4107,7 @@ EOF2
 	export LIGHTNING_WALLETS_ROOT="$BATS_TMPDIR/wallets.$$"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	"$LIGHTNING_BIN" account create club "" >/dev/null
-	run "$LIGHTNING_BIN" offer create 1000 "test offer" --account club
+	run "$LIGHTNING_BIN" req offer create 1000 "test offer" --account club
 	[ "$status" -eq 0 ]
 	[ -d "$LIGHTNING_WALLETS_ROOT/alice/offers" ]
 	grep -q "^account: club"  "$LIGHTNING_WALLETS_ROOT/alice/offers/"*.recfile
@@ -5095,7 +5086,7 @@ _acct214_teardown() {
 
 @test "FEAT-214: fee-policy with no subcommand prints usage" {
 	_acct214_setup
-	run "$LIGHTNING_BIN" fee-policy
+	run "$LIGHTNING_BIN" channel fee-policy
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"usage: lightning fee-policy"* ]]
 	_acct214_teardown
@@ -5103,7 +5094,7 @@ _acct214_teardown() {
 
 @test "FEAT-214: fee-policy show-rates reads fees.recfile" {
 	_acct214_setup
-	run "$LIGHTNING_BIN" fee-policy show-rates
+	run "$LIGHTNING_BIN" channel fee-policy show-rates
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"pay"* ]]
 	[[ "$output" == *"5000"* ]]    # the default pay rate_ppm
@@ -5114,7 +5105,7 @@ _acct214_teardown() {
 
 @test "FEAT-214: fee-policy status reports empty state before any skim" {
 	_acct214_setup
-	run "$LIGHTNING_BIN" fee-policy status
+	run "$LIGHTNING_BIN" channel fee-policy status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"no revenue yet"* ]]
 	_acct214_teardown
@@ -5129,7 +5120,7 @@ _acct214_teardown() {
 	# And a pay skim (1-sat skim on 1-sat mock-invoice).
 	"$LIGHTNING_BIN" api-account-pay "$BATS_ADDR" "lnbcrt1n1pmocktest" >/dev/null 2>&1
 
-	run "$LIGHTNING_BIN" fee-policy status
+	run "$LIGHTNING_BIN" channel fee-policy status
 	[ "$status" -eq 0 ]
 	# Total = 200 (topup) + 1 (pay) = 201 sat
 	[[ "$output" == *"total_revenue_sat: 201"* ]]
@@ -5151,7 +5142,7 @@ _acct214_teardown() {
 		VALUES(datetime('now'), 'house', 'in', 25000, 'cafebabe', 'fee:pay from rent');"
 	# --since yesterday should see only today's 25-sat row.
 	local since; since=$(date -u -d "1 day ago" +%Y-%m-%d 2>/dev/null || date -v-1d +%Y-%m-%d)
-	run "$LIGHTNING_BIN" fee-policy status --since "$since"
+	run "$LIGHTNING_BIN" channel fee-policy status --since "$since"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"total_revenue_sat: 25"* ]]
 	_acct214_teardown
@@ -5159,7 +5150,7 @@ _acct214_teardown() {
 
 @test "FEAT-214: fee-policy status --since rejects malformed dates" {
 	_acct214_setup
-	run "$LIGHTNING_BIN" fee-policy status --since "yesterday"
+	run "$LIGHTNING_BIN" channel fee-policy status --since "yesterday"
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"YYYY-MM-DD"* ]]
 	_acct214_teardown
@@ -5220,7 +5211,7 @@ _acct215_teardown() {
 
 @test "FEAT-215: autotune without target env var errors loudly" {
 	_acct215_setup
-	run "$LIGHTNING_BIN" fee-policy autotune run
+	run "$LIGHTNING_BIN" channel fee-policy autotune run
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY"* ]]
 	_acct215_teardown
@@ -5228,7 +5219,7 @@ _acct215_teardown() {
 
 @test "FEAT-215: autotune target must be a non-negative integer" {
 	_acct215_setup
-	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY="abc" run "$LIGHTNING_BIN" fee-policy autotune run
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY="abc" run "$LIGHTNING_BIN" channel fee-policy autotune run
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"positive integer"* ]]
 	_acct215_teardown
@@ -5239,7 +5230,7 @@ _acct215_teardown() {
 	# 1M msat/day = 30M msat/30days target; observed = 0; well below
 	# the low_threshold, so direction=up.
 	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
-		run "$LIGHTNING_BIN" fee-policy autotune dry-run
+		run "$LIGHTNING_BIN" channel fee-policy autotune dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"direction=up"* ]]
 	# fees.recfile should NOT have changed (dry-run).
@@ -5253,7 +5244,7 @@ _acct215_teardown() {
 	_acct215_setup
 	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
 		LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM=500 \
-		"$LIGHTNING_BIN" fee-policy autotune run >/dev/null 2>&1
+		"$LIGHTNING_BIN" channel fee-policy autotune run >/dev/null 2>&1
 	# pay rate should be 5500 (5000 + 500 step)
 	local pay_rate
 	pay_rate=$(awk '/^operation: pay$/,/^$/' "$BATS_FEES" | awk '/^rate_ppm:/ {print $2}')
@@ -5275,7 +5266,7 @@ _acct215_teardown() {
 	# 30 days × 1000 msat = 30000 msat total / 30 = 1000 msat/day observed
 	# Target = 1000 → exact match → direction=hold (within 20% hysteresis)
 	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 \
-		run "$LIGHTNING_BIN" fee-policy autotune dry-run
+		run "$LIGHTNING_BIN" channel fee-policy autotune dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"direction=hold"* ]]
 	_acct215_teardown
@@ -5289,7 +5280,7 @@ _acct215_teardown() {
 		VALUES(datetime('now'), 'house', 'in', 200000, 'deadbeef', 'fee:pay from rent');"
 	# Target = 1000 msat/day; 1.2×target = 1200; observed 6666 >> 1200 → down
 	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 \
-		run "$LIGHTNING_BIN" fee-policy autotune dry-run
+		run "$LIGHTNING_BIN" channel fee-policy autotune dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"direction=down"* ]]
 	_acct215_teardown
@@ -5302,11 +5293,11 @@ _acct215_teardown() {
 	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
 		LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM=500 \
 		LIGHTNING_FEE_AUTOTUNE_CEILING_PPM=5500 \
-		"$LIGHTNING_BIN" fee-policy autotune run >/dev/null 2>&1
+		"$LIGHTNING_BIN" channel fee-policy autotune run >/dev/null 2>&1
 	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
 		LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM=500 \
 		LIGHTNING_FEE_AUTOTUNE_CEILING_PPM=5500 \
-		"$LIGHTNING_BIN" fee-policy autotune run >/dev/null 2>&1
+		"$LIGHTNING_BIN" channel fee-policy autotune run >/dev/null 2>&1
 	local pay_rate
 	pay_rate=$(awk '/^operation: pay$/,/^$/' "$BATS_FEES" | awk '/^rate_ppm:/ {print $2}')
 	[ "$pay_rate" = "5500" ]
@@ -5324,7 +5315,7 @@ _acct215_teardown() {
 		LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 \
 			LIGHTNING_FEE_AUTOTUNE_MAX_STEP_PPM=500 \
 			LIGHTNING_FEE_AUTOTUNE_FLOOR_PPM=4500 \
-			"$LIGHTNING_BIN" fee-policy autotune run >/dev/null 2>&1
+			"$LIGHTNING_BIN" channel fee-policy autotune run >/dev/null 2>&1
 	done
 	local pay_rate
 	pay_rate=$(awk '/^operation: pay$/,/^$/' "$BATS_FEES" | awk '/^rate_ppm:/ {print $2}')
@@ -5334,7 +5325,7 @@ _acct215_teardown() {
 
 @test "FEAT-215: autotune status before any run reports 'never run'" {
 	_acct215_setup
-	run "$LIGHTNING_BIN" fee-policy autotune status
+	run "$LIGHTNING_BIN" channel fee-policy autotune status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"never run"* ]]
 	_acct215_teardown
@@ -5343,8 +5334,8 @@ _acct215_teardown() {
 @test "FEAT-215: autotune status shows last decision" {
 	_acct215_setup
 	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
-		"$LIGHTNING_BIN" fee-policy autotune run >/dev/null 2>&1
-	run "$LIGHTNING_BIN" fee-policy autotune status
+		"$LIGHTNING_BIN" channel fee-policy autotune run >/dev/null 2>&1
+	run "$LIGHTNING_BIN" channel fee-policy autotune status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"last_direction:"* ]]
 	[[ "$output" == *"changes:"* ]]
@@ -5361,7 +5352,7 @@ _acct215_teardown() {
 	# msat/day from routing; skim is 0.  500_000/30=16666 → well below
 	# low_threshold → direction=up + routing_msat_30d reported.
 	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000000 \
-		"$LIGHTNING_BIN" fee-policy autotune run 2>/dev/null
+		"$LIGHTNING_BIN" channel fee-policy autotune run 2>/dev/null
 	grep -q "routing_msat_30d: *500000" "$LIGHTNING_DIR/fee-autotune.state.recfile"
 	_acct215_teardown
 }
@@ -5374,7 +5365,7 @@ _acct215_teardown() {
 }
 
 @test "FEAT-215: fee-policy help lists autotune" {
-	run "$LIGHTNING_BIN" fee-policy
+	run "$LIGHTNING_BIN" channel fee-policy
 	[[ "$output" == *"autotune"* ]]
 }
 
@@ -6190,7 +6181,7 @@ _user222_teardown() {
 
 @test "FEAT-222 PR-2: user create mints a usr_ id" {
 	_user222_setup
-	run "$LIGHTNING_BIN" wallet-user create --label operator
+	run "$LIGHTNING_BIN" wallet user create --label operator
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"created usr_"* ]]
 	[[ "$output" == *"label:    operator"* ]]
@@ -6202,7 +6193,7 @@ _user222_teardown() {
 
 @test "FEAT-222 PR-2: user create --referrer requires an existing user" {
 	_user222_setup
-	run "$LIGHTNING_BIN" wallet-user create --referrer usr_nope
+	run "$LIGHTNING_BIN" wallet user create --referrer usr_nope
 	[ "$status" -eq 2 ]
 	[[ "$output" == *"not found"* ]]
 	_user222_teardown
@@ -6211,8 +6202,8 @@ _user222_teardown() {
 @test "FEAT-222 PR-2: user create --referrer records the link" {
 	_user222_setup
 	local parent
-	parent=$("$LIGHTNING_BIN" wallet-user create --label parent | awk '/created/{print $4}')
-	"$LIGHTNING_BIN" wallet-user create --label child --referrer "$parent" >/dev/null
+	parent=$("$LIGHTNING_BIN" wallet user create --label parent | awk '/created/{print $4}')
+	"$LIGHTNING_BIN" wallet user create --label child --referrer "$parent" >/dev/null
 	local got
 	got=$(sqlite3 "$BATS_DB" "SELECT referrer_user FROM wallet_users WHERE label='child';")
 	[ "$got" = "$parent" ]
@@ -6222,10 +6213,10 @@ _user222_teardown() {
 @test "FEAT-222 PR-2: user list shows owned-account counts" {
 	_user222_setup
 	local uid
-	uid=$("$LIGHTNING_BIN" wallet-user create --label op | awk '/created/{print $4}')
+	uid=$("$LIGHTNING_BIN" wallet user create --label op | awk '/created/{print $4}')
 	"$LIGHTNING_BIN" account create acct1 >/dev/null 2>&1
 	sqlite3 "$BATS_DB" "UPDATE accounts SET owner_user='$uid' WHERE name='acct1';"
-	run "$LIGHTNING_BIN" wallet-user list
+	run "$LIGHTNING_BIN" wallet user list
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == "id	label	accounts	created_at" ]]
 	[[ "$output" == *"$uid"*"op"*"1"* ]]
@@ -6235,10 +6226,10 @@ _user222_teardown() {
 @test "FEAT-222 PR-2: user show lists owned accounts" {
 	_user222_setup
 	local uid
-	uid=$("$LIGHTNING_BIN" wallet-user create --label op | awk '/created/{print $4}')
+	uid=$("$LIGHTNING_BIN" wallet user create --label op | awk '/created/{print $4}')
 	"$LIGHTNING_BIN" account create acct1 >/dev/null 2>&1
 	sqlite3 "$BATS_DB" "UPDATE accounts SET owner_user='$uid' WHERE name='acct1';"
-	run "$LIGHTNING_BIN" wallet-user show "$uid"
+	run "$LIGHTNING_BIN" wallet user show "$uid"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"id:           $uid"* ]]
 	[[ "$output" == *"referrer:     (none)"* ]]
@@ -6248,7 +6239,7 @@ _user222_teardown() {
 
 @test "FEAT-222 PR-2: user show on unknown id errors" {
 	_user222_setup
-	run "$LIGHTNING_BIN" wallet-user show usr_nope
+	run "$LIGHTNING_BIN" wallet user show usr_nope
 	[ "$status" -eq 2 ]
 	[[ "$output" == *"no such user"* ]]
 	_user222_teardown
@@ -6257,10 +6248,10 @@ _user222_teardown() {
 @test "FEAT-222 PR-2: user delete orphans owned accounts (does not delete them)" {
 	_user222_setup
 	local uid
-	uid=$("$LIGHTNING_BIN" wallet-user create --label op | awk '/created/{print $4}')
+	uid=$("$LIGHTNING_BIN" wallet user create --label op | awk '/created/{print $4}')
 	"$LIGHTNING_BIN" account create acct1 >/dev/null 2>&1
 	sqlite3 "$BATS_DB" "UPDATE accounts SET owner_user='$uid' WHERE name='acct1';"
-	"$LIGHTNING_BIN" wallet-user delete "$uid"
+	"$LIGHTNING_BIN" wallet user delete "$uid"
 	# Account survives; owner cleared.
 	[ "$(sqlite3 "$BATS_DB" "SELECT COUNT(*) FROM accounts WHERE name='acct1';")" = "1" ]
 	[ "$(sqlite3 "$BATS_DB" "SELECT COALESCE(owner_user,'NULL') FROM accounts WHERE name='acct1';")" = "NULL" ]
@@ -6271,20 +6262,20 @@ _user222_teardown() {
 
 @test "FEAT-222 PR-2: user delete on unknown id errors" {
 	_user222_setup
-	run "$LIGHTNING_BIN" wallet-user delete usr_nope
+	run "$LIGHTNING_BIN" wallet user delete usr_nope
 	[ "$status" -eq 2 ]
 	_user222_teardown
 }
 
 @test "FEAT-222 PR-2: user with no subcommand prints usage" {
-	run "$LIGHTNING_BIN" wallet-user
+	run "$LIGHTNING_BIN" wallet user
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"usage: lightning wallet-user"* ]]
 }
 
 @test "FEAT-222 PR-2: top-level help lists the user verb" {
 	run "$LIGHTNING_BIN" help
-	[[ "$output" == *"wallet-user"* ]]
+	[[ "$output" == *"wallet"* ]]
 }
 
 @test "FEAT-222 PR-2: account migration is idempotent for the new columns" {
@@ -6360,7 +6351,7 @@ EOF
 
 @test "FEAT-222 PR-3: _webauthn-verify list with no passkeys returns just the header" {
 	_acct222pr3_setup
-	"$LIGHTNING_BIN" wallet-user create --label operator >/dev/null
+	"$LIGHTNING_BIN" wallet user create --label operator >/dev/null
 	uid=$(sqlite3 "$BATS_DB" "SELECT id FROM wallet_users LIMIT 1;")
 	run "$LIGHTNING_BIN" _webauthn-verify list --user-id "$uid"
 	[ "$status" -eq 0 ]
@@ -6370,7 +6361,7 @@ EOF
 
 @test "FEAT-222 PR-3: _webauthn-verify list + revoke roundtrip on a manually-inserted passkey" {
 	_acct222pr3_setup
-	"$LIGHTNING_BIN" wallet-user create --label operator >/dev/null
+	"$LIGHTNING_BIN" wallet user create --label operator >/dev/null
 	uid=$(sqlite3 "$BATS_DB" "SELECT id FROM wallet_users LIMIT 1;")
 	sqlite3 "$BATS_DB" "INSERT INTO user_passkeys(user, credential_id, public_key, sign_count, label, created_at) \
 		VALUES('$uid', 'credabc', X'00', 0, 'phone', strftime('%s','now'));"
@@ -7178,7 +7169,7 @@ _acct230_teardown() {
 
 @test "FEAT-230: FIFO disposal export computes the gain against the oldest lot" {
 	_acct230_setup
-	run "$LIGHTNING_BIN" export tax-data trader --year 2024 --base EUR --format json
+	run "$LIGHTNING_BIN" wallet export tax-data trader --year 2024 --base EUR --format json
 	[ "$status" -eq 0 ]
 	echo "$output" | jq -e '.disposals | length == 1' >/dev/null
 	[ "$(echo "$output" | jq -r '.disposals[0].acquisition_date')" = "2023-05-01" ]
@@ -7192,7 +7183,7 @@ _acct230_teardown() {
 
 @test "FEAT-230: output is labelled data-for-preparation, with a disclaimer" {
 	_acct230_setup
-	run "$LIGHTNING_BIN" export tax-data trader --year 2024 --format json
+	run "$LIGHTNING_BIN" wallet export tax-data trader --year 2024 --format json
 	[ "$(echo "$output" | jq -r '.kind')" = "transaction_data_for_tax_preparation" ]
 	[[ "$(echo "$output" | jq -r '.disclaimer')" == *"NOT a tax report"* ]]
 	[ "$(echo "$output" | jq -r '.summary.freigrenze_eur')" = "600" ]
@@ -7201,7 +7192,7 @@ _acct230_teardown() {
 
 @test "FEAT-230: year filter excludes disposals from other years" {
 	_acct230_setup
-	run "$LIGHTNING_BIN" export tax-data trader --year 2025 --format json
+	run "$LIGHTNING_BIN" wallet export tax-data trader --year 2025 --format json
 	[ "$status" -eq 0 ]
 	echo "$output" | jq -e '.disposals | length == 0' >/dev/null
 	_acct230_teardown
@@ -7211,7 +7202,7 @@ _acct230_teardown() {
 	_acct230_setup
 	# A disposal far from any price tick.
 	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES('2024-09-01 12:00:00','trader','out',-100000000,'spend2');"
-	run "$LIGHTNING_BIN" export tax-data trader --year 2024 --format json
+	run "$LIGHTNING_BIN" wallet export tax-data trader --year 2024 --format json
 	echo "$output" | jq -e '[.disposals[] | select(.price_gap == true)] | length >= 1' >/dev/null
 	# The gapped row has null gain (not 0).
 	echo "$output" | jq -e '[.disposals[] | select(.price_gap == true) | .gain] | all(. == null)' >/dev/null
@@ -7221,7 +7212,7 @@ _acct230_teardown() {
 @test "FEAT-230: operator export values fee revenue at receipt" {
 	_acct230_setup
 	sqlite3 "$BATS_DB" "INSERT INTO ledger(ts,account,direction,amount_msat,message) VALUES('2024-01-10 12:05:00','house','in',2500000,'fee:transfer');"
-	run "$LIGHTNING_BIN" export tax-data --operator --year 2024 --format json
+	run "$LIGHTNING_BIN" wallet export tax-data --operator --year 2024 --format json
 	[ "$status" -eq 0 ]
 	[ "$(echo "$output" | jq -r '.kind')" = "operator_fee_income_data_for_tax_preparation" ]
 	echo "$output" | jq -e '.income | length == 1' >/dev/null
@@ -7232,7 +7223,7 @@ _acct230_teardown() {
 
 @test "FEAT-230: CSV format validates (header + 8 columns)" {
 	_acct230_setup
-	run "$LIGHTNING_BIN" export tax-data trader --year 2024 --format csv
+	run "$LIGHTNING_BIN" wallet export tax-data trader --year 2024 --format csv
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"disposal_date,disposal_sat,acquisition_date,holding_days,fiat_in,fiat_out,gain,price_gap"* ]]
 	# The single data row has 8 comma-separated fields.
@@ -7244,11 +7235,11 @@ _acct230_teardown() {
 
 @test "FEAT-230: bad format / missing year / unknown account are rejected" {
 	_acct230_setup
-	run "$LIGHTNING_BIN" export tax-data trader --year 2024 --format xml
+	run "$LIGHTNING_BIN" wallet export tax-data trader --year 2024 --format xml
 	[ "$status" -ne 0 ]
-	run "$LIGHTNING_BIN" export tax-data trader
+	run "$LIGHTNING_BIN" wallet export tax-data trader
 	[ "$status" -ne 0 ]
-	run "$LIGHTNING_BIN" export tax-data nobody --year 2024
+	run "$LIGHTNING_BIN" wallet export tax-data nobody --year 2024
 	[ "$status" -ne 0 ]
 	_acct230_teardown
 }
@@ -7256,7 +7247,7 @@ _acct230_teardown() {
 @test "FEAT-230: export resolves an account by bech32 address too" {
 	_acct230_setup
 	local addr; addr=$(sqlite3 "$BATS_DB" "SELECT address FROM accounts WHERE name='trader';")
-	run "$LIGHTNING_BIN" export tax-data "$addr" --year 2024 --format json
+	run "$LIGHTNING_BIN" wallet export tax-data "$addr" --year 2024 --format json
 	[ "$status" -eq 0 ]
 	[ "$(echo "$output" | jq -r '.account')" = "trader" ]
 	_acct230_teardown
@@ -7330,7 +7321,7 @@ _deposit_100k() {
 @test "FEAT-216: autotune refuses a negative rate when interest_mode is off" {
 	_acct216_setup
 	sed -i '/^operation: topup-onchain$/,/^$/{s/^rate_ppm:.*/rate_ppm:  -2000/; s/^interest_mode:.*/interest_mode: off/}' "$BATS_FEES"
-	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 run "$LIGHTNING_BIN" fee-policy autotune dry-run
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 run "$LIGHTNING_BIN" channel fee-policy autotune dry-run
 	[ "$status" -eq 3 ]
 	[[ "$output" == *"interest_mode is off"* ]]
 	_acct216_teardown
@@ -7339,7 +7330,7 @@ _deposit_100k() {
 @test "FEAT-216: autotune accepts a negative rate when interest_mode is on" {
 	_acct216_setup
 	sed -i '/^operation: topup-onchain$/,/^$/{s/^rate_ppm:.*/rate_ppm:  -1000/; s/^interest_mode:.*/interest_mode: on/}' "$BATS_FEES"
-	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 run "$LIGHTNING_BIN" fee-policy autotune dry-run
+	LIGHTNING_FEE_AUTOTUNE_TARGET_MSAT_PER_DAY=1000 run "$LIGHTNING_BIN" channel fee-policy autotune dry-run
 	[ "$status" -eq 0 ]
 	_acct216_teardown
 }
@@ -7348,7 +7339,7 @@ _deposit_100k() {
 	_acct216_setup
 	sed -i '/^operation: topup-onchain$/,/^$/{s/^rate_ppm:.*/rate_ppm:  -2000/; s/^interest_mode:.*/interest_mode: on/}' "$BATS_FEES"
 	_deposit_100k
-	run "$LIGHTNING_BIN" fee-policy status
+	run "$LIGHTNING_BIN" channel fee-policy status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"interest_subsidy_paid_sat: 200"* ]]
 	[[ "$output" == *"interest_mode_ops:"* ]]
@@ -7499,21 +7490,21 @@ _cc_test_module() {
 
 @test "FEAT-233: preset us-msb enables the expected module set" {
 	_cc_setup
-	run "$LIGHTNING_BIN" compliance preset us-msb
+	run "$LIGHTNING_BIN" wallet compliance preset us-msb
 	[ "$status" -eq 0 ]
 	[ -f "$BATS_CF" ]
-	run "$LIGHTNING_BIN" compliance status
+	run "$LIGHTNING_BIN" wallet compliance status
 	[[ "$output" == *"kyc"*"on"* ]]
 	# kyc / screening / travel_rule on; data_subject_rights off in this preset.
-	"$LIGHTNING_BIN" compliance status | grep -E "^  kyc " | grep -q on
-	"$LIGHTNING_BIN" compliance status | grep -E "^  travel_rule " | grep -q on
-	"$LIGHTNING_BIN" compliance status | grep -E "^  proof_of_reserves " | grep -q on
+	"$LIGHTNING_BIN" wallet compliance status | grep -E "^  kyc " | grep -q on
+	"$LIGHTNING_BIN" wallet compliance status | grep -E "^  travel_rule " | grep -q on
+	"$LIGHTNING_BIN" wallet compliance status | grep -E "^  proof_of_reserves " | grep -q on
 	_cc_teardown
 }
 
 @test "FEAT-233: a deny pre-hook blocks the transaction (exit 6 + error)" {
 	_cc_setup
-	"$LIGHTNING_BIN" compliance preset off >/dev/null
+	"$LIGHTNING_BIN" wallet compliance preset off >/dev/null
 	_cc_test_module deny
 	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta 5000
 	[ "$status" -eq 6 ]
@@ -7527,7 +7518,7 @@ _cc_test_module() {
 
 @test "FEAT-233: a post-hook records to compliance_events without blocking" {
 	_cc_setup
-	"$LIGHTNING_BIN" compliance preset off >/dev/null
+	"$LIGHTNING_BIN" wallet compliance preset off >/dev/null
 	_cc_test_module allow
 	run "$LIGHTNING_BIN" api-account-transfer "$BATS_A_ADDR" beta 5000
 	[ "$status" -eq 0 ]
@@ -7540,7 +7531,7 @@ _cc_test_module() {
 
 @test "FEAT-233: pay + withdraw + create are wired to the hooks" {
 	_cc_setup
-	"$LIGHTNING_BIN" compliance preset off >/dev/null
+	"$LIGHTNING_BIN" wallet compliance preset off >/dev/null
 	_cc_test_module deny
 	# pay denied
 	run "$LIGHTNING_BIN" api-account-pay "$BATS_A_ADDR" lnbcrt10n1xxx
@@ -7555,8 +7546,8 @@ _cc_test_module() {
 
 @test "FEAT-233: compliance status reports modules + footers the disclaimer" {
 	_cc_setup
-	"$LIGHTNING_BIN" compliance preset de-custodial >/dev/null
-	run "$LIGHTNING_BIN" compliance status
+	"$LIGHTNING_BIN" wallet compliance preset de-custodial >/dev/null
+	run "$LIGHTNING_BIN" wallet compliance status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"DISCLAIMER"* ]]
 	[[ "$output" == *"consult a qualified local lawyer"* ]]
@@ -7565,7 +7556,7 @@ _cc_test_module() {
 
 @test "FEAT-233: preset prints the disclaimer on application" {
 	_cc_setup
-	run "$LIGHTNING_BIN" compliance preset uk-fca
+	run "$LIGHTNING_BIN" wallet compliance preset uk-fca
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"consult a qualified local lawyer"* ]]
 	_cc_teardown
@@ -7573,7 +7564,7 @@ _cc_test_module() {
 
 @test "FEAT-233: unknown preset is rejected" {
 	_cc_setup
-	run "$LIGHTNING_BIN" compliance preset narnia
+	run "$LIGHTNING_BIN" wallet compliance preset narnia
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"unknown preset"* ]]
 	_cc_teardown
@@ -7581,7 +7572,7 @@ _cc_test_module() {
 
 @test "FEAT-233: status with no config reports framework OFF" {
 	_cc_setup
-	run "$LIGHTNING_BIN" compliance status
+	run "$LIGHTNING_BIN" wallet compliance status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"framework OFF"* ]]
 	_cc_teardown
@@ -7591,7 +7582,7 @@ _cc_test_module() {
 	_cc_setup
 	# Make beta a long-closed, delete-eligible account.
 	sqlite3 "$BATS_DB" "UPDATE accounts SET closed_at = strftime('%s','now') - 400*86400, created_at = strftime('%s','now') - 500*86400 WHERE name='beta';"
-	"$LIGHTNING_BIN" compliance preset off >/dev/null
+	"$LIGHTNING_BIN" wallet compliance preset off >/dev/null
 	_cc_test_module deny
 	run "$LIGHTNING_BIN" account gc run
 	[ "$status" -eq 0 ]
@@ -7915,8 +7906,8 @@ _pr5_setup() {
 	mkdir -p "$LIGHTNING_DIR"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	# Create two users: root + child.
-	ROOT_UID=$("$LIGHTNING_BIN" wallet-user create --label root 2>/dev/null | awk '/^lightning wallet-user: created/{print $NF}')
-	CHILD_UID=$("$LIGHTNING_BIN" wallet-user create --label child --referrer "$ROOT_UID" 2>/dev/null | awk '/^lightning wallet-user: created/{print $NF}')
+	ROOT_UID=$("$LIGHTNING_BIN" wallet user create --label root 2>/dev/null | awk '/^lightning wallet user: created/{print $NF}')
+	CHILD_UID=$("$LIGHTNING_BIN" wallet user create --label child --referrer "$ROOT_UID" 2>/dev/null | awk '/^lightning wallet user: created/{print $NF}')
 }
 
 _pr5_teardown() {
@@ -7928,7 +7919,7 @@ _pr5_teardown() {
 	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.pr5b.$$"
 	mkdir -p "$LIGHTNING_DIR"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
-	"$LIGHTNING_BIN" wallet-user create --label test >/dev/null
+	"$LIGHTNING_BIN" wallet user create --label test >/dev/null
 	local wname; wname=$(cat "$LIGHTNING_WALLETS_ROOT/active" 2>/dev/null || echo "default")
 	db="$LIGHTNING_WALLETS_ROOT/$wname/state.db"
 	sqlite3 "$db" "SELECT max_downline FROM wallet_users LIMIT 1;" >/dev/null
@@ -7937,7 +7928,7 @@ _pr5_teardown() {
 
 @test "FEAT-222 PR-5: wallet-user cap sets max_downline" {
 	_pr5_setup
-	"$LIGHTNING_BIN" wallet-user cap "$CHILD_UID" 5
+	"$LIGHTNING_BIN" wallet user cap "$CHILD_UID" 5
 	local wname; wname=$(cat "$LIGHTNING_WALLETS_ROOT/active" 2>/dev/null || echo "default")
 	db="$LIGHTNING_WALLETS_ROOT/$wname/state.db"
 	val=$(sqlite3 "$db" "SELECT max_downline FROM wallet_users WHERE id='$CHILD_UID';")
@@ -7947,8 +7938,8 @@ _pr5_teardown() {
 
 @test "FEAT-222 PR-5: wallet-user cap unlimited clears to NULL" {
 	_pr5_setup
-	"$LIGHTNING_BIN" wallet-user cap "$CHILD_UID" 5
-	"$LIGHTNING_BIN" wallet-user cap "$CHILD_UID" unlimited
+	"$LIGHTNING_BIN" wallet user cap "$CHILD_UID" 5
+	"$LIGHTNING_BIN" wallet user cap "$CHILD_UID" unlimited
 	local wname; wname=$(cat "$LIGHTNING_WALLETS_ROOT/active" 2>/dev/null || echo "default")
 	db="$LIGHTNING_WALLETS_ROOT/$wname/state.db"
 	val=$(sqlite3 "$db" "SELECT COALESCE(max_downline,'NULL') FROM wallet_users WHERE id='$CHILD_UID';")
@@ -7958,7 +7949,7 @@ _pr5_teardown() {
 
 @test "FEAT-222 PR-5: wallet-user lineage walks up to root" {
 	_pr5_setup
-	out=$("$LIGHTNING_BIN" wallet-user lineage "$CHILD_UID")
+	out=$("$LIGHTNING_BIN" wallet user lineage "$CHILD_UID")
 	echo "$out" | grep -q "$CHILD_UID"
 	echo "$out" | grep -q "$ROOT_UID"
 	_pr5_teardown
@@ -7966,7 +7957,7 @@ _pr5_teardown() {
 
 @test "FEAT-222 PR-5: wallet-user tree shows root + child" {
 	_pr5_setup
-	out=$("$LIGHTNING_BIN" wallet-user tree "$ROOT_UID")
+	out=$("$LIGHTNING_BIN" wallet user tree "$ROOT_UID")
 	echo "$out" | grep -q "$ROOT_UID"
 	echo "$out" | grep -q "$CHILD_UID"
 	_pr5_teardown
@@ -7977,7 +7968,7 @@ _pr5_teardown() {
 	# Create an account owned by ROOT_UID.
 	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create --owner-user "$ROOT_UID" 2>/dev/null)
 	acct=$(echo "$acct_json" | jq -r '.account_id')
-	out=$("$LIGHTNING_BIN" wallet-user invite-code create "$ROOT_UID" --credit-account "$acct")
+	out=$("$LIGHTNING_BIN" wallet user invite-code create "$ROOT_UID" --credit-account "$acct")
 	echo "$out" | grep -q "^code:"
 	_pr5_teardown
 }
@@ -7986,8 +7977,8 @@ _pr5_teardown() {
 	_pr5_setup
 	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create --owner-user "$ROOT_UID" 2>/dev/null)
 	acct=$(echo "$acct_json" | jq -r '.account_id')
-	"$LIGHTNING_BIN" wallet-user invite-code create "$ROOT_UID" --credit-account "$acct" >/dev/null
-	out=$("$LIGHTNING_BIN" wallet-user invite-code list "$ROOT_UID")
+	"$LIGHTNING_BIN" wallet user invite-code create "$ROOT_UID" --credit-account "$acct" >/dev/null
+	out=$("$LIGHTNING_BIN" wallet user invite-code list "$ROOT_UID")
 	echo "$out" | grep -q "$acct"
 	_pr5_teardown
 }
@@ -7996,10 +7987,10 @@ _pr5_teardown() {
 	_pr5_setup
 	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create --owner-user "$ROOT_UID" 2>/dev/null)
 	acct=$(echo "$acct_json" | jq -r '.account_id')
-	code_line=$("$LIGHTNING_BIN" wallet-user invite-code create "$ROOT_UID" --credit-account "$acct" | grep "^code:")
+	code_line=$("$LIGHTNING_BIN" wallet user invite-code create "$ROOT_UID" --credit-account "$acct" | grep "^code:")
 	code=${code_line#code: }
-	"$LIGHTNING_BIN" wallet-user invite-code revoke "$code"
-	out=$("$LIGHTNING_BIN" wallet-user invite-code list "$ROOT_UID")
+	"$LIGHTNING_BIN" wallet user invite-code revoke "$code"
+	out=$("$LIGHTNING_BIN" wallet user invite-code list "$ROOT_UID")
 	! echo "$out" | grep -q "$code"
 	_pr5_teardown
 }
@@ -8007,11 +7998,11 @@ _pr5_teardown() {
 @test "FEAT-222 PR-5: cap enforcement blocks invite mint when ancestor cap exceeded" {
 	_pr5_setup
 	# Cap root to 0 transitive descendants — child cannot invite anyone.
-	"$LIGHTNING_BIN" wallet-user cap "$ROOT_UID" 0
+	"$LIGHTNING_BIN" wallet user cap "$ROOT_UID" 0
 	# Create an account owned by CHILD_UID.
 	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create --owner-user "$CHILD_UID" 2>/dev/null)
 	acct=$(echo "$acct_json" | jq -r '.account_id')
-	run "$LIGHTNING_BIN" wallet-user invite-code create "$CHILD_UID" --credit-account "$acct"
+	run "$LIGHTNING_BIN" wallet user invite-code create "$CHILD_UID" --credit-account "$acct"
 	[ "$status" -ne 0 ]
 	_pr5_teardown
 }
@@ -8020,7 +8011,7 @@ _pr5_teardown() {
 	_pr5_setup
 	acct_json=$(REMOTE_ADDR=1.2.3.4 "$LIGHTNING_BIN" api-accounts-create --owner-user "$ROOT_UID" 2>/dev/null)
 	acct=$(echo "$acct_json" | jq -r '.account_id')
-	code_line=$("$LIGHTNING_BIN" wallet-user invite-code create "$ROOT_UID" --credit-account "$acct" | grep "^code:")
+	code_line=$("$LIGHTNING_BIN" wallet user invite-code create "$ROOT_UID" --credit-account "$acct" | grep "^code:")
 	code=${code_line#code: }
 	# Create an account using the user-owned invite code.
 	result=$(REMOTE_ADDR=1.2.3.5 "$LIGHTNING_BIN" api-accounts-create --invite-code "$code" 2>/dev/null)
@@ -8034,7 +8025,7 @@ _pr5_teardown() {
 	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.pr5c.$$"
 	mkdir -p "$LIGHTNING_DIR"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
-	run "$LIGHTNING_BIN" wallet-user cap "usr_doesnotexist00" 5
+	run "$LIGHTNING_BIN" wallet user cap "usr_doesnotexist00" 5
 	[ "$status" -ne 0 ]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR" "$HOME/.lightning"
 }
@@ -8302,10 +8293,10 @@ _acct243_teardown() {
 
 @test "FEAT-243: compliance status rates LOW for own funds, HIGH for foreign" {
 	_acct243_setup
-	run "$LIGHTNING_BIN" compliance status
+	run "$LIGHTNING_BIN" wallet compliance status
 	[[ "$output" == *"rating: LOW"* ]]
 	"$LIGHTNING_BIN" account set-fund-class cust foreign >/dev/null
-	run "$LIGHTNING_BIN" compliance status
+	run "$LIGHTNING_BIN" wallet compliance status
 	[[ "$output" == *"rating: HIGH"* ]]
 	[[ "$output" == *"custodial"* ]]
 	_acct243_teardown
@@ -8318,13 +8309,13 @@ _acct243_teardown() {
 	"$LIGHTNING_BIN" account set-fund-class cust foreign >/dev/null
 
 	# Default access.recfile ships require_referral: off — open registration.
-	run "$LIGHTNING_BIN" compliance status
+	run "$LIGHTNING_BIN" wallet compliance status
 	[[ "$output" == *"registration:"*"open"* ]]
 	[[ "$output" == *"rating: HIGH"* ]]
 
 	# Flip to invite-only — same foreign funds, but now closed.
 	sed -i 's/^require_referral: off$/require_referral: on/' "$LIGHTNING_WALLETS_ROOT/alice/access.recfile"
-	run "$LIGHTNING_BIN" compliance status
+	run "$LIGHTNING_BIN" wallet compliance status
 	[[ "$output" == *"registration:"*"invite-only"* ]]
 	[[ "$output" == *"rating: MEDIUM"* ]]
 	_acct243_teardown

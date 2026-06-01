@@ -975,7 +975,7 @@ cmd_gc() {
 			# may hold the record (legal_hold) and veto the delete.  Fast
 			# no-op unless the operator opted in via compliance.recfile.
 			if [ -s "$WALLETS_ROOT/$(active_wallet_name)/compliance.recfile" ] \
-			   && ! "$SELF_LIBEXEC/lightning/compliance" hook lifecycle gc "{\"account\":\"$name\",\"op\":\"gc\"}" >/dev/null 2>&1; then
+			   && ! "$SELF_LIBEXEC/lightning/_compliance" hook lifecycle gc "{\"account\":\"$name\",\"op\":\"gc\"}" >/dev/null 2>&1; then
 				printf 'retain\t%s\t%s\tlegal_hold\n' "$name" "$addr"
 				continue
 			fi
@@ -1287,8 +1287,8 @@ cmd_withdraw() {
 	}
 
 	# Record the debit in the per-account ledger.
-	if [ -x "$SELF_LIBEXEC/lightning/ledger" ]; then
-		"$SELF_LIBEXEC/lightning/ledger" add out "$(( sat * 1000 ))" \
+	if [ -x "$SELF_LIBEXEC/lightning/_ledger" ]; then
+		"$SELF_LIBEXEC/lightning/_ledger" add out "$(( sat * 1000 ))" \
 			--account "$name" \
 			--note "withdraw to $addr" 2>/dev/null || true
 	fi
@@ -1323,16 +1323,16 @@ cmd_pay() {
 		lno*)
 			# BOLT-12 offer.
 			if [ -n "$sat" ]; then
-				exec "$SELF_LIBEXEC/lightning/offer" pay "$target" "$sat" --account "$name"
+				exec "$SELF_LIBEXEC/lightning/_offer" pay "$target" "$sat" --account "$name"
 			else
-				exec "$SELF_LIBEXEC/lightning/offer" pay "$target" --account "$name"
+				exec "$SELF_LIBEXEC/lightning/_offer" pay "$target" --account "$name"
 			fi ;;
 		lnurl*)
 			# LNURL-pay.
-			exec "$SELF_LIBEXEC/lightning/lnurl" pay "$target" --account "$name" ;;
+			exec "$SELF_LIBEXEC/lightning/_lnurl" pay "$target" --account "$name" ;;
 		*@*.*)
 			# Lightning address (user@host).
-			exec "$SELF_LIBEXEC/lightning/lnurl" pay "$target" --account "$name" ;;
+			exec "$SELF_LIBEXEC/lightning/_lnurl" pay "$target" --account "$name" ;;
 		02*|03*)
 			# 66-char hex node pubkey → keysend.
 			if [ "${#target}" -ne 66 ]; then
@@ -1343,7 +1343,7 @@ cmd_pay() {
 				echo "lightning account pay: keysend needs --sat <amount>" >&2
 				exit 1
 			}
-			exec "$SELF_LIBEXEC/lightning/send" "$target" "$sat" --account "$name" ;;
+			exec "$SELF_LIBEXEC/lightning/_send" "$target" "$sat" --account "$name" ;;
 		*)
 			echo "lightning account pay: couldn't identify payment-string type" >&2
 			echo "  supported shapes:" >&2
@@ -1372,7 +1372,7 @@ cmd_receive() {
 
 	if [ "$reusable" -eq 1 ]; then
 		# BOLT-12 — reusable, payer fetches an invoice on the wire.
-		exec "$SELF_LIBEXEC/lightning/offer" create "$sat" "$desc" \
+		exec "$SELF_LIBEXEC/lightning/_offer" create "$sat" "$desc" \
 			--account "$name" --qr
 	else
 		# BOLT-11 — single-use.
@@ -1531,8 +1531,8 @@ _so_pay() {
 	fi
 	lower=$(printf '%s' "$target" | tr 'A-Z' 'a-z')
 	case "$lower" in
-		lno*)        "$SELF_LIBEXEC/lightning/offer" pay "$target" "$sat" --account "$from_name" ;;
-		lnurl*|*@*.*) "$SELF_LIBEXEC/lightning/lnurl" pay "$target" --account "$from_name" ;;
+		lno*)        "$SELF_LIBEXEC/lightning/_offer" pay "$target" "$sat" --account "$from_name" ;;
+		lnurl*|*@*.*) "$SELF_LIBEXEC/lightning/_lnurl" pay "$target" --account "$from_name" ;;
 		*) return 1 ;;
 	esac
 }

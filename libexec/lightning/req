@@ -1,0 +1,50 @@
+#!/bin/bash
+# lightning req — request / receive payments (invoice, offer, decode, qr).
+#
+# Subcommands:
+#   invoice [create] <sat> <label> <desc> [--expiry S] [--qr]
+#           list [--status pending|paid|expired]
+#           cancel <label>
+#           status <label>
+#           decode <bolt11>
+#           …and all other invoice subcommands
+#   offer  create <sat>|any <description> [--qr]
+#          pay <bolt12> [<sat>] [--message <text>]
+#   decode <string>     detect + decode bolt11 / bolt12 / lnurl / address
+#   qr     <text>       render as QR code
+
+set -e
+
+usage() {
+	cat >&2 <<EOF
+usage: lightning req <subcommand> [args]
+
+   Request and receive payments.
+
+subcommands:
+   invoice [args]         BOLT-11 invoices (create, list, cancel, status…)
+   offer   [args]         BOLT-12 reusable offers (create, pay)
+   decode  <string>       detect + decode any Lightning string
+   qr      <text>         render as terminal / PNG / SVG QR code
+EOF
+}
+
+[ $# -lt 1 ] && { usage; exit 1; }
+
+SUB="$1"; shift || true
+
+case "$SUB" in
+	invoice)
+		exec "$(dirname "$0")/invoice" "$@" ;;
+	offer)
+		exec "$(dirname "$0")/_offer" "$@" ;;
+	decode)
+		exec "$(dirname "$0")/decode" "$@" ;;
+	qr)
+		exec "$(dirname "$0")/qr" "$@" ;;
+	--help|-h)
+		usage; exit 0 ;;
+	*)
+		echo "lightning req: unknown subcommand '$SUB'" >&2
+		usage; exit 1 ;;
+esac

@@ -1055,12 +1055,27 @@ SUB="$1"; shift || true
 case "${1:-}" in --help|-h) subhelp "$SUB"; exit ;; esac
 case "$SUB" in help) subhelp "${1:-}" || usage; exit ;; esac
 
+# Dispatch to sub-scripts that manage their own lightning-cli requirement
+# before we do a blanket require_cli check.
+case "$SUB" in
+	plugin)           exec "$(dirname "$0")/_plugin" "$@" ;;
+	tor)              exec "$(dirname "$0")/_tor" "$@" ;;
+	unlock)           exec "$(dirname "$0")/_unlock" "$@" ;;
+	tower)            exec "$(dirname "$0")/_tower" "$@" ;;
+esac
+
 require_cli
 
 case "$SUB" in
-	# info / identity
-	info)             cmd_info "$@" ;;
+	# info / identity — delegate to _info for correct exit codes
+	info)             exec "$(dirname "$0")/_info" "$@" ;;
+	id)               cmd_pubkey "$@" ;;
 	pubkey)           cmd_pubkey "$@" ;;
+	# delegating: full implementations in _-prefixed siblings
+	plugin)           shift; exec "$(dirname "$0")/_plugin" "$@" ;;
+	tor)              shift; exec "$(dirname "$0")/_tor" "$@" ;;
+	unlock)           shift; exec "$(dirname "$0")/_unlock" "$@" ;;
+	tower)            shift; exec "$(dirname "$0")/_tower" "$@" ;;
 	alias)            cmd_alias "$@" ;;
 	alias-lookup)     cmd_alias_lookup "$@" ;;
 	color)            cmd_color "$@" ;;
