@@ -223,9 +223,13 @@ Emit the drop-in vhost fragment.
 
 .SS Daemon control
 .TP
-.B daemon start | stop | restart | status | logs
+.B daemon start | stop | restart | status | monitor
 .TP
-.B daemon install \fR[\fB--system\fR] [\fB--migrate\fR]
+.B daemon install \fR[\fB--rpk|--brew|--apk|--source|--podman\fR] [\fB--version\fR \fItag\fR] [\fB--system\fR] [\fB--yes\fR] [\fB--force\fR] [\fB--dry-run\fR]
+Install Core Lightning itself (the lightningd binary).
+.TP
+.B daemon enable \fR[\fB--user|--system\fR] [\fB--migrate\fR]
+Write a service unit (systemd / launchd / OpenRC).
 With \fB--system\fR, provisions the
 .B clightning
 system user + \fI/var/lib/clightning/\fR + systemd unit.

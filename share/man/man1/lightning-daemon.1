@@ -1,4 +1,4 @@
-.TH "LIGHTNING-DAEMON" 1 "May 2026" "lightning 0.6.0" "User Commands"
+.TH "LIGHTNING-DAEMON" 1 "Jun 2026" "lightning 0.7.0" "User Commands"
 .SH NAME
 lightning-daemon \- lightningd lifecycle management
 .SH SYNOPSIS
@@ -8,49 +8,42 @@ lightning-daemon \- lightningd lifecycle management
 .nf
 lightning daemon — lightningd lifecycle management.
 
-Implements FEAT-183. Subcommands:
-  start    — bring up lightningd (background; --daemon or via supervisor)
-  run      — bring up lightningd in foreground (for launchd/systemd Type=simple)
-  stop     — graceful shutdown via `lightning-cli stop`
+All sub-commands accept --user (default) or --system.
+
+lifecycle:
+  start    — bring up lightningd (background)
+  run      — foreground (for launchd / systemd)
+  stop     — graceful shutdown
   restart  — stop + start
-  status   — health check (process / RPC / sync / unlock)
-  logs     — tail the live log
-  install  — generate a service unit
-             Linux: systemd (~/.config/systemd/user/lightning.service)
-                    or system-mode (/etc/systemd/system/clightningd.service)
-             Alpine: OpenRC (/etc/init.d/clightningd) — system-only
-             macOS: launchd (~/Library/LaunchAgents/<label>.plist)
+  status   — health check
+  monitor  — tail the daemon log
+
+setup:
+  install  — install lightningd (brew|apk|source|rpk|podman)
+  enable   — install + start launchd/systemd unit
+  disable  — stop service and remove unit
 .fi
 .SH USAGE
 .nf
 usage: lightning daemon <subcommand> [args]
 
-   Lifecycle of the underlying clightningd process. Detects the
-   right supervisor for the platform:
-     • macOS — launchd (~/Library/LaunchAgents/...)
-     • Linux — systemd --user, or system-mode (FEAT-183 three-user
-       layout: dedicated \e`clightning\e` user owns the daemon, the
-       operator owns the wallet repo, www-data runs the CGI).
-   Each sub-command also accepts --help.
+   Lifecycle of the underlying clightningd process.
+   All sub-commands accept --user (default) or --system.
 
-subcommands:
-   start                  bring up lightningd (background)
-   run                    bring up lightningd in foreground
-                          (for launchd / systemd Type=simple)
-   stop                   graceful shutdown
-   restart                stop + start
-   status                 health check
-   logs [-f]              tail the daemon log
-   install [--system] [--migrate]
-                          generate a service unit (systemd on Linux,
-                          launchd on macOS). --system writes a
-                          system-wide unit (Linux three-user layout).
-   install-core [--rpk|--brew|--apk|--source|--podman]
-                [--version <tag>] [--system] [--yes]
-                [--force] [--dry-run]
-                          install Core Lightning itself (FEAT-207).
-                          With no backend flag, auto-detects per
-                          platform.  All five backends are implemented.
+   lifecycle:
+     start [--user|--system]    bring up lightningd (background)
+     run                         foreground (for launchd / systemd)
+     stop [--user|--system]     graceful shutdown
+     restart [--user|--system]  stop + start
+     status [--user|--system]   health check
+     monitor [--user|--system]  tail the daemon log
+
+   setup:
+     install [--from <src>]     install lightningd (brew|apt|apk|source)
+     enable [--user|--system]   install + start launchd/systemd unit
+     disable [--user|--system]  stop service and remove unit
+
+   see 'lightning daemon help <subcommand>' for detailed usage.
 .fi
 .SH "SEE ALSO"
 .BR lightning (1)

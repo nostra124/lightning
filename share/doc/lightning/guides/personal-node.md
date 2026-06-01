@@ -67,7 +67,7 @@ lightning peer bootstrap
 This connects to 5 well-known nodes AND persists them as
 `important-peer=` in `~/.lightning/config` (FEAT-199) so
 clightning auto-reconnects them after a restart. The
-`peer keepalive` sidecar that `daemon install` wires up keeps
+`peer keepalive` sidecar that `daemon enable` wires up keeps
 the gossip graph reseeded after laptop sleep and wifi blips.
 
 Then open your first channel:
@@ -237,7 +237,7 @@ lightning alert create off-balance \
     --webhook https://hooks.slack.com/services/...
 ```
 
-`daemon install` writes a sidecar that runs `alert run` every
+`daemon enable` writes a sidecar that runs `alert run` every
 60s. Verify with:
 
 ```sh
@@ -278,7 +278,7 @@ guide doesn't apply.
 
 ```sh
 # Initial install (one-time)
-lightning daemon install --trustedcoin
+lightning daemon enable --trustedcoin
 lightning daemon start
 lightning peer bootstrap
 lightning wallet init

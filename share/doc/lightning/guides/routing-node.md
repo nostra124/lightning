@@ -253,7 +253,7 @@ Until then:
 
 ```sh
 # Initial install (one-time)
-lightning daemon install --trustedcoin       # or run bitcoind yourself
+lightning daemon enable --trustedcoin       # or run bitcoind yourself
 lightning daemon start
 lightning peer bootstrap -n 10
 lightning wallet init

@@ -219,7 +219,7 @@ usage: lightning plugin list
 
 One line per installed plugin (entries in $LIGHTNING_DIR/plugins/
 that are executable or directories). Includes plugins installed
-by `daemon install --trustedcoin`, `plugin install`, or dropped
+by `daemon enable --trustedcoin`, `plugin install`, or dropped
 in by hand.
 EOF
 			;;

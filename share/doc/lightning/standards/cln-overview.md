@@ -27,7 +27,7 @@ lists everything currently loaded.
 
 Default data dir is `~/.lightning/` for user-mode and
 `/var/lib/clightning/` for system-mode (FEAT-183
-`daemon install --system`). Inside:
+`daemon enable --system`). Inside:
 
     <data-dir>/
         hsm_secret         # the seed. 32 bytes (raw) or 73 (encrypted).

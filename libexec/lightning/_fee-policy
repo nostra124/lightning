@@ -210,7 +210,7 @@ cmd_show_rates() {
 # FEAT-215 — daily auto-tuner.  Nudges fees.recfile's rate_ppm
 # values based on observed economics: routing income from
 # `lightning-cli listforwards` + operator skim revenue from the
-# house account.  Driven by `daemon install --fee-autotune`.
+# house account.  Driven by `daemon enable --fee-autotune`.
 #
 # Settings (env vars; no default for the target so a misconfigured
 # install errors loudly instead of silently nudging rates):

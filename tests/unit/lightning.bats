@@ -56,7 +56,7 @@ teardown() {
 	rm -f "$MOCK_STATE" "$MOCK_STATE.newaddr"
 }
 
-# Stubs curl+tar so `daemon install --trustedcoin` doesn't hit
+# Stubs curl+tar so `daemon enable --trustedcoin` doesn't hit
 # GitHub. curl writes a fake tarball; tar extracts a placeholder
 # trustedcoin binary. Tests that want the failure path stub curl
 # themselves.
@@ -285,24 +285,24 @@ EOF
 	[[ "$output" == *"down"* ]]
 }
 
-@test "FEAT-183: lightning daemon install writes a user-mode systemd unit (Linux)" {
+@test "FEAT-183: lightning daemon enable writes a user-mode systemd unit (Linux)" {
 	if [ "$(uname -s)" = "Darwin" ]; then
 		skip "Linux-only — macOS uses launchd"
 	fi
-	# Stub lightningd so install's ExecStart resolves.
+	# Stub lightningd so enable's ExecStart resolves.
 	ln -sf /bin/true "$BIN_SHIM/lightningd"
-	run "$LIGHTNING_BIN" daemon install
+	run "$LIGHTNING_BIN" daemon enable
 	[ "$status" -eq 0 ]
 	[ -f "$HOME/.config/systemd/user/lightning.service" ]
 	grep -q "Description=Lightning Network daemon" "$HOME/.config/systemd/user/lightning.service"
 }
 
-@test "FEAT-183: lightning daemon install writes a LaunchAgent plist (macOS)" {
+@test "FEAT-183: lightning daemon enable writes a LaunchAgent plist (macOS)" {
 	if [ "$(uname -s)" != "Darwin" ]; then
 		skip "macOS-only — Linux uses systemd"
 	fi
 	ln -sf /bin/true "$BIN_SHIM/lightningd"
-	run "$LIGHTNING_BIN" daemon install
+	run "$LIGHTNING_BIN" daemon enable
 	[ "$status" -eq 0 ]
 	local plist="$HOME/Library/LaunchAgents/network.lightning.lightningd.plist"
 	[ -f "$plist" ]
@@ -402,7 +402,7 @@ EOF
 	[[ "$output" == *"down"* ]]
 	[[ "$output" == *"BROKEN"* ]]
 	[[ "$output" == *"Bitcoin backend died"* ]]
-	[[ "$output" == *"daemon logs"* ]]
+	[[ "$output" == *"daemon monitor"* ]]
 }
 
 @test "FEAT-183: daemon start warns when bitcoin-cli is missing" {
@@ -435,24 +435,24 @@ EOF
 	[[ "$output" == *"BROKEN"* ]]
 }
 
-@test "FEAT-183: daemon install plist sets ThrottleInterval (macOS)" {
+@test "FEAT-183: daemon enable plist sets ThrottleInterval (macOS)" {
 	if [ "$(uname -s)" != "Darwin" ]; then
 		skip "macOS-only — checks the launchd plist"
 	fi
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
-	run "$LIGHTNING_BIN" daemon install
+	run "$LIGHTNING_BIN" daemon enable
 	[ "$status" -eq 0 ]
 	local plist="$HOME/Library/LaunchAgents/network.lightning.lightningd.plist"
 	grep -q "<key>ThrottleInterval</key>" "$plist"
 	grep -q "<integer>30</integer>" "$plist"
 }
 
-@test "FEAT-183: daemon install --trustedcoin writes managed block + auto-installs plugin" {
+@test "FEAT-183: daemon enable --trustedcoin writes managed block + auto-installs plugin" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
 	_stub_trustedcoin_curl
-	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	run "$LIGHTNING_BIN" daemon enable --trustedcoin
 	[ "$status" -eq 0 ]
 	[ -f "$HOME/.lightning/config" ]
 	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
@@ -462,7 +462,7 @@ EOF
 	[ -x "$HOME/.lightning/plugins/trustedcoin" ]
 }
 
-@test "FEAT-183: daemon install --trustedcoin skips fetch if binary already present" {
+@test "FEAT-183: daemon enable --trustedcoin skips fetch if binary already present" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
 	mkdir -p "$HOME/.lightning/plugins"
@@ -471,13 +471,13 @@ EOF
 	# Fail loudly if curl gets called.
 	printf '#!/bin/sh\necho "curl should not be called" >&2; exit 99\n' > "$BIN_SHIM/curl"
 	chmod +x "$BIN_SHIM/curl"
-	run "$LIGHTNING_BIN" -v daemon install --trustedcoin
+	run "$LIGHTNING_BIN" -v daemon enable --trustedcoin
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"already present"* ]]
 	[[ "$output" != *"fetching trustedcoin"* ]]
 }
 
-@test "FEAT-183: daemon install --trustedcoin reports failure when curl fails (Linux)" {
+@test "FEAT-183: daemon enable --trustedcoin reports failure when curl fails (Linux)" {
 	if [ "$(uname -s)" = "Darwin" ]; then
 		skip "macOS uses go install, not curl"
 	fi
@@ -485,14 +485,14 @@ EOF
 	chmod +x "$BIN_SHIM/lightningd"
 	printf '#!/bin/sh\nexit 22\n' > "$BIN_SHIM/curl"
 	chmod +x "$BIN_SHIM/curl"
-	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	run "$LIGHTNING_BIN" daemon enable --trustedcoin
 	# Config is still written; download failure is surfaced.
 	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
 	[[ "$output" == *"failed to download"* ]]
 	[[ "$output" == *"manual install"* ]]
 }
 
-@test "FEAT-183: daemon install --trustedcoin needs go on macOS without one" {
+@test "FEAT-183: daemon enable --trustedcoin needs go on macOS without one" {
 	if [ "$(uname -s)" != "Darwin" ]; then
 		skip "macOS-only — prebuilt binaries cover Linux/BSD"
 	fi
@@ -500,39 +500,39 @@ EOF
 	chmod +x "$BIN_SHIM/lightningd"
 	# Hide go from PATH.
 	export PATH="$BIN_SHIM:/usr/bin:/bin"
-	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	run "$LIGHTNING_BIN" daemon enable --trustedcoin
 	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
 	[[ "$output" == *"doesn't ship a prebuilt macOS binary"* ]]
 	[[ "$output" == *"go install"* ]]
 }
 
-@test "FEAT-183: daemon install --bitcoind strips the managed block" {
+@test "FEAT-183: daemon enable --bitcoind strips the managed block" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
 	_stub_trustedcoin_curl
 	# First enable trustedcoin.
-	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
+	"$LIGHTNING_BIN" daemon enable --trustedcoin >/dev/null 2>&1
 	grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
 	# Then disable.
-	run "$LIGHTNING_BIN" daemon install --bitcoind
+	run "$LIGHTNING_BIN" daemon enable --bitcoind
 	[ "$status" -eq 0 ]
 	! grep -q "disable-plugin=bcli" "$HOME/.lightning/config"
 	! grep -q "lightning backend" "$HOME/.lightning/config"
 }
 
-@test "FEAT-183: daemon install --trustedcoin is idempotent (no duplicate blocks)" {
+@test "FEAT-183: daemon enable --trustedcoin is idempotent (no duplicate blocks)" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
 	_stub_trustedcoin_curl
-	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
-	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
-	"$LIGHTNING_BIN" daemon install --trustedcoin >/dev/null 2>&1
+	"$LIGHTNING_BIN" daemon enable --trustedcoin >/dev/null 2>&1
+	"$LIGHTNING_BIN" daemon enable --trustedcoin >/dev/null 2>&1
+	"$LIGHTNING_BIN" daemon enable --trustedcoin >/dev/null 2>&1
 	# Exactly one block, not three.
 	local count; count=$(grep -c "lightning backend" "$HOME/.lightning/config" || true)
 	[ "$count" -eq 2 ]   # begin + end markers
 }
 
-@test "FEAT-183: daemon install --trustedcoin migrates a legacy esplora block" {
+@test "FEAT-183: daemon enable --trustedcoin migrates a legacy esplora block" {
 	printf '#!/bin/sh\nexit 0\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
 	_stub_trustedcoin_curl
@@ -541,12 +541,12 @@ EOF
 # user setting that should survive
 log-level=debug
 
-# >>> lightning esplora — managed by 'daemon install --esplora'
+# >>> lightning esplora — managed by 'daemon enable --esplora'
 disable-plugin=bcli
 sauron-api-endpoint=https://blockstream.info/api
 # <<< lightning esplora
 EOF
-	run "$LIGHTNING_BIN" daemon install --trustedcoin
+	run "$LIGHTNING_BIN" daemon enable --trustedcoin
 	[ "$status" -eq 0 ]
 	# Legacy block is gone; user setting preserved; new block present.
 	! grep -q "lightning esplora" "$HOME/.lightning/config"
@@ -561,7 +561,7 @@ EOF
 	mkdir -p "$HOME/.lightning"
 	# Pre-seed trustedcoin config (bypass install's WARNING banner).
 	cat > "$HOME/.lightning/config" <<EOF
-# >>> lightning backend — managed by 'daemon install'
+# >>> lightning backend — managed by 'daemon enable'
 disable-plugin=bcli
 # trustedcoin reference
 # <<< lightning backend
@@ -584,7 +584,7 @@ EOF
 @test "FEAT-183: daemon status reports backend in healthy + down output" {
 	mkdir -p "$HOME/.lightning"
 	cat > "$HOME/.lightning/config" <<EOF
-# >>> lightning backend — managed by 'daemon install'
+# >>> lightning backend — managed by 'daemon enable'
 disable-plugin=bcli
 # trustedcoin reference
 # <<< lightning backend
@@ -618,7 +618,7 @@ EOF
 	run "$LIGHTNING_BIN" -v daemon start
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"no service unit installed"* ]]
-	[[ "$output" == *"daemon install"* ]]
+	[[ "$output" == *"daemon enable"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -1350,7 +1350,7 @@ _lsps_plugin_loaded() {
 	run "$LIGHTNING_BIN" liquidity lsp boltz buy 1000000 --yes
 	[ "$status" -eq 3 ]
 	[[ "$output" == *"cln-lsps plugin not loaded"* ]]
-	[[ "$output" == *"daemon install --lsps"* ]]
+	[[ "$output" == *"daemon enable --lsps"* ]]
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
 
@@ -1447,7 +1447,7 @@ _lsps_plugin_loaded() {
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$HOME/.lightning"
 }
 
-@test "FEAT-198: daemon install --lsps flag is parsed without exploding" {
+@test "FEAT-198: daemon enable --lsps flag is parsed without exploding" {
 	# Dry-test only — actual binary download would need curl + tar shims
 	# (see _stub_trustedcoin_curl for the pattern).  Here we just verify
 	# the flag is recognised, the existing service-unit code still runs,
@@ -1455,7 +1455,7 @@ _lsps_plugin_loaded() {
 	grep -q '^LSPS_PLUGIN_REPO=' "$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
 	grep -q '^LSPS_PLUGIN_VERSION=' "$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
 	grep -q 'install_lsps_plugin' "$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
-	# Flag parses — daemon install --lsps shouldn't fail on the flag itself.
+	# Flag parses — daemon enable --lsps shouldn't fail on the flag itself.
 	# (It WILL fail later trying to download the plugin without curl shims;
 	# we just check it gets past flag parsing.)
 	run grep -E '^\s+--lsps\)' "$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
@@ -1471,7 +1471,7 @@ _lsps_plugin_loaded() {
 	grep -q "^status: shipped" "$f"
 	grep -q "cln-lsps" "$f"
 	grep -q "Boltz" "$f"
-	grep -q "daemon install --lsps" "$f"
+	grep -q "daemon enable --lsps" "$f"
 }
 
 # ---------------------------------------------------------------------------
@@ -2645,12 +2645,12 @@ EOF
 
 # --- daemon ----------------------------------------------------------------
 
-@test "1.2.0 ext: daemon logs without a log file exits cleanly with a hint" {
+@test "1.2.0 ext: daemon monitor without a log file exits cleanly with a hint" {
 	# No log file exists; daemon-logs should exit non-zero with a clear
 	# message rather than `tail -f` on /dev/null silently.
 	export LIGHTNING_DIR="$BATS_TMPDIR/lnd.$$"
 	mkdir -p "$LIGHTNING_DIR/bitcoin"
-	run "$LIGHTNING_BIN" daemon logs
+	run "$LIGHTNING_BIN" daemon monitor
 	[ "$status" -eq 2 ]
 	[[ "$output" == *"no log file"* ]]
 	rm -rf "$LIGHTNING_DIR"
@@ -2733,87 +2733,80 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# FEAT-207 — `lightning daemon install-core` scaffold
+# FEAT-207 — `lightning daemon install` scaffold
 # (issues/feature/207-clightning-install.md)
 # ---------------------------------------------------------------------------
 
-@test "FEAT-207: daemon install-core --help mentions the five backends" {
-	run "$LIGHTNING_BIN" daemon install-core --help
+@test "FEAT-207: daemon install --help mentions the sources" {
+	run "$LIGHTNING_BIN" daemon install --help
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"--rpk"*    ]]
-	[[ "$output" == *"--brew"*   ]]
-	[[ "$output" == *"--apk"*    ]]
-	[[ "$output" == *"--source"* ]]
-	[[ "$output" == *"--podman"* ]]
+	[[ "$output" == *"rpk"*    ]]
+	[[ "$output" == *"brew"*   ]]
+	[[ "$output" == *"apk"*    ]]
+	[[ "$output" == *"source"* ]]
+	[[ "$output" == *"podman"* ]]
 }
 
-@test "FEAT-207: daemon install-core --help calls out docker as non-goal" {
-	run "$LIGHTNING_BIN" daemon install-core --help
-	[ "$status" -eq 0 ]
+@test "FEAT-207: daemon install --from docker is refused" {
+	run "$LIGHTNING_BIN" daemon install --from docker
+	[ "$status" -ne 0 ]
 	[[ "$output" == *"docker is not supported"* ]] || \
 	[[ "$output" == *"docker"* && "$output" == *"podman"* ]]
 }
 
-@test "FEAT-207: install-core --dry-run --rpk prints the rpk plan" {
-	run "$LIGHTNING_BIN" daemon install-core --rpk --dry-run
+@test "FEAT-207: install-core --dry-run --from rpk prints the rpk plan" {
+	run "$LIGHTNING_BIN" daemon install --from rpk --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"backend:"*"rpk"* ]]
 	[[ "$output" == *"rpk install lightningd"* ]]
 }
 
-@test "FEAT-207: install-core --dry-run --brew prints the brew plan" {
-	run "$LIGHTNING_BIN" daemon install-core --brew --dry-run
+@test "FEAT-207: install-core --dry-run --from brew prints the brew plan" {
+	run "$LIGHTNING_BIN" daemon install --from brew --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"brew install core-lightning"* ]]
 }
 
-@test "FEAT-207: install-core --dry-run --apk prints the apk plan" {
-	run "$LIGHTNING_BIN" daemon install-core --apk --dry-run
+@test "FEAT-207: install-core --dry-run --from apk prints the apk plan" {
+	run "$LIGHTNING_BIN" daemon install --from apk --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"apk add lightningd"* ]]
 }
 
-@test "FEAT-207: install-core --dry-run --source prints the source plan" {
-	run "$LIGHTNING_BIN" daemon install-core --source --dry-run
+@test "FEAT-207: install-core --dry-run --from source prints the source plan" {
+	run "$LIGHTNING_BIN" daemon install --from source --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"git clone"* ]]
 	[[ "$output" == *"configure"* ]]
 }
 
-@test "FEAT-207: install-core --dry-run --podman prints the podman plan" {
-	run "$LIGHTNING_BIN" daemon install-core --podman --dry-run
+@test "FEAT-207: install-core --dry-run --from podman prints the podman plan" {
+	run "$LIGHTNING_BIN" daemon install --from podman --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"podman pull"* ]]
 	[[ "$output" == *"elementsproject/lightningd"* ]]
 }
 
-@test "FEAT-207: install-core --docker refuses and hints at --podman" {
-	run "$LIGHTNING_BIN" daemon install-core --docker
+@test "FEAT-207: install-core --from invalid_source --dry-run is refused" {
+	run "$LIGHTNING_BIN" daemon install --from invalid_source --dry-run
 	[ "$status" -ne 0 ]
-	[[ "$output" == *"docker is not supported"* ]]
-	[[ "$output" == *"--podman"* ]]
+	[[ "$output" == *"unknown source"* || "$output" == *"invalid"* ]]
 }
 
-@test "FEAT-207: install-core rejects two backend flags" {
-	run "$LIGHTNING_BIN" daemon install-core --rpk --brew --dry-run
-	[ "$status" -ne 0 ]
-	[[ "$output" == *"pick one backend"* ]]
-}
-
-@test "FEAT-207: install-core --version pin shows up in the plan" {
-	run "$LIGHTNING_BIN" daemon install-core --brew --version v26.04.1 --dry-run
+@test "FEAT-207: install-core --tag pin shows up in the plan" {
+	run "$LIGHTNING_BIN" daemon install --from brew --tag v26.04.1 --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"version:"*"v26.04.1"* ]]
 }
 
 @test "FEAT-207: install-core unknown flag fails" {
-	run "$LIGHTNING_BIN" daemon install-core --not-a-real-flag
+	run "$LIGHTNING_BIN" daemon install --not-a-real-flag
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"unknown flag"* ]]
 }
 
 # ---------------------------------------------------------------------------
-# FEAT-207 stage 1 — real `--rpk` and `--brew` invocations
+# FEAT-207 stage 1 — real `--from rpk` and `--from brew` invocations
 # ---------------------------------------------------------------------------
 
 # Drop a fake rpk on PATH that records its args and (optionally)
@@ -2846,9 +2839,9 @@ EOF
 	chmod +x "$BIN_SHIM/brew"
 }
 
-@test "FEAT-207: install-core --rpk runs rpk install lightningd" {
+@test "FEAT-207: install-core --from rpk runs rpk install lightningd" {
 	_stub_rpk 0 1
-	run "$LIGHTNING_BIN" daemon install-core --rpk --yes
+	run "$LIGHTNING_BIN" daemon install --from rpk --yes
 	[ "$status" -eq 0 ]
 	[ -f "$BIN_SHIM/rpk.calls" ]
 	grep -q "rpk install lightningd" "$BIN_SHIM/rpk.calls"
@@ -2856,70 +2849,70 @@ EOF
 	[[ "$output" == *"lightningd installed"* ]]
 }
 
-@test "FEAT-207: install-core --rpk --version pins the version" {
+@test "FEAT-207: install-core --from rpk --tag pins the version" {
 	_stub_rpk 0 1
-	run "$LIGHTNING_BIN" daemon install-core --rpk --version v26.04.1
+	run "$LIGHTNING_BIN" daemon install --from rpk --tag v26.04.1
 	[ "$status" -eq 0 ]
-	grep -q "\\--version v26.04.1" "$BIN_SHIM/rpk.calls"
+	grep -q "\\--tag v26.04.1" "$BIN_SHIM/rpk.calls"
 }
 
-@test "FEAT-207: install-core --rpk propagates rpk failure" {
+@test "FEAT-207: install-core --from rpk propagates rpk failure" {
 	_stub_rpk 17 0
-	run "$LIGHTNING_BIN" daemon install-core --rpk
+	run "$LIGHTNING_BIN" daemon install --from rpk
 	[ "$status" -eq 17 ]
 	[[ "$output" == *"rpk install failed"* ]]
 	[[ "$output" == *"rpk package isn't published"* ]]
 }
 
-@test "FEAT-207: install-core --rpk errors when rpk not on PATH" {
+@test "FEAT-207: install-core --from rpk errors when rpk not on PATH" {
 	# No rpk shim — the BIN_SHIM is clean by default.
-	run "$LIGHTNING_BIN" daemon install-core --rpk
+	run "$LIGHTNING_BIN" daemon install --from rpk
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"rpk not on PATH"* ]]
 }
 
-@test "FEAT-207: install-core --rpk --dry-run skips the rpk-on-PATH check" {
+@test "FEAT-207: install-core --from rpk --dry-run skips the rpk-on-PATH check" {
 	# Operators may be planning on a different machine — dry-run shouldn't
 	# require the package manager to be installed locally.
-	run "$LIGHTNING_BIN" daemon install-core --rpk --dry-run
+	run "$LIGHTNING_BIN" daemon install --from rpk --dry-run
 	[ "$status" -eq 0 ]
 	[ ! -f "$BIN_SHIM/rpk.calls" ]
 	[[ "$output" == *"rpk install lightningd"* ]]
 }
 
-@test "FEAT-207: install-core --rpk fails if lightningd missing post-install" {
+@test "FEAT-207: install-core --from rpk fails if lightningd missing post-install" {
 	# rpk reports success but doesn't actually install the binary.
 	_stub_rpk 0 0
-	run "$LIGHTNING_BIN" daemon install-core --rpk
+	run "$LIGHTNING_BIN" daemon install --from rpk
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"reported success"* ]]
 	[[ "$output" == *"not on PATH"* ]]
 }
 
-@test "FEAT-207: install-core --brew off-macOS exits with a clear hint" {
-	# bats CI runs Linux — is_macos returns false here, so --brew errors.
+@test "FEAT-207: install-core --from brew off-macOS exits with a clear hint" {
+	# bats CI runs Linux — is_macos returns false here, so --from brew errors.
 	_stub_brew 0 1
-	run "$LIGHTNING_BIN" daemon install-core --brew
+	run "$LIGHTNING_BIN" daemon install --from brew
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"macOS-only"* ]] || [[ "$output" == *"macOS"* ]]
 }
 
-@test "FEAT-207: install-core --brew --dry-run prints the brew install plan" {
+@test "FEAT-207: install-core --from brew --dry-run prints the brew install plan" {
 	# Dry-run skips the macOS gate and the brew-on-PATH check, so the
 	# Linux CI can still validate the plan text.
-	run "$LIGHTNING_BIN" daemon install-core --brew --dry-run
+	run "$LIGHTNING_BIN" daemon install --from brew --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"brew install core-lightning"* ]]
 }
 
-@test "FEAT-207: install-core --brew --version uses the @version formula" {
-	run "$LIGHTNING_BIN" daemon install-core --brew --version v26.04.1 --dry-run
+@test "FEAT-207: install-core --from brew --tag uses the @version formula" {
+	run "$LIGHTNING_BIN" daemon install --from brew --tag v26.04.1 --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"core-lightning@v26.04.1"* ]]
 }
 
-@test "FEAT-207: install-core --brew --force uses brew reinstall" {
-	run "$LIGHTNING_BIN" daemon install-core --brew --force --dry-run
+@test "FEAT-207: install-core --from brew --force uses brew reinstall" {
+	run "$LIGHTNING_BIN" daemon install --from brew --force --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"brew reinstall"* ]]
 }
@@ -2929,7 +2922,7 @@ EOF
 	printf '#!/bin/sh\necho "Core Lightning v25.05.0"\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
 	_stub_rpk 0 1
-	run "$LIGHTNING_BIN" daemon install-core --rpk
+	run "$LIGHTNING_BIN" daemon install --from rpk
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"already on PATH"* ]]
 	[[ "$output" == *"--force"* ]]
@@ -2940,7 +2933,7 @@ EOF
 	printf '#!/bin/sh\necho "Core Lightning v25.05.0"\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
 	_stub_rpk 0 1
-	run "$LIGHTNING_BIN" daemon install-core --rpk --force
+	run "$LIGHTNING_BIN" daemon install --from rpk --force
 	[ "$status" -eq 0 ]
 	[ -f "$BIN_SHIM/rpk.calls" ]
 	grep -q "\\--force" "$BIN_SHIM/rpk.calls"
@@ -2950,13 +2943,13 @@ EOF
 	# Dry-run is "what would you do" — it shouldn't refuse on existing installs.
 	printf '#!/bin/sh\necho "Core Lightning v25.05.0"\n' > "$BIN_SHIM/lightningd"
 	chmod +x "$BIN_SHIM/lightningd"
-	run "$LIGHTNING_BIN" daemon install-core --rpk --dry-run
+	run "$LIGHTNING_BIN" daemon install --from rpk --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"plan:"* ]]
 }
 
 # ---------------------------------------------------------------------------
-# FEAT-207 stage 2 — real `--apk` invocation
+# FEAT-207 stage 2 — real `--from apk` invocation
 # ---------------------------------------------------------------------------
 
 # Records its args and (when exit 0) drops a fake lightningd onto PATH.
@@ -3032,13 +3025,13 @@ EOF
 	export LIGHTNING_OS_RELEASE="$f"
 }
 
-@test "FEAT-207: install-core --apk runs apk add lightningd via doas" {
+@test "FEAT-207: install-core --from apk runs apk add lightningd via doas" {
 	_fake_alpine_os_release
 	_stub_id_nonroot
 	_stub_apk 0 1
 	_stub_doas
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
-	run "$LIGHTNING_BIN" daemon install-core --apk
+	run "$LIGHTNING_BIN" daemon install --from apk
 	[ "$status" -eq 0 ]
 	[ -f "$BIN_SHIM/apk.calls" ]
 	grep -q "apk add lightningd" "$BIN_SHIM/apk.calls"
@@ -3047,20 +3040,20 @@ EOF
 	[[ "$output" == *"lightningd installed"* ]]
 }
 
-@test "FEAT-207: install-core --apk falls back to sudo when doas is absent" {
+@test "FEAT-207: install-core --from apk falls back to sudo when doas is absent" {
 	_fake_alpine_os_release
 	_stub_id_nonroot
 	_stub_apk 0 1
 	_stub_sudo
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
-	run "$LIGHTNING_BIN" daemon install-core --apk
+	run "$LIGHTNING_BIN" daemon install --from apk
 	[ "$status" -eq 0 ]
 	[ -f "$BIN_SHIM/sudo.calls" ]
 	grep -q "sudo apk add" "$BIN_SHIM/sudo.calls"
 	[ ! -f "$BIN_SHIM/doas.calls" ]
 }
 
-@test "FEAT-207: install-core --apk skips prefix when already root" {
+@test "FEAT-207: install-core --from apk skips prefix when already root" {
 	# When ic_root_prefix returns empty (id -u == 0), the apk call is bare.
 	# Force id -u to 0 — GH-hosted runners are non-root, locally we may
 	# already be root, so either way we get a deterministic answer.
@@ -3068,7 +3061,7 @@ EOF
 	_stub_id_root
 	_stub_apk 0 1
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
-	run "$LIGHTNING_BIN" daemon install-core --apk
+	run "$LIGHTNING_BIN" daemon install --from apk
 	[ "$status" -eq 0 ]
 	[ -f "$BIN_SHIM/apk.calls" ]
 	# Bare `apk add` — no doas / sudo prefix on the line.
@@ -3076,61 +3069,61 @@ EOF
 	[ ! -f "$BIN_SHIM/sudo.calls" ]
 }
 
-@test "FEAT-207: install-core --apk --version pins via apk's = syntax" {
+@test "FEAT-207: install-core --from apk --tag pins via apk's = syntax" {
 	_fake_alpine_os_release
 	_stub_apk 0 1
 	_stub_doas
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
-	run "$LIGHTNING_BIN" daemon install-core --apk --version 26.04.1-r0
+	run "$LIGHTNING_BIN" daemon install --from apk --tag 26.04.1-r0
 	[ "$status" -eq 0 ]
 	grep -q "lightningd=26.04.1-r0" "$BIN_SHIM/apk.calls"
 }
 
-@test "FEAT-207: install-core --apk --force uses --force-overwrite" {
+@test "FEAT-207: install-core --from apk --force uses --force-overwrite" {
 	_fake_alpine_os_release
 	_stub_apk 0 1
 	_stub_doas
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
-	run "$LIGHTNING_BIN" daemon install-core --apk --force
+	run "$LIGHTNING_BIN" daemon install --from apk --force
 	[ "$status" -eq 0 ]
 	grep -q "\\--force-overwrite" "$BIN_SHIM/apk.calls"
 }
 
-@test "FEAT-207: install-core --apk off-Alpine exits with a clear hint" {
+@test "FEAT-207: install-core --from apk off-Alpine exits with a clear hint" {
 	# No fake os-release — platform_id() returns the real platform
 	# (ubuntu in CI).
 	_stub_apk 0 1
 	_stub_doas
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
-	run "$LIGHTNING_BIN" daemon install-core --apk
+	run "$LIGHTNING_BIN" daemon install --from apk
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"not an Alpine system"* ]]
 	[ ! -f "$BIN_SHIM/apk.calls" ]
 }
 
-@test "FEAT-207: install-core --apk --dry-run skips platform + apk checks" {
+@test "FEAT-207: install-core --from apk --dry-run skips platform + apk checks" {
 	# No fake os-release, no apk shim — dry-run should still print the plan.
-	run "$LIGHTNING_BIN" daemon install-core --apk --dry-run
+	run "$LIGHTNING_BIN" daemon install --from apk --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"apk add lightningd"* ]]
 }
 
-@test "FEAT-207: install-core --apk propagates apk failure" {
+@test "FEAT-207: install-core --from apk propagates apk failure" {
 	_fake_alpine_os_release
 	_stub_apk 42 0
 	_stub_doas
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
-	run "$LIGHTNING_BIN" daemon install-core --apk
+	run "$LIGHTNING_BIN" daemon install --from apk
 	[ "$status" -eq 42 ]
 	[[ "$output" == *"apk add failed"* ]]
 }
 
-@test "FEAT-207: install-core --apk fails if lightningd missing post-install" {
+@test "FEAT-207: install-core --from apk fails if lightningd missing post-install" {
 	_fake_alpine_os_release
 	_stub_apk 0 0
 	_stub_doas
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
-	run "$LIGHTNING_BIN" daemon install-core --apk
+	run "$LIGHTNING_BIN" daemon install --from apk
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"reported success"* ]]
 }
@@ -3145,14 +3138,14 @@ EOF
 	' 2>/dev/null || true
 	# The daemon script invokes case logic when sourced; we can't rely on
 	# fully sourcing it.  Instead exercise the override through the verb:
-	run "$LIGHTNING_BIN" daemon install-core --apk --dry-run
+	run "$LIGHTNING_BIN" daemon install --from apk --dry-run
 	[ "$status" -eq 0 ]
 	# Output line is "platform:   alpine"
 	[[ "$output" == *"platform:"*"alpine"* ]]
 }
 
 # ---------------------------------------------------------------------------
-# FEAT-207 stage 3 — real `--source` invocation (Ubuntu apt + git + make)
+# FEAT-207 stage 3 — real `--from source` invocation (Ubuntu apt + git + make)
 # ---------------------------------------------------------------------------
 
 _stub_apt_get() {
@@ -3230,12 +3223,12 @@ _source_common_setup() {
 	_stub_sudo
 }
 
-@test "FEAT-207: install-core --source --yes runs the full sequence" {
+@test "FEAT-207: install-core --from source --yes runs the full sequence" {
 	_source_common_setup
 	_stub_apt_get 0
 	_stub_git_for_source 0
 	_stub_make 0 1
-	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	run "$LIGHTNING_BIN" daemon install --from source --yes
 	[ "$status" -eq 0 ]
 	# apt-get install was called with the build deps.
 	[ -f "$BIN_SHIM/apt-get.calls" ]
@@ -3255,88 +3248,88 @@ _source_common_setup() {
 	[[ "$output" == *"lightningd installed"* ]]
 }
 
-@test "FEAT-207: install-core --source --yes --version checks out the tag" {
+@test "FEAT-207: install-core --from source --yes --tag checks out the tag" {
 	_source_common_setup
 	_stub_apt_get 0
 	_stub_git_for_source 0
 	_stub_make 0 1
-	run "$LIGHTNING_BIN" daemon install-core --source --yes --version v26.04.1
+	run "$LIGHTNING_BIN" daemon install --from source --yes --tag v26.04.1
 	[ "$status" -eq 0 ]
 	grep -q "git checkout v26.04.1" "$BIN_SHIM/git.calls"
 }
 
-@test "FEAT-207: install-core --source refuses without --yes when stdin isn't a TTY" {
+@test "FEAT-207: install-core --from source refuses without --yes when stdin isn't a TTY" {
 	_source_common_setup
 	_stub_apt_get 0
 	_stub_git_for_source 0
 	_stub_make 0 1
 	# bats `run` doesn't allocate a TTY, so this is the path under test.
-	run "$LIGHTNING_BIN" daemon install-core --source
+	run "$LIGHTNING_BIN" daemon install --from source
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"not a TTY"* ]]
 	[[ "$output" == *"--yes"* ]]
 	[ ! -f "$BIN_SHIM/apt-get.calls" ]
 }
 
-@test "FEAT-207: install-core --source off-Ubuntu exits with a clear hint" {
+@test "FEAT-207: install-core --from source off-Ubuntu exits with a clear hint" {
 	# Fake Alpine — same os-release machinery the apk tests use.
 	_fake_alpine_os_release
 	export LIGHTNING_BUILD_DIR="$BATS_TMPDIR/lightning-build.$$"
 	_stub_apt_get 0
 	_stub_git_for_source 0
 	_stub_make 0 1
-	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	run "$LIGHTNING_BIN" daemon install --from source --yes
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"Ubuntu"* ]] || [[ "$output" == *"ubuntu"* ]]
-	[[ "$output" == *"--apk"* ]] || [[ "$output" == *"apk"* ]]
+	[[ "$output" == *"apk"* ]]
 	[ ! -f "$BIN_SHIM/apt-get.calls" ]
 }
 
-@test "FEAT-207: install-core --source --dry-run skips platform + tool checks" {
+@test "FEAT-207: install-core --from source --dry-run skips platform + tool checks" {
 	# No stubs at all — dry-run must still print the plan + build-dir.
-	run "$LIGHTNING_BIN" daemon install-core --source --dry-run
+	run "$LIGHTNING_BIN" daemon install --from source --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"apt-get install build-deps"* ]]
 	[[ "$output" == *"build-dir:"* ]]
 }
 
-@test "FEAT-207: install-core --source propagates apt-get failure" {
+@test "FEAT-207: install-core --from source propagates apt-get failure" {
 	_source_common_setup
 	_stub_apt_get 100
 	_stub_git_for_source 0
 	_stub_make 0 1
-	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	run "$LIGHTNING_BIN" daemon install --from source --yes
 	[ "$status" -eq 100 ]
 	[[ "$output" == *"apt-get install failed"* ]]
 	# git/make should not have run.
 	[ ! -f "$BIN_SHIM/git.calls" ]
 }
 
-@test "FEAT-207: install-core --source propagates git failure" {
+@test "FEAT-207: install-core --from source propagates git failure" {
 	_source_common_setup
 	_stub_apt_get 0
 	_stub_git_for_source 128
 	_stub_make 0 1
-	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	run "$LIGHTNING_BIN" daemon install --from source --yes
 	[ "$status" -ne 0 ]
 	[[ "$output" == *"git clone failed"* ]]
 	# make should not have been invoked.
 	[ ! -f "$BIN_SHIM/make.calls" ]
 }
 
-@test "FEAT-207: install-core --source propagates build failure" {
+@test "FEAT-207: install-core --from source propagates build failure" {
 	_source_common_setup
 	_stub_apt_get 0
 	_stub_git_for_source 0
 	# make all exits non-zero; install never runs.
 	_stub_make 2 0
-	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	run "$LIGHTNING_BIN" daemon install --from source --yes
 	[ "$status" -eq 2 ]
 	[[ "$output" == *"build failed"* ]]
 	[[ "$output" == *"left at"* ]]   # operator-friendly hint
 }
 
-@test "FEAT-207: install-core --source fetches when repo already cloned" {
+@test "FEAT-207: install-core --from source fetches when repo already cloned" {
 	_source_common_setup
 	# Pre-create the clone dir so the verb takes the fetch branch.
 	mkdir -p "$LIGHTNING_BUILD_DIR/lightning/.git"
@@ -3346,14 +3339,14 @@ _source_common_setup() {
 	_stub_apt_get 0
 	_stub_git_for_source 0
 	_stub_make 0 1
-	run "$LIGHTNING_BIN" daemon install-core --source --yes
+	run "$LIGHTNING_BIN" daemon install --from source --yes
 	[ "$status" -eq 0 ]
 	grep -q "git fetch" "$BIN_SHIM/git.calls"
 	! grep -q "git clone" "$BIN_SHIM/git.calls"
 }
 
 # ---------------------------------------------------------------------------
-# FEAT-207 stage 4 — real `--podman` invocation
+# FEAT-207 stage 4 — real `--from podman` invocation
 # ---------------------------------------------------------------------------
 
 # Records every podman invocation; handles the few sub-commands the
@@ -3399,10 +3392,10 @@ _podman_common_setup() {
 	export PATH="$LIGHTNING_SHIM_DIR:$PATH"
 }
 
-@test "FEAT-207: install-core --podman pulls + creates + writes shims" {
+@test "FEAT-207: install-core --from podman pulls + creates + writes shims" {
 	_podman_common_setup
 	_stub_podman 0 0
-	run "$LIGHTNING_BIN" daemon install-core --podman
+	run "$LIGHTNING_BIN" daemon install --from podman
 	[ "$status" -eq 0 ]
 	[ -f "$BIN_SHIM/podman.calls" ]
 	grep -q "podman pull elementsproject/lightningd" "$BIN_SHIM/podman.calls"
@@ -3417,27 +3410,27 @@ _podman_common_setup() {
 	[[ "$output" == *"lightningd installed"* ]]
 }
 
-@test "FEAT-207: install-core --podman --version tags the image" {
+@test "FEAT-207: install-core --from podman --tag tags the image" {
 	_podman_common_setup
 	_stub_podman 0 0
-	run "$LIGHTNING_BIN" daemon install-core --podman --version v26.04.1
+	run "$LIGHTNING_BIN" daemon install --from podman --tag v26.04.1
 	[ "$status" -eq 0 ]
 	grep -q "podman pull elementsproject/lightningd:v26.04.1" "$BIN_SHIM/podman.calls"
 	# The lightningd shim's `--version` branch must reference the same tag.
 	grep -q "elementsproject/lightningd:v26.04.1" "$LIGHTNING_SHIM_DIR/lightningd"
 }
 
-@test "FEAT-207: install-core --podman --dry-run skips podman + writes nothing" {
+@test "FEAT-207: install-core --from podman --dry-run skips podman + writes nothing" {
 	_podman_common_setup
 	# No podman stub at all — dry-run must still print the plan.
-	run "$LIGHTNING_BIN" daemon install-core --podman --dry-run
+	run "$LIGHTNING_BIN" daemon install --from podman --dry-run
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"podman pull"* ]]
 	[[ "$output" == *"shim-dir:"* ]]
 	[ ! -e "$LIGHTNING_SHIM_DIR/lightning-cli" ]
 }
 
-@test "FEAT-207: install-core --podman errors when podman not on PATH" {
+@test "FEAT-207: install-core --from podman errors when podman not on PATH" {
 	# This test depends on the inherited environment NOT having podman
 	# installed.  GH-hosted runners ship podman in /usr/bin, and we
 	# can't strip /usr/bin from PATH without also losing coreutils
@@ -3446,50 +3439,50 @@ _podman_common_setup() {
 	# script's libexec dispatch and the failure mode changed.
 	# When podman is present in the environment, skip; the verb's
 	# `command -v podman` branch is well-covered by code review and
-	# by every other --podman test that does stub podman.
+	# by every other --from podman test that does stub podman.
 	if command -v podman >/dev/null 2>&1; then
 		skip "system podman present; this test requires a podman-free environment"
 	fi
 	_podman_common_setup
-	run "$LIGHTNING_BIN" daemon install-core --podman
+	run "$LIGHTNING_BIN" daemon install --from podman
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"podman not on PATH"* ]]
 	[ ! -e "$LIGHTNING_SHIM_DIR/lightning-cli" ]
 }
 
-@test "FEAT-207: install-core --podman --system is refused" {
+@test "FEAT-207: install-core --from podman --system is refused" {
 	_podman_common_setup
 	_stub_podman 0 0
-	run "$LIGHTNING_BIN" daemon install-core --podman --system
+	run "$LIGHTNING_BIN" daemon install --from podman --system
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"--system is not supported"* ]]
 	[ ! -e "$LIGHTNING_SHIM_DIR/lightning-cli" ]
 }
 
-@test "FEAT-207: install-core --podman propagates pull failure" {
+@test "FEAT-207: install-core --from podman propagates pull failure" {
 	_podman_common_setup
 	_stub_podman 125 0
-	run "$LIGHTNING_BIN" daemon install-core --podman
+	run "$LIGHTNING_BIN" daemon install --from podman
 	[ "$status" -eq 125 ]
 	[[ "$output" == *"podman pull failed"* ]]
 	# create should not have happened.
 	! grep -q "podman create" "$BIN_SHIM/podman.calls"
 }
 
-@test "FEAT-207: install-core --podman propagates create failure" {
+@test "FEAT-207: install-core --from podman propagates create failure" {
 	_podman_common_setup
 	_stub_podman 0 125
-	run "$LIGHTNING_BIN" daemon install-core --podman
+	run "$LIGHTNING_BIN" daemon install --from podman
 	[ "$status" -eq 125 ]
 	[[ "$output" == *"podman create failed"* ]]
 	[ ! -e "$LIGHTNING_SHIM_DIR/lightning-cli" ]
 }
 
-@test "FEAT-207: install-core --podman refuses when container already exists" {
+@test "FEAT-207: install-core --from podman refuses when container already exists" {
 	_podman_common_setup
 	_stub_podman 0 0
 	export PODMAN_CONTAINER_EXISTS=1
-	run "$LIGHTNING_BIN" daemon install-core --podman
+	run "$LIGHTNING_BIN" daemon install --from podman
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"already exists"* ]]
 	[[ "$output" == *"--force"* ]]
@@ -3497,17 +3490,17 @@ _podman_common_setup() {
 	! grep -q "podman create" "$BIN_SHIM/podman.calls"
 }
 
-@test "FEAT-207: install-core --podman --force recreates the container" {
+@test "FEAT-207: install-core --from podman --force recreates the container" {
 	_podman_common_setup
 	_stub_podman 0 0
 	export PODMAN_CONTAINER_EXISTS=1
-	run "$LIGHTNING_BIN" daemon install-core --podman --force
+	run "$LIGHTNING_BIN" daemon install --from podman --force
 	[ "$status" -eq 0 ]
 	grep -q "podman rm -f clightning" "$BIN_SHIM/podman.calls"
 	grep -q "podman create" "$BIN_SHIM/podman.calls"
 }
 
-@test "FEAT-207: install-core --podman warns when shim dir is not on PATH" {
+@test "FEAT-207: install-core --from podman warns when shim dir is not on PATH" {
 	# Set up the shim dir but DO NOT add it to PATH.
 	export LIGHTNING_DIR="$BATS_TMPDIR/lightning-state.$$"
 	export LIGHTNING_SHIM_DIR="$BATS_TMPDIR/lightning-shim.$$"
@@ -3516,7 +3509,7 @@ _podman_common_setup() {
 	# To still pass ic_verify_lightningd we need the shim to be executable —
 	# verify is by absolute path, not PATH.
 	_stub_podman 0 0
-	run "$LIGHTNING_BIN" daemon install-core --podman
+	run "$LIGHTNING_BIN" daemon install --from podman
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"not on \$PATH"* ]] || [[ "$output" == *"not on $"* ]] || [[ "$output" == *"PATH"*"add it"* ]]
 }
@@ -3603,10 +3596,10 @@ _podman_lifecycle_setup() {
 	[[ "$output" == *"podman-mode"* ]]
 }
 
-@test "FEAT-207: daemon logs exec's into podman logs when container exists" {
+@test "FEAT-207: daemon monitor exec's into podman logs when container exists" {
 	_podman_lifecycle_setup
 	touch "$BIN_SHIM/podman-running"
-	run "$LIGHTNING_BIN" daemon logs
+	run "$LIGHTNING_BIN" daemon monitor
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"<podman log line>"* ]]
 	grep -q "^podman logs" "$BIN_SHIM/podman.calls"
@@ -3661,7 +3654,7 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# FEAT-207 — Alpine / OpenRC daemon install
+# FEAT-207 — Alpine / OpenRC daemon enable
 # ---------------------------------------------------------------------------
 
 # Stubs for the system-account tools the OpenRC install path shells
@@ -3714,9 +3707,9 @@ _openrc_common_setup() {
 	export BIN_SHIM_CALLS_DIR="$BIN_SHIM"
 }
 
-@test "FEAT-207: daemon install on Alpine writes an OpenRC init script" {
+@test "FEAT-207: daemon enable on Alpine writes an OpenRC init script" {
 	_openrc_common_setup
-	run "$LIGHTNING_BIN" daemon install
+	run "$LIGHTNING_BIN" daemon enable
 	[ "$status" -eq 0 ]
 	[ -f "$LIGHTNING_INIT_D/clightningd" ]
 	# Init script shape — shebang + supervisor + depend block.
@@ -3727,9 +3720,9 @@ _openrc_common_setup() {
 	grep -q 'need net'                           "$LIGHTNING_INIT_D/clightningd"
 }
 
-@test "FEAT-207: OpenRC install creates the clightning user + group" {
+@test "FEAT-207: OpenRC enable creates the clightning user + group" {
 	_openrc_common_setup
-	run "$LIGHTNING_BIN" daemon install
+	run "$LIGHTNING_BIN" daemon enable
 	[ "$status" -eq 0 ]
 	[ -f "$BIN_SHIM/addgroup.calls" ]
 	grep -q "addgroup -S clightning" "$BIN_SHIM/addgroup.calls"
@@ -3738,9 +3731,9 @@ _openrc_common_setup() {
 	grep -q "\\-G clightning clightning" "$BIN_SHIM/adduser.calls"
 }
 
-@test "FEAT-207: OpenRC install seeds the config with rpc-file-mode 0660" {
+@test "FEAT-207: OpenRC enable seeds the config with rpc-file-mode 0660" {
 	_openrc_common_setup
-	run "$LIGHTNING_BIN" daemon install
+	run "$LIGHTNING_BIN" daemon enable
 	[ "$status" -eq 0 ]
 	[ -f "$LIGHTNING_OPENRC_STATE/config" ]
 	grep -q "^rpc-file-mode=0660" "$LIGHTNING_OPENRC_STATE/config"
@@ -3749,39 +3742,39 @@ _openrc_common_setup() {
 
 @test "FEAT-207: OpenRC init script references the configured state dir" {
 	_openrc_common_setup
-	run "$LIGHTNING_BIN" daemon install
+	run "$LIGHTNING_BIN" daemon enable
 	[ "$status" -eq 0 ]
 	grep -qF "lightning-dir=$LIGHTNING_OPENRC_STATE" "$LIGHTNING_INIT_D/clightningd"
 	grep -qF "pidfile=\"$LIGHTNING_OPENRC_STATE/lightningd-bitcoin.pid\"" "$LIGHTNING_INIT_D/clightningd"
 }
 
-@test "FEAT-207: OpenRC install --system is silent (no warning), --bare is the warning" {
+@test "FEAT-207: OpenRC enable --system is silent (no warning), --bare is the warning" {
 	_openrc_common_setup
-	run "$LIGHTNING_BIN" daemon install --system
+	run "$LIGHTNING_BIN" daemon enable --system
 	[ "$status" -eq 0 ]
 	# Without --system on OpenRC the verb informs the operator that
 	# user-mode isn't an option.  With --system it just proceeds.
 	! [[ "$output" == *"no per-user mode"* ]]
 }
 
-@test "FEAT-207: OpenRC install without --system warns about no user-mode" {
+@test "FEAT-207: OpenRC enable without --system warns about no user-mode" {
 	_openrc_common_setup
-	run "$LIGHTNING_BIN" -v daemon install
+	run "$LIGHTNING_BIN" -v daemon enable
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"no per-user mode"* ]]
 }
 
-@test "FEAT-207: OpenRC install refuses without --migrate when ~/.lightning exists" {
+@test "FEAT-207: OpenRC enable refuses without --migrate when ~/.lightning exists" {
 	_openrc_common_setup
 	mkdir -p "$HOME/.lightning"
-	run "$LIGHTNING_BIN" daemon install
+	run "$LIGHTNING_BIN" daemon enable
 	[ "$status" -eq 3 ]
 	[[ "$output" == *"--migrate"* ]]
 }
 
-@test "FEAT-207: OpenRC install skips sidecar installation (no keepalive/alert)" {
+@test "FEAT-207: OpenRC enable skips sidecar installation (no keepalive/alert)" {
 	_openrc_common_setup
-	run "$LIGHTNING_BIN" daemon install
+	run "$LIGHTNING_BIN" daemon enable
 	[ "$status" -eq 0 ]
 	# Sidecars are user-mode systemd/launchd specific.  On OpenRC the
 	# operator runs their own monitoring; we don't ship them.
@@ -3824,7 +3817,7 @@ _openrc_common_setup() {
 	run "$LIGHTNING_BIN" channel autopilot status
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"never run"* ]]
-	[[ "$output" == *"daemon install --autopilot"* ]]
+	[[ "$output" == *"daemon enable --autopilot"* ]]
 }
 
 @test "FEAT-205: channel autopilot run --dry-run reads config + computes plan" {
@@ -3903,12 +3896,12 @@ EOF2
 	[[ "$output" == *"autopilot"* ]]
 }
 
-@test "FEAT-205: daemon install --autopilot writes a sidecar (Linux)" {
+@test "FEAT-205: daemon enable --autopilot writes a sidecar (Linux)" {
 	if [ "$(uname -s)" = "Darwin" ]; then
 		skip "Linux-only — checks the systemd timer files"
 	fi
 	# Don't trigger the systemd-system path; user-mode only.
-	run "$LIGHTNING_BIN" daemon install --autopilot --no-keepalive --no-alert
+	run "$LIGHTNING_BIN" daemon enable --autopilot --no-keepalive --no-alert
 	[ "$status" -eq 0 ]
 	[ -f "$HOME/.config/systemd/user/lightning-autopilot.service" ]
 	[ -f "$HOME/.config/systemd/user/lightning-autopilot.timer" ]
@@ -3916,9 +3909,9 @@ EOF2
 	grep -q "OnUnitActiveSec=15min" "$HOME/.config/systemd/user/lightning-autopilot.timer"
 }
 
-@test "FEAT-205: daemon install (no --autopilot) does NOT write the sidecar" {
+@test "FEAT-205: daemon enable (no --autopilot) does NOT write the sidecar" {
 	# The autopilot sidecar is opt-in, unlike keepalive/alert.
-	run "$LIGHTNING_BIN" daemon install --no-keepalive --no-alert
+	run "$LIGHTNING_BIN" daemon enable --no-keepalive --no-alert
 	[ "$status" -eq 0 ]
 	[ ! -e "$HOME/.config/systemd/user/lightning-autopilot.service" ]
 	[ ! -e "$HOME/.config/systemd/user/lightning-autopilot.timer" ]
@@ -4704,7 +4697,7 @@ _acct212pr4_teardown() {
 	[[ "$output" == *"topup-watcher run|dry-run|status"* ]]
 }
 
-@test "FEAT-212 PR-4: daemon install --topup-watcher accepts the flag" {
+@test "FEAT-212 PR-4: daemon enable --topup-watcher accepts the flag" {
 	# We don't actually run the install (it tries to call systemctl);
 	# we just verify the flag is recognised by parsing — and check
 	# the verb source contains the sidecar function.
@@ -4714,11 +4707,11 @@ _acct212pr4_teardown() {
 	grep -q "TOPUP_WATCHER_LABEL" "$f"
 }
 
-@test "FEAT-244: daemon install --reconcile writes a sidecar (Linux)" {
+@test "FEAT-244: daemon enable --reconcile writes a sidecar (Linux)" {
 	if [ "$(uname -s)" = "Darwin" ]; then
 		skip "Linux-only — checks the systemd timer files"
 	fi
-	run "$LIGHTNING_BIN" daemon install --reconcile --no-keepalive --no-alert
+	run "$LIGHTNING_BIN" daemon enable --reconcile --no-keepalive --no-alert
 	[ "$status" -eq 0 ]
 	[ -f "$HOME/.config/systemd/user/lightning-reconcile.service" ]
 	[ -f "$HOME/.config/systemd/user/lightning-reconcile.timer" ]
@@ -4726,9 +4719,9 @@ _acct212pr4_teardown() {
 	grep -q "OnUnitActiveSec=5min" "$HOME/.config/systemd/user/lightning-reconcile.timer"
 }
 
-@test "FEAT-244: daemon install (no --reconcile) does NOT write the sidecar" {
+@test "FEAT-244: daemon enable (no --reconcile) does NOT write the sidecar" {
 	# Opt-in, like the other watcher sidecars.
-	run "$LIGHTNING_BIN" daemon install --no-keepalive --no-alert
+	run "$LIGHTNING_BIN" daemon enable --no-keepalive --no-alert
 	[ "$status" -eq 0 ]
 	[ ! -e "$HOME/.config/systemd/user/lightning-reconcile.timer" ]
 }
@@ -4890,7 +4883,7 @@ _acct212pr5_teardown() {
 	[[ "$output" == *"gc run|dry-run|status"* ]]
 }
 
-@test "FEAT-212 PR-5: daemon install --account-gc accepts the flag" {
+@test "FEAT-212 PR-5: daemon enable --account-gc accepts the flag" {
 	f="$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
 	grep -q "\-\-account-gc" "$f"
 	grep -q "install_account_gc_sidecar" "$f"
@@ -5357,7 +5350,7 @@ _acct215_teardown() {
 	_acct215_teardown
 }
 
-@test "FEAT-215: daemon install --fee-autotune accepts the flag" {
+@test "FEAT-215: daemon enable --fee-autotune accepts the flag" {
 	f="$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
 	grep -q "\-\-fee-autotune" "$f"
 	grep -q "install_fee_autotune_sidecar" "$f"
@@ -6528,7 +6521,7 @@ _price229_teardown() {
 	[[ "$output" == *"price"*"oracle"* ]]
 }
 
-@test "FEAT-229: daemon install --price-oracle is wired" {
+@test "FEAT-229: daemon enable --price-oracle is wired" {
 	f="$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
 	grep -q "\-\-price-oracle" "$f"
 	grep -q "install_price_oracle_sidecar" "$f"
@@ -6715,7 +6708,7 @@ _acct226_teardown() {
 	_acct226_teardown
 }
 
-@test "FEAT-226: daemon install --standing-orders accepts the flag" {
+@test "FEAT-226: daemon enable --standing-orders accepts the flag" {
 	f="$BATS_TEST_DIRNAME/../../libexec/lightning/daemon"
 	grep -q "\-\-standing-orders" "$f"
 	grep -q "install_standing_orders_sidecar" "$f"

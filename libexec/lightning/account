@@ -668,7 +668,7 @@ cmd_nickname() {
 #   dry-run        list what would be credited; don't write
 #   status         show the last-seen UTXO + count of credits
 #
-# Driven by `daemon install --topup-watcher` (one-shot timer; same
+# Driven by `daemon enable --topup-watcher` (one-shot timer; same
 # pattern as autopilot).  Manual invocation: `lightning account
 # topup-watcher run`.
 cmd_topup_watcher() {

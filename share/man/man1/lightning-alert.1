@@ -12,7 +12,7 @@ Rules live as recfiles under $LIGHTNING_DIR/alerts/<name>.conf.
 `alert run` evaluates every rule, fires the matching webhook
 when the condition trips, honours per-rule cooldown.
 
-Designed to be invoked from a scheduler — `daemon install`
+Designed to be invoked from a scheduler — `daemon enable`
 writes a sidecar (launchd / systemd .timer) that calls
 `alert run` every minute.
 .fi

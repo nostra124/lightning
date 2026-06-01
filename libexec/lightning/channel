@@ -90,7 +90,7 @@ subcommands:
    autopilot run|status|suggest         combined fee + rebalance +
                                         suggest daemon (FEAT-205);
                                         opt-in sidecar via
-                                        'daemon install --autopilot'
+                                        'daemon enable --autopilot'
    paytarget-intel [--days N] [--top N] [--dry-run]
                                         suggest channels to the
                                         destinations users pay most
@@ -556,7 +556,7 @@ cmd_autopilot_run() {
 cmd_autopilot_status() {
 	if [ ! -f "$AUTOPILOT_STATE" ]; then
 		echo "channel autopilot: never run"
-		echo "  enable via: lightning daemon install --autopilot"
+		echo "  enable via: lightning daemon enable --autopilot"
 		exit 0
 	fi
 	cat "$AUTOPILOT_STATE"
@@ -1430,7 +1430,7 @@ recfiles under $LIGHTNING_DIR/autopilot/suggestions-<timestamp>.
 
 Channel opens / closes are NEVER executed automatically — the verb
 suggests, the operator decides.  Opt in to a 15-min sidecar timer
-via 'lightning daemon install --autopilot'.
+via 'lightning daemon enable --autopilot'.
 EOF
 			;;
 		stats)

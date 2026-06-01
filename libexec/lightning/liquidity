@@ -57,7 +57,7 @@ usage: lightning liquidity <subcommand>
    boltz in|out <sat>                  Boltz submarine-swap wrapper
    lsp <name> buy <sat> [--yes]        LSPS1 channel purchase (FEAT-198)
                                        requires the cln-lsps plugin;
-                                       install via 'daemon install --lsps'
+                                       install via 'daemon enable --lsps'
    provider default <name>             set the default for liquidity in
 
    blocktank info                      show Blocktank pricing + limits
@@ -138,7 +138,7 @@ call_lsp() {
 	# failing mid-flow.
 	if ! cli help lsps1-get-info 2>/dev/null | grep -q lsps1-get-info; then
 		echo "lightning liquidity: cln-lsps plugin not loaded on this lightningd" >&2
-		echo "  install:  lightning daemon install --lsps" >&2
+		echo "  install:  lightning daemon enable --lsps" >&2
 		echo "  restart:  lightning daemon restart" >&2
 		return 3
 	fi
@@ -621,7 +621,7 @@ PYEOF
 
 	if ! cli help lsps1-get-info 2>/dev/null | grep -q lsps1-get-info; then
 		echo "lightning liquidity nostr buy: cln-lsps plugin not loaded" >&2
-		echo "  install:  lightning daemon install --lsps" >&2; return 3; fi
+		echo "  install:  lightning daemon enable --lsps" >&2; return 3; fi
 
 	local order_json invoice order_id
 	order_json=$(cli lsps1-create-order "$lsp_node" "$sat") || {
