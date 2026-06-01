@@ -1,8 +1,8 @@
 ---
 id: FEAT-210
 type: feature
-priority: low
-status: research
+priority: medium
+status: implemented
 ---
 
 # Nostr-based discovery layer for Lightning liquidity

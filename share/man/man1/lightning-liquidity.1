@@ -8,7 +8,7 @@ lightning-liquidity \- channel-liquidity management
 .nf
 lightning liquidity — channel-liquidity management.
 
-Implements FEAT-175.
+Implements FEAT-175, FEAT-210.
 
 Subcommands:
   status                  TSV: channel inbound / outbound (sat)
@@ -18,22 +18,63 @@ Subcommands:
   boltz in|out <sat>              Boltz wrapper
   lsp <name> buy <sat>            LSPS1 channel purchase
   provider default <name>         set the default
+  blocktank info|buy|orders       Blocktank (Synonym) LSP — HTTP REST
+  nostr offers|buy|sell|revoke    Nostr Kind 39735 liquidity discovery
 .fi
-.SH USAGE
-.nf
-usage: lightning liquidity <subcommand>
-
-   status                              TSV of per-channel inbound / outbound (sat)
-   in <sat> [--provider <name>] [--yes]   acquire inbound capacity
-   out <sat> [--provider <name>]          acquire outbound capacity
-   loop in|out <sat>                   Lightning Loop wrapper
-   boltz in|out <sat>                  Boltz submarine-swap wrapper
-   lsp <name> buy <sat> [--yes]        LSPS1 channel purchase (FEAT-198)
-                                       requires the cln-lsps plugin;
-                                       install via 'daemon install --lsps'
-   provider default <name>             set the default for liquidity in
-.fi
+.SH SUBCOMMANDS
+.TP
+.B status
+Print a TSV table of per-channel inbound and outbound capacity in satoshis.
+.TP
+.B in <sat> [--provider <name>] [--yes]
+Acquire inbound capacity.  Delegates to the configured provider (loop, boltz, lsp).
+.TP
+.B out <sat> [--provider <name>]
+Acquire outbound capacity via Loop or Boltz submarine swap.
+.TP
+.B blocktank info
+Show Blocktank LSP pricing and channel limits.
+.TP
+.B blocktank buy <sat> [--yes]
+Buy inbound from Blocktank (Synonym's public LSP).  Pays via BOLT-11, then
+polls until the channel opens.  Set BLOCKTANK_REFERRAL to embed a referral code.
+.TP
+.B blocktank orders
+List your Blocktank orders by node pubkey.
+.TP
+.B nostr offers [--relay <wss>] [--max-ppm <n>] [--min-sat <n>] [--json]
+Query Kind 39735 events from a Nostr relay and print active LSP offers as TSV.
+Default relay: wss://lightning.bawee.site (override with LIGHTNING_NOSTR_RELAYS).
+.TP
+.B nostr buy <sat> [--from <npub>] [--relay <wss>] [--yes]
+Accept the cheapest matching offer from the relay, connect to the LSP, and
+settle via LSPS1 (requires cln-lsps plugin).
+.TP
+.B nostr sell <sat> --price <ppm> [--expiry <h>] [--relay <wss>]
+Broadcast a Kind 39735 LSP offer as a parameterised replaceable event.
+Requires coincurve (pip install coincurve) for secp256k1 signing.
+Set LIGHTNING_NOSTR_KEY (hex privkey or nsec) to reuse the same Nostr identity.
+.TP
+.B nostr revoke [--relay <wss>]
+Supersede your active offer with a status=inactive event.
+.SH ENVIRONMENT
+.TP
+.B BLOCKTANK_API
+Blocktank API base URL (default: https://blocktank.synonym.to/api/v2).
+.TP
+.B BLOCKTANK_REFERRAL
+Referral token appended to Blocktank orders.
+.TP
+.B LIGHTNING_NOSTR_RELAYS
+Space-separated list of wss:// relay URLs used by the nostr subcommands.
+.TP
+.B LIGHTNING_NOSTR_KEY
+Hex-encoded private key (or nsec) for signing Kind 39735 events.
+.TP
+.B LIGHTNING_LSP_TIMEOUT_S
+Seconds to poll for channel open (default: 600).
 .SH "SEE ALSO"
-.BR lightning (1)
+.BR lightning (1),
+.BR lightning-channel (1)
 .SH AUTHOR
 Part of the \fBlightning\fR educational Lightning Network frontend.
