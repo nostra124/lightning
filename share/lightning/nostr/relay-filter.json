@@ -1,0 +1,41 @@
+{
+  "_comment": "Nostr relay filter config for lightning.bawee.site (FEAT-210). Drop this into your relay's config as the event kind allowlist. Only Lightning-relevant event kinds are accepted — keeps storage lean and the marketplace signal-to-noise high.",
+
+  "allowed_kinds": [
+    39735,
+    9735,
+    30078,
+    1,
+    6,
+    7,
+    0,
+    3
+  ],
+
+  "_kind_notes": {
+    "39735": "LSP liquidity offer (Kind 39735, parameterised replaceable) — the core marketplace event",
+    "9735":  "Zap receipt — proof of Lightning payment; used to verify featured listings",
+    "30078": "App-specific data — wallet metadata, operator config blobs",
+    "1":     "Short text note — optional; enables basic social context for LSP reputation",
+    "6":     "Repost — optional; surfaces well-regarded offers",
+    "7":     "Reaction — optional; allows thumbs-up on LSP offers as informal trust signal",
+    "0":     "Metadata (profile) — needed so operator npubs resolve to human-readable names",
+    "3":     "Contact list — optional; enables social graph trust scoring"
+  },
+
+  "max_event_size_bytes": 65536,
+  "max_content_length":   8192,
+
+  "rate_limits": {
+    "per_ip_per_minute": 30,
+    "per_pubkey_kind_39735_per_hour": 5
+  },
+
+  "retention": {
+    "kind_39735": {
+      "policy": "parameterised_replaceable",
+      "note": "Only the latest event per (pubkey, d-tag) is kept; expired offers (created_at + expiry_blocks*600 < now) are pruned by the relay janitor."
+    },
+    "default_days": 30
+  }
+}

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lightning Liquidity Marketplace</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #f7931a;
+    --accent2: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  header h1 {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  header span {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .logo { font-size: 22px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: flex-end;
+  }
+  .control-group { display: flex; flex-direction: column; gap: 4px; }
+  .control-group label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  input, select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 10px;
+    font-size: 13px;
+    outline: none;
+  }
+  input:focus, select:focus { border-color: var(--accent2); }
+  button {
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: #000;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 16px;
+    transition: opacity .15s;
+  }
+  button:hover { opacity: .85; }
+  button.secondary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .stats-bar {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat-value { font-size: 16px; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  thead th:hover { color: var(--text); }
+  thead th.sorted { color: var(--accent); }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .1s;
+  }
+  tbody tr:hover { background: var(--surface); }
+  td { padding: 10px 12px; vertical-align: middle; }
+  .td-alias { font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .td-node { font-family: monospace; font-size: 12px; color: var(--muted); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .td-sat { font-variant-numeric: tabular-nums; }
+  .td-ppm { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .td-cost { font-variant-numeric: tabular-nums; }
+  .badge {
+    display: inline-block;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    margin-left: 6px;
+  }
+  .badge-featured { background: #7950f244; color: #b197fc; border: 1px solid #7950f2; }
+  .badge-private  { background: #1f6feb33; color: var(--accent2); border: 1px solid #1f6feb; }
+  .td-actions button {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+  .loading { text-align: center; padding: 48px; color: var(--muted); }
+  .error-msg { color: var(--red); padding: 16px; border: 1px solid var(--red); border-radius: 8px; margin-bottom: 20px; }
+  .empty-msg { text-align: center; padding: 48px; color: var(--muted); }
+
+  .relay-badge {
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-left: 8px;
+  }
+
+  .copy-cmd {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    max-width: 480px;
+    display: none;
+    box-shadow: 0 8px 32px #0008;
+  }
+  .copy-cmd h3 { font-size: 13px; margin-bottom: 8px; color: var(--muted); }
+  .copy-cmd code {
+    display: block;
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12px;
+    font-family: monospace;
+    word-break: break-all;
+    cursor: pointer;
+    border: 1px solid var(--border);
+  }
+  .copy-cmd code:hover { border-color: var(--accent2); }
+  .copy-cmd .close-btn {
+    position: absolute; top: 10px; right: 12px;
+    background: none; color: var(--muted); font-size: 16px; padding: 0;
+  }
+  footer {
+    text-align: center;
+    padding: 32px;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 48px;
+  }
+  footer a { color: var(--accent2); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">⚡</span>
+  <div>
+    <h1>Lightning Liquidity Marketplace</h1>
+    <span>Nostr Kind 39735 · powered by lightning.bawee.site</span>
+  </div>
+</header>
+
+<main>
+  <div class="controls">
+    <div class="control-group">
+      <label>Max fee (ppm)</label>
+      <input type="number" id="filter-ppm" placeholder="e.g. 2000" min="0">
+    </div>
+    <div class="control-group">
+      <label>Min size (sat)</label>
+      <input type="number" id="filter-sat" placeholder="e.g. 500000" min="0">
+    </div>
+    <div class="control-group">
+      <label>Sort by</label>
+      <select id="sort-by">
+        <option value="cost">Lowest total fee</option>
+        <option value="ppm">Lowest ppm</option>
+        <option value="max_sat">Largest channel</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>&nbsp;</label>
+      <div style="display:flex;gap:8px">
+        <button onclick="load()">Refresh</button>
+        <button class="secondary" onclick="showSellModal()">Sell Liquidity</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-bar" id="stats-bar" style="display:none">
+    <div class="stat"><span class="stat-label">Offers</span><span class="stat-value" id="stat-count">0</span></div>
+    <div class="stat"><span class="stat-label">Avg ppm</span><span class="stat-value" id="stat-ppm">-</span></div>
+    <div class="stat"><span class="stat-label">Min size</span><span class="stat-value" id="stat-min">-</span></div>
+    <div class="stat"><span class="stat-label">Max size</span><span class="stat-value" id="stat-max">-</span></div>
+    <div class="stat">
+      <span class="stat-label">Relay</span>
+      <span class="stat-value" style="font-size:12px" id="stat-relay">-</span>
+    </div>
+  </div>
+
+  <div id="error-box" class="error-msg" style="display:none"></div>
+  <div id="loading" class="loading">Loading offers from relay…</div>
+
+  <table id="offers-table" style="display:none">
+    <thead>
+      <tr>
+        <th>Provider</th>
+        <th>Node ID</th>
+        <th class="sorted" data-col="cost">Fee (sat+ppm) ↑</th>
+        <th data-col="min_sat">Min (sat)</th>
+        <th data-col="max_sat">Max (sat)</th>
+        <th>Features</th>
+        <th>Expires</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="offers-body"></tbody>
+  </table>
+  <div id="empty-msg" class="empty-msg" style="display:none">No offers match your filters.</div>
+</main>
+
+<div class="copy-cmd" id="cmd-box">
+  <button class="close-btn" onclick="closeCmdBox()">✕</button>
+  <h3>Run this in your terminal:</h3>
+  <code id="cmd-text" onclick="copyCmd()"></code>
+</div>
+
+<footer>
+  <p>Liquidity offers are broadcast by node operators via the <a href="https://github.com/nostr-protocol/nips" target="_blank">Nostr</a> Kind 39735 protocol.</p>
+  <p style="margin-top:6px">Settlement via <a href="https://github.com/BitcoinAndLightningLayerSpecs/lsp" target="_blank">LSPS1</a> · CLI: <code style="font-size:11px">lightning liquidity nostr buy &lt;sat&gt;</code></p>
+</footer>
+
+<script>
+const API = '/v1/liquidity';
+let allOffers = [];
+let sortCol = 'cost';
+let sortAsc = true;
+
+async function load() {
+  const ppm = document.getElementById('filter-ppm').value;
+  const sat = document.getElementById('filter-sat').value;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('offers-table').style.display = 'none';
+  document.getElementById('empty-msg').style.display = 'none';
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('stats-bar').style.display = 'none';
+
+  let url = API + '?featured=1&limit=200';
+  if (ppm) url += '&max_ppm=' + encodeURIComponent(ppm);
+  if (sat) url += '&min_sat=' + encodeURIComponent(sat);
+
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    allOffers = data.offers || [];
+    document.getElementById('stat-relay').textContent = data.relay || '-';
+    renderStats();
+    renderOffers();
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-box').style.display = 'block';
+    document.getElementById('error-box').textContent = 'Failed to load offers: ' + e.message;
+  }
+}
+
+function renderStats() {
+  if (!allOffers.length) return;
+  const ppms = allOffers.map(o => o.variable_ppm);
+  const maxSats = allOffers.map(o => o.max_sat);
+  const minSats = allOffers.map(o => o.min_sat);
+  document.getElementById('stat-count').textContent = allOffers.length;
+  document.getElementById('stat-ppm').textContent = Math.round(ppms.reduce((a,b)=>a+b,0)/ppms.length).toLocaleString();
+  document.getElementById('stat-min').textContent = Math.min(...minSats).toLocaleString();
+  document.getElementById('stat-max').textContent = Math.max(...maxSats).toLocaleString();
+  document.getElementById('stats-bar').style.display = 'flex';
+}
+
+function sorted(offers) {
+  const col = document.getElementById('sort-by').value;
+  return [...offers].sort((a, b) => {
+    let av, bv;
+    if (col === 'cost') { av = a.fixed_cost_sat + a.variable_ppm; bv = b.fixed_cost_sat + b.variable_ppm; }
+    else if (col === 'ppm') { av = a.variable_ppm; bv = b.variable_ppm; }
+    else if (col === 'max_sat') { av = b.max_sat; bv = a.max_sat; } // desc
+    return av - bv;
+  });
+}
+
+function renderOffers() {
+  document.getElementById('loading').style.display = 'none';
+  const offers = sorted(allOffers);
+  const tbody = document.getElementById('offers-body');
+  tbody.innerHTML = '';
+  if (!offers.length) {
+    document.getElementById('empty-msg').style.display = 'block';
+    return;
+  }
+  document.getElementById('offers-table').style.display = 'table';
+  offers.forEach(o => {
+    const tr = document.createElement('tr');
+    const exp = o.expires_at ? new Date(o.expires_at * 1000).toLocaleDateString() : '?';
+    const nodeShort = o.lsp_node_id ? o.lsp_node_id.slice(0,8) + '…' + o.lsp_node_id.slice(-6) : '-';
+    const featBadge = o.featured ? '<span class="badge badge-featured">★ Featured</span>' : '';
+    const privBadge = o.supports_private ? '<span class="badge badge-private">Private</span>' : '';
+    tr.innerHTML = `
+      <td class="td-alias">${esc(o.alias || o.pubkey.slice(0,10)+'…')}${featBadge}</td>
+      <td class="td-node" title="${esc(o.lsp_node_id)}">${nodeShort}</td>
+      <td class="td-cost">${o.fixed_cost_sat.toLocaleString()} sat + <span class="td-ppm">${o.variable_ppm.toLocaleString()} ppm</span></td>
+      <td class="td-sat">${o.min_sat.toLocaleString()}</td>
+      <td class="td-sat">${o.max_sat.toLocaleString()}</td>
+      <td>${privBadge}${o.supports_zero_reserve ? '<span class="badge" style="background:#1a3a1a;color:var(--green);border:1px solid var(--green)">0-reserve</span>' : ''}</td>
+      <td style="color:var(--muted);font-size:12px">${exp}</td>
+      <td class="td-actions"><button onclick='showBuyCmd(${JSON.stringify(o)})'>Buy</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function showBuyCmd(offer) {
+  const cmd = `lightning liquidity nostr buy ${offer.min_sat} --from ${offer.pubkey}`;
+  document.getElementById('cmd-text').textContent = cmd;
+  document.getElementById('cmd-box').style.display = 'block';
+}
+
+function showSellModal() {
+  const cmd = `lightning liquidity nostr sell 1000000 --price 1000 --expiry 720`;
+  document.getElementById('cmd-text').textContent = cmd;
+  document.getElementById('cmd-box').style.display = 'block';
+}
+
+function closeCmdBox() {
+  document.getElementById('cmd-box').style.display = 'none';
+}
+
+function copyCmd() {
+  const text = document.getElementById('cmd-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    document.getElementById('cmd-text').textContent = '✓ Copied!';
+    setTimeout(() => { document.getElementById('cmd-text').textContent = text; }, 1200);
+  });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('sort-by').addEventListener('change', renderOffers);
+document.getElementById('filter-ppm').addEventListener('keydown', e => e.key==='Enter' && load());
+document.getElementById('filter-sat').addEventListener('keydown', e => e.key==='Enter' && load());
+
+load();
+</script>
+</body>
+</html>

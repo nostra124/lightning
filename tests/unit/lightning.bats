@@ -2248,6 +2248,36 @@ EOF
 	grep -q "status: implemented" "$f"
 }
 
+@test "FEAT-210: liquidity.py CGI exists and is executable" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/liquidity.py"
+	[ -f "$f" ]
+	[ -x "$f" ]
+}
+
+@test "FEAT-210: liquidity.py has main() and _fetch_offers" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/liquidity.py"
+	grep -q "def main" "$f"
+	grep -q "_fetch_offers" "$f"
+}
+
+@test "FEAT-210: marketplace index.html exists" {
+	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/marketplace/index.html" ]
+}
+
+@test "FEAT-210: marketplace index.html references /v1/liquidity API" {
+	grep -q "v1/liquidity" "$BATS_TEST_DIRNAME/../../share/lightning/marketplace/index.html"
+}
+
+@test "FEAT-210: relay filter config exists with kind 39735" {
+	f="$BATS_TEST_DIRNAME/../../share/lightning/nostr/relay-filter.json"
+	[ -f "$f" ]
+	grep -q "39735" "$f"
+}
+
+@test "FEAT-210: Apache conf has ScriptAlias for /v1/liquidity" {
+	grep -q "v1/liquidity" "$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
+}
+
 @test "1.2.0: api-recv rejects non-numeric sat (exit 2)" {
 	run "$LIGHTNING_BIN" api-recv alice not-a-number "msg"
 	[ "$status" -eq 2 ]
