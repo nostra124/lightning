@@ -7,3 +7,8 @@ build/
 # Python bytecode for the FEAT-196 CGI scripts
 __pycache__/
 *.pyc
+
+# Claude Code local runtime + per-user state (locks, local overrides).
+# A shared .claude/settings.json may be committed explicitly if wanted.
+.claude/*
+!.claude/settings.json
