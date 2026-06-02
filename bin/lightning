@@ -142,27 +142,31 @@ Options:
   -f                Force mode (bypass safety checks)
 
 Commands:
-  node              Node identity, Tor, watchtower
-  statistics        Node stats, gossip, funds, forwarding summaries
-  plugin            Plugin management (reckless) + runtime load/stop
-  daemon            Start/stop/install lightningd
-  wallet            Balance, keys, backup, history, compliance
-  channel           Open/close, fees, rebalance, liquidity, forwarding
-  peer              Connect, list, score peers
-  pay               Send payments (BOLT-11, BOLT-12, keysend)
-  req               Request payments (invoice, offer, decode, QR)
-  account           Virtual accounts
-  address           Lightning Address + LNURL
-  price             Sat/fiat price oracle
-  help              Show this help
+  Node & daemon:
+    node            Node identity, Tor, watchtower
+    daemon          Start/stop/install lightningd
+    statistics      Node stats, gossip, funds, forwarding summaries
+    plugin          Plugin management (reckless) + runtime load/stop
 
-Environment:
-  LIGHTNING_DIR       Lightning data directory (default: \$HOME/.lightning)
-  LIGHTNING_NETWORK   Network: bitcoin, testnet, regtest, signet
+  Channels & peers:
+    channel         Open/close, fees, rebalance, liquidity, forwarding
+    peer            Connect, list, score peers
 
-See also:
-  share/doc/lightning/standards/  BOLT specs and LNURL LUDs
-  \$ $SELF <command> --help         Command-specific help
+  Payments:
+    pay             Send payments (BOLT-11, BOLT-12, keysend)
+    req             Request payments (invoice, offer, decode, QR)
+
+  Wallet & accounts:
+    wallet          Balance, keys, backup, history, compliance
+    account         Virtual accounts
+    address         Lightning Address + LNURL
+
+  Other:
+    price           Sat/fiat price oracle
+    help            Show this help
+
+Run '$SELF help <command>' or '$SELF <command> --help' for details,
+and see lightning(1) for environment variables and standards docs.
 ENDHELP
 }
 
