@@ -142,7 +142,9 @@ Options:
   -f                Force mode (bypass safety checks)
 
 Commands:
-  node              Node identity, plugins, Tor, watchtower
+  node              Node identity, Tor, watchtower
+  statistics        Node stats, gossip, funds, forwarding summaries
+  plugin            Plugin management (reckless) + runtime load/stop
   daemon            Start/stop/install lightningd
   wallet            Balance, keys, backup, history, compliance
   channel           Open/close, fees, rebalance, liquidity, forwarding

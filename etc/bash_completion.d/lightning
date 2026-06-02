@@ -7,6 +7,7 @@
 
 _lightning_top_verbs() {
 	echo "help version info node-id peers channels balance \
+	      node statistics plugin \
 	      channel invoice pay send decode offer offer-pay lnurl qr \
 	      wallet account ledger history seed scb backup restore \
 	      liquidity address daemon unlock tor"
@@ -14,6 +15,8 @@ _lightning_top_verbs() {
 
 _lightning_subverbs() {
 	case "$1" in
+		statistics) echo "stats bandwidth channel-count peer-count htlc-stats forward-stats routing-stats gossip gossip-stats listfunds check-funds" ;;
+		plugin)    echo "list install remove search enable disable loaded start stop" ;;
 		channel)   echo "list open close force-close balance info pending" ;;
 		wallet)    echo "new use list active path push pull sync" ;;
 		account)   echo "list create delete show apikey" ;;

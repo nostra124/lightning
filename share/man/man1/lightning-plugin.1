@@ -20,6 +20,9 @@ Subcommands:
   search <query>             search source repos (reckless required)
   enable <name>              dynamically activate
   disable <name>             dynamically deactivate
+  loaded                     list plugins loaded in the running daemon
+  start <path>               load a plugin into the running daemon
+  stop <name>                stop a running plugin
 .fi
 .SH USAGE
 .nf
@@ -39,8 +42,14 @@ subcommands:
    search <query>                search reckless source repos
    enable <name>                 activate a plugin without re-installing
    disable <name>                deactivate without removing
+
+runtime (running daemon, via lightning-cli):
+   loaded                        list plugins loaded in the daemon
+   start <path>                  load a plugin at runtime
+   stop <name>                   stop a running plugin
 .fi
 .SH "SEE ALSO"
-.BR lightning (1)
+.BR lightning (1),
+.BR lightning-node (1)
 .SH AUTHOR
 Part of the \fBlightning\fR educational Lightning Network frontend.

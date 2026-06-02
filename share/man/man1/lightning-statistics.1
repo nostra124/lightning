@@ -1,0 +1,62 @@
+.TH "LIGHTNING-STATISTICS" 1 "June 2026" "lightning 1.3.1" "User Commands"
+.SH NAME
+lightning-statistics \- node statistics and diagnostics summaries
+.SH SYNOPSIS
+.B lightning statistics
+[\fIsubcommand\fR] [\fIargs\fR]
+.SH DESCRIPTION
+.nf
+lightning statistics — node statistics and diagnostics summaries.
+
+Factored out of the `node` object (which had grown too large). Each
+subcommand makes one or more lightning-cli calls and prints a compact
+JSON summary. `stats` is the comprehensive one-pass report; the others
+are focused single-metric views.
+.fi
+.SH USAGE
+.nf
+usage: lightning statistics <subcommand> [args]
+
+subcommands:
+   stats [--field <name>] [--format tsv]
+                                     comprehensive one-pass JSON stats
+   bandwidth                         routing bandwidth (sum min local/remote)
+   channel-count                     channel counts by state
+   peer-count                        peer counts (total / connected)
+   htlc-stats                        in-flight HTLC summary
+   forward-stats                     forwarding settle/fail summary
+   routing-stats                     alias for forward-stats
+   gossip                            gossip graph summary
+   gossip-stats                      gossip node / channel counts
+   listfunds                         on-chain + off-chain fund totals
+   check-funds                       alias for listfunds
+.fi
+.SH "STATS SUBCOMMAND"
+.nf
+lightning statistics stats
+
+Makes one pass over getinfo, listpeerchannels, listpeers, listforwards,
+and listfunds and returns a comprehensive JSON object with the following
+top-level sections:
+
+  node         — identity + blockheight + channel / peer counts
+  peers        — total / connected / disconnected
+  channels     — total, active, by_state, capacity stats (avg, median,
+                 stddev, skewness, kurtosis, gini), balance_local,
+                 balance_remote, bandwidth_msat, htlcs
+  forwarding   — total, settled, failed, pending, settle_rate,
+                 fee_msat (total/avg/median/stddev/skewness),
+                 in_msat, out_msat
+  funds        — onchain_sat, offchain_msat, utxo_count, channel_count
+
+Options:
+  --field <dotted.path>   extract one field, e.g. --field channels.capacity.total_msat
+  --format tsv            flat key\\tvalue output instead of JSON
+.fi
+.SH "SEE ALSO"
+.BR lightning (1),
+.BR lightning-node (1),
+.BR lightning-channel (1),
+.BR lightning-balance (1)
+.SH AUTHOR
+Part of the \fBlightning\fR educational Lightning Network frontend.

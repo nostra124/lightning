@@ -1,16 +1,17 @@
 .TH "LIGHTNING-NODE" 1 "May 2026" "lightning 0.6.0" "User Commands"
 .SH NAME
-lightning-node \- node management, diagnostics, and statistics
+lightning-node \- node management and diagnostics
 .SH SYNOPSIS
 .B lightning node
 [\fIsubcommand\fR] [\fIargs\fR]
 .SH DESCRIPTION
 .nf
-lightning node — node management, diagnostics, and statistics.
+lightning node — node management and diagnostics.
 
 Consolidates the node-* micro-verb family into a single dispatcher.
-Covers identity, comprehensive statistics, routing, peers, decoding,
-offers, runes, plugins, and operational commands.
+Covers identity, config / policy, routing, peers, decoding, offers,
+runes, and operational commands. Statistics live in the separate
+`lightning statistics` object; plugin management in `lightning plugin`.
 .fi
 .SH USAGE
 .nf
@@ -28,19 +29,6 @@ Info / identity:
    announce-addr                     announced + bound addresses
    lnurl-info                        LNURL / lightning-address info
    uptime                            node liveness snapshot
-
-Statistics:
-   stats [--field <path>] [--format tsv|json]
-                                     comprehensive one-pass statistics
-   bandwidth                         routing bandwidth (sum min local/remote)
-   channel-count                     channel counts by state
-   peer-count                        peer counts (total / connected)
-   htlc-stats                        in-flight HTLC summary
-   forward-stats                     forwarding settle/fail/fee summary
-   routing-stats                     alias for forward-stats
-   gossip                            gossip graph summary
-   gossip-stats                      gossip node / channel counts
-   listfunds / check-funds           on-chain + off-chain fund totals
 
 Config / policy:
    fee-policy                        per-channel local fee policies
@@ -73,11 +61,6 @@ Offers / runes:
    rune-create [<restriction>...]    create a rune
    rune-list                         list runes
 
-Plugins:
-   plugin-list                       list loaded plugins
-   plugin-start <path>               load a plugin at runtime
-   plugin-stop <name>                stop a running plugin
-
 Operations:
    backup-state [<dir>]              write SCB snapshot to directory
    emergency-recover <scb_file>      force-close via SCB
@@ -87,30 +70,10 @@ Operations:
    channel-graph-dump                raw graph dump (first 10 channels)
    lnurl-pay <lnurl>                 fetch invoice via LNURL
 .fi
-.SH "STATS SUBCOMMAND"
-.nf
-lightning node stats
-
-Makes one pass over getinfo, listpeerchannels, listpeers, listforwards,
-and listfunds and returns a comprehensive JSON object with the following
-top-level sections:
-
-  node         — identity + blockheight + channel / peer counts
-  peers        — total / connected / disconnected
-  channels     — total, active, by_state, capacity stats (avg, median,
-                 stddev, skewness, kurtosis, gini), balance_local,
-                 balance_remote, bandwidth_msat, htlcs
-  forwarding   — total, settled, failed, pending, settle_rate,
-                 fee_msat (total/avg/median/stddev/skewness),
-                 in_msat, out_msat
-  funds        — onchain_sat, offchain_msat, utxo_count, channel_count
-
-Options:
-  --field <dotted.path>   extract one field, e.g. --field channels.capacity.total_msat
-  --format tsv            flat key\\tvalue output instead of JSON
-.fi
 .SH "SEE ALSO"
 .BR lightning (1),
+.BR lightning-statistics (1),
+.BR lightning-plugin (1),
 .BR lightning-channel (1),
 .BR lightning-fee (1),
 .BR lightning-balance (1)

@@ -13,12 +13,17 @@
 #   search <query>             search source repos (reckless required)
 #   enable <name>              dynamically activate
 #   disable <name>             dynamically deactivate
+#   loaded                     list plugins loaded in the running daemon
+#   start <path>               load a plugin into the running daemon
+#   stop <name>                stop a running plugin
 
 set -e
 
 LIGHTNING_DIR="${LIGHTNING_DIR:-$HOME/.lightning}"
 LIGHTNING_NETWORK="${LIGHTNING_NETWORK:-bitcoin}"
 PLUGINS_DIR="$LIGHTNING_DIR/plugins"
+
+LC() { lightning-cli --lightning-dir="$LIGHTNING_DIR" --network="$LIGHTNING_NETWORK" "$@"; }
 
 usage() {
 	cat >&2 <<EOF
@@ -38,6 +43,11 @@ subcommands:
    search <query>                search reckless source repos
    enable <name>                 activate a plugin without re-installing
    disable <name>                deactivate without removing
+
+runtime (running daemon, via lightning-cli):
+   loaded                        list plugins loaded in the daemon
+   start <path>                  load a plugin at runtime
+   stop <name>                   stop a running plugin
 EOF
 }
 
@@ -208,6 +218,32 @@ cmd_disable() {
 }
 
 # -----------------------------------------------------------------------------
+# runtime — talk to the running daemon directly via lightning-cli
+# -----------------------------------------------------------------------------
+
+cmd_loaded() {
+	command -v lightning-cli >/dev/null || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	LC plugin list 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+}
+
+cmd_start() {
+	[ $# -lt 1 ] && { error "start needs a plugin path"; exit 1; }
+	command -v lightning-cli >/dev/null || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	LC plugin start "$1" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+	echo '{"ok":true}'
+}
+
+cmd_stop() {
+	[ $# -lt 1 ] && { error "stop needs a plugin name"; exit 1; }
+	command -v lightning-cli >/dev/null || {
+		echo '{"error":"lightning-cli not found"}'; return; }
+	LC plugin stop "$1" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
+	echo '{"ok":true}'
+}
+
+# -----------------------------------------------------------------------------
 # Per-subcommand help
 # -----------------------------------------------------------------------------
 
@@ -275,6 +311,33 @@ Dynamically deactivate a plugin without removing it. Wraps
 `reckless disable <name>`.
 EOF
 			;;
+		loaded)
+			cat <<'EOF'
+usage: lightning plugin loaded
+
+List the plugins currently loaded in the running daemon. Wraps
+`lightning-cli plugin list` — shows what lightningd has active,
+as opposed to `plugin list` which inspects the plugins/ directory
+on disk.
+EOF
+			;;
+		start)
+			cat <<'EOF'
+usage: lightning plugin start <path>
+
+Load a plugin into the running daemon without a restart. Wraps
+`lightning-cli plugin start <path>`. <path> is the absolute path
+to the plugin executable.
+EOF
+			;;
+		stop)
+			cat <<'EOF'
+usage: lightning plugin stop <name>
+
+Stop a plugin in the running daemon. Wraps
+`lightning-cli plugin stop <name>`.
+EOF
+			;;
 		*)
 			usage
 			return 1
@@ -297,5 +360,8 @@ case "$SUB" in
 	search)  cmd_search "$@" ;;
 	enable)  cmd_enable "$@" ;;
 	disable) cmd_disable "$@" ;;
+	loaded)  cmd_loaded "$@" ;;
+	start)   cmd_start "$@" ;;
+	stop)    cmd_stop "$@" ;;
 	*) error "plugin: unknown subcommand '$SUB'"; usage; exit 1 ;;
 esac

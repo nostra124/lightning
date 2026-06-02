@@ -1,5 +1,8 @@
 #!/bin/bash
-# lightning node — node management, diagnostics, and statistics.
+# lightning node — node management and diagnostics.
+#
+# Statistics live in the `statistics` object; plugin management lives
+# in the `plugin` object.
 #
 # Subcommands:
 #   info                              — short node summary (alias, id, etc.)
@@ -12,22 +15,10 @@
 #   sync-progress                     — sync warnings from getinfo
 #   announce-addr                     — announced addresses
 #   lnurl-info                        — LNURL / lightning-address info
-#   stats [--field <name>] [--format tsv]
-#                                     — comprehensive statistics JSON
-#   bandwidth                         — routing bandwidth (min local/remote)
-#   channel-count                     — channel counts by state
-#   peer-count                        — peer counts
-#   htlc-stats                        — in-flight HTLC summary
 #   fee-policy                        — per-channel fee policies
 #   fee-rate [urgent|normal|slow]     — on-chain fee rates
-#   forward-stats                     — forwarding summary
-#   routing-stats                     — alias for forward-stats
-#   gossip                            — gossip graph summary
-#   gossip-stats                      — gossip node/channel counts
-#   listfunds                         — on-chain + off-chain fund summary
 #   check-config                      — key config values
 #   check-route <dest> <msat>         — probe a route
-#   check-funds                       — alias for listfunds
 #   connect-check <node_id>           — is peer connected?
 #   connect-auto                      — schedule reconnects to known peers
 #   ping <peer_id>                    — send ping to peer
@@ -44,9 +35,6 @@
 #   offers-list [--limit N]           — list offers
 #   rune-create [<restriction>...]    — create a rune
 #   rune-list                         — list runes
-#   plugin-list                       — list loaded plugins
-#   plugin-start <path>               — start a plugin
-#   plugin-stop <name>                — stop a plugin
 #   backup-state [<dir>]              — write SCB backup
 #   emergency-recover <scb_file>      — emergency SCB recovery
 #   emergency-stop                    — stop the daemon
@@ -63,8 +51,9 @@ usage() {
 	cat >&2 <<'EOF'
 usage: lightning node <subcommand> [args]
 
-   Node management, diagnostics, and statistics.
-   Each sub-command also accepts --help.
+   Node management and diagnostics.
+   Statistics live in `lightning statistics`; plugin management in
+   `lightning plugin`. Each sub-command also accepts --help.
 
 subcommands (info / identity):
    info                              short node summary
@@ -77,20 +66,6 @@ subcommands (info / identity):
    announce-addr                     announced + bound addresses
    lnurl-info                        LNURL / lightning-address info
    uptime                            node liveness info
-
-subcommands (statistics):
-   stats [--field <name>] [--format tsv]
-                                     comprehensive one-pass JSON stats
-   bandwidth                         routing bandwidth (sum min local/remote)
-   channel-count                     channel counts by state
-   peer-count                        peer counts (total / connected)
-   htlc-stats                        in-flight HTLC summary
-   forward-stats                     forwarding settle/fail summary
-   routing-stats                     alias for forward-stats
-   gossip                            gossip graph summary
-   gossip-stats                      gossip node / channel counts
-   listfunds                         on-chain + off-chain fund totals
-   check-funds                       alias for listfunds
 
 subcommands (config / policy):
    fee-policy                        per-channel local fee policy
@@ -122,11 +97,6 @@ subcommands (offers / runes):
    offers-list [--limit N]           list offers
    rune-create [<restriction>...]    create a rune
    rune-list                         list runes
-
-subcommands (plugins):
-   plugin-list                       list loaded plugins
-   plugin-start <path>               load a plugin at runtime
-   plugin-stop <name>                stop a running plugin
 
 subcommands (operations):
    alias-lookup <alias>              resolve alias → pubkey in gossip
@@ -307,268 +277,8 @@ print(json.dumps({
 }
 
 # ---------------------------------------------------------------------------
-# STATISTICS (one-pass over all lightning-cli calls)
+# CONFIG / POLICY
 # ---------------------------------------------------------------------------
-
-cmd_stats() {
-	local field="" format="json"
-	while [ $# -gt 0 ]; do
-		case "$1" in
-			--field)  field="$2"; shift 2 ;;
-			--format) format="$2"; shift 2 ;;
-			*) echo "node stats: unknown flag '$1'" >&2; exit 1 ;;
-		esac
-	done
-
-	local info chans peers fwds funds
-	info=$(LC getinfo 2>/dev/null)         || info='{}'
-	chans=$(LC listpeerchannels 2>/dev/null) || chans='{"channels":[]}'
-	peers=$(LC listpeers 2>/dev/null)       || peers='{"peers":[]}'
-	fwds=$(LC listforwards 2>/dev/null)     || fwds='{"forwards":[]}'
-	funds=$(LC listfunds 2>/dev/null)       || funds='{"outputs":[],"channels":[]}'
-
-	python3 -c "
-import sys, json, math
-
-def safe_mean(lst):
-    return sum(lst)/len(lst) if lst else 0.0
-
-def safe_median(lst):
-    if not lst: return 0.0
-    s = sorted(lst)
-    n = len(s)
-    return (s[n//2] + s[(n-1)//2]) / 2.0
-
-def safe_stddev(lst):
-    if len(lst) < 2: return 0.0
-    m = safe_mean(lst)
-    return math.sqrt(sum((x-m)**2 for x in lst) / len(lst))
-
-def safe_skewness(lst):
-    if len(lst) < 3: return 0.0
-    m = safe_mean(lst)
-    s = safe_stddev(lst)
-    if s == 0: return 0.0
-    return sum(((x-m)/s)**3 for x in lst) / len(lst)
-
-def safe_kurtosis(lst):
-    if len(lst) < 4: return 0.0
-    m = safe_mean(lst)
-    s = safe_stddev(lst)
-    if s == 0: return 0.0
-    return sum(((x-m)/s)**4 for x in lst) / len(lst) - 3.0
-
-def gini(lst):
-    if not lst: return 0.0
-    s = sorted(lst)
-    n = len(s)
-    cumsum = 0; total = sum(s)
-    if total == 0: return 0.0
-    for i, v in enumerate(s):
-        cumsum += v
-    return (2 * sum((i+1)*v for i,v in enumerate(s)) / (n * total)) - (n+1)/n
-
-info  = json.loads(sys.argv[1])
-chans = json.loads(sys.argv[2]).get('channels', [])
-peers = json.loads(sys.argv[3]).get('peers', [])
-fwds  = json.loads(sys.argv[4]).get('forwards', [])
-funds = json.loads(sys.argv[5])
-
-# --- channel metrics ---
-active = [c for c in chans if c.get('state') == 'CHANNELD_NORMAL']
-cap_msat = [c.get('total_msat', 0) for c in active]
-local_msat = [c.get('to_us_msat', 0) for c in active]
-remote_msat = [c.get('total_msat', 0) - c.get('to_us_msat', 0) for c in active]
-htlc_counts = [len(c.get('htlcs', [])) for c in chans]
-
-by_state = {}
-for c in chans:
-    s = c.get('state', 'unknown')
-    by_state[s] = by_state.get(s, 0) + 1
-
-bandwidth = sum(min(l, r) for l, r in zip(local_msat, remote_msat))
-
-# --- peer metrics ---
-conn_peers = sum(1 for p in peers if p.get('connected'))
-
-# --- forwarding metrics ---
-settled = [f for f in fwds if f.get('status') == 'settled']
-failed  = [f for f in fwds if f.get('status') == 'failed']
-fee_msat_list = [f.get('fee_msat', 0) for f in settled if isinstance(f.get('fee_msat'), (int, float))]
-in_msat_list  = [f.get('in_msat', 0)  for f in settled if isinstance(f.get('in_msat'), (int, float))]
-out_msat_list = [f.get('out_msat', 0) for f in settled if isinstance(f.get('out_msat'), (int, float))]
-
-# --- fund metrics ---
-outputs = funds.get('outputs', [])
-fund_chans = funds.get('channels', [])
-onchain_sat = sum(o.get('amount_msat', 0)//1000 for o in outputs if o.get('status') == 'confirmed')
-offchain_msat = sum(c.get('our_amount_msat', 0) for c in fund_chans)
-
-result = {
-    'node': {
-        'id':                    info.get('id'),
-        'alias':                 info.get('alias'),
-        'color':                 info.get('color'),
-        'version':               info.get('version'),
-        'network':               info.get('network'),
-        'blockheight':           info.get('blockheight'),
-        'num_peers':             info.get('num_peers', 0),
-        'num_active_channels':   info.get('num_active_channels', 0),
-        'num_inactive_channels': info.get('num_inactive_channels', 0),
-        'num_pending_channels':  info.get('num_pending_channels', 0),
-    },
-    'peers': {
-        'total':        len(peers),
-        'connected':    conn_peers,
-        'disconnected': len(peers) - conn_peers,
-    },
-    'channels': {
-        'total':          len(chans),
-        'active':         len(active),
-        'by_state':       by_state,
-        'capacity': {
-            'total_msat':  sum(cap_msat),
-            'avg_msat':    safe_mean(cap_msat),
-            'median_msat': safe_median(cap_msat),
-            'stddev_msat': safe_stddev(cap_msat),
-            'skewness':    safe_skewness(cap_msat),
-            'kurtosis':    safe_kurtosis(cap_msat),
-            'gini':        gini(cap_msat),
-        },
-        'balance_local': {
-            'total_msat':  sum(local_msat),
-            'avg_msat':    safe_mean(local_msat),
-            'median_msat': safe_median(local_msat),
-        },
-        'balance_remote': {
-            'total_msat':  sum(remote_msat),
-            'avg_msat':    safe_mean(remote_msat),
-            'median_msat': safe_median(remote_msat),
-        },
-        'bandwidth_msat': bandwidth,
-        'htlcs': {
-            'total':  sum(htlc_counts),
-            'max_per_channel': max(htlc_counts) if htlc_counts else 0,
-        },
-    },
-    'forwarding': {
-        'total':          len(fwds),
-        'settled':        len(settled),
-        'failed':         len(failed),
-        'pending':        len(fwds) - len(settled) - len(failed),
-        'settle_rate':    len(settled)/len(fwds) if fwds else 0.0,
-        'fee_msat': {
-            'total':   sum(fee_msat_list),
-            'avg':     safe_mean(fee_msat_list),
-            'median':  safe_median(fee_msat_list),
-            'stddev':  safe_stddev(fee_msat_list),
-            'skewness':safe_skewness(fee_msat_list),
-        },
-        'in_msat': {
-            'total':  sum(in_msat_list),
-            'avg':    safe_mean(in_msat_list),
-            'median': safe_median(in_msat_list),
-        },
-        'out_msat': {
-            'total':  sum(out_msat_list),
-            'avg':    safe_mean(out_msat_list),
-            'median': safe_median(out_msat_list),
-        },
-    },
-    'funds': {
-        'onchain_sat':    onchain_sat,
-        'offchain_msat':  offchain_msat,
-        'offchain_sat':   offchain_msat // 1000,
-        'utxo_count':     len(outputs),
-        'channel_count':  len(fund_chans),
-    },
-}
-
-field = sys.argv[6]
-fmt   = sys.argv[7]
-if field:
-    # Support dotted paths like 'channels.capacity.total_msat'
-    parts = field.split('.')
-    val = result
-    for p in parts:
-        val = val.get(p) if isinstance(val, dict) else None
-        if val is None:
-            break
-    if fmt == 'tsv':
-        print(val)
-    else:
-        print(json.dumps({field: val}))
-elif fmt == 'tsv':
-    def flatten(d, prefix=''):
-        for k, v in d.items():
-            key = prefix + k if not prefix else prefix + '.' + k
-            if isinstance(v, dict):
-                yield from flatten(v, key)
-            else:
-                yield key, v
-    for k, v in flatten(result):
-        print(k + '\t' + str(v))
-else:
-    print(json.dumps(result, separators=(',', ':')))
-" "$info" "$chans" "$peers" "$fwds" "$funds" "$field" "$format"
-}
-
-# ---------------------------------------------------------------------------
-# SIMPLE STATS SUBCOMMANDS
-# ---------------------------------------------------------------------------
-
-cmd_bandwidth() {
-	local result; result=$(LC listpeerchannels 2>/dev/null) || {
-		echo '{"error":"lightning-cli not found"}'; return; }
-	python3 -c "
-import sys, json
-chans = [c for c in json.loads(sys.argv[1]).get('channels',[]) if c.get('state')=='CHANNELD_NORMAL']
-bw = sum(min(c.get('to_us_msat',0), c.get('total_msat',0)-c.get('to_us_msat',0)) for c in chans)
-print(json.dumps({'bandwidth_msat': bw, 'channels': len(chans)}))
-" "$result"
-}
-
-cmd_channel_count() {
-	local result; result=$(LC listpeerchannels 2>/dev/null) || {
-		echo '{"error":"lightning-cli not found"}'; return; }
-	python3 -c "
-import sys, json
-chans = json.loads(sys.argv[1]).get('channels', [])
-by_state = {}
-for c in chans:
-    s = c.get('state','unknown'); by_state[s] = by_state.get(s,0)+1
-active = sum(1 for c in chans if c.get('state')=='CHANNELD_NORMAL')
-print(json.dumps({'total': len(chans), 'active': active, 'by_state': by_state}))
-" "$result"
-}
-
-cmd_peer_count() {
-	local result; result=$(LC listpeers 2>/dev/null) || {
-		echo '{"error":"lightning-cli not found"}'; return; }
-	python3 -c "
-import sys, json
-peers = json.loads(sys.argv[1]).get('peers', [])
-conn = sum(1 for p in peers if p.get('connected'))
-print(json.dumps({'total': len(peers), 'connected': conn, 'disconnected': len(peers)-conn}))
-" "$result"
-}
-
-cmd_htlc_stats() {
-	local result; result=$(LC listpeerchannels 2>/dev/null) || {
-		echo '{"error":"lightning-cli not found"}'; return; }
-	python3 -c "
-import sys, json
-chans = json.loads(sys.argv[1]).get('channels', [])
-total = 0; offered = 0; received = 0
-for c in chans:
-    htlcs = c.get('htlcs', [])
-    total += len(htlcs)
-    offered  += sum(1 for h in htlcs if h.get('direction')=='out')
-    received += sum(1 for h in htlcs if h.get('direction')=='in')
-print(json.dumps({'total_htlcs': total, 'offered': offered, 'received': received,
-    'channels_with_htlcs': sum(1 for c in chans if c.get('htlcs'))}))
-" "$result"
-}
 
 cmd_fee_policy() {
 	local result; result=$(LC listpeerchannels 2>/dev/null) || {
@@ -598,60 +308,6 @@ data = json.loads(sys.argv[1])
 perkw = data.get('perkw',{}); perkb = data.get('perkb',{})
 print(json.dumps({'urgency': sys.argv[2], 'perkw': perkw, 'perkb': perkb}))
 " "$result" "$urgency"
-}
-
-cmd_forward_stats() {
-	local result; result=$(LC listforwards 2>/dev/null) || {
-		echo '{"error":"lightning-cli not found"}'; return; }
-	python3 -c "
-import sys, json
-fwds = json.loads(sys.argv[1]).get('forwards', [])
-settled = [f for f in fwds if f.get('status')=='settled']
-failed  = [f for f in fwds if f.get('status')=='failed']
-total_fee = sum(f.get('fee_msat',0) for f in settled if isinstance(f.get('fee_msat'),(int,float)))
-print(json.dumps({'total': len(fwds), 'settled': len(settled), 'failed': len(failed),
-    'total_fee_msat': total_fee}))
-" "$result"
-}
-
-cmd_gossip() {
-	local nodes_raw chans_raw
-	nodes_raw=$(LC listnodes 2>/dev/null)   || { echo '{"error":"listnodes_failed"}'; return; }
-	chans_raw=$(LC listchannels 2>/dev/null) || chans_raw='{"channels":[]}'
-	python3 -c "
-import sys, json
-nodes = json.loads(sys.argv[1]).get('nodes', [])
-chans = json.loads(sys.argv[2]).get('channels', [])
-last_ts = max((n.get('last_timestamp',0) for n in nodes), default=0)
-print(json.dumps({'num_nodes': len(nodes), 'num_channels': len(chans), 'last_timestamp': last_ts}))
-" "$nodes_raw" "$chans_raw"
-}
-
-cmd_gossip_stats() {
-	local r1 r2
-	r1=$(LC listnodes 2>/dev/null)    || { echo '{"error":"lightning-cli not found"}'; return; }
-	r2=$(LC listchannels 2>/dev/null) || { echo '{"error":"lightning-cli not found"}'; return; }
-	python3 -c "
-import sys, json
-nodes    = json.loads(sys.argv[1]).get('nodes', [])
-channels = json.loads(sys.argv[2]).get('channels', [])
-print(json.dumps({'node_count': len(nodes), 'channel_count': len(channels)}))
-" "$r1" "$r2"
-}
-
-cmd_listfunds() {
-	local result; result=$(LC listfunds 2>/dev/null) || {
-		echo '{"error":"lightning-cli not found"}'; return; }
-	python3 -c "
-import sys, json
-data = json.loads(sys.argv[1])
-outputs = data.get('outputs', [])
-channels = data.get('channels', [])
-onchain_sat = sum(o.get('amount_msat',0)//1000 for o in outputs if o.get('status')=='confirmed')
-offchain_msat = sum(c.get('our_amount_msat',0) for c in channels)
-print(json.dumps({'onchain_sat': onchain_sat, 'offchain_msat': offchain_msat,
-    'offchain_sat': offchain_msat//1000, 'utxo_count': len(outputs), 'channel_count': len(channels)}))
-" "$result"
 }
 
 cmd_check_config() {
@@ -876,26 +532,6 @@ print(json.dumps([{'rune': r.get('rune',''), 'unique_id': r.get('unique_id',''),
 }
 
 # ---------------------------------------------------------------------------
-# PLUGINS
-# ---------------------------------------------------------------------------
-
-cmd_plugin_list() {
-	LC plugin list 2>/dev/null || echo '{"error":"lightning-cli not found"}'
-}
-
-cmd_plugin_start() {
-	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node plugin-start <path>"}'; return; }
-	LC plugin start "$1" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
-	echo '{"ok":true}'
-}
-
-cmd_plugin_stop() {
-	[ $# -lt 1 ] && { echo '{"error":"usage: lightning node plugin-stop <name>"}'; return; }
-	LC plugin stop "$1" 2>/dev/null || echo '{"error":"lightning-cli not found"}'
-	echo '{"ok":true}'
-}
-
-# ---------------------------------------------------------------------------
 # OPERATIONS
 # ---------------------------------------------------------------------------
 
@@ -997,7 +633,6 @@ cmd_lnurl_pay() {
 
 subhelp() {
 	case "$1" in
-		stats)            echo "usage: lightning node stats [--field <dotted.path>] [--format tsv|json]" ;;
 		info)             echo "usage: lightning node info" ;;
 		pubkey)           echo "usage: lightning node pubkey" ;;
 		alias)            echo "usage: lightning node alias [<new-alias>]" ;;
@@ -1009,16 +644,8 @@ subhelp() {
 		announce-addr)    echo "usage: lightning node announce-addr" ;;
 		lnurl-info)       echo "usage: lightning node lnurl-info" ;;
 		uptime)           echo "usage: lightning node uptime" ;;
-		bandwidth)        echo "usage: lightning node bandwidth" ;;
-		channel-count)    echo "usage: lightning node channel-count" ;;
-		peer-count)       echo "usage: lightning node peer-count" ;;
-		htlc-stats)       echo "usage: lightning node htlc-stats" ;;
 		fee-policy)       echo "usage: lightning node fee-policy" ;;
 		fee-rate)         echo "usage: lightning node fee-rate [urgent|normal|slow]" ;;
-		forward-stats|routing-stats) echo "usage: lightning node forward-stats" ;;
-		gossip)           echo "usage: lightning node gossip" ;;
-		gossip-stats)     echo "usage: lightning node gossip-stats" ;;
-		listfunds|check-funds) echo "usage: lightning node listfunds" ;;
 		check-config)     echo "usage: lightning node check-config" ;;
 		check-route)      echo "usage: lightning node check-route <dest_node_id> <amount_msat>" ;;
 		getroute|pay-route) echo "usage: lightning node getroute <node_id> <amount_msat>" ;;
@@ -1037,9 +664,6 @@ subhelp() {
 		offers-list)      echo "usage: lightning node offers-list [--limit N]" ;;
 		rune-create)      echo "usage: lightning node rune-create [<restriction>...]" ;;
 		rune-list)        echo "usage: lightning node rune-list" ;;
-		plugin-list)      echo "usage: lightning node plugin-list" ;;
-		plugin-start)     echo "usage: lightning node plugin-start <plugin_path>" ;;
-		plugin-stop)      echo "usage: lightning node plugin-stop <plugin_name>" ;;
 		backup-state)     echo "usage: lightning node backup-state [<output_dir>]" ;;
 		emergency-recover) echo "usage: lightning node emergency-recover <scb_file>" ;;
 		emergency-stop)   echo "usage: lightning node emergency-stop" ;;
@@ -1058,7 +682,6 @@ case "$SUB" in help) subhelp "${1:-}" || usage; exit ;; esac
 # Dispatch to sub-scripts that manage their own lightning-cli requirement
 # before we do a blanket require_cli check.
 case "$SUB" in
-	plugin)           exec "$(dirname "$0")/_plugin" "$@" ;;
 	tor)              exec "$(dirname "$0")/_tor" "$@" ;;
 	unlock)           exec "$(dirname "$0")/_unlock" "$@" ;;
 	tower)            exec "$(dirname "$0")/_tower" "$@" ;;
@@ -1072,7 +695,6 @@ case "$SUB" in
 	id)               cmd_pubkey "$@" ;;
 	pubkey)           cmd_pubkey "$@" ;;
 	# delegating: full implementations in _-prefixed siblings
-	plugin)           shift; exec "$(dirname "$0")/_plugin" "$@" ;;
 	tor)              shift; exec "$(dirname "$0")/_tor" "$@" ;;
 	unlock)           shift; exec "$(dirname "$0")/_unlock" "$@" ;;
 	tower)            shift; exec "$(dirname "$0")/_tower" "$@" ;;
@@ -1085,20 +707,9 @@ case "$SUB" in
 	announce-addr)    cmd_announce_addr "$@" ;;
 	lnurl-info)       cmd_lnurl_info "$@" ;;
 	uptime)           cmd_uptime "$@" ;;
-	# statistics
-	stats)            cmd_stats "$@" ;;
-	bandwidth)        cmd_bandwidth "$@" ;;
-	channel-count)    cmd_channel_count "$@" ;;
-	peer-count)       cmd_peer_count "$@" ;;
-	htlc-stats)       cmd_htlc_stats "$@" ;;
+	# config / policy
 	fee-policy)       cmd_fee_policy "$@" ;;
 	fee-rate)         cmd_fee_rate "$@" ;;
-	forward-stats)    cmd_forward_stats "$@" ;;
-	routing-stats)    cmd_forward_stats "$@" ;;
-	gossip)           cmd_gossip "$@" ;;
-	gossip-stats)     cmd_gossip_stats "$@" ;;
-	listfunds)        cmd_listfunds "$@" ;;
-	check-funds)      cmd_listfunds "$@" ;;
 	check-config)     cmd_check_config "$@" ;;
 	# routing / payments
 	check-route)      cmd_check_route "$@" ;;
@@ -1122,10 +733,6 @@ case "$SUB" in
 	offers-list)      cmd_offers_list "$@" ;;
 	rune-create)      cmd_rune_create "$@" ;;
 	rune-list)        cmd_rune_list "$@" ;;
-	# plugins
-	plugin-list)      cmd_plugin_list "$@" ;;
-	plugin-start)     cmd_plugin_start "$@" ;;
-	plugin-stop)      cmd_plugin_stop "$@" ;;
 	# operations
 	backup-state)     cmd_backup_state "$@" ;;
 	emergency-recover) cmd_emergency_recover "$@" ;;

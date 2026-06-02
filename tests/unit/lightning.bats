@@ -9151,32 +9151,12 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 	[ "$status" -ne 0 ]
 }
 
-@test "node stats returns JSON with node key (mock)" {
-	stub=$(command -v python3)
-	out=$(PATH="$BATS_TEST_DIRNAME/../mock_bins:$PATH" \
-		"$BATS_TEST_DIRNAME/../../libexec/lightning/node" stats 2>/dev/null || true)
-	# either json or error json — must be parseable
-	echo "$out" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null || true
-}
-
 @test "node pubkey subcommand arm exists" {
 	grep -q "pubkey)" "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
 }
 
 @test "node alias subcommand arm exists" {
 	grep -q "alias)" "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
-}
-
-@test "node forward-stats arm exists" {
-	grep -q "forward-stats)" "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
-}
-
-@test "node channel-count arm exists" {
-	grep -q "channel-count)" "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
-}
-
-@test "node stats --field flag documented" {
-	"$BATS_TEST_DIRNAME/../../libexec/lightning/node" help stats 2>&1 | grep -q "\-\-field"
 }
 
 @test "node man page exists with correct NAME" {
@@ -9186,6 +9166,53 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 
 @test "node bash syntax is valid" {
 	bash -n "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
+}
+
+# statistics object (factored out of node)
+
+@test "statistics stats returns JSON with node key (mock)" {
+	out=$(PATH="$BATS_TEST_DIRNAME/../mock_bins:$PATH" \
+		"$BATS_TEST_DIRNAME/../../libexec/lightning/statistics" stats 2>/dev/null || true)
+	# either json or error json — must be parseable
+	echo "$out" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null || true
+}
+
+@test "statistics forward-stats arm exists" {
+	grep -q "forward-stats)" "$BATS_TEST_DIRNAME/../../libexec/lightning/statistics"
+}
+
+@test "statistics channel-count arm exists" {
+	grep -q "channel-count)" "$BATS_TEST_DIRNAME/../../libexec/lightning/statistics"
+}
+
+@test "statistics stats --field flag documented" {
+	"$BATS_TEST_DIRNAME/../../libexec/lightning/statistics" help stats 2>&1 | grep -q "\-\-field"
+}
+
+@test "statistics no-args exits non-zero" {
+	run "$BATS_TEST_DIRNAME/../../libexec/lightning/statistics"
+	[ "$status" -ne 0 ]
+}
+
+@test "statistics bash syntax is valid" {
+	bash -n "$BATS_TEST_DIRNAME/../../libexec/lightning/statistics"
+}
+
+@test "node no longer carries the stats/plugin arms (factored out)" {
+	! grep -q "cmd_stats" "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
+	! grep -q "cmd_plugin_list" "$BATS_TEST_DIRNAME/../../libexec/lightning/node"
+}
+
+# plugin object — reckless package-mgmt + runtime load/stop
+
+@test "plugin loaded/start/stop runtime arms exist" {
+	grep -q "loaded)" "$BATS_TEST_DIRNAME/../../libexec/lightning/plugin"
+	grep -q "start)"  "$BATS_TEST_DIRNAME/../../libexec/lightning/plugin"
+	grep -q "stop)"   "$BATS_TEST_DIRNAME/../../libexec/lightning/plugin"
+}
+
+@test "plugin bash syntax is valid" {
+	bash -n "$BATS_TEST_DIRNAME/../../libexec/lightning/plugin"
 }
 
 # consolidated wallet-* micro-verbs
