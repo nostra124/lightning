@@ -126,6 +126,17 @@ impl ClnRpc {
         serde_json::from_value(v).context("decode decode")
     }
 
+    /// Withdraw on-chain from the node's wallet (custodial on-chain, FEAT-314).
+    pub async fn withdraw(&self, destination: &str, amount_sat: u64) -> Result<Withdraw> {
+        let v = self
+            .call(
+                "withdraw",
+                serde_json::json!({ "destination": destination, "satoshi": amount_sat }),
+            )
+            .await?;
+        serde_json::from_value(v).context("decode withdraw")
+    }
+
     /// Create a reusable BOLT-12 offer to receive into the node (FEAT-311).
     pub async fn offer(&self, amount_msat: i64, description: &str) -> Result<Offer> {
         let v = self
@@ -166,6 +177,11 @@ pub struct Offer {
     pub bolt12: String,
     #[serde(default)]
     pub offer_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Withdraw {
+    pub txid: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -308,6 +324,20 @@ mod tests {
         let req = h.await.unwrap();
         assert!(req.contains("\"method\":\"offer\""));
         assert!(req.contains("1000msat"));
+    }
+
+    #[tokio::test]
+    async fn withdraw_roundtrip() {
+        let (sock, h, _d) = mock_node(serde_json::json!({ "txid": "abc123", "psbt": "x" })).await;
+        let w = ClnRpc::new(&sock)
+            .withdraw("bc1qexample", 50_000)
+            .await
+            .unwrap();
+        assert_eq!(w.txid, "abc123");
+        let req = h.await.unwrap();
+        assert!(req.contains("\"method\":\"withdraw\""));
+        assert!(req.contains("bc1qexample"));
+        assert!(req.contains("50000"));
     }
 
     #[tokio::test]

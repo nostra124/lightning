@@ -40,6 +40,7 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
         .route("/accounts/{id}/invoice", post(create_invoice))
         .route("/accounts/{id}/offer", post(create_offer))
         .route("/accounts/{id}/send", post(send))
+        .route("/accounts/{id}/withdraw", post(withdraw_onchain))
         .route("/accounts/{id}/mandates", post(create_mandate))
         .route("/accounts/{id}/history", get(get_history))
         .route("/accounts/{id}/history.csv", get(get_history_csv))
@@ -723,6 +724,63 @@ async fn revoke_mandate(
     require_account(&p, &owner)?;
     mandates::revoke(&st.db.pool, &id).await?;
     Ok(Json(json!({ "mandate_id": id, "revoked": true })))
+}
+
+#[derive(Deserialize)]
+struct WithdrawBody {
+    address: String,
+    amount_sat: u64,
+}
+
+/// Custodial on-chain withdrawal via the node's own wallet (FEAT-314).
+/// Debits the account (amount + operator fee) only after the node sends.
+async fn withdraw_onchain(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<WithdrawBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    let amount_msat = (body.amount_sat as i64)
+        .checked_mul(1000)
+        .ok_or_else(|| AppError::BadRequest("amount too large".into()))?;
+    if amount_msat <= 0 {
+        return Err(AppError::BadRequest("amount_sat must be positive".into()));
+    }
+    compliance::gate(
+        &st.db.pool,
+        &id,
+        "-",
+        amount_msat,
+        "withdraw",
+        st.config.compliance_max_msat,
+    )
+    .await?;
+    let fee_msat = st.config.fee_policy().fee(amount_msat);
+    if ledger::balance(&st.db.pool, &id).await? < amount_msat + fee_msat {
+        return Err(AppError::PaymentRequired);
+    }
+    let res = ClnRpc::new(&st.config.cln_socket)
+        .withdraw(&body.address, body.amount_sat)
+        .await
+        .map_err(|_| AppError::Backend)?;
+    ledger::charge(
+        &st.db.pool,
+        &id,
+        "-",
+        amount_msat,
+        fee_msat,
+        &format!("withdraw {}", res.txid),
+    )
+    .await?;
+    referrals::apply(&st.db.pool, &id, fee_msat, st.config.referral_share_ppm).await?;
+    let balance_msat = ledger::balance(&st.db.pool, &id).await?;
+    Ok(Json(json!({
+        "txid": res.txid,
+        "fee_msat": fee_msat,
+        "balance_msat": balance_msat,
+    })))
 }
 
 /// The caller must present an account API key.
