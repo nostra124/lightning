@@ -10,19 +10,28 @@
 
 ## 1. What it is
 
-`thunderd` is a **small Lightning daemon that offers non-custodial
-accounts**: an API for **remote signers to manage their own channels**.
-The seed lives on the user's device and signs remotely (**A2**); our
-servers never hold a usable key — heavy lifting on our side, custody on
-the user's.
+`thunderd` is a **small Lightning daemon, companion to `lightningd`, that
+offers both custodial and non-custodial accounts for Lightning** — one
+engine, two tiers (§1.3). For the **non-custodial** tier it is an API for
+**remote signers to manage their own channels**: the seed lives on the
+user's device and signs remotely (**A2**); our servers never hold a
+usable key. The **custodial** tier is the former *accounts plugin* — the
+commerce/neobank surface — now folded in as a module of the same daemon.
+
+**Why "thunder".** One **lightning**, many **thunders**: a node runs a
+single `lightningd`, and many `thunderd` accounts and clients hang off
+it. The name encodes both the **one-to-many** fan-out *and* the
+**dependency** — thunder follows lightning; `thunderd` only works with a
+`lightningd` companion.
 
 It is a **companion to `lightningd`** — it does not replace a full node,
 it runs **parallel to a `lightningd` on the same machine and interacts
-with it through the Unix (RPC) socket**. `lightningd` is the shared
-backend: the channel **counterparty / LSP / trampoline** and the gateway
-to chain + the wider Lightning network. `thunderd` adds the per-user
-keying, the remote-signing protocol, multi-tenancy, and the public JSON
-API.
+with it through the Unix (RPC) socket**, for *both* tiers (so there is
+**no in-process CLN plugin**). `lightningd` is the shared backend: it
+holds the node funds for the custodial tier, and is the channel
+**counterparty / LSP / trampoline** + chain/network gateway for the
+non-custodial tier. `thunderd` adds the account model, per-user keying,
+the remote-signing protocol, multi-tenancy, and the public JSON API.
 
 It is *not* a reused phoenixd, *not* Greenlight, *not* Ark.
 
@@ -30,15 +39,33 @@ It is *not* a reused phoenixd, *not* Greenlight, *not* Ark.
 
 | Name | Side | Role |
 |---|---|---|
-| **`thunderd`** | server | The daemon. Companion to `lightningd` (Unix socket). Multi-tenant remote-signer node engine. Serves the JSON API. |
-| **`thunderd-cli`** | server | Operator admin CLI for `thunderd` (tenants, channels, liquidity, health). |
+| **`thunderd`** | server | The daemon. Companion to `lightningd` (Unix socket). Serves custodial + non-custodial accounts via the JSON API. |
+| **`thunderd-cli`** | server | Operator admin CLI for `thunderd` (tenants, accounts, channels, liquidity, health). |
 | **`thunder`** | client | The user's command-line **remote-signer client**: holds the seed, signs, manages their own channels/accounts over the JSON API. |
+| **`thunder-pay`** | client | The **PWA web frontend** for `thunderd` (Apache-hosted; later its own app). Renders both account tiers; reuses `signer-core` (WASM) for the non-custodial signer. |
 
 ### 1.2 API namespace
 
-`thunderd` serves **`/.well-known/thunder/v1`** (distinct from Track A's
-custodial `/.well-known/lightning/accounts/v1`). The `thunder` client
-speaks this namespace; a reverse proxy does TLS + forwards it.
+`thunderd` serves **`/.well-known/thunder/v1`** for both tiers; the
+custodial surface also keeps **`/.well-known/lightning/accounts/v1`** as
+a back-compat alias during cutover. `thunder` and `thunder-pay` speak the
+`thunder` namespace; a reverse proxy (Apache) does TLS + forwards it.
+
+### 1.3 Two account tiers, one daemon
+
+`thunderd` absorbs the former *accounts plugin* (custodial) and the
+former *pwalight* (non-custodial), so both are one engine sharing the
+account model, fee engine, API and clients:
+
+- **Custodial** — node holds the keys; an account is a ledger row.
+  `thunderd` drives the companion `lightningd` over the Unix RPC socket
+  (+ `waitanyinvoice` for settlement) — exactly the "fat plugin" design,
+  but as a module of this daemon rather than an in-process CLN plugin.
+  This is the commerce/neobank surface (invoices, mandates, charges,
+  standing orders, tax export). Feature detail: `../accounts-plugin/roadmap.md`
+  (now **Phase I** of `thunderd`).
+- **Non-custodial** — seed on the device, signs remotely (A2);
+  per-tenant LDK nodes; this document (**Phase II**, §3 onward).
 
 ## 2. Topology
 
@@ -194,7 +221,11 @@ materially strengthen the position.
 
 ## 12. Milestones & features
 
-Feature numbers are proposed placeholders.
+These `TH` milestones are `thunderd` **Phase II (non-custodial)**.
+**Phase I (custodial)** ships first and is tracked in
+`../accounts-plugin/roadmap.md` (M0–M6, FEAT-300…328) — reframed as
+`thunderd` modules, not a separate CLN plugin. Feature numbers are
+proposed placeholders.
 
 ### TH0 — Foundations & carve-out
 - **FEAT-400 — Workspace.** `thunderd/` Rust workspace in-tree (crates:

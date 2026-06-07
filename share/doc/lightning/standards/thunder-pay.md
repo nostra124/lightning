@@ -1,10 +1,14 @@
-# Track B — PWA carve-out (`lightning-pwa`)
+# `thunder-pay` — the PWA web frontend for `thunderd`
 
 **Status:** Planning. See `roadmap-overview.md` for context.
 
-Separate the existing PWA (`share/lightning/ui/`) so it can be deployed
-on its own host as a pure client of the API — and grow the
-device-signing primitives that Track C (`thunderd`) depends on.
+**`thunder-pay`** is the **web frontend for `thunderd`** — the nice PWA
+over both account tiers (custodial + non-custodial). It starts as the
+existing PWA (`share/lightning/ui/`) separated so it can be deployed on
+its own host (Apache) as a pure client of `thunderd`'s
+`/.well-known/thunder/v1` API, and later becomes its own installable app.
+It also grows the device-signing primitives the non-custodial tier
+(`thunderd` Phase II) depends on, sharing the `signer-core` (WASM) crate.
 
 ## 1. What exists today
 
@@ -84,7 +88,7 @@ Feature numbers are proposed placeholders.
   sign-intent flow; reused wholesale by Track C.
 
 ### PW3 — Extract
-- **FEAT-349 — `git filter-repo` → `lightning-pwa`.** Own versioning;
+- **FEAT-349 — `git filter-repo` → `thunder-pay`.** Own versioning;
   the `accounts` plugin can still optionally bundle + serve it for the
   single-box deploy.
 
