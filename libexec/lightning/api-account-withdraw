@@ -40,7 +40,7 @@ cc_self=$(cd "$(dirname "$0")" && pwd)
 compliance_hook() {
 	[ -s "$WALLETS_ROOT/$wname/compliance.recfile" ] || return 0
 	local out rc
-	out=$("$cc_self/compliance" hook "$1" "$2" "$3" 2>/dev/null); rc=$?
+	out=$("$cc_self/_compliance" hook "$1" "$2" "$3" 2>/dev/null); rc=$?
 	[ "$rc" -eq 0 ] || { [ -n "$out" ] && echo "$out"; }
 	return "$rc"
 }
