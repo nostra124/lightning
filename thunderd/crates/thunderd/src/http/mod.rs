@@ -9,7 +9,7 @@ use crate::error::AppError;
 use crate::state::AppState;
 use crate::state::RegState;
 use crate::util::random_hex;
-use crate::{accounts, charges, invoices, ledger, mandates, passkey, standing_orders};
+use crate::{accounts, charges, compliance, invoices, ledger, mandates, passkey, standing_orders};
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::IntoResponse;
@@ -331,6 +331,17 @@ async fn send(
         .ok_or_else(|| AppError::BadRequest("amountless invoices are not supported".into()))?
         as i64;
 
+    // Compliance pre-hook (FEAT-322): veto + audit before any spend.
+    compliance::gate(
+        &st.db.pool,
+        &id,
+        "-",
+        amount,
+        "send",
+        st.config.compliance_max_msat,
+    )
+    .await?;
+
     let fee_msat = st.config.fee_policy().fee(amount);
     // Pre-flight funds check incl. the operator fee (ledger::charge
     // re-checks atomically before booking).
@@ -607,6 +618,17 @@ async fn mandate_charge(
     };
     // Destination must exist.
     accounts::get(&st.db.pool, &body.to).await?;
+    // Compliance pre-hook (FEAT-322).
+    let debtor = mandates::account_of(&st.db.pool, &mandate_id).await?;
+    compliance::gate(
+        &st.db.pool,
+        &debtor,
+        &body.to,
+        body.amount_msat,
+        "mandate_charge",
+        st.config.compliance_max_msat,
+    )
+    .await?;
     let receipt = mandates::charge(
         &st.db.pool,
         &mandate_id,

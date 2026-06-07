@@ -11,6 +11,7 @@ mod accounts;
 mod auth;
 mod charges;
 mod clnrpc;
+mod compliance;
 mod config;
 mod db;
 mod error;

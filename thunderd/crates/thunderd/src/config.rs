@@ -68,6 +68,14 @@ pub struct ConfigArgs {
     #[arg(long = "fee-ppm", env = "THUNDERD_FEE_PPM", default_value_t = 0)]
     pub fee_ppm: i64,
 
+    /// Compliance ceiling (msat) per outbound move (0 disables).
+    #[arg(
+        long = "compliance-max-msat",
+        env = "THUNDERD_COMPLIANCE_MAX_MSAT",
+        default_value_t = 0
+    )]
+    pub compliance_max_msat: i64,
+
     /// Account-create / auth-begin rate limit per minute (0 disables).
     #[arg(
         long = "create-rate-per-min",
@@ -101,6 +109,7 @@ pub struct Config {
     pub body_limit: usize,
     pub fee_base_msat: i64,
     pub fee_ppm: i64,
+    pub compliance_max_msat: i64,
     pub create_rate_per_min: u32,
     pub rp_id: String,
     pub rp_origin: String,
@@ -140,6 +149,7 @@ impl Config {
             body_limit: a.body_limit,
             fee_base_msat: a.fee_base_msat,
             fee_ppm: a.fee_ppm,
+            compliance_max_msat: a.compliance_max_msat,
             create_rate_per_min: a.create_rate_per_min,
             rp_id: a.rp_id,
             rp_origin: a.rp_origin,
@@ -159,6 +169,7 @@ impl Default for Config {
             body_limit: 64 * 1024,
             fee_base_msat: 0,
             fee_ppm: 0,
+            compliance_max_msat: 0,
             create_rate_per_min: 60,
             rp_id: "localhost".to_string(),
             rp_origin: "http://localhost:9737".to_string(),
