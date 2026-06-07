@@ -64,7 +64,7 @@ Full reference: [`docs/API.md`](docs/API.md). Summary:
 ## Build, run, test
 
 ```sh
-cd thunderd
+cd thunder
 cargo build --release
 cargo test                 # 51 tests
 cargo fmt --check && cargo clippy --all-targets -- -D warnings
@@ -85,7 +85,7 @@ From the repo root: `make thunderd`, `make thunderd-check`, `make thunderd-guard
 ## Layout
 
 ```
-thunderd/
+thunder/
 ├── Cargo.toml                 workspace (4 crates)
 ├── rust-toolchain.toml        pinned toolchain
 ├── crates/

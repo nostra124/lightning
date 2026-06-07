@@ -1,7 +1,7 @@
 # `accounts` — custodial accounts: feature plan & roadmap
 
 **Status:** In progress — Phase 0/1 foundations skeleton landed (1.4.0);
-see `../../../../../thunderd/`. Phases 2+ still planning.
+see `../../../../../thunder/`. Phases 2+ still planning.
 **Owner:** rene
 **Target:** lift the account / commerce ("neobank") surface out of the
 `lightning` package into Rust.

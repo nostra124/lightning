@@ -160,22 +160,22 @@ lint:
 
 test: check
 
-# thunderd — the Rust companion daemon (FEAT-300+). The `thunderd/`
+# thunderd — the Rust companion daemon (FEAT-300+). The `thunder/`
 # workspace is deliberately standalone (no coupling to this bash
 # package), so it builds/tests on its own. Kept out of the default
 # stow `install` until the FEAT-301 binary-install wiring lands; build
 # it explicitly with `make thunderd`.
 thunderd:
-	@cd thunderd && cargo build --release
+	@cd thunder && cargo build --release
 
 thunderd-check:
-	@cd thunderd && cargo fmt --check \
+	@cd thunder && cargo fmt --check \
 		&& cargo clippy --all-targets -- -D warnings \
 		&& cargo test
 
 # FEAT-302 — one-way carve-out boundary check.
 thunderd-guard:
-	@thunderd/scripts/carve-out-guard.sh
+	@thunder/scripts/carve-out-guard.sh
 
 # Skills installation (FEAT-192).
 #
