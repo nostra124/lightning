@@ -248,13 +248,15 @@ materially strengthen the position.
 
 ## 12. Milestones & features
 
-These `TH` milestones are `thunderd` **Phase II (non-custodial)**.
-**Phase I (custodial)** ships first and is tracked in
-`../accounts-plugin/roadmap.md` (M0–M6, FEAT-300…328) — reframed as
-`thunderd` modules, not a separate CLN plugin. Feature numbers are
+These milestones are `thunderd` **Phase II (non-custodial)**, shipping as
+repo semver releases **`1.13.0` → `1.20.0`** — after Phase I (custodial,
+`1.4.0`–`1.9.0`) and `thunder-pay` (`1.10.0`–`1.12.0`). The final
+**separation of `thunder` into its own repo, together with stripping
+`lightning` down, is the `2.0.0` target** (below). Phase I is tracked in
+`../accounts-plugin/roadmap.md` (FEAT-300…328). Feature numbers are
 proposed placeholders.
 
-### TH0 — Foundations & carve-out
+### 1.13.0 — Foundations & carve-out
 - **FEAT-400 — Workspace.** `thunderd/` Rust workspace in-tree (crates:
   `signer-core`, `node-engine`, `sync`, `protocol`, `thunderd-cli`,
   `thunder`); carve-out CI guard (no coupling to `lightning`).
@@ -263,7 +265,7 @@ proposed placeholders.
 - **FEAT-402 — Tenant model + storage.** Tenant identity; storage schema
   for node state (partitioned) + E2E-encrypted blobs.
 
-### TH1 — Companion engine (§3, §5)
+### 1.14.0 — Companion engine (§3, §5)
 - **FEAT-403 — LDK host.** Many tenants, one runtime.
 - **FEAT-404 — Shared chain backend** (one feed + `Filter` fan-out).
 - **FEAT-405 — Shared persistence** (`KVStore`/`Persist`, per-tenant).
@@ -271,19 +273,19 @@ proposed placeholders.
 - **FEAT-407 — Companion-`lightningd` integration.** Drive counterparty /
   LSP / chain-gateway ops over the Unix RPC socket; per-tenant peering.
 
-### TH2 — Remote validating signer (A2 core, §6)
+### 1.15.0 — Remote validating signer (A2 core, §6)
 - **FEAT-408 — `signer-core`** (VLS-based; native + WASM).
 - **FEAT-409 — Remote `ChannelSigner`** (engine → device RPC).
 - **FEAT-410 — Sign transport + device presence.**
 - **FEAT-411 — Signer-state sync** (encrypted monotonic blob).
 
-### TH3 — LSP / liquidity on the companion (§4)
+### 1.16.0 — LSP / liquidity on the companion (§4)
 - **FEAT-412 — Trampoline serving** (send without routing).
 - **FEAT-413 — LSPS / `lightning-liquidity`** (pay-to-open / JIT).
 - **FEAT-414 — Splice-based fill-up.**
 - **FEAT-415 — Liquidity fee schedule + billing** (reuse FEAT-213).
 
-### TH4 — Wallet operations & the JSON API
+### 1.17.0 — Wallet operations & the JSON API
 - **FEAT-416 — Send** (trampoline; BOLT-11/12).
 - **FEAT-417 — Receive** (BOLT-11/12 + pay-to-open).
 - **FEAT-418 — Channel open / fill-up flows.**
@@ -305,13 +307,13 @@ proposed placeholders.
   doc. (Decision: account = channel vs. logical sub-balance over one user
   node.)
 
-### TH5 — Multi-device & cloud sync (§7, §8)
+### 1.18.0 — Multi-device & cloud sync (§7, §8)
 - **FEAT-421 — Device registry + signer-pool routing.**
 - **FEAT-422 — E2E-encrypted cloud-sync service** (Argon2id, monotonic).
 - **FEAT-423 — Synced datasets** (seed backup, signer-state, metadata).
 - **FEAT-424 — Push-to-sign wake.**
 
-### TH6 — Clients
+### 1.19.0 — Clients
 - **FEAT-425 — `thunder` CLI client.** The first client: remote-signer
   over `/.well-known/thunder/v1` (key gen/storage, sign loop, account +
   channel management). **Build this before the GUI clients.**
@@ -320,14 +322,18 @@ proposed placeholders.
 - **FEAT-427 — PWA / native mobile** (Android TWA; iOS signer-capable
   host) — reuses the WASM `signer-core` and Track B's UI.
 
-### TH7 — Recovery & resilience (§10)
+### 1.20.0 — Recovery & resilience (§10)
 - **FEAT-428 — SCB on device + seed+SCB recovery.**
 - **FEAT-429 — Watchtower strategy.**
 - **FEAT-430 — Force-close / unilateral exit + key-loss UX.**
 
-### TH8 — Extraction
-- **FEAT-431 — `git filter-repo` `thunderd/` → its own repo;** independent
-  versioning + CI.
+### 2.0.0 — Separation & strip-down (the target)
+- **FEAT-431 — Separate `thunder` into its own repo** (`git filter-repo`
+  `thunderd/` + `thunder-pay`), with independent versioning + CI, **and
+  strip `lightning` down** to simple administration (the custodial
+  cutover, FEAT-326–328). This breaking change is the `2.0.0` graduation:
+  `lightning` no longer carries the commerce/accounts surface, and
+  `thunder` lives on its own.
 
 ## 13. Open spikes & decisions
 1. **Companion-`lightningd` plumbing** (FEAT-407) — exact LDK↔`lightningd`
