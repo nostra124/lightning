@@ -7899,8 +7899,8 @@ _pr5_setup() {
 	mkdir -p "$LIGHTNING_DIR"
 	"$LIGHTNING_BIN" wallet new alice >/dev/null
 	# Create two users: root + child.
-	ROOT_UID=$("$LIGHTNING_BIN" wallet user create --label root 2>/dev/null | awk '/^lightning wallet user: created/{print $NF}')
-	CHILD_UID=$("$LIGHTNING_BIN" wallet user create --label child --referrer "$ROOT_UID" 2>/dev/null | awk '/^lightning wallet user: created/{print $NF}')
+	ROOT_UID=$("$LIGHTNING_BIN" wallet user create --label root 2>/dev/null | awk '/created/{print $NF}')
+	CHILD_UID=$("$LIGHTNING_BIN" wallet user create --label child --referrer "$ROOT_UID" 2>/dev/null | awk '/created/{print $NF}')
 }
 
 _pr5_teardown() {

@@ -149,7 +149,7 @@ Commands:
     plugin          Plugin management (reckless) + runtime load/stop
 
   Channels & peers:
-    channel         Open/close, fees, rebalance, liquidity, forwarding
+    channel         Open/close, fees, fee-policy, rebalance, liquidity
     peer            Connect, list, score peers
 
   Payments:
