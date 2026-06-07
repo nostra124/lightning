@@ -7,8 +7,9 @@ use crate::auth::{self, Principal};
 use crate::clnrpc::ClnRpc;
 use crate::error::AppError;
 use crate::state::AppState;
+use crate::state::RegState;
 use crate::util::random_hex;
-use crate::{accounts, invoices, ledger, mandates};
+use crate::{accounts, invoices, ledger, mandates, passkey};
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::IntoResponse;
@@ -19,6 +20,7 @@ use serde_json::json;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
+use webauthn_rs::prelude::{PublicKeyCredential, RegisterPublicKeyCredential};
 
 pub async fn serve(state: AppState) -> anyhow::Result<()> {
     let cfg = state.config.clone();
@@ -40,12 +42,15 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
         .route("/mandates/charge", post(mandate_charge))
         .route("/mandates/{id}/revoke", post(revoke_mandate))
         .route("/pay", post(pay))
-        // Passkey / WebAuthn identity (folded into thunderd) — schema in
-        // 0001_init.sql; crypto wiring is the next increment.
-        .route("/auth/passkey/register/begin", post(stub_open))
-        .route("/auth/passkey/register/finish", post(stub_open))
-        .route("/auth/passkey/login/begin", post(stub_open))
-        .route("/auth/passkey/login/finish", post(stub_open))
+        // Passkey / WebAuthn identity (folded into thunderd, FEAT-222).
+        .route("/auth/passkey/register/begin", post(passkey_register_begin))
+        .route(
+            "/auth/passkey/register/finish",
+            post(passkey_register_finish),
+        )
+        .route("/auth/passkey/login/begin", post(passkey_login_begin))
+        .route("/auth/passkey/login/finish", post(passkey_login_finish))
+        .route("/auth/me", get(auth_me))
         .fallback(not_found);
 
     let app = Router::new()
@@ -482,8 +487,115 @@ fn require_account(p: &Principal, account_id: &str) -> Result<(), AppError> {
     }
 }
 
-async fn stub_open() -> AppError {
-    AppError::NotImplemented
+// ---- passkey / WebAuthn (FEAT-222) ------------------------------------
+
+#[derive(Deserialize)]
+struct RegisterBeginBody {
+    name: String,
+}
+
+async fn passkey_register_begin(
+    State(st): State<AppState>,
+    Json(body): Json<RegisterBeginBody>,
+) -> Result<impl IntoResponse, AppError> {
+    if body.name.trim().is_empty() {
+        return Err(AppError::BadRequest("name required".into()));
+    }
+    let (user_id, _uuid, ccr, reg) =
+        passkey::register_begin(&st.webauthn, &st.db.pool, &body.name).await?;
+    let session = format!("reg_{}", random_hex(12));
+    st.reg_states.lock().unwrap().insert(
+        session.clone(),
+        RegState {
+            user_id: user_id.clone(),
+            reg,
+        },
+    );
+    Ok(Json(json!({
+        "session": session,
+        "user_id": user_id,
+        "challenge": ccr,
+    })))
+}
+
+#[derive(Deserialize)]
+struct RegisterFinishBody {
+    session: String,
+    credential: RegisterPublicKeyCredential,
+}
+
+async fn passkey_register_finish(
+    State(st): State<AppState>,
+    Json(body): Json<RegisterFinishBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let RegState { user_id, reg } = st
+        .reg_states
+        .lock()
+        .unwrap()
+        .remove(&body.session)
+        .ok_or_else(|| AppError::BadRequest("unknown or expired session".into()))?;
+    passkey::register_finish(&st.webauthn, &st.db.pool, &user_id, &reg, &body.credential).await?;
+    Ok(Json(json!({ "user_id": user_id, "registered": true })))
+}
+
+#[derive(Deserialize)]
+struct LoginBeginBody {
+    user_id: String,
+}
+
+async fn passkey_login_begin(
+    State(st): State<AppState>,
+    Json(body): Json<LoginBeginBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let passkeys = passkey::passkeys_for(&st.db.pool, &body.user_id).await?;
+    if passkeys.is_empty() {
+        return Err(AppError::Unauthorized);
+    }
+    let (rcr, auth) = st
+        .webauthn
+        .start_passkey_authentication(&passkeys)
+        .map_err(|_| AppError::Internal)?;
+    let session = format!("auth_{}", random_hex(12));
+    st.auth_states.lock().unwrap().insert(session.clone(), auth);
+    Ok(Json(json!({ "session": session, "challenge": rcr })))
+}
+
+#[derive(Deserialize)]
+struct LoginFinishBody {
+    session: String,
+    credential: PublicKeyCredential,
+}
+
+async fn passkey_login_finish(
+    State(st): State<AppState>,
+    Json(body): Json<LoginFinishBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let auth = st
+        .auth_states
+        .lock()
+        .unwrap()
+        .remove(&body.session)
+        .ok_or_else(|| AppError::BadRequest("unknown or expired session".into()))?;
+    let result = st
+        .webauthn
+        .finish_passkey_authentication(&body.credential, &auth)
+        .map_err(|_| AppError::Unauthorized)?;
+    passkey::apply_auth_result(&st.db.pool, &result).await?;
+    let user_id = passkey::user_for_credential(&st.db.pool, &hex::encode(result.cred_id())).await?;
+    let session_token = passkey::mint_session(&st.db.pool, &user_id).await?;
+    Ok(Json(
+        json!({ "user_id": user_id, "session_token": session_token }),
+    ))
+}
+
+/// Resolve the current wallet-user from a session bearer (`st_…`).
+async fn auth_me(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    let token = auth::bearer(&headers).ok_or(AppError::Unauthorized)?;
+    let user_id = passkey::user_for_session(&st.db.pool, &token).await?;
+    Ok(Json(json!({ "user_id": user_id })))
 }
 
 async fn not_found() -> AppError {

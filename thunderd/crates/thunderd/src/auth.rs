@@ -43,7 +43,7 @@ pub enum Principal {
     Mandate { mandate_id: String },
 }
 
-fn bearer(headers: &HeaderMap) -> Option<String> {
+pub fn bearer(headers: &HeaderMap) -> Option<String> {
     let v = headers
         .get(axum::http::header::AUTHORIZATION)?
         .to_str()

@@ -18,6 +18,7 @@ mod invoices;
 mod ledger;
 mod logging;
 mod mandates;
+mod passkey;
 mod policy;
 mod reconcile;
 mod state;
@@ -26,7 +27,6 @@ mod util;
 use anyhow::Context;
 use clap::Parser;
 use std::sync::Arc;
-use std::time::Instant;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -75,11 +75,7 @@ async fn main() -> anyhow::Result<()> {
         ),
     }
 
-    let state = state::AppState {
-        config,
-        db,
-        started: Instant::now(),
-    };
+    let state = state::AppState::new(config, db).context("init app state")?;
 
     // FEAT-310: follow the node's settlement stream in the background.
     reconcile::spawn(state.clone());

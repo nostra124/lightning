@@ -81,6 +81,10 @@ jobs:
         working-directory: thunderd
     steps:
       - uses: actions/checkout@v4
+      - name: install build deps (OpenSSL for webauthn-rs)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libssl-dev pkg-config
       - name: install rust toolchain
         run: |
           rustup toolchain install stable --profile minimal \

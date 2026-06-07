@@ -37,3 +37,6 @@ sqlx = { version = "0.8", default-features = false, features = [
     "migrate",
     "macros",
 ] }
+# Passkey / WebAuthn identity (auth folded into thunderd). Needs system
+# OpenSSL at build time (provided in CI).
+webauthn-rs = "0.5"
