@@ -78,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: thunderd
+        working-directory: thunder
     steps:
       - uses: actions/checkout@v4
       - name: install build deps (OpenSSL for webauthn-rs)
@@ -93,8 +93,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            thunderd/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('thunderd/Cargo.lock', 'thunderd/**/Cargo.toml') }}
+            thunder/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('thunder/Cargo.lock', 'thunder/**/Cargo.toml') }}
           restore-keys: |
             cargo-${{ runner.os }}-
       - name: carve-out guard (FEAT-302)
