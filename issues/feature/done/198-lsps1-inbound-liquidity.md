@@ -77,14 +77,14 @@ pay, poll, report).
 
 ## Plugin installation
 
-Modelled on the existing `daemon install --trustedcoin` pattern.
-New flag:
+Wired into the service-unit setup. New flag:
 
-   lightning daemon install --lsps
+   lightning daemon enable --lsps
 
 Downloads the cln-lsps prebuilt binary into `$LIGHTNING_DIR/plugins/`
 and adds `plugin=...` to `$LIGHTNING_CONF` so lightningd loads it on
-next start.  Plugin source + pin live in two constants near
+next start. (The `--lsps` flag lives on `daemon enable` alongside the
+other unit-setup flags after the FEAT-207 "align daemon CLI" refactor.)  Plugin source + pin live in two constants near
 `TRUSTEDCOIN_REPO` / `TRUSTEDCOIN_VERSION`.
 
 There's a small architectural debt to call out: we now have two

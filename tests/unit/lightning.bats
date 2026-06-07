@@ -2757,7 +2757,7 @@ EOF
 @test "FEAT-207: install-core --dry-run --from rpk prints the rpk plan" {
 	run "$LIGHTNING_BIN" daemon install --from rpk --dry-run
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"backend:"*"rpk"* ]]
+	[[ "$output" == *"source:"*"rpk"* ]]
 	[[ "$output" == *"rpk install lightningd"* ]]
 }
 
@@ -2796,7 +2796,7 @@ EOF
 @test "FEAT-207: install-core --tag pin shows up in the plan" {
 	run "$LIGHTNING_BIN" daemon install --from brew --tag v26.04.1 --dry-run
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"version:"*"v26.04.1"* ]]
+	[[ "$output" == *"tag:"*"v26.04.1"* ]]
 }
 
 @test "FEAT-207: install-core unknown flag fails" {
@@ -2853,7 +2853,8 @@ EOF
 	_stub_rpk 0 1
 	run "$LIGHTNING_BIN" daemon install --from rpk --tag v26.04.1
 	[ "$status" -eq 0 ]
-	grep -q "\\--tag v26.04.1" "$BIN_SHIM/rpk.calls"
+	# rpk's own flag is --version (the user-facing --tag maps onto it).
+	grep -q "\\--version v26.04.1" "$BIN_SHIM/rpk.calls"
 }
 
 @test "FEAT-207: install-core --from rpk propagates rpk failure" {
