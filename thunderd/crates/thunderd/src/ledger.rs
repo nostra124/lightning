@@ -90,6 +90,75 @@ pub async fn transfer(
     Ok(group_id)
 }
 
+/// A money-move with an operator fee, booked atomically (FEAT-321):
+/// debits `from` by `amount + fee`, credits `to` by `amount`, and credits
+/// the `house` system account by `fee`. One overdraft check covers the
+/// whole spend; all legs commit together or not at all. Returns the
+/// shared `group_id`.
+pub async fn charge(
+    pool: &SqlitePool,
+    from: &str,
+    to: &str,
+    amount_msat: i64,
+    fee_msat: i64,
+    memo: &str,
+) -> Result<String, AppError> {
+    if amount_msat <= 0 {
+        return Err(AppError::BadRequest("amount must be positive".into()));
+    }
+    if fee_msat < 0 {
+        return Err(AppError::BadRequest("fee must be non-negative".into()));
+    }
+    if from == to {
+        return Err(AppError::BadRequest("from and to must differ".into()));
+    }
+
+    let group_id = format!("g_{}", crate::util::random_hex(12));
+    let ts = crate::util::now();
+    let total = amount_msat + fee_msat;
+
+    let mut tx = pool.begin().await.map_err(|_| AppError::Backend)?;
+
+    if !is_system(from) {
+        let (bal,): (i64,) = sqlx::query_as(
+            "SELECT COALESCE(SUM(amount_msat), 0) FROM ledger WHERE account_id = ?1",
+        )
+        .bind(from)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|_| AppError::Backend)?;
+        if bal - total < 0 {
+            return Err(AppError::PaymentRequired);
+        }
+    }
+
+    // legs: (account, counter, delta)
+    let mut legs = vec![(from, to, -amount_msat), (to, from, amount_msat)];
+    if fee_msat > 0 {
+        legs.push((from, "house", -fee_msat));
+        legs.push(("house", from, fee_msat));
+    }
+
+    for (account, counter, delta) in legs {
+        sqlx::query(
+            "INSERT INTO ledger (ts, group_id, account_id, counter_account, amount_msat, memo) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        )
+        .bind(ts)
+        .bind(&group_id)
+        .bind(account)
+        .bind(counter)
+        .bind(delta)
+        .bind(memo)
+        .execute(&mut *tx)
+        .await
+        .map_err(|_| AppError::Backend)?;
+    }
+
+    tx.commit().await.map_err(|_| AppError::Backend)?;
+    Ok(group_id)
+}
+
 /// Credit an account from the external world (`-`) — e.g. a settled
 /// inbound invoice or a topup. Booked as a normal transfer so the
 /// invariant holds; `-` simply goes more negative.
@@ -175,6 +244,44 @@ mod tests {
             .unwrap();
         assert_eq!(balance(&db.pool, "house").await.unwrap(), -500);
         assert_eq!(balance(&db.pool, "alice").await.unwrap(), 500);
+    }
+
+    #[tokio::test]
+    async fn charge_with_fee_books_house_and_preserves_invariant() {
+        let db = Db::memory().await.unwrap();
+        seed_account(&db, "alice").await;
+        seed_account(&db, "bob").await;
+        credit_external(&db.pool, "alice", 10_000, "topup")
+            .await
+            .unwrap();
+
+        // pay bob 3000 with a 200 msat operator fee.
+        charge(&db.pool, "alice", "bob", 3_000, 200, "pay")
+            .await
+            .unwrap();
+        assert_eq!(balance(&db.pool, "alice").await.unwrap(), 6_800);
+        assert_eq!(balance(&db.pool, "bob").await.unwrap(), 3_000);
+        assert_eq!(balance(&db.pool, "house").await.unwrap(), 200);
+        assert_eq!(ledger_sum(&db).await, 0);
+    }
+
+    #[tokio::test]
+    async fn charge_overdraft_counts_the_fee() {
+        let db = Db::memory().await.unwrap();
+        seed_account(&db, "alice").await;
+        seed_account(&db, "bob").await;
+        credit_external(&db.pool, "alice", 3_100, "topup")
+            .await
+            .unwrap();
+        // amount+fee = 3000+200 = 3200 > 3100 -> refused, nothing booked.
+        assert!(matches!(
+            charge(&db.pool, "alice", "bob", 3_000, 200, "x")
+                .await
+                .unwrap_err(),
+            AppError::PaymentRequired
+        ));
+        assert_eq!(balance(&db.pool, "alice").await.unwrap(), 3_100);
+        assert_eq!(ledger_sum(&db).await, 0);
     }
 
     #[tokio::test]

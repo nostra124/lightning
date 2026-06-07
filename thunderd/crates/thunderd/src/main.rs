@@ -17,6 +17,8 @@ mod http;
 mod invoices;
 mod ledger;
 mod logging;
+mod mandates;
+mod policy;
 mod reconcile;
 mod state;
 mod util;

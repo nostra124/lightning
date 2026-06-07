@@ -8,7 +8,7 @@ use crate::clnrpc::ClnRpc;
 use crate::error::AppError;
 use crate::state::AppState;
 use crate::util::random_hex;
-use crate::{accounts, invoices, ledger};
+use crate::{accounts, invoices, ledger, mandates};
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::IntoResponse;
@@ -33,7 +33,10 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
         .route("/accounts/{id}/topup", post(topup_account))
         .route("/accounts/{id}/invoice", post(create_invoice))
         .route("/accounts/{id}/send", post(send))
+        .route("/accounts/{id}/mandates", post(create_mandate))
         .route("/invoices/{id}", get(get_invoice))
+        .route("/mandates/charge", post(mandate_charge))
+        .route("/mandates/{id}/revoke", post(revoke_mandate))
         .route("/pay", post(pay))
         // Passkey / WebAuthn identity (folded into thunderd) — schema in
         // 0001_init.sql; crypto wiring is the next increment.
@@ -193,12 +196,22 @@ async fn pay(
     let from = require_api_key(&p)?;
     // 404 if the destination doesn't exist.
     accounts::get(&st.db.pool, &body.to).await?;
-    let group_id =
-        ledger::transfer(&st.db.pool, from, &body.to, body.amount_msat, &body.memo).await?;
+    let fee_msat = st.config.fee_policy().fee(body.amount_msat);
+    let group_id = ledger::charge(
+        &st.db.pool,
+        from,
+        &body.to,
+        body.amount_msat,
+        fee_msat,
+        &body.memo,
+    )
+    .await?;
     let balance_msat = ledger::balance(&st.db.pool, from).await?;
-    Ok(Json(
-        json!({ "group_id": group_id, "balance_msat": balance_msat }),
-    ))
+    Ok(Json(json!({
+        "group_id": group_id,
+        "fee_msat": fee_msat,
+        "balance_msat": balance_msat,
+    })))
 }
 
 #[derive(Deserialize)]
@@ -292,8 +305,10 @@ async fn send(
         .ok_or_else(|| AppError::BadRequest("amountless invoices are not supported".into()))?
         as i64;
 
-    // Pre-flight funds check (the ledger transfer re-checks atomically).
-    if ledger::balance(&st.db.pool, &id).await? < amount {
+    let fee_msat = st.config.fee_policy().fee(amount);
+    // Pre-flight funds check incl. the operator fee (ledger::charge
+    // re-checks atomically before booking).
+    if ledger::balance(&st.db.pool, &id).await? < amount + fee_msat {
         return Err(AppError::PaymentRequired);
     }
 
@@ -304,15 +319,92 @@ async fn send(
         dec.payment_hash.unwrap_or_default(),
         dec.description.unwrap_or_default()
     );
-    ledger::transfer(&st.db.pool, &id, "-", amount, &memo).await?;
+    ledger::charge(&st.db.pool, &id, "-", amount, fee_msat, &memo).await?;
 
     let balance_msat = ledger::balance(&st.db.pool, &id).await?;
     Ok(Json(json!({
         "payment_preimage": res.payment_preimage,
         "amount_sent_msat": res.amount_sent_msat,
         "status": res.status,
+        "fee_msat": fee_msat,
         "balance_msat": balance_msat,
     })))
+}
+
+// ---- mandates / direct debit (FEAT-317) -------------------------------
+
+#[derive(Deserialize, Default)]
+struct CreateMandateBody {
+    #[serde(default)]
+    label: String,
+    #[serde(default)]
+    max_amount_msat: Option<i64>,
+}
+
+/// Create a direct-debit mandate against the caller's account; returns
+/// the secret once.
+async fn create_mandate(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    body: Option<Json<CreateMandateBody>>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    let b = body.map(|x| x.0).unwrap_or_default();
+    let (mandate_id, secret) =
+        mandates::create(&st.db.pool, &id, &b.label, b.max_amount_msat).await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({
+            "mandate_id": mandate_id,
+            "secret": secret,
+            "max_amount_msat": b.max_amount_msat,
+        })),
+    ))
+}
+
+#[derive(Deserialize)]
+struct MandateChargeBody {
+    to: String,
+    amount_msat: i64,
+}
+
+/// Pull funds via a mandate. Authenticated by `X-Mandate-Secret`.
+async fn mandate_charge(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<MandateChargeBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    let mandate_id = match &p {
+        Principal::Mandate { mandate_id } => mandate_id.clone(),
+        _ => return Err(AppError::Forbidden),
+    };
+    // Destination must exist.
+    accounts::get(&st.db.pool, &body.to).await?;
+    let receipt = mandates::charge(
+        &st.db.pool,
+        &mandate_id,
+        &body.to,
+        body.amount_msat,
+        st.config.fee_policy(),
+    )
+    .await?;
+    Ok(Json(receipt))
+}
+
+/// Revoke a mandate. The account owner (bearer) must own it.
+async fn revoke_mandate(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    let owner = mandates::account_of(&st.db.pool, &id).await?;
+    require_account(&p, &owner)?;
+    mandates::revoke(&st.db.pool, &id).await?;
+    Ok(Json(json!({ "mandate_id": id, "revoked": true })))
 }
 
 /// The caller must present an account API key.

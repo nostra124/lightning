@@ -55,6 +55,18 @@ pub struct ConfigArgs {
     /// Max request body size in bytes.
     #[arg(long = "body-limit", env = "THUNDERD_BODY_LIMIT", default_value_t = 64 * 1024)]
     pub body_limit: usize,
+
+    /// Operator fee base (msat) skimmed to `house` on outbound pays.
+    #[arg(
+        long = "fee-base-msat",
+        env = "THUNDERD_FEE_BASE_MSAT",
+        default_value_t = 0
+    )]
+    pub fee_base_msat: i64,
+
+    /// Operator fee rate (parts-per-million) on outbound pays.
+    #[arg(long = "fee-ppm", env = "THUNDERD_FEE_PPM", default_value_t = 0)]
+    pub fee_ppm: i64,
 }
 
 /// Resolved, validated configuration.
@@ -67,9 +79,18 @@ pub struct Config {
     pub cln_socket: PathBuf,
     pub cors_origin: Vec<String>,
     pub body_limit: usize,
+    pub fee_base_msat: i64,
+    pub fee_ppm: i64,
 }
 
 impl Config {
+    pub fn fee_policy(&self) -> crate::policy::FeePolicy {
+        crate::policy::FeePolicy {
+            base_msat: self.fee_base_msat,
+            ppm: self.fee_ppm,
+        }
+    }
+
     pub fn from_args(a: ConfigArgs) -> anyhow::Result<Self> {
         let mut base_path = a.base_path;
         if !base_path.starts_with('/') {
@@ -94,6 +115,8 @@ impl Config {
             cln_socket: a.cln_socket,
             cors_origin,
             body_limit: a.body_limit,
+            fee_base_msat: a.fee_base_msat,
+            fee_ppm: a.fee_ppm,
         })
     }
 }
@@ -108,6 +131,8 @@ impl Default for Config {
             cln_socket: PathBuf::from("lightning-rpc"),
             cors_origin: vec!["*".to_string()],
             body_limit: 64 * 1024,
+            fee_base_msat: 0,
+            fee_ppm: 0,
         }
     }
 }
