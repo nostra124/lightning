@@ -1,9 +1,20 @@
-# `accounts` — Core Lightning plugin: feature plan & roadmap
+# `accounts` — custodial accounts: feature plan & roadmap
 
 **Status:** Proposal / planning (no code yet)
 **Owner:** rene
-**Target:** a standalone Rust CLN plugin that lifts the account /
-commerce ("neobank") surface out of the `lightning` package.
+**Target:** lift the account / commerce ("neobank") surface out of the
+`lightning` package into Rust.
+
+> **MERGED INTO `thunderd`.** This is now the **custodial-accounts tier
+> (Phase I)** of the `thunderd` engine — see `../thunderd/design.md` and
+> `../roadmap-overview.md`. The change vs. the original plan: the
+> custodial logic ships as a **module of the `thunderd` companion
+> daemon** (driving `lightningd` over the Unix RPC socket + `waitanyinvoice`
+> for settlement), **not** as a separate in-process CLN plugin. It still
+> owns its state and uses direct `lightningd` RPC exactly as the "fat
+> plugin" would have, so the feature breakdown below stands; the
+> milestones M0–M6 are `thunderd` **Phase I**. Where this doc says
+> "plugin", read "thunderd custodial module".
 
 ---
 
@@ -285,7 +296,7 @@ already-wired routes:
 ## 10. Milestones & sequencing corrections (planning round 2)
 
 This is **Track A** in the wider plan — see `../roadmap-overview.md` for
-how it relates to the PWA carve-out (Track B) and `pwalight` (Track C).
+how it relates to the PWA carve-out (Track B) and `thunderd` (Track C).
 
 ### 10.1 Milestone map
 
