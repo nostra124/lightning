@@ -285,7 +285,7 @@ already-wired routes:
 ## 10. Milestones & sequencing corrections (planning round 2)
 
 This is **Track A** in the wider plan — see `../roadmap-overview.md` for
-how it relates to the PWA carve-out (Track B) and `pwalight` (Track C).
+how it relates to the PWA carve-out (Track B) and `thunderd` (Track C).
 
 ### 10.1 Milestone map
 

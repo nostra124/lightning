@@ -4,7 +4,7 @@
 
 Separate the existing PWA (`share/lightning/ui/`) so it can be deployed
 on its own host as a pure client of the API — and grow the
-device-signing primitives that Track C (`pwalight`) depends on.
+device-signing primitives that Track C (`thunderd`) depends on.
 
 ## 1. What exists today
 
@@ -49,7 +49,7 @@ exist, and it produces the primitives Track C reuses.
    LNURL-auth / message-signing / identity. Server verifies before
    acting. *Still custodial economically, but every action is
    device-authorized.*
-3. **Full self-custody** = Track C (`pwalight`): the device key controls
+3. **Full self-custody** = Track C (`thunderd`): the device key controls
    the *channel*, not just an intent.
 
 ## 4. Milestones & features
