@@ -23,6 +23,8 @@ mod passkey;
 mod policy;
 mod ratelimit;
 mod reconcile;
+mod scheduler;
+mod standing_orders;
 mod state;
 mod util;
 
@@ -81,6 +83,8 @@ async fn main() -> anyhow::Result<()> {
 
     // FEAT-310: follow the node's settlement stream in the background.
     reconcile::spawn(state.clone());
+    // FEAT-316: run due standing orders on a tick.
+    scheduler::spawn(state.clone());
 
     http::serve(state).await
 }

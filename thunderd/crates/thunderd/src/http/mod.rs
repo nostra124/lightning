@@ -9,7 +9,7 @@ use crate::error::AppError;
 use crate::state::AppState;
 use crate::state::RegState;
 use crate::util::random_hex;
-use crate::{accounts, charges, invoices, ledger, mandates, passkey};
+use crate::{accounts, charges, invoices, ledger, mandates, passkey, standing_orders};
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::IntoResponse;
@@ -39,6 +39,11 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
         .route("/accounts/{id}/history", get(get_history))
         .route("/accounts/{id}/history.csv", get(get_history_csv))
         .route("/accounts/{id}/charges", post(authorize_charge))
+        .route(
+            "/accounts/{id}/standing-orders",
+            get(list_standing_orders).post(create_standing_order),
+        )
+        .route("/standing-orders/{id}/cancel", post(cancel_standing_order))
         .route("/invoices/{id}", get(get_invoice))
         .route("/charges/{id}", get(get_charge))
         .route("/charges/{id}/capture", post(capture_charge))
@@ -407,6 +412,62 @@ fn csv_field(s: &str) -> String {
     } else {
         s.to_string()
     }
+}
+
+// ---- standing orders (FEAT-316) ---------------------------------------
+
+#[derive(Deserialize)]
+struct CreateStandingOrderBody {
+    to: String,
+    amount_msat: i64,
+    interval_secs: i64,
+}
+
+async fn create_standing_order(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<CreateStandingOrderBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    accounts::get(&st.db.pool, &body.to).await?;
+    let so_id = standing_orders::create(
+        &st.db.pool,
+        &id,
+        &body.to,
+        body.amount_msat,
+        body.interval_secs,
+    )
+    .await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({ "standing_order_id": so_id })),
+    ))
+}
+
+async fn list_standing_orders(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    Ok(Json(json!({
+        "orders": standing_orders::list(&st.db.pool, &id).await?
+    })))
+}
+
+async fn cancel_standing_order(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    let owner = standing_orders::owner(&st.db.pool, &id).await?;
+    require_account(&p, &owner)?;
+    standing_orders::cancel(&st.db.pool, &id).await?;
+    Ok(Json(json!({ "standing_order_id": id, "cancelled": true })))
 }
 
 // ---- charges: auth/capture lifecycle (FEAT-318) -----------------------
