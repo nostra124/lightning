@@ -23,12 +23,16 @@ roadmap claims stay honest. Source of truth for the plan:
 - **Migration** (308): `thunderd migrate` legacy importer.
 - **Referrals** (320): fee split to referrer.
 
-## Done — Phase II transport (FEAT-400)
+## Done — Phase II transport + on-chain construction (FEAT-400/41x)
 
 - Tenant + **watch-only xpub** registration (custody bar A2 — no spendable
   key on the server).
 - **Remote-signer transport**: enqueue signing request → device fetches
   pending → signs locally → returns signature. Session-gated, tested.
+- **On-chain (rust-bitcoin)**: real xpub→p2wpkh **address derivation** and
+  unsigned **PSBT construction** from supplied UTXOs (fee computed), then
+  enqueued to the signer. Pure + unit-tested (`GET /tenants/{id}/onchain/
+  address`, `POST /tenants/{id}/onchain/psbt`).
 
 ## NOT implemented — needs a live engine / environment (documented, not faked)
 
@@ -38,9 +42,10 @@ infrastructure, so they are intentionally **not** shipped as code:
 1. **Per-tenant LDK node engine** (FEAT-407+): spin per-tenant LDK nodes,
    open/manage channels via the companion `lightningd` as LSP/counterparty.
    HTTP `/tenants/{id}/node` returns 501 until this lands.
-2. **On-chain PSBT construction** (FEAT-41x): watch xpub-derived addresses,
-   track UTXOs, coin-select, build PSBTs → feed the signer transport.
-   `/tenants/{id}/onchain/psbt` returns 501.
+2. **On-chain UTXO discovery + broadcast** (FEAT-41x): PSBT *construction*
+   and address derivation are done (above); what still needs a live node is
+   chain-scan to discover UTXOs (callers supply inputs for now) and
+   broadcasting the finalized tx.
 3. **Validating remote signer (VLS)** policy on the device side.
 4. **thunder-pay PWA** (FEAT-340-349): the browser frontend + WASM signer.
 

@@ -40,3 +40,6 @@ sqlx = { version = "0.8", default-features = false, features = [
 # Passkey / WebAuthn identity (auth folded into thunderd). Needs system
 # OpenSSL at build time (provided in CI).
 webauthn-rs = "0.5"
+# On-chain wallet primitives (xpub derivation + PSBT construction) for the
+# non-custodial tier. Pure construction — broadcast/chain-scan need a node.
+bitcoin = { version = "0.32", features = ["base64"] }

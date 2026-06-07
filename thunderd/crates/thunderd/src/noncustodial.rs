@@ -156,6 +156,18 @@ pub async fn owner(pool: &SqlitePool, tenant_id: &str) -> Result<Option<String>,
     Ok(get_tenant(pool, tenant_id).await?.user_id)
 }
 
+/// The tenant's (first registered) watch-only xpub.
+pub async fn first_xpub(pool: &SqlitePool, tenant_id: &str) -> Result<String, AppError> {
+    let row: Option<(String,)> = sqlx::query_as(
+        "SELECT xpub FROM tenant_xpubs WHERE tenant_id = ?1 ORDER BY created_at LIMIT 1",
+    )
+    .bind(tenant_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|_| AppError::Backend)?;
+    Ok(row.ok_or(AppError::NotFound)?.0)
+}
+
 /// Tenant a signing request belongs to.
 pub async fn request_tenant(pool: &SqlitePool, request_id: &str) -> Result<String, AppError> {
     let row: Option<(String,)> =

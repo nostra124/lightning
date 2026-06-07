@@ -92,6 +92,10 @@ pub struct ConfigArgs {
     )]
     pub create_rate_per_min: u32,
 
+    /// Bitcoin network for on-chain ops (bitcoin|testnet|signet|regtest).
+    #[arg(long = "network", env = "THUNDERD_NETWORK", default_value = "bitcoin")]
+    pub network: String,
+
     /// WebAuthn relying-party id (the registrable domain).
     #[arg(long = "rp-id", env = "THUNDERD_RP_ID", default_value = "localhost")]
     pub rp_id: String,
@@ -120,6 +124,7 @@ pub struct Config {
     pub referral_share_ppm: i64,
     pub compliance_max_msat: i64,
     pub create_rate_per_min: u32,
+    pub network: String,
     pub rp_id: String,
     pub rp_origin: String,
 }
@@ -130,6 +135,12 @@ impl Config {
             base_msat: self.fee_base_msat,
             ppm: self.fee_ppm,
         }
+    }
+
+    /// Parsed bitcoin network (defaults to mainnet on unknown input).
+    pub fn bitcoin_network(&self) -> bitcoin::Network {
+        use std::str::FromStr;
+        bitcoin::Network::from_str(&self.network).unwrap_or(bitcoin::Network::Bitcoin)
     }
 
     pub fn from_args(a: ConfigArgs) -> anyhow::Result<Self> {
@@ -161,6 +172,7 @@ impl Config {
             referral_share_ppm: a.referral_share_ppm,
             compliance_max_msat: a.compliance_max_msat,
             create_rate_per_min: a.create_rate_per_min,
+            network: a.network,
             rp_id: a.rp_id,
             rp_origin: a.rp_origin,
         })
@@ -182,6 +194,7 @@ impl Default for Config {
             referral_share_ppm: 0,
             compliance_max_msat: 0,
             create_rate_per_min: 60,
+            network: "bitcoin".to_string(),
             rp_id: "localhost".to_string(),
             rp_origin: "http://localhost:9737".to_string(),
         }

@@ -10,8 +10,8 @@ use crate::state::AppState;
 use crate::state::RegState;
 use crate::util::random_hex;
 use crate::{
-    accounts, charges, compliance, invoices, ledger, mandates, noncustodial, passkey, referrals,
-    standing_orders,
+    accounts, charges, compliance, invoices, ledger, mandates, noncustodial, onchain, passkey,
+    referrals, standing_orders,
 };
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
@@ -74,7 +74,8 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
             get(list_signing).post(enqueue_signing_h),
         )
         .route("/tenants/{id}/node", get(tenant_node_stub))
-        .route("/tenants/{id}/onchain/psbt", post(tenant_psbt_stub))
+        .route("/tenants/{id}/onchain/address", get(tenant_address))
+        .route("/tenants/{id}/onchain/psbt", post(tenant_build_psbt))
         .route("/signing-requests/{id}/sign", post(sign_request_h))
         .fallback(not_found);
 
@@ -960,14 +961,75 @@ async fn tenant_node_stub(
     Err(AppError::NotImplemented)
 }
 
-/// On-chain PSBT construction — not implemented (needs the engine).
-async fn tenant_psbt_stub(
+#[derive(Deserialize)]
+struct AddressQuery {
+    #[serde(default)]
+    index: u32,
+}
+
+/// Derive a watch-only receive address from the tenant's xpub (FEAT-41x).
+async fn tenant_address(
     State(st): State<AppState>,
     Path(id): Path<String>,
     headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, AppError> {
+    Query(q): Query<AddressQuery>,
+) -> Result<impl IntoResponse, AppError> {
     require_tenant_owner(&st, &headers, &id).await?;
-    Err(AppError::NotImplemented)
+    let xpub = noncustodial::first_xpub(&st.db.pool, &id).await?;
+    let address = onchain::derive_address(&xpub, q.index, st.config.bitcoin_network())?;
+    Ok(Json(json!({ "index": q.index, "address": address })))
+}
+
+#[derive(Deserialize)]
+struct PsbtInput {
+    txid: String,
+    vout: u32,
+    value_sat: u64,
+    pubkey_hex: String,
+}
+#[derive(Deserialize)]
+struct PsbtOutput {
+    address: String,
+    amount_sat: u64,
+}
+#[derive(Deserialize)]
+struct BuildPsbtBody {
+    inputs: Vec<PsbtInput>,
+    outputs: Vec<PsbtOutput>,
+}
+
+/// Build an unsigned PSBT from supplied UTXOs and enqueue it for the
+/// device to sign (FEAT-41x). UTXO *discovery* (chain scan) still needs a
+/// live node; callers supply inputs until that lands.
+async fn tenant_build_psbt(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<BuildPsbtBody>,
+) -> Result<impl IntoResponse, AppError> {
+    require_tenant_owner(&st, &headers, &id).await?;
+    let utxos: Vec<onchain::InputUtxo> = body
+        .inputs
+        .into_iter()
+        .map(|i| onchain::InputUtxo {
+            txid: i.txid,
+            vout: i.vout,
+            value_sat: i.value_sat,
+            pubkey_hex: i.pubkey_hex,
+        })
+        .collect();
+    let outputs: Vec<(String, u64)> = body
+        .outputs
+        .into_iter()
+        .map(|o| (o.address, o.amount_sat))
+        .collect();
+    let (psbt, fee_sat) = onchain::build_psbt(&utxos, &outputs, st.config.bitcoin_network())?;
+    // Enqueue for the remote signer (device signs locally, returns sig).
+    let request_id = noncustodial::enqueue_signing(&st.db.pool, &id, "psbt", &psbt).await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({ "request_id": request_id, "psbt": psbt, "fee_sat": fee_sat })),
+    ))
 }
 
 async fn not_found() -> AppError {

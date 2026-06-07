@@ -22,6 +22,7 @@ mod logging;
 mod mandates;
 mod migrate;
 mod noncustodial;
+mod onchain;
 mod passkey;
 mod policy;
 mod ratelimit;
