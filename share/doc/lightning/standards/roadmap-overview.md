@@ -30,12 +30,13 @@ follows lightning: `thunderd` only works with a `lightningd` companion.
 | **Custodial** | node holds keys; an account is a ledger row | Drives the companion `lightningd` over the Unix RPC socket (+ `waitanyinvoice` for settlement). This is the old commerce/neobank surface (invoices, mandates, charges, standing orders, tax export, …). |
 | **Non-custodial** | seed on the device, signs remotely (**A2**) | Runs per-tenant LDK nodes keyed by the user; the companion `lightningd` is LSP / trampoline / counterparty / chain gateway. |
 
-Both tiers are one daemon, one state model, one fee engine, one API:
-**`/.well-known/thunder/v1`** (the custodial surface keeps
-`/.well-known/lightning/accounts/v1` as a back-compat alias during
-cutover). **No in-process CLN plugin is needed** — `thunderd` is a
-companion daemon that reaches `lightningd` purely through its Unix RPC
-socket, for both tiers.
+Both tiers are one daemon, one state model, one fee engine, one API,
+under one namespace: **`/.well-known/thunder/v1`** — custodial *and*
+non-custodial. The legacy custodial paths (`/.well-known/lightning/accounts/v1`
+and the original CGI `/.well-known/lightning/v1/accounts`) survive only as
+**deprecated transitional aliases**, removed after cutover. **No
+in-process CLN plugin is needed** — `thunderd` is a companion daemon that
+reaches `lightningd` purely through its Unix RPC socket, for both tiers.
 
 ## Components
 

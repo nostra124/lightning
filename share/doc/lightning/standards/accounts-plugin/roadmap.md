@@ -38,9 +38,14 @@ named **`accounts`**, because that is what it offers — with a generic
 URL scheme:
 
 ```
-/.well-known/lightning/<plugin>/<version>     ← convention
-/.well-known/lightning/accounts/v1            ← this plugin
+/.well-known/thunder/v1                       ← canonical (custodial + non-custodial)
+/.well-known/lightning/accounts/v1            ← deprecated alias (removed after cutover)
 ```
+
+> **Note (post-consolidation):** the custodial API now lives under
+> `thunderd`'s **`/.well-known/thunder/v1`** namespace alongside the
+> non-custodial tier; the `/.well-known/lightning/accounts/v1` path
+> above is kept only as a deprecated transitional alias.
 
 Apache (or any reverse proxy) does TLS + a one-line `ProxyPass`; the
 plugin owns everything behind it.
@@ -76,7 +81,7 @@ plugin owns everything behind it.
 HTTP client (PWA / merchant POS / webhook / MCP agent)
    │  Authorization: Bearer lt_…  (or X-Mandate-Secret)
    ▼
-Apache / nginx  —  TLS + ProxyPass /.well-known/lightning/accounts/ → 127.0.0.1:<port>/
+Apache / nginx  —  TLS + ProxyPass /.well-known/thunder/v1/ → 127.0.0.1:<port>/
    ▼
 accounts plugin  (Rust, subprocess of lightningd)
    ├─ HTTP listener        (axum/hyper, localhost-bound)        — like clnrest
@@ -99,19 +104,20 @@ node calls.
 - `accounts-http-port` (default e.g. `9737`) — listener port.
 - `accounts-db` — path to the plugin's SQLite file (default under the
   node's lightning-dir, e.g. `accounts.sqlite3`).
-- `accounts-base-path` (default `/.well-known/lightning/accounts/v1`) —
+- `accounts-base-path` (default `/.well-known/thunder/v1`) —
   the path prefix the proxy strips, used for self-links.
 - Policy config (fees, referral split, compliance, capability defaults,
   create rate-limit) — see §6.
 
 ### 3.2 URL scheme & discovery
-- All routes under `/.well-known/lightning/accounts/v1/…`, parity with
-  today's `…/v1/accounts/…` tail.
-- The plugin serves its own discovery docs:
-  `…/accounts/versions.json` and (if MCP is kept) `…/accounts/mcp.json`.
-- **Back-compat:** during transition, Apache also points the old
-  `/.well-known/lightning/v1/accounts` prefix at the plugin (or 301s to
-  the new path) so existing clients don't break.
+- All routes under **`/.well-known/thunder/v1/…`** (the unified namespace),
+  preserving today's `…/accounts/…` tail shape.
+- Serves its own discovery docs under `…/thunder/v1/` (`versions.json`,
+  and `mcp.json` if MCP is kept).
+- **Back-compat:** during transition, Apache also points the legacy
+  `/.well-known/lightning/accounts/v1` and original CGI
+  `/.well-known/lightning/v1/accounts` prefixes at `thunderd` (or 301s to
+  the new path) so existing clients don't break; removed after cutover.
 
 ## 4. The carve-out boundary (most important design call)
 

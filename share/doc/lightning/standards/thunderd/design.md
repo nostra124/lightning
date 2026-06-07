@@ -46,10 +46,14 @@ It is *not* a reused phoenixd, *not* Greenlight, *not* Ark.
 
 ### 1.2 API namespace
 
-`thunderd` serves **`/.well-known/thunder/v1`** for both tiers; the
-custodial surface also keeps **`/.well-known/lightning/accounts/v1`** as
-a back-compat alias during cutover. `thunder` and `thunder-pay` speak the
-`thunder` namespace; a reverse proxy (Apache) does TLS + forwards it.
+`thunderd` serves **`/.well-known/thunder/v1`** for **both** tiers
+(custodial and non-custodial) — this is the canonical home for the
+custodial API too. The legacy custodial paths
+(`/.well-known/lightning/accounts/v1` and the original CGI
+`/.well-known/lightning/v1/accounts`) survive only as **deprecated
+transitional aliases**, removed after cutover. `thunder` and
+`thunder-pay` speak the `thunder` namespace; a reverse proxy (Apache)
+does TLS + forwards it.
 
 ### 1.3 Two account tiers, one daemon
 
