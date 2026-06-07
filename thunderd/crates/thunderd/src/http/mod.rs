@@ -9,7 +9,7 @@ use crate::error::AppError;
 use crate::state::AppState;
 use crate::util::random_hex;
 use crate::{accounts, invoices, ledger, mandates};
-use axum::extract::{DefaultBodyLimit, Path, State};
+use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
@@ -34,6 +34,8 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
         .route("/accounts/{id}/invoice", post(create_invoice))
         .route("/accounts/{id}/send", post(send))
         .route("/accounts/{id}/mandates", post(create_mandate))
+        .route("/accounts/{id}/history", get(get_history))
+        .route("/accounts/{id}/history.csv", get(get_history_csv))
         .route("/invoices/{id}", get(get_invoice))
         .route("/mandates/charge", post(mandate_charge))
         .route("/mandates/{id}/revoke", post(revoke_mandate))
@@ -329,6 +331,63 @@ async fn send(
         "fee_msat": fee_msat,
         "balance_msat": balance_msat,
     })))
+}
+
+// ---- history / export (FEAT-319) --------------------------------------
+
+#[derive(Deserialize)]
+struct HistoryQuery {
+    #[serde(default)]
+    limit: Option<i64>,
+}
+
+async fn get_history(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Query(q): Query<HistoryQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    let limit = q.limit.unwrap_or(100).clamp(1, 1000);
+    let entries = ledger::history(&st.db.pool, &id, limit).await?;
+    Ok(Json(json!({ "account": id, "entries": entries })))
+}
+
+async fn get_history_csv(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Query(q): Query<HistoryQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    let limit = q.limit.unwrap_or(1000).clamp(1, 10_000);
+    let entries = ledger::history(&st.db.pool, &id, limit).await?;
+    let mut csv = String::from("ts,group_id,counter_account,amount_msat,memo\n");
+    for e in entries {
+        csv.push_str(&format!(
+            "{},{},{},{},{}\n",
+            e.ts,
+            e.group_id,
+            e.counter_account,
+            e.amount_msat,
+            csv_field(&e.memo),
+        ));
+    }
+    Ok((
+        [(axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8")],
+        csv,
+    ))
+}
+
+/// RFC-4180 CSV field quoting.
+fn csv_field(s: &str) -> String {
+    if s.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
+    }
 }
 
 // ---- mandates / direct debit (FEAT-317) -------------------------------

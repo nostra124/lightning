@@ -159,6 +159,39 @@ pub async fn charge(
     Ok(group_id)
 }
 
+/// One ledger leg as seen from an account's perspective (FEAT-319).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Entry {
+    pub ts: i64,
+    pub group_id: String,
+    pub counter_account: String,
+    pub amount_msat: i64,
+    pub memo: String,
+}
+
+/// Most-recent-first ledger history for an account (capped by `limit`).
+pub async fn history(pool: &SqlitePool, account: &str, limit: i64) -> Result<Vec<Entry>, AppError> {
+    let rows: Vec<(i64, String, String, i64, String)> = sqlx::query_as(
+        "SELECT ts, group_id, counter_account, amount_msat, memo FROM ledger \
+         WHERE account_id = ?1 ORDER BY id DESC LIMIT ?2",
+    )
+    .bind(account)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .map_err(|_| AppError::Backend)?;
+    Ok(rows
+        .into_iter()
+        .map(|(ts, group_id, counter_account, amount_msat, memo)| Entry {
+            ts,
+            group_id,
+            counter_account,
+            amount_msat,
+            memo,
+        })
+        .collect())
+}
+
 /// Credit an account from the external world (`-`) — e.g. a settled
 /// inbound invoice or a topup. Booked as a normal transfer so the
 /// invariant holds; `-` simply goes more negative.
