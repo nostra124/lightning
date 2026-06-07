@@ -24,7 +24,8 @@ BUILD_DIR = build/$(PACKAGE)
 
 .PHONY: all install uninstall check check-unit check-vectors \
         check-sit check-all lint test help package clean \
-        install-skills-user uninstall-skills-user
+        install-skills-user uninstall-skills-user \
+        thunderd thunderd-check thunderd-guard
 
 all: install
 
@@ -158,6 +159,23 @@ lint:
 	else echo "shellcheck not installed; skipping"; fi
 
 test: check
+
+# thunderd — the Rust companion daemon (FEAT-300+). The `thunderd/`
+# workspace is deliberately standalone (no coupling to this bash
+# package), so it builds/tests on its own. Kept out of the default
+# stow `install` until the FEAT-301 binary-install wiring lands; build
+# it explicitly with `make thunderd`.
+thunderd:
+	@cd thunderd && cargo build --release
+
+thunderd-check:
+	@cd thunderd && cargo fmt --check \
+		&& cargo clippy --all-targets -- -D warnings \
+		&& cargo test
+
+# FEAT-302 — one-way carve-out boundary check.
+thunderd-guard:
+	@thunderd/scripts/carve-out-guard.sh
 
 # Skills installation (FEAT-192).
 #

@@ -1,7 +1,9 @@
 # Track C — `thunderd`: a remote-signer Lightning companion daemon
 
 **Working title:** `thunderd` (was `pwalight`)
-**Status:** Planning / design. No code yet.
+**Status:** Phase I foundations skeleton landed (1.4.0, in progress); the
+non-custodial Phase II design below is still planning. See `../../../../../thunderd/`
+and its `README.md`.
 **Lives:** in this repo for now; extracted to its own repo later
 (FEAT-431). Design everything one-way so extraction is mechanical.
 

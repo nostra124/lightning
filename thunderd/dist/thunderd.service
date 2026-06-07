@@ -1,0 +1,41 @@
+# systemd unit template for thunderd (FEAT-301).
+#
+# Runs alongside the companion lightningd, reaching it over the
+# lightning-rpc Unix socket. The HTTP listener is loopback-bound; TLS
+# and the public /.well-known/thunder/v1 path are handled by the reverse
+# proxy (Apache/nginx), not here.
+#
+# Install: copy to /etc/systemd/system/thunderd.service, set User= and
+# the --cln-socket path for your deployment, then:
+#   systemctl daemon-reload && systemctl enable --now thunderd
+
+[Unit]
+Description=thunderd — Lightning accounts companion daemon
+Documentation=https://github.com/nostra124/lightning
+After=network-online.target lightningd.service
+Wants=network-online.target
+Requires=lightningd.service
+
+[Service]
+Type=simple
+# Set this to the operator user that may read the lightning-rpc socket.
+#User=alice
+#Group=alice
+ExecStart=/usr/local/bin/thunderd \
+    --http-bind 127.0.0.1 \
+    --http-port 9737 \
+    --db /var/lib/thunderd/thunderd.sqlite3 \
+    --cln-socket %h/.lightning/bitcoin/lightning-rpc
+Restart=on-failure
+RestartSec=2
+
+# Hardening — the daemon needs to write only its state dir.
+StateDirectory=thunderd
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/thunderd
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,8 @@
 # Roadmap overview — one engine + one frontend
 
-**Status:** Planning. No code yet; this is the feature/milestone plan.
+**Status:** In progress. `thunderd` Phase I **foundations skeleton has
+landed** (1.4.0; FEAT-300/301/302/303/306 + the auth scaffold) under
+`thunderd/`. The rest of this document is the feature/milestone plan.
 
 The account/commerce stack outgrew the `lightning` admin CLI. After
 several rounds the plan has **collapsed from three tracks into two
