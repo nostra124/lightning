@@ -68,6 +68,14 @@ pub struct ConfigArgs {
     #[arg(long = "fee-ppm", env = "THUNDERD_FEE_PPM", default_value_t = 0)]
     pub fee_ppm: i64,
 
+    /// Share (ppm) of the operator fee paid to an account's referrer.
+    #[arg(
+        long = "referral-share-ppm",
+        env = "THUNDERD_REFERRAL_SHARE_PPM",
+        default_value_t = 0
+    )]
+    pub referral_share_ppm: i64,
+
     /// Compliance ceiling (msat) per outbound move (0 disables).
     #[arg(
         long = "compliance-max-msat",
@@ -109,6 +117,7 @@ pub struct Config {
     pub body_limit: usize,
     pub fee_base_msat: i64,
     pub fee_ppm: i64,
+    pub referral_share_ppm: i64,
     pub compliance_max_msat: i64,
     pub create_rate_per_min: u32,
     pub rp_id: String,
@@ -149,6 +158,7 @@ impl Config {
             body_limit: a.body_limit,
             fee_base_msat: a.fee_base_msat,
             fee_ppm: a.fee_ppm,
+            referral_share_ppm: a.referral_share_ppm,
             compliance_max_msat: a.compliance_max_msat,
             create_rate_per_min: a.create_rate_per_min,
             rp_id: a.rp_id,
@@ -169,6 +179,7 @@ impl Default for Config {
             body_limit: 64 * 1024,
             fee_base_msat: 0,
             fee_ppm: 0,
+            referral_share_ppm: 0,
             compliance_max_msat: 0,
             create_rate_per_min: 60,
             rp_id: "localhost".to_string(),

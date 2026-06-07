@@ -25,6 +25,7 @@ mod passkey;
 mod policy;
 mod ratelimit;
 mod reconcile;
+mod referrals;
 mod scheduler;
 mod standing_orders;
 mod state;

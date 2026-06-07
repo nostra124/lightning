@@ -9,7 +9,9 @@ use crate::error::AppError;
 use crate::state::AppState;
 use crate::state::RegState;
 use crate::util::random_hex;
-use crate::{accounts, charges, compliance, invoices, ledger, mandates, passkey, standing_orders};
+use crate::{
+    accounts, charges, compliance, invoices, ledger, mandates, passkey, referrals, standing_orders,
+};
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::IntoResponse;
@@ -144,6 +146,8 @@ struct CreateAccountBody {
     label: String,
     #[serde(default)]
     capability: Option<String>,
+    #[serde(default)]
+    referrer: Option<String>,
 }
 
 /// Create an account + mint its first API key (returned once).
@@ -158,9 +162,13 @@ async fn create_account(
     let b = body.map(|b| b.0).unwrap_or(CreateAccountBody {
         label: String::new(),
         capability: None,
+        referrer: None,
     });
     let capability = b.capability.as_deref().unwrap_or("custodial");
     let made = accounts::create(&st.db.pool, &b.label, capability).await?;
+    if let Some(referrer) = b.referrer.as_deref() {
+        accounts::set_referrer(&st.db.pool, &made.account.id, referrer).await?;
+    }
     Ok((StatusCode::CREATED, Json(made)))
 }
 
@@ -232,6 +240,7 @@ async fn pay(
         &body.memo,
     )
     .await?;
+    referrals::apply(&st.db.pool, from, fee_msat, st.config.referral_share_ppm).await?;
     let balance_msat = ledger::balance(&st.db.pool, from).await?;
     Ok(Json(json!({
         "group_id": group_id,
@@ -357,6 +366,7 @@ async fn send(
         dec.description.unwrap_or_default()
     );
     ledger::charge(&st.db.pool, &id, "-", amount, fee_msat, &memo).await?;
+    referrals::apply(&st.db.pool, &id, fee_msat, st.config.referral_share_ppm).await?;
 
     let balance_msat = ledger::balance(&st.db.pool, &id).await?;
     Ok(Json(json!({

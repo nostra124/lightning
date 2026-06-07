@@ -92,6 +92,18 @@ pub async fn mint_api_key(
     Ok(token)
 }
 
+/// Set an account's referrer (must exist). FEAT-320.
+pub async fn set_referrer(pool: &SqlitePool, id: &str, referrer: &str) -> Result<(), AppError> {
+    get(pool, referrer).await?; // referrer must exist
+    sqlx::query("UPDATE accounts SET referrer_account = ?1 WHERE id = ?2")
+        .bind(referrer)
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(|_| AppError::Backend)?;
+    Ok(())
+}
+
 pub async fn get(pool: &SqlitePool, id: &str) -> Result<Account, AppError> {
     let row: Option<(String, String, String, i64, Option<i64>)> = sqlx::query_as(
         "SELECT id, label, capability, created_at, closed_at FROM accounts WHERE id = ?1",
