@@ -126,6 +126,20 @@ impl ClnRpc {
         serde_json::from_value(v).context("decode decode")
     }
 
+    /// Create a reusable BOLT-12 offer to receive into the node (FEAT-311).
+    pub async fn offer(&self, amount_msat: i64, description: &str) -> Result<Offer> {
+        let v = self
+            .call(
+                "offer",
+                serde_json::json!({
+                    "amount": format!("{amount_msat}msat"),
+                    "description": description,
+                }),
+            )
+            .await?;
+        serde_json::from_value(v).context("decode offer")
+    }
+
     /// Block until any invoice with `pay_index > lastpay_index` is paid
     /// (FEAT-310 settlement source). Long-lived call by design.
     pub async fn waitanyinvoice(&self, lastpay_index: u64) -> Result<PaidInvoice> {
@@ -144,6 +158,14 @@ pub struct PaidInvoice {
     pub payment_hash: String,
     #[serde(default)]
     pub pay_index: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Offer {
+    #[serde(default)]
+    pub bolt12: String,
+    #[serde(default)]
+    pub offer_id: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -271,6 +293,21 @@ mod tests {
         let got2 = ClnRpc::new(&sock2).decode("lnbc...").await.unwrap();
         assert_eq!(got2.amount_msat, Some(4200));
         h2.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn offer_roundtrip() {
+        let (sock, h, _d) = mock_node(serde_json::json!({
+            "bolt12": "lno1pgx...",
+            "offer_id": "off123",
+        }))
+        .await;
+        let o = ClnRpc::new(&sock).offer(1000, "tips").await.unwrap();
+        assert_eq!(o.bolt12, "lno1pgx...");
+        assert_eq!(o.offer_id, "off123");
+        let req = h.await.unwrap();
+        assert!(req.contains("\"method\":\"offer\""));
+        assert!(req.contains("1000msat"));
     }
 
     #[tokio::test]

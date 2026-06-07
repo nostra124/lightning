@@ -37,6 +37,7 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
         .route("/accounts/{id}", get(get_account))
         .route("/accounts/{id}/topup", post(topup_account))
         .route("/accounts/{id}/invoice", post(create_invoice))
+        .route("/accounts/{id}/offer", post(create_offer))
         .route("/accounts/{id}/send", post(send))
         .route("/accounts/{id}/mandates", post(create_mandate))
         .route("/accounts/{id}/history", get(get_history))
@@ -319,6 +320,28 @@ async fn get_invoice(
     let rec = invoices::get(&st.db.pool, &id).await?;
     require_account(&p, &rec.account_id)?;
     Ok(Json(rec))
+}
+
+/// Reusable receive: create a BOLT-12 offer via the node (FEAT-311).
+async fn create_offer(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<CreateInvoiceBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    if body.amount_msat <= 0 {
+        return Err(AppError::BadRequest("amount_msat must be positive".into()));
+    }
+    let offer = ClnRpc::new(&st.config.cln_socket)
+        .offer(body.amount_msat, &body.description)
+        .await
+        .map_err(|_| AppError::Backend)?;
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({ "bolt12": offer.bolt12, "offer_id": offer.offer_id })),
+    ))
 }
 
 #[derive(Deserialize)]
