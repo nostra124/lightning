@@ -10,20 +10,24 @@ See the design docs:
 `../share/doc/lightning/standards/roadmap-overview.md` and
 `../share/doc/lightning/standards/thunderd/`.
 
-## Status — Phase I skeleton (1.4.0, in progress)
+## Status — Phase I custodial (1.4.0 → 1.9.0, in progress)
 
-This is the **foundations** slice of Phase I (custodial):
+Implemented and tested:
 
 | Feature | What landed |
 |---|---|
-| FEAT-300 | Cargo workspace, `thunderd` (tokio) + `thunderd-cli` binaries, config, structured logging, `cln-rpc` startup probe |
-| FEAT-301 | `thunderd-build` / `thunderd-check` make targets, systemd unit template (`dist/thunderd.service`); standalone-buildable for the 2.0.0 extraction |
-| FEAT-302 | carve-out guardrail (`scripts/carve-out-guard.sh`) — no coupling to the `lightning` bash package |
-| FEAT-303 | embedded axum HTTP server: health, `versions.json` discovery, body limit, **CORS scaffold**, 404/405 |
-| FEAT-304 | auth scaffold: `Bearer` API-key + `X-Mandate-Secret` (hashed at rest, constant-time), 401 contract |
-| FEAT-306 | owned SQLite schema + embedded migrations (sqlx, WAL) |
+| FEAT-300/301/302 | Cargo workspace, `thunderd`+`thunderd-cli`, config, logging, `cln-rpc` probe; make targets + systemd unit; carve-out guard |
+| FEAT-303/304/305 | axum server (health, `versions.json`, body limit, **CORS**); `Bearer`/`X-Mandate-Secret` auth + typed status contract (6→402/7→401/→502); Apache proxy fragment + deprecated aliases |
+| FEAT-306/307 | owned SQLite schema + migrations (WAL); **double-entry msat ledger** (atomic transfers, overdraft guard, system accounts, fee-aware `charge`) |
+| FEAT-309/310 | `cln-rpc` invoice/pay/decode/waitanyinvoice; **settlement reconciler** |
+| FEAT-313/314 | accounts + API-key mint; pay (internal), send (external BOLT-11), invoice recv |
+| FEAT-315/316/317/318 | invoices; **standing orders** + runner; **mandates** (direct debit); **auth/capture charges** (escrow) |
+| FEAT-319/321/323/324 | history + CSV export; **operator fee skim**; capability profiles; **rate limiting** |
+| FEAT-222 | **WebAuthn passkey** register/login + sessions (auth fully in the daemon) |
 
-Stub business routes return `501` until their feature ports (Phase 4).
+Remaining Phase I: FEAT-308 (importer), 320 (referrals), 322 (compliance
+hooks), 325 (MCP), 326-328 (cutover), 329 (extract). Then Phase II
+(non-custodial: LDK + remote signer + on-chain) and the 2.0.0 cutover.
 
 ## Key decisions
 
