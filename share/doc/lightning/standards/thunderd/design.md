@@ -53,7 +53,8 @@ custodial API too. The legacy custodial paths
 `/.well-known/lightning/v1/accounts`) survive only as **deprecated
 transitional aliases**, removed after cutover. `thunder` and
 `thunder-pay` speak the `thunder` namespace; a reverse proxy (Apache)
-does TLS + forwards it.
+does TLS + forwards it. The endpoint contract (routes, auth, error
+model, the remote-signer sub-protocol) is specified in `api-v1.md`.
 
 ### 1.3 Two account tiers, one daemon
 

@@ -48,20 +48,28 @@ URL scheme:
 > above is kept only as a deprecated transitional alias.
 
 Apache (or any reverse proxy) does TLS + a one-line `ProxyPass`; the
-plugin owns everything behind it.
+daemon owns everything behind it.
+
+> **Build model (post-consolidation):** this tier is a **module of the
+> `thunderd` companion daemon**, *not* an in-process CLN plugin. It talks
+> to `lightningd` over the **Unix RPC socket** (`cln-rpc`), the same way
+> the non-custodial tier does, and uses `waitanyinvoice` for settlement
+> notifications. Read "plugin" below as "thunderd custodial module"; the
+> binary is `thunderd`, the workspace is `thunderd/`.
 
 ## 2. Goals / non-goals
 
 **Goals**
-- One installable CLN plugin, written in **Rust** (`cln-plugin` +
-  `cln-rpc`), that serves the accounts/commerce JSON API over HTTP.
-- **Fat architecture:** the plugin talks to `lightningd` directly over
-  JSON-RPC and **owns its own state DB** — no `lightning-cli`, no
-  `sudo`-bridge, no `api-account-*` bash verbs at runtime.
+- A custodial accounts/commerce JSON API served by the **`thunderd`
+  daemon** (Rust), running parallel to `lightningd`.
+- **Fat architecture:** `thunderd` talks to `lightningd` directly over
+  JSON-RPC (`cln-rpc`, Unix socket) and **owns its own state DB** — no
+  `lightning-cli`, no `sudo`-bridge, no `api-account-*` bash verbs at
+  runtime. Settlement via `waitanyinvoice`.
 - **Factor-out-ready:** zero runtime coupling to the `lightning`
-  package. The plugin depends only on *standard* CLN RPC, so the
-  directory can later be `git filter-repo`'d into its own repo
-  (`cln-accounts`) and shipped independently.
+  package. `thunderd` depends only on *standard* CLN RPC, so the
+  `thunderd/` workspace can later be `git filter-repo`'d into its own
+  repo at **2.0.0** (FEAT-431).
 - Behaviour parity with today's `/.well-known/lightning/v1/accounts/*`
   surface (same routes, same auth, same status-code contract).
 
@@ -83,23 +91,25 @@ HTTP client (PWA / merchant POS / webhook / MCP agent)
    ▼
 Apache / nginx  —  TLS + ProxyPass /.well-known/thunder/v1/ → 127.0.0.1:<port>/
    ▼
-accounts plugin  (Rust, subprocess of lightningd)
-   ├─ HTTP listener        (axum/hyper, localhost-bound)        — like clnrest
+thunderd  (Rust daemon, companion to lightningd — NOT an in-process plugin)
+   ├─ HTTP listener        (axum/hyper, localhost-bound)
    ├─ router + authz       (bearer / mandate-secret, rate-limit)
    ├─ business logic       (accounts, ledger, invoices, mandates, charges, …)
    ├─ owned state          (SQLite: accounts/commerce schema + migrations)
-   └─ node integration     (cln-rpc: invoice, pay, newaddr, offer, listfunds, …)
+   └─ node integration     (cln-rpc over the Unix socket: invoice, pay,
+        │                    newaddr, offer, listfunds, waitanyinvoice, …)
         │  JSON-RPC over the lightning-rpc unix socket
         ▼
    lightningd
 ```
 
-Architectural template is **clnrest** (CLN's own Rust plugin that binds
-an HTTP/WebSocket gateway). We follow the same shape: `cln-plugin` for
-the lifecycle + options, an embedded async HTTP server, `cln-rpc` for
-node calls.
+`thunderd` runs as its own daemon (systemd / supervised), not loaded by
+`lightningd`. It reaches the node purely through the `lightning-rpc`
+Unix socket (`cln-rpc`) and an embedded async HTTP server. (Contrast
+`clnrest`, which *is* an in-process plugin — we deliberately stay an
+external companion so one daemon serves both account tiers.)
 
-### 3.1 Plugin options (manifest)
+### 3.1 Daemon options (config)
 - `accounts-http-bind` (default `127.0.0.1`) — listener address.
 - `accounts-http-port` (default e.g. `9737`) — listener port.
 - `accounts-db` — path to the plugin's SQLite file (default under the
@@ -185,28 +195,32 @@ early**, with cutover late. Feature numbers `FEAT-3xx` are *proposed*
 placeholders (continue the repo's FEAT-### sequence when filed); the
 `from:` notes the existing feature/verb being ported.
 
-### Phase 0 — Foundations
-- **FEAT-300 — Plugin skeleton.** Rust crate at `plugin/accounts/`,
-  `cln-plugin` lifecycle, manifest options (§3.1), `getmanifest`/`init`
-  handshake, a `accounts-health` RPC method, structured logging.
+### Phase 0 — Foundations (`1.4.0`)
+- **FEAT-300 — Daemon skeleton.** The `thunderd/` Rust workspace (one
+  Cargo workspace shared with the non-custodial tier), a `thunderd`
+  daemon binary (tokio), config options (§3.1), a `cln-rpc` client that
+  connects to the `lightning-rpc` Unix socket on startup, a `thunderd-cli
+  health` admin command, structured logging. **Not** a `cln-plugin` /
+  `getmanifest` handshake — `thunderd` is an external companion daemon.
 - **FEAT-301 — Build & install wiring.** `cargo build --release` hooked
-  into `make install`; install the binary to `libexec/lightning/` (or a
-  `plugins/` dir) and document `plugin=` / `lightning-cli plugin start`.
-  Keep the crate buildable standalone (its own `Cargo.toml` workspace
-  root) for the eventual extraction.
-- **FEAT-302 — Carve-out guardrail.** CI check that the crate has no
-  build/runtime dependency on `lightning` bash verbs or the wallet DB
-  path — enforces the one-way boundary from day one.
+  into `make install`; install the `thunderd` + `thunderd-cli` binaries
+  and a **systemd unit / service** (run alongside `lightningd`, pointed
+  at its `lightning-rpc` socket). The workspace stays standalone-buildable
+  for the 2.0.0 extraction.
+- **FEAT-302 — Carve-out guardrail.** CI check that the `thunderd/`
+  workspace has no build/runtime dependency on `lightning` bash verbs or
+  the wallet DB path — enforces the one-way boundary from day one.
 
-### Phase 1 — HTTP server + routing parity
+### Phase 1 — HTTP server + routing parity (`1.4.0`)
 - **FEAT-303 — Embedded HTTP listener.** axum/hyper server bound per
-  §3.1; health + 404/405 behaviour; request-body limits.
+  §3.1; health + 404/405 behaviour; request-body limits; **CORS scaffold**.
 - **FEAT-304 — Router & auth.** Port `accounts.py`'s dispatch
   (PATH_INFO → handler), `_lib.py` bearer + mandate-secret auth, the
   status-code contract. Stub handlers return `501` until Phase 4.
-- **FEAT-305 — Discovery.** Serve `versions.json`; reverse-proxy
-  fragment for Apache/nginx (`ProxyPass`), replacing the CGI
-  `ScriptAlias` block. Back-compat alias for the old URL.
+- **FEAT-305 — Discovery.** Serve `versions.json` under
+  `/.well-known/thunder/v1`; reverse-proxy fragment for Apache/nginx
+  (`ProxyPass`), replacing the CGI `ScriptAlias` block. Deprecated
+  aliases for the legacy custodial URLs.
 
 ### Phase 2 — State layer (carve-out core)
 - **FEAT-306 — Owned schema + migrations.** Embed the commerce/account
