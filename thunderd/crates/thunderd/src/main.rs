@@ -21,6 +21,7 @@ mod ledger;
 mod logging;
 mod mandates;
 mod migrate;
+mod noncustodial;
 mod passkey;
 mod policy;
 mod ratelimit;

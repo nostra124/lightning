@@ -10,7 +10,8 @@ use crate::state::AppState;
 use crate::state::RegState;
 use crate::util::random_hex;
 use crate::{
-    accounts, charges, compliance, invoices, ledger, mandates, passkey, referrals, standing_orders,
+    accounts, charges, compliance, invoices, ledger, mandates, noncustodial, passkey, referrals,
+    standing_orders,
 };
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
@@ -63,6 +64,16 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
         .route("/auth/passkey/login/begin", post(passkey_login_begin))
         .route("/auth/passkey/login/finish", post(passkey_login_finish))
         .route("/auth/me", get(auth_me))
+        // Phase II non-custodial — tenant + remote-signer transport (FEAT-400+).
+        .route("/tenants", post(create_tenant))
+        .route("/tenants/{id}", get(get_tenant_h))
+        .route(
+            "/tenants/{id}/signing-requests",
+            get(list_signing).post(enqueue_signing_h),
+        )
+        .route("/tenants/{id}/node", get(tenant_node_stub))
+        .route("/tenants/{id}/onchain/psbt", post(tenant_psbt_stub))
+        .route("/signing-requests/{id}/sign", post(sign_request_h))
         .fallback(not_found);
 
     let app = Router::new()
@@ -791,6 +802,122 @@ async fn auth_me(
     let token = auth::bearer(&headers).ok_or(AppError::Unauthorized)?;
     let user_id = passkey::user_for_session(&st.db.pool, &token).await?;
     Ok(Json(json!({ "user_id": user_id })))
+}
+
+// ---- Phase II non-custodial (FEAT-400+) -------------------------------
+
+/// Resolve the wallet-user behind a session bearer (`st_…`).
+async fn current_user(st: &AppState, headers: &HeaderMap) -> Result<String, AppError> {
+    let token = auth::bearer(headers).ok_or(AppError::Unauthorized)?;
+    passkey::user_for_session(&st.db.pool, &token).await
+}
+
+async fn require_tenant_owner(
+    st: &AppState,
+    headers: &HeaderMap,
+    tenant_id: &str,
+) -> Result<(), AppError> {
+    let user = current_user(st, headers).await?;
+    match noncustodial::owner(&st.db.pool, tenant_id).await? {
+        Some(owner) if owner == user => Ok(()),
+        _ => Err(AppError::Forbidden),
+    }
+}
+
+#[derive(Deserialize)]
+struct CreateTenantBody {
+    #[serde(default)]
+    label: String,
+    xpub: String,
+}
+
+async fn create_tenant(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<CreateTenantBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let user = current_user(&st, &headers).await?;
+    let id =
+        noncustodial::register_tenant(&st.db.pool, Some(&user), &body.label, &body.xpub).await?;
+    Ok((StatusCode::CREATED, Json(json!({ "tenant_id": id }))))
+}
+
+async fn get_tenant_h(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    require_tenant_owner(&st, &headers, &id).await?;
+    Ok(Json(noncustodial::get_tenant(&st.db.pool, &id).await?))
+}
+
+async fn list_signing(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    require_tenant_owner(&st, &headers, &id).await?;
+    Ok(Json(json!({
+        "pending": noncustodial::pending_for(&st.db.pool, &id).await?
+    })))
+}
+
+#[derive(Deserialize)]
+struct EnqueueSignBody {
+    #[serde(default = "default_sign_kind")]
+    kind: String,
+    payload: String,
+}
+fn default_sign_kind() -> String {
+    "sighash".to_string()
+}
+
+async fn enqueue_signing_h(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<EnqueueSignBody>,
+) -> Result<impl IntoResponse, AppError> {
+    require_tenant_owner(&st, &headers, &id).await?;
+    let req = noncustodial::enqueue_signing(&st.db.pool, &id, &body.kind, &body.payload).await?;
+    Ok((StatusCode::CREATED, Json(json!({ "request_id": req }))))
+}
+
+#[derive(Deserialize)]
+struct SignBody {
+    signature: String,
+}
+
+async fn sign_request_h(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<SignBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let tenant = noncustodial::request_tenant(&st.db.pool, &id).await?;
+    require_tenant_owner(&st, &headers, &tenant).await?;
+    noncustodial::submit_signature(&st.db.pool, &id, &body.signature).await?;
+    Ok(Json(json!({ "request_id": id, "status": "signed" })))
+}
+
+/// Per-tenant LDK node status — not implemented (needs the engine, FEAT-407+).
+async fn tenant_node_stub(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_tenant_owner(&st, &headers, &id).await?;
+    Err(AppError::NotImplemented)
+}
+
+/// On-chain PSBT construction — not implemented (needs the engine).
+async fn tenant_psbt_stub(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_tenant_owner(&st, &headers, &id).await?;
+    Err(AppError::NotImplemented)
 }
 
 async fn not_found() -> AppError {
