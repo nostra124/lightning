@@ -32,6 +32,7 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
     let api = Router::new()
         .route("/health", get(health))
         .route("/versions.json", get(versions))
+        .route("/mcp.json", get(mcp_manifest))
         // Custodial surface (FEAT-313/314).
         .route("/accounts", post(create_account))
         .route("/accounts/{id}", get(get_account))
@@ -147,6 +148,32 @@ async fn versions(State(st): State<AppState>) -> impl IntoResponse {
         "namespace": st.config.base_path,
         "versions": ["v1"],
         "tiers": ["custodial"],
+    }))
+}
+
+/// MCP tool manifest (FEAT-325) — advertises the custodial surface to
+/// AI-agent consumers. Tools map onto the same REST handlers + auth.
+async fn mcp_manifest(State(st): State<AppState>) -> impl IntoResponse {
+    let base = &st.config.base_path;
+    Json(json!({
+        "service": "thunderd",
+        "mcp_version": "0.1",
+        "base_path": base,
+        "auth": "Bearer lt_… (account API key) or X-Mandate-Secret",
+        "tools": [
+            { "name": "create_account", "method": "POST", "path": format!("{base}/accounts"),
+              "params": ["label?", "capability?", "referrer?"] },
+            { "name": "get_account", "method": "GET", "path": format!("{base}/accounts/{{id}}") },
+            { "name": "pay", "method": "POST", "path": format!("{base}/pay"),
+              "params": ["to", "amount_msat", "memo?"] },
+            { "name": "invoice", "method": "POST", "path": format!("{base}/accounts/{{id}}/invoice"),
+              "params": ["amount_msat", "description?"] },
+            { "name": "offer", "method": "POST", "path": format!("{base}/accounts/{{id}}/offer"),
+              "params": ["amount_msat", "description?"] },
+            { "name": "send", "method": "POST", "path": format!("{base}/accounts/{{id}}/send"),
+              "params": ["bolt11"] },
+            { "name": "history", "method": "GET", "path": format!("{base}/accounts/{{id}}/history") },
+        ],
     }))
 }
 
