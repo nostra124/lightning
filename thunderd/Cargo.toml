@@ -1,0 +1,38 @@
+# thunderd — Rust companion daemon to lightningd (FEAT-300+).
+#
+# One Cargo workspace shared by the custodial (Phase I) and the later
+# non-custodial (Phase II) tiers.  Deliberately standalone-buildable so
+# the whole `thunderd/` tree can be `git filter-repo`'d into its own repo
+# at 2.0.0 (FEAT-329/431) with zero edits — it has NO build or runtime
+# dependency on the surrounding `lightning` bash package (enforced by
+# scripts/carve-out-guard.sh, FEAT-302).
+[workspace]
+resolver = "2"
+members = [
+    "crates/thunderd",
+    "crates/thunderd-cli",
+    "crates/signer-core",
+    "crates/thunder",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT"
+
+[workspace.dependencies]
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "time", "io-util"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+clap = { version = "4", features = ["derive", "env"] }
+sha2 = "0.10"
+subtle = "2"
+hex = "0.4"
+
+[profile.release]
+strip = true
