@@ -70,30 +70,46 @@ remote-signer CLI) · `thunder-pay` (PWA frontend) · `signer-core`
         ▲ Apache: TLS + serves thunder-pay + proxies /.well-known/thunder/v1
 ```
 
-## Roadmap (folded into the two deliverables)
+## Roadmap (semver releases)
 
-| Deliverable | Phase / milestones | Features | Doc |
+Milestones are repo semver releases. **Current version: `1.3.1`.** The
+whole build runs in the `1.x` line *alongside* the existing `lightning`
+CGI; **`2.0.0` is the target** — the breaking release where `lightning`
+is **stripped down** to simple administration and **`thunder` is
+separated** into its own repo.
+
+| Deliverable | Releases | Features | Doc |
 |---|---|---|---|
-| `thunderd` — **Phase I: custodial** | (was Track A) M0–M6 | FEAT-300 … 328 | `accounts-plugin/roadmap.md` |
-| `thunderd` — **Phase II: non-custodial** | TH0–TH8 | FEAT-400 … 432 | `thunderd/design.md` |
-| `thunderd` — extraction | — | FEAT-329 / 431 | both |
-| `thunder-pay` — PWA | PW0–PW3 | FEAT-340 … 349 | `thunder-pay.md` |
+| `thunderd` — **Phase I: custodial** | **1.4.0 → 1.9.0** | FEAT-300 … 328 | `accounts-plugin/roadmap.md` |
+| `thunder-pay` — PWA (parallel) | **1.10.0 → 1.12.0** | FEAT-340 … 349 | `thunder-pay.md` |
+| `thunderd` — **Phase II: non-custodial** | **1.13.0 → 1.20.0** | FEAT-400 … 432 | `thunderd/design.md` |
+| **`2.0.0` — strip-down & separation** | **2.0.0** | FEAT-326–328 (strip `lightning`) + 329/349/431 (separate `thunder`) | all three |
 
-Feature numbers are **proposed placeholders**. The custodial milestones
-(M0–M6) are now `thunderd`'s **Phase I** and ship first (simpler, reuse
-existing logic); the non-custodial `TH` milestones are **Phase II**.
+Feature numbers are **proposed placeholders**.
+
+### 🎯 The 2.0.0 target
+
+Everything before `2.0.0` is built in-repo, running next to today's CGI.
+**`2.0.0`** flips the switch: retire the CGI + `api-account-*` verbs +
+commerce schema from `lightning` (it returns to *simple administration*),
+point the proxy at `thunderd`, drop the deprecated aliases, and move
+`thunderd` + `thunder-pay` + clients into their **own repo**. After
+`2.0.0`: `lightning` is a lean Core-Lightning admin CLI again, and
+`thunder` is a standalone product.
 
 ## Sequencing
 
-1. **`thunderd` Phase I (custodial)** first — the daemon skeleton +
-   `lightningd` RPC + owned state/ledger + commerce + policy + API.
-   Custodial MVP. (Establishes the CORS `thunder-pay` needs.)
-2. **`thunder-pay`** in parallel — the PWA frontend + the device-signing
-   primitives (seed on device, `@noble/curves`, WebAuthn-PRF storage,
-   `signer-core` WASM) that Phase II reuses.
-3. **`thunderd` Phase II (non-custodial)** — per-tenant LDK + the
-   validating remote signer + cloud sync. Reuses Phase I's fee engine and
-   `thunder-pay`'s `signer-core`.
+1. **`thunderd` Phase I (custodial), `1.4.0`–`1.9.0`** — daemon skeleton
+   + `lightningd` RPC + owned state/ledger + commerce + policy + API.
+   Custodial MVP, alongside the old CGI. (Establishes the CORS
+   `thunder-pay` needs.)
+2. **`thunder-pay`, `1.10.0`–`1.12.0`** (parallel) — the PWA frontend +
+   device-signing primitives (seed on device, `@noble/curves`,
+   WebAuthn-PRF storage, `signer-core` WASM) that Phase II reuses.
+3. **`thunderd` Phase II (non-custodial), `1.13.0`–`1.20.0`** — per-tenant
+   LDK + the validating remote signer + on-chain + cloud sync. Reuses
+   Phase I's fee engine and `thunder-pay`'s `signer-core`.
+4. **`2.0.0`** — strip `lightning` down + separate `thunder`.
 
 ## Cross-cutting decisions taken
 

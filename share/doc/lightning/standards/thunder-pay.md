@@ -35,7 +35,7 @@ API behind it; the bearer never leaves that origin." Factoring the PWA
 onto its own host breaks that, so:
 
 - The `accounts` plugin (Track A) must support an explicit **CORS
-  origin-allowlist + preflight** (tracked in Track A M0/M1).
+  origin-allowlist + preflight** (tracked in `thunderd` Phase I, 1.4.0/1.5.0).
 - **Default deploy stays same-origin** (the plugin may bundle + serve the
   PWA for the single-box case); **cross-origin/CDN is opt-in.**
 
@@ -58,9 +58,12 @@ exist, and it produces the primitives Track C reuses.
 
 ## 4. Milestones & features
 
-Feature numbers are proposed placeholders.
+Milestones are repo semver releases (`1.x.0`): `thunder-pay` builds over
+**`1.10.0` → `1.12.0`** (in parallel with `thunderd` Phase I); its
+extraction lands in the **`2.0.0`** separation. Feature numbers are
+proposed placeholders.
 
-### PW0 — Decouple
+### 1.10.0 — Decouple
 - **FEAT-340 — Configurable API base, hardened.** `config.json` already
   exposes `api_base`; make cross-origin a first-class (opt-in) mode,
   multi-node aware, with a clear trust prompt.
@@ -69,7 +72,7 @@ Feature numbers are proposed placeholders.
 - **FEAT-342 — Carve-out CI guard.** Assert no path/coupling back into
   `lightning` (mirror Track A's guard).
 
-### PW1 — Own its scaffolding
+### 1.11.0 — Own its scaffolding
 - **FEAT-343 — Installer + vhost extraction.** Move `libexec/lightning/ui`
   + `ui.conf` generation into the PWA repo (or ship as plain static
   assets deployable to any host/CDN).
@@ -79,7 +82,7 @@ Feature numbers are proposed placeholders.
 - **FEAT-345 — Docs travel with the PWA.** `docs/` + `llms.txt` move with
   the app.
 
-### PW2 — Real PWA
+### 1.12.0 — Real PWA
 - **FEAT-346 — Service worker + offline app shell.** Cache the shell,
   offline-first read screens, background-sync hooks.
 - **FEAT-347 — Web Push plumbing.** Notification permission + push
@@ -87,10 +90,10 @@ Feature numbers are proposed placeholders.
 - **FEAT-348 — Device-signing rung 2.** PRF-wrapped secp256k1 key;
   sign-intent flow; reused wholesale by Track C.
 
-### PW3 — Extract
-- **FEAT-349 — `git filter-repo` → `thunder-pay`.** Own versioning;
-  the `accounts` plugin can still optionally bundle + serve it for the
-  single-box deploy.
+### 2.0.0 — Extract (with the separation)
+- **FEAT-349 — `git filter-repo` → `thunder-pay`.** Own versioning; part
+  of the `2.0.0` separation. `thunderd` can still optionally bundle +
+  serve it for the single-box deploy.
 
 ## 5. Open decisions
 1. **Default deployment:** same-origin bundled (recommended) vs.
