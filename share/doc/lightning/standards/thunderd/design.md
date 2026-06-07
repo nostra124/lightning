@@ -71,6 +71,29 @@ account model, fee engine, API and clients:
 - **Non-custodial** — seed on the device, signs remotely (A2);
   per-tenant LDK nodes; this document (**Phase II**, §3 onward).
 
+### 1.4 Design principle: fat daemon, thin clients
+
+`thunderd` does **all** the heavy work — for **Lightning *and*
+on-chain**. The two clients (`thunder` CLI, `thunder-pay` PWA) stay as
+small as possible: they **hold keys and sign, render UI, and sync** —
+nothing more. Everything else lives in the daemon:
+
+- **On-chain (Bitcoin) wallet** is first-class, not just Lightning.
+  `thunderd` derives/watches addresses, tracks UTXOs, does coin
+  selection, builds PSBTs, estimates fees, broadcasts, and monitors
+  confirmations — using the companion `lightningd` (its `bitcoind`) as
+  the chain backend over the Unix socket.
+- **Custody follows the tier.** Non-custodial: `thunderd` holds only the
+  tenant's **xpub (watch-only)** for on-chain and the channel pubkeys for
+  Lightning; it builds the PSBT / commitment and the **device signs**
+  (same A2 guarantee — a watch-only xpub can't spend). Custodial:
+  on-chain rides the companion `lightningd`'s own wallet.
+- **Clients never touch the chain or build transactions.** A client
+  receives a ready-to-sign PSBT / sighash from `thunderd`, validates it
+  (the signer is a *validating* signer, §6), signs, returns it. This
+  keeps `thunder` and `thunder-pay` tiny and lets a new client (mobile,
+  hardware, a third party) be little more than a validating signer + UI.
+
 ## 2. Topology
 
 ```
@@ -264,12 +287,23 @@ proposed placeholders.
 - **FEAT-416 — Send** (trampoline; BOLT-11/12).
 - **FEAT-417 — Receive** (BOLT-11/12 + pay-to-open).
 - **FEAT-418 — Channel open / fill-up flows.**
-- **FEAT-419 — On-chain wallet** (PSBT built by `thunderd`, signed on
-  device).
-- **FEAT-420 — Account model + `/.well-known/thunder/v1`.** Channel(s) ↔
-  non-custodial account(s); balance + history; the public JSON API
-  surface + discovery doc. (Decision: account = channel vs. logical
-  sub-balance over one user node.)
+- **FEAT-419 — On-chain wallet (daemon-side, device-signed).** First-class
+  Bitcoin wallet in `thunderd`: watch-only **xpub/descriptor** import,
+  address derivation + gap-limit watching, UTXO tracking, coin selection,
+  **PSBT construction**, fee estimation, broadcast, and confirmation
+  monitoring — all via the companion `lightningd`'s `bitcoind`. On-chain
+  **send** (build PSBT → device signs → broadcast) and **receive**
+  (derive + watch). Custodial on-chain rides `lightningd`'s own wallet.
+- **FEAT-432 — On-chain fee management & recovery.** RBF / CPFP fee-bump,
+  sweep / consolidate, dust handling, and **descriptor/xpub backup**
+  (synced E2E-encrypted, §8) so the wallet is recoverable from seed +
+  descriptor. Channel↔chain interplay (funding, force-close sweep) ties
+  into FEAT-430.
+- **FEAT-420 — Account model + `/.well-known/thunder/v1`.** Channel(s)
+  *and on-chain balance* ↔ non-custodial account(s); unified balance +
+  history (Lightning + on-chain); the public JSON API surface + discovery
+  doc. (Decision: account = channel vs. logical sub-balance over one user
+  node.)
 
 ### TH5 — Multi-device & cloud sync (§7, §8)
 - **FEAT-421 — Device registry + signer-pool routing.**
@@ -307,4 +341,6 @@ proposed placeholders.
 5. **Watchtower** (FEAT-429) — own vs. third-party vs. device-side.
 6. **`thunder` plugin shape** — standalone CLI vs. an rpk/libexec-style
    plugin vs. a CLN plugin on the client box.
-</content>
+7. **On-chain chain source** (FEAT-419) — drive UTXO/descriptor watching
+   through the companion `lightningd`'s `bitcoind` over the Unix socket,
+   vs. a dedicated Esplora/Electrum backend for scale.

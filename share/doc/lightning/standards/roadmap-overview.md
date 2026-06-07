@@ -28,7 +28,7 @@ follows lightning: `thunderd` only works with a `lightningd` companion.
 | Tier | Custody | How `thunderd` does it |
 |---|---|---|
 | **Custodial** | node holds keys; an account is a ledger row | Drives the companion `lightningd` over the Unix RPC socket (+ `waitanyinvoice` for settlement). This is the old commerce/neobank surface (invoices, mandates, charges, standing orders, tax export, …). |
-| **Non-custodial** | seed on the device, signs remotely (**A2**) | Runs per-tenant LDK nodes keyed by the user; the companion `lightningd` is LSP / trampoline / counterparty / chain gateway. |
+| **Non-custodial** | seed on the device, signs remotely (**A2**) | Runs per-tenant LDK nodes keyed by the user; the companion `lightningd` is LSP / trampoline / counterparty / chain gateway. Includes an **on-chain wallet** (watch-only xpub in the daemon, PSBT signed on device). |
 
 Both tiers are one daemon, one state model, one fee engine, one API,
 under one namespace: **`/.well-known/thunder/v1`** — custodial *and*
@@ -75,7 +75,7 @@ remote-signer CLI) · `thunder-pay` (PWA frontend) · `signer-core`
 | Deliverable | Phase / milestones | Features | Doc |
 |---|---|---|---|
 | `thunderd` — **Phase I: custodial** | (was Track A) M0–M6 | FEAT-300 … 328 | `accounts-plugin/roadmap.md` |
-| `thunderd` — **Phase II: non-custodial** | TH0–TH8 | FEAT-400 … 431 | `thunderd/design.md` |
+| `thunderd` — **Phase II: non-custodial** | TH0–TH8 | FEAT-400 … 432 | `thunderd/design.md` |
 | `thunderd` — extraction | — | FEAT-329 / 431 | both |
 | `thunder-pay` — PWA | PW0–PW3 | FEAT-340 … 349 | `thunder-pay.md` |
 
@@ -106,6 +106,12 @@ existing logic); the non-custodial `TH` milestones are **Phase II**.
   reaches our servers in plaintext). Engine **LDK** (pluggable signer);
   signer **VLS-based validation**. Not Greenlight, not Ark, not a reused
   phoenixd — a fresh single multi-tenant process.
+- **Fat daemon, thin clients.** `thunderd` does all heavy work for
+  **Lightning *and* on-chain** (UTXO tracking, coin selection, PSBT
+  construction, fee estimation, broadcast, chain watching). The clients
+  only **hold keys + sign + render** — `thunderd` hands them a
+  ready-to-sign PSBT/sighash; they validate, sign, return. A new client
+  is little more than a validating signer + UI.
 - **Clients:** `thunder` CLI first, then `thunder-pay` (PWA) + **Tauri**
   (desktop persistent signer; Android TWA; iOS signer-capable host).
 - Working titles **`thunderd` / `thunderd-cli` / `thunder` /
