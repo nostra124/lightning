@@ -279,5 +279,43 @@ already-wired routes:
 - The external contract: routes, bearer auth, the `6→402 / 7→401 /
   →502` status mapping, JSON in/out.
 - Reverse proxy does TLS only; no business logic in Apache.
-</content>
-</invoke>
+
+---
+
+## 10. Milestones & sequencing corrections (planning round 2)
+
+This is **Track A** in the wider plan — see `../roadmap-overview.md` for
+how it relates to the PWA carve-out (Track B) and `pwalight` (Track C).
+
+### 10.1 Milestone map
+
+| Milestone | Theme | Features | Exit criteria |
+|---|---|---|---|
+| **M0 — Skeleton** `v0.1` | Plugin loads & serves | 300, 301, 302, 303, 304, 305 | Installs into CLN, HTTP up, routed + bearer/mandate auth (handlers 501-stub), carve-out CI guard green, proxy fragment, **CORS scaffold** |
+| **M1 — Core engine** `v0.2` | State + node + policy *hooks* | 306, 307, 308, 309, 310 **+ policy middleware seam** | Owned DB & migrations, double-entry ledger, importer, `cln-rpc` wired, settlement; `balance` real; fee/compliance/capability hook points exist |
+| **M2 — Wallet parity** `v0.3` | Move money | 313, 314, 311, 312 | accounts CRUD + pay/recv/recv-reusable/transfer/withdraw end-to-end, **each routed through the policy hooks** |
+| **M3 — Commerce** `v0.4` | Neobank surface | 315, 316, 317, 318, 319, 320 | invoices, standing orders, mandates, charges, history/tax, referrals |
+| **M4 — Policy hardening** `v0.5` | Finish guardrails | 321, 322, 323, 324 | fee skim, compliance audit, capability profiles, rate-limit fully enforced |
+| **M5 — Extras** `v0.6` | optional/parallel | 325 | MCP surface re-exposed |
+| **M6 — Cutover** `v1.0` | Retire old layer | 326, 327, 328 | shadow-run → flip proxy → delete CGI + `api-account-*` verbs; `lightning` slimmed back to admin |
+| **M7 — Extraction** `v1.x` | Own repo | 329 | `cln-accounts` repo, independent versioning |
+
+**Critical path:** M0 → M1 → M2 → M3 → M6 → M7. M4 hardens what M2/M3
+establish; M5 is parallel/optional.
+
+### 10.2 Corrections to §7
+
+- **Policy is a foundational seam, not a late phase.** §7 lists the
+  cross-cutting policy (fees/compliance/capabilities, 321–323) *after*
+  the money features. That is wrong for a real node — every money-moving
+  verb today already enforces overdraft, capability gates and the
+  compliance-deny hook, so shipping M2 without them would bypass the
+  operator's loss-prevention and revenue. **Land the policy hook points
+  (middleware) in M1, plug each feature into them in M2/M3, and use M4
+  only to flesh out the full rule set + audit.**
+- **CORS is a new requirement** introduced by the PWA carve-out (Track
+  B). Once the PWA can be served from a different origin, the plugin must
+  support an explicit **CORS origin-allowlist + preflight**, and the
+  bearer token travels cross-origin. Land the scaffold in M0 and the
+  allowlist in M1. The default/recommended deploy stays **same-origin**
+  (plugin may bundle + serve the PWA); cross-origin is opt-in.
