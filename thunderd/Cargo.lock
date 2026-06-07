@@ -2119,6 +2119,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "signer-core",
  "sqlx",
  "subtle",
  "thiserror 2.0.18",

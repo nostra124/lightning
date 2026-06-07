@@ -155,6 +155,46 @@ mod tests {
         assert!(psbt.inputs[0].witness_utxo.is_some());
     }
 
+    /// End-to-end A2: the daemon builds an unsigned PSBT and the device
+    /// signer (signer-core) validates + signs it. Proves the non-custodial
+    /// loop holds across the two crates.
+    #[test]
+    fn daemon_psbt_is_signable_by_signer_core() {
+        use bitcoin::bip32::Xpriv;
+        let secp = Secp256k1::new();
+        let master = Xpriv::new_master(Network::Regtest, &[7u8; 32]).unwrap();
+        let xpub = Xpub::from_priv(&secp, &master);
+        // input controlled by the m/0/0 key
+        let child = xpub
+            .derive_pub(&secp, &DerivationPath::from_str("m/0/0").unwrap())
+            .unwrap();
+        let pubkey_hex = child.public_key.to_string();
+        let to = derive_address(&xpub.to_string(), 1, Network::Regtest).unwrap();
+
+        let utxos = vec![InputUtxo {
+            txid: "0000000000000000000000000000000000000000000000000000000000000001".into(),
+            vout: 0,
+            value_sat: 100_000,
+            pubkey_hex,
+        }];
+        let (psbt, fee) = build_psbt(&utxos, &[(to, 90_000)], Network::Regtest).unwrap();
+        assert_eq!(fee, 10_000);
+
+        let signed = signer_core::validate_and_sign(
+            &master.to_string(),
+            &psbt,
+            &["m/0/0".to_string()],
+            &signer_core::Policy::default(),
+        )
+        .unwrap();
+        let parsed = bitcoin::psbt::Psbt::from_str(&signed).unwrap();
+        assert_eq!(
+            parsed.inputs[0].partial_sigs.len(),
+            1,
+            "device signer should have signed the daemon-built input"
+        );
+    }
+
     #[test]
     fn refuses_when_inputs_dont_cover_outputs() {
         let (xpub, pubkey_hex) = test_xpub();

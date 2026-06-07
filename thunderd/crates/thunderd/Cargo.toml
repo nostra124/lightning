@@ -43,3 +43,7 @@ webauthn-rs = "0.5"
 # On-chain wallet primitives (xpub derivation + PSBT construction) for the
 # non-custodial tier. Pure construction — broadcast/chain-scan need a node.
 bitcoin = { version = "0.32", features = ["base64"] }
+
+[dev-dependencies]
+# End-to-end A2 proof: daemon builds the PSBT, the device signer signs it.
+signer-core = { path = "../signer-core" }
