@@ -40,4 +40,19 @@ impl Db {
         sqlx::query("SELECT 1").execute(&self.pool).await?;
         Ok(())
     }
+
+    /// In-memory database with migrations applied — for unit tests.
+    /// A single connection so the `:memory:` db is shared across queries.
+    #[cfg(test)]
+    pub async fn memory() -> Result<Self> {
+        use std::str::FromStr;
+        let opts = SqliteConnectOptions::from_str("sqlite::memory:")?.foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(opts)
+            .await?;
+        let db = Self { pool };
+        db.migrate().await?;
+        Ok(db)
+    }
 }

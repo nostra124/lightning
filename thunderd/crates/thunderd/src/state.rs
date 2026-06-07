@@ -11,3 +11,14 @@ pub struct AppState {
     pub db: Db,
     pub started: Instant,
 }
+
+impl AppState {
+    #[cfg(test)]
+    pub fn for_test(db: Db) -> Self {
+        Self {
+            config: Arc::new(Config::default()),
+            db,
+            started: Instant::now(),
+        }
+    }
+}

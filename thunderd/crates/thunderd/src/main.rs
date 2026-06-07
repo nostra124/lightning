@@ -7,14 +7,17 @@
 //! external companion daemon — NOT a `cln-plugin` (no `getmanifest`
 //! handshake).
 
+mod accounts;
 mod auth;
 mod clnrpc;
 mod config;
 mod db;
 mod error;
 mod http;
+mod ledger;
 mod logging;
 mod state;
+mod util;
 
 use anyhow::Context;
 use clap::Parser;

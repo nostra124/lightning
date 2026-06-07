@@ -3,15 +3,17 @@
 //! body limit; health + discovery; stub handlers return 501 until the
 //! business features land (Phase 4).
 
-use crate::auth;
+use crate::auth::{self, Principal};
 use crate::clnrpc::ClnRpc;
 use crate::error::AppError;
 use crate::state::AppState;
-use axum::extract::{DefaultBodyLimit, State};
+use crate::{accounts, ledger};
+use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use serde::Deserialize;
 use serde_json::json;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
@@ -24,8 +26,11 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
     let api = Router::new()
         .route("/health", get(health))
         .route("/versions.json", get(versions))
-        // Custodial surface — auth-gated, 501 until Phase 4 (FEAT-313+).
-        .route("/accounts", get(stub_protected).post(stub_protected))
+        // Custodial surface (FEAT-313/314).
+        .route("/accounts", post(create_account))
+        .route("/accounts/{id}", get(get_account))
+        .route("/accounts/{id}/topup", post(topup_account))
+        .route("/pay", post(pay))
         // Passkey / WebAuthn identity (folded into thunderd) — schema in
         // 0001_init.sql; crypto wiring is the next increment.
         .route("/auth/passkey/register/begin", post(stub_open))
@@ -107,14 +112,105 @@ async fn versions(State(st): State<AppState>) -> impl IntoResponse {
     }))
 }
 
-/// Auth-gated placeholder: proves the bearer / mandate-secret gate works
-/// (401 without creds) and returns 501 once authenticated.
-async fn stub_protected(
+// ---- account / payment handlers (custodial tier) ----------------------
+
+#[derive(Deserialize)]
+struct CreateAccountBody {
+    #[serde(default)]
+    label: String,
+}
+
+/// Create a custodial account + mint its first API key (returned once).
+/// Open for now; invite-gating + rate-limit land with FEAT-320/324.
+async fn create_account(
     State(st): State<AppState>,
+    body: Option<Json<CreateAccountBody>>,
+) -> Result<impl IntoResponse, AppError> {
+    let label = body.map(|b| b.0.label).unwrap_or_default();
+    let made = accounts::create(&st.db.pool, &label).await?;
+    Ok((StatusCode::CREATED, Json(made)))
+}
+
+/// Account info + derived balance. Bearer must own the account.
+async fn get_account(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, AppError> {
-    let _principal = auth::authenticate(&st, &headers).await?;
-    Err::<Json<serde_json::Value>, _>(AppError::NotImplemented)
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    let account = accounts::get(&st.db.pool, &id).await?;
+    let balance_msat = ledger::balance(&st.db.pool, &id).await?;
+    Ok(Json(
+        json!({ "account": account, "balance_msat": balance_msat }),
+    ))
+}
+
+#[derive(Deserialize)]
+struct AmountBody {
+    amount_msat: i64,
+}
+
+/// Dev/admin topup: credit the account from the external world without a
+/// real settlement. Replaced by invoice-settlement booking (FEAT-309/310).
+async fn topup_account(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<AmountBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    if body.amount_msat <= 0 {
+        return Err(AppError::BadRequest("amount_msat must be positive".into()));
+    }
+    ledger::credit_external(&st.db.pool, &id, body.amount_msat, "topup (dev)").await?;
+    let balance_msat = ledger::balance(&st.db.pool, &id).await?;
+    Ok(Json(json!({ "balance_msat": balance_msat })))
+}
+
+#[derive(Deserialize)]
+struct PayBody {
+    to: String,
+    amount_msat: i64,
+    #[serde(default)]
+    memo: String,
+}
+
+/// Internal custodial transfer from the caller's account to another
+/// account. External Lightning payment (decode + cln `pay`) lands with
+/// FEAT-309/314.
+async fn pay(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<PayBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    let from = require_api_key(&p)?;
+    // 404 if the destination doesn't exist.
+    accounts::get(&st.db.pool, &body.to).await?;
+    let group_id =
+        ledger::transfer(&st.db.pool, from, &body.to, body.amount_msat, &body.memo).await?;
+    let balance_msat = ledger::balance(&st.db.pool, from).await?;
+    Ok(Json(
+        json!({ "group_id": group_id, "balance_msat": balance_msat }),
+    ))
+}
+
+/// The caller must present an account API key.
+fn require_api_key(p: &Principal) -> Result<&str, AppError> {
+    match p {
+        Principal::ApiKey { account_id, .. } => Ok(account_id),
+        _ => Err(AppError::Forbidden),
+    }
+}
+
+/// The caller's API key must belong to `account_id`.
+fn require_account(p: &Principal, account_id: &str) -> Result<(), AppError> {
+    match require_api_key(p)? == account_id {
+        true => Ok(()),
+        false => Err(AppError::Forbidden),
+    }
 }
 
 async fn stub_open() -> AppError {
