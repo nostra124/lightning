@@ -9,7 +9,7 @@ use crate::error::AppError;
 use crate::state::AppState;
 use crate::state::RegState;
 use crate::util::random_hex;
-use crate::{accounts, invoices, ledger, mandates, passkey};
+use crate::{accounts, charges, invoices, ledger, mandates, passkey};
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::IntoResponse;
@@ -38,7 +38,12 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
         .route("/accounts/{id}/mandates", post(create_mandate))
         .route("/accounts/{id}/history", get(get_history))
         .route("/accounts/{id}/history.csv", get(get_history_csv))
+        .route("/accounts/{id}/charges", post(authorize_charge))
         .route("/invoices/{id}", get(get_invoice))
+        .route("/charges/{id}", get(get_charge))
+        .route("/charges/{id}/capture", post(capture_charge))
+        .route("/charges/{id}/void", post(void_charge))
+        .route("/charges/{id}/refund", post(refund_charge))
         .route("/mandates/charge", post(mandate_charge))
         .route("/mandates/{id}/revoke", post(revoke_mandate))
         .route("/pay", post(pay))
@@ -402,6 +407,91 @@ fn csv_field(s: &str) -> String {
     } else {
         s.to_string()
     }
+}
+
+// ---- charges: auth/capture lifecycle (FEAT-318) -----------------------
+
+#[derive(Deserialize)]
+struct AuthorizeChargeBody {
+    merchant: String,
+    amount_msat: i64,
+}
+
+/// Payer authorizes a hold to a merchant (escrow). Caller = payer.
+async fn authorize_charge(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<AuthorizeChargeBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    accounts::get(&st.db.pool, &body.merchant).await?;
+    let c = charges::authorize(&st.db.pool, &id, &body.merchant, body.amount_msat).await?;
+    Ok((StatusCode::CREATED, Json(c)))
+}
+
+#[derive(Deserialize, Default)]
+struct CaptureBody {
+    #[serde(default)]
+    amount_msat: Option<i64>,
+}
+
+/// Merchant captures (part of) a hold.
+async fn capture_charge(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    body: Option<Json<CaptureBody>>,
+) -> Result<impl IntoResponse, AppError> {
+    let c = charges::get(&st.db.pool, &id).await?;
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &c.merchant_account)?;
+    let amt = body.and_then(|b| b.0.amount_msat);
+    Ok(Json(charges::capture(&st.db.pool, &id, amt).await?))
+}
+
+/// Merchant or payer voids an authorized hold.
+async fn void_charge(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    let c = charges::get(&st.db.pool, &id).await?;
+    let p = auth::authenticate(&st, &headers).await?;
+    let who = require_api_key(&p)?;
+    if who != c.merchant_account && who != c.payer_account {
+        return Err(AppError::Forbidden);
+    }
+    Ok(Json(charges::void(&st.db.pool, &id).await?))
+}
+
+/// Merchant refunds (part of) a captured charge.
+async fn refund_charge(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    body: Option<Json<CaptureBody>>,
+) -> Result<impl IntoResponse, AppError> {
+    let c = charges::get(&st.db.pool, &id).await?;
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &c.merchant_account)?;
+    let amt = body.and_then(|b| b.0.amount_msat);
+    Ok(Json(charges::refund(&st.db.pool, &id, amt).await?))
+}
+
+async fn get_charge(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    let c = charges::get(&st.db.pool, &id).await?;
+    let p = auth::authenticate(&st, &headers).await?;
+    let who = require_api_key(&p)?;
+    if who != c.merchant_account && who != c.payer_account {
+        return Err(AppError::Forbidden);
+    }
+    Ok(Json(c))
 }
 
 // ---- mandates / direct debit (FEAT-317) -------------------------------

@@ -9,6 +9,7 @@
 
 mod accounts;
 mod auth;
+mod charges;
 mod clnrpc;
 mod config;
 mod db;
