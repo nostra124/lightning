@@ -14,8 +14,10 @@ mod config;
 mod db;
 mod error;
 mod http;
+mod invoices;
 mod ledger;
 mod logging;
+mod reconcile;
 mod state;
 mod util;
 
@@ -76,6 +78,9 @@ async fn main() -> anyhow::Result<()> {
         db,
         started: Instant::now(),
     };
+
+    // FEAT-310: follow the node's settlement stream in the background.
+    reconcile::spawn(state.clone());
 
     http::serve(state).await
 }

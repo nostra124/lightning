@@ -7,7 +7,8 @@ use crate::auth::{self, Principal};
 use crate::clnrpc::ClnRpc;
 use crate::error::AppError;
 use crate::state::AppState;
-use crate::{accounts, ledger};
+use crate::util::random_hex;
+use crate::{accounts, invoices, ledger};
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
 use axum::response::IntoResponse;
@@ -30,6 +31,9 @@ pub async fn serve(state: AppState) -> anyhow::Result<()> {
         .route("/accounts", post(create_account))
         .route("/accounts/{id}", get(get_account))
         .route("/accounts/{id}/topup", post(topup_account))
+        .route("/accounts/{id}/invoice", post(create_invoice))
+        .route("/accounts/{id}/send", post(send))
+        .route("/invoices/{id}", get(get_invoice))
         .route("/pay", post(pay))
         // Passkey / WebAuthn identity (folded into thunderd) — schema in
         // 0001_init.sql; crypto wiring is the next increment.
@@ -195,6 +199,120 @@ async fn pay(
     Ok(Json(
         json!({ "group_id": group_id, "balance_msat": balance_msat }),
     ))
+}
+
+#[derive(Deserialize)]
+struct CreateInvoiceBody {
+    amount_msat: i64,
+    #[serde(default)]
+    description: String,
+}
+
+/// Receive: issue a BOLT-11 invoice via the node for this account
+/// (FEAT-314 recv). Settlement is booked by FEAT-310's reconciler.
+async fn create_invoice(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<CreateInvoiceBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    if body.amount_msat <= 0 {
+        return Err(AppError::BadRequest("amount_msat must be positive".into()));
+    }
+    let inv_id = format!("inv_{}", random_hex(10));
+    let rpc = ClnRpc::new(&st.config.cln_socket);
+    let inv = rpc
+        .invoice(body.amount_msat, &inv_id, &body.description)
+        .await
+        .map_err(|_| AppError::Backend)?;
+    invoices::record(
+        &st.db.pool,
+        &inv_id,
+        &id,
+        &inv.payment_hash,
+        &inv_id,
+        &inv.bolt11,
+        body.amount_msat,
+        &body.description,
+        inv.expires_at,
+    )
+    .await?;
+    Ok((
+        StatusCode::CREATED,
+        Json(json!({
+            "invoice_id": inv_id,
+            "bolt11": inv.bolt11,
+            "payment_hash": inv.payment_hash,
+            "amount_msat": body.amount_msat,
+            "expires_at": inv.expires_at,
+        })),
+    ))
+}
+
+async fn get_invoice(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    let rec = invoices::get(&st.db.pool, &id).await?;
+    require_account(&p, &rec.account_id)?;
+    Ok(Json(rec))
+}
+
+#[derive(Deserialize)]
+struct SendBody {
+    bolt11: String,
+}
+
+/// Send: pay an external BOLT-11 from this account's custodial balance
+/// (FEAT-314). Decodes for the amount, checks funds, pays via the node,
+/// then books the debit to the ledger.
+async fn send(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<SendBody>,
+) -> Result<impl IntoResponse, AppError> {
+    let p = auth::authenticate(&st, &headers).await?;
+    require_account(&p, &id)?;
+    let rpc = ClnRpc::new(&st.config.cln_socket);
+
+    let dec = rpc
+        .decode(&body.bolt11)
+        .await
+        .map_err(|_| AppError::Backend)?;
+    if !dec.valid {
+        return Err(AppError::BadRequest("invalid invoice".into()));
+    }
+    let amount = dec
+        .amount_msat
+        .ok_or_else(|| AppError::BadRequest("amountless invoices are not supported".into()))?
+        as i64;
+
+    // Pre-flight funds check (the ledger transfer re-checks atomically).
+    if ledger::balance(&st.db.pool, &id).await? < amount {
+        return Err(AppError::PaymentRequired);
+    }
+
+    let res = rpc.pay(&body.bolt11).await.map_err(|_| AppError::Backend)?;
+
+    let memo = format!(
+        "pay {}: {}",
+        dec.payment_hash.unwrap_or_default(),
+        dec.description.unwrap_or_default()
+    );
+    ledger::transfer(&st.db.pool, &id, "-", amount, &memo).await?;
+
+    let balance_msat = ledger::balance(&st.db.pool, &id).await?;
+    Ok(Json(json!({
+        "payment_preimage": res.payment_preimage,
+        "amount_sent_msat": res.amount_sent_msat,
+        "status": res.status,
+        "balance_msat": balance_msat,
+    })))
 }
 
 /// The caller must present an account API key.
