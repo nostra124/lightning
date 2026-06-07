@@ -1,8 +1,15 @@
 # Roadmap overview — one engine + one frontend
 
-**Status:** In progress. `thunderd` Phase I **foundations skeleton has
-landed** (1.4.0; FEAT-300/301/302/303/306 + the auth scaffold) under
-`thunderd/`. The rest of this document is the feature/milestone plan.
+**Status:** In progress, under `thunderd/`. The **custodial tier (Phase I)
+is implemented** end-to-end (accounts, ledger, payments, commerce, policy,
+passkey auth, importer) and the **non-custodial component set** —
+`thunderd`, `thunderd-cli`, `signer-core`, `thunder` — exists with the A2
+remote-signer loop (build PSBT → validate → sign) proven across crates
+(51 tests, CI green). **Not yet done:** the per-tenant LDK channel engine,
+the `thunder-pay` PWA, and the breaking `2.0.0` cutover (gated behind a
+shadow-run against the live node). See `../../../../thunderd/STATUS.md`
+for the exact status + cutover runbook. The rest of this document is the
+original feature/milestone plan.
 
 The account/commerce stack outgrew the `lightning` admin CLI. After
 several rounds the plan has **collapsed from three tracks into two
