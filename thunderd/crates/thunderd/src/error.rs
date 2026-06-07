@@ -28,6 +28,8 @@ pub enum AppError {
     BadRequest(String),
     #[error("not implemented")]
     NotImplemented,
+    #[error("too many requests")]
+    TooManyRequests,
     #[error("backend error")]
     Backend,
     #[error("internal error")]
@@ -43,6 +45,7 @@ impl AppError {
             AppError::NotFound => (StatusCode::NOT_FOUND, "not_found"),
             AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request"),
             AppError::NotImplemented => (StatusCode::NOT_IMPLEMENTED, "not_implemented"),
+            AppError::TooManyRequests => (StatusCode::TOO_MANY_REQUESTS, "too_many_requests"),
             AppError::Backend => (StatusCode::BAD_GATEWAY, "backend_error"),
             AppError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "internal_error"),
         }

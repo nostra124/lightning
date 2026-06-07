@@ -20,6 +20,7 @@ mod logging;
 mod mandates;
 mod passkey;
 mod policy;
+mod ratelimit;
 mod reconcile;
 mod state;
 mod util;

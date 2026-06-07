@@ -132,16 +132,25 @@ async fn versions(State(st): State<AppState>) -> impl IntoResponse {
 struct CreateAccountBody {
     #[serde(default)]
     label: String,
+    #[serde(default)]
+    capability: Option<String>,
 }
 
-/// Create a custodial account + mint its first API key (returned once).
-/// Open for now; invite-gating + rate-limit land with FEAT-320/324.
+/// Create an account + mint its first API key (returned once).
+/// Rate-limited (FEAT-324); capability profile per FEAT-323.
 async fn create_account(
     State(st): State<AppState>,
     body: Option<Json<CreateAccountBody>>,
 ) -> Result<impl IntoResponse, AppError> {
-    let label = body.map(|b| b.0.label).unwrap_or_default();
-    let made = accounts::create(&st.db.pool, &label).await?;
+    if !st.limiter.allow("create") {
+        return Err(AppError::TooManyRequests);
+    }
+    let b = body.map(|b| b.0).unwrap_or(CreateAccountBody {
+        label: String::new(),
+        capability: None,
+    });
+    let capability = b.capability.as_deref().unwrap_or("custodial");
+    let made = accounts::create(&st.db.pool, &b.label, capability).await?;
     Ok((StatusCode::CREATED, Json(made)))
 }
 
@@ -498,6 +507,9 @@ async fn passkey_register_begin(
     State(st): State<AppState>,
     Json(body): Json<RegisterBeginBody>,
 ) -> Result<impl IntoResponse, AppError> {
+    if !st.limiter.allow("register") {
+        return Err(AppError::TooManyRequests);
+    }
     if body.name.trim().is_empty() {
         return Err(AppError::BadRequest("name required".into()));
     }

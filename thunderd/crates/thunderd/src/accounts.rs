@@ -26,15 +26,30 @@ pub struct NewAccount {
     pub api_key: String,
 }
 
+/// Capability profiles / fund-class gates (FEAT-323).
+pub const VALID_CAPABILITIES: &[&str] = &["custodial", "treasury", "family", "prepaid"];
+
 /// Create an account and mint its first API key. The plaintext key is
-/// returned once and never recoverable.
-pub async fn create(pool: &SqlitePool, label: &str) -> Result<NewAccount, AppError> {
+/// returned once and never recoverable. `capability` must be one of
+/// [`VALID_CAPABILITIES`].
+pub async fn create(
+    pool: &SqlitePool,
+    label: &str,
+    capability: &str,
+) -> Result<NewAccount, AppError> {
+    if !VALID_CAPABILITIES.contains(&capability) {
+        return Err(AppError::BadRequest(format!(
+            "unknown capability '{capability}' (one of: {})",
+            VALID_CAPABILITIES.join(", ")
+        )));
+    }
     let id = format!("acct_{}", random_hex(10));
     let ts = now();
-    sqlx::query("INSERT INTO accounts (id, created_at, label) VALUES (?1, ?2, ?3)")
+    sqlx::query("INSERT INTO accounts (id, created_at, label, capability) VALUES (?1, ?2, ?3, ?4)")
         .bind(&id)
         .bind(ts)
         .bind(label)
+        .bind(capability)
         .execute(pool)
         .await
         .map_err(|_| AppError::Backend)?;
@@ -45,7 +60,7 @@ pub async fn create(pool: &SqlitePool, label: &str) -> Result<NewAccount, AppErr
         account: Account {
             id,
             label: label.to_string(),
-            capability: "custodial".to_string(),
+            capability: capability.to_string(),
             created_at: ts,
             closed_at: None,
         },
@@ -109,7 +124,7 @@ mod tests {
         let db = Db::memory().await.unwrap();
         let st = crate::state::AppState::for_test(db.clone());
 
-        let made = create(&db.pool, "shop").await.unwrap();
+        let made = create(&db.pool, "shop", "custodial").await.unwrap();
         assert!(made.api_key.starts_with("lt_"));
         assert_eq!(get(&db.pool, &made.account.id).await.unwrap().label, "shop");
 
@@ -131,6 +146,15 @@ mod tests {
         assert!(matches!(
             get(&db.pool, "acct_nope").await.unwrap_err(),
             AppError::NotFound
+        ));
+    }
+
+    #[tokio::test]
+    async fn rejects_unknown_capability() {
+        let db = Db::memory().await.unwrap();
+        assert!(matches!(
+            create(&db.pool, "x", "wildcat").await.unwrap_err(),
+            AppError::BadRequest(_)
         ));
     }
 }

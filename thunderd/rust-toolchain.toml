@@ -1,0 +1,6 @@
+# Pin the toolchain so `cargo fmt`/`clippy` behave identically in CI and
+# locally (rustfmt style and clippy lints both drift across releases).
+# Bump deliberately, re-running `cargo fmt` + `cargo clippy` in the same PR.
+[toolchain]
+channel = "1.94.1"
+components = ["rustfmt", "clippy"]

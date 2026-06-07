@@ -167,8 +167,7 @@ mod tests {
     #[tokio::test]
     async fn register_begin_mints_user_and_challenge() {
         let db = Db::memory().await.unwrap();
-        let (user_id, _uuid, _ccr, _reg) =
-            register_begin(&wa(), &db.pool, "alice").await.unwrap();
+        let (user_id, _uuid, _ccr, _reg) = register_begin(&wa(), &db.pool, "alice").await.unwrap();
         // user row exists, no credentials yet.
         let (cnt,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM wallet_users WHERE id = ?1")
             .bind(&user_id)

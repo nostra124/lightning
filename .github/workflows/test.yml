@@ -85,11 +85,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libssl-dev pkg-config
-      - name: install rust toolchain
-        run: |
-          rustup toolchain install stable --profile minimal \
-            --component rustfmt --component clippy
-          rustup default stable
+      - name: install rust toolchain (pinned via rust-toolchain.toml)
+        run: rustup show
       - name: cache cargo
         uses: actions/cache@v4
         with:
