@@ -20,6 +20,7 @@ mod invoices;
 mod ledger;
 mod logging;
 mod mandates;
+mod migrate;
 mod passkey;
 mod policy;
 mod ratelimit;
@@ -30,7 +31,7 @@ mod state;
 mod util;
 
 use anyhow::Context;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use std::sync::Arc;
 
 #[derive(Parser, Debug)]
@@ -42,6 +43,21 @@ use std::sync::Arc;
 struct Cli {
     #[command(flatten)]
     cfg: config::ConfigArgs,
+    #[command(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Command {
+    /// Import accounts/users/ledger from a legacy wallet state.db (FEAT-308).
+    Migrate {
+        /// Path to the legacy wallet SQLite file.
+        #[arg(long)]
+        from: std::path::PathBuf,
+        /// Count rows without writing.
+        #[arg(long, default_value_t = false)]
+        dry_run: bool,
+    },
 }
 
 #[tokio::main]
@@ -50,6 +66,26 @@ async fn main() -> anyhow::Result<()> {
     logging::init();
 
     let config = Arc::new(config::Config::from_args(cli.cfg)?);
+
+    let db = db::Db::connect(&config.db_path)
+        .await
+        .context("connect state db")?;
+    db.migrate().await.context("apply migrations")?;
+    tracing::info!("state db ready (migrations applied)");
+
+    // Subcommands run and exit; no subcommand = run the daemon.
+    if let Some(Command::Migrate { from, dry_run }) = cli.command {
+        let s = migrate::run(&db, &from, dry_run).await?;
+        println!(
+            "migrate{}: wallet_users={} accounts={} ledger={}",
+            if dry_run { " (dry-run)" } else { "" },
+            s.wallet_users,
+            s.accounts,
+            s.ledger
+        );
+        return Ok(());
+    }
+
     tracing::info!(
         db = %config.db_path.display(),
         cln_socket = %config.cln_socket.display(),
@@ -57,12 +93,6 @@ async fn main() -> anyhow::Result<()> {
         port = config.http_port,
         "thunderd starting"
     );
-
-    let db = db::Db::connect(&config.db_path)
-        .await
-        .context("connect state db")?;
-    db.migrate().await.context("apply migrations")?;
-    tracing::info!("state db ready (migrations applied)");
 
     // Probe the companion lightningd; non-fatal if it's not up yet.
     match clnrpc::ClnRpc::new(&config.cln_socket).getinfo().await {
