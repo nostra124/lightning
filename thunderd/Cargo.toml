@@ -8,7 +8,7 @@
 # scripts/carve-out-guard.sh, FEAT-302).
 [workspace]
 resolver = "2"
-members = ["crates/thunderd", "crates/thunderd-cli"]
+members = ["crates/thunderd", "crates/thunderd-cli", "crates/signer-core"]
 
 [workspace.package]
 version = "0.1.0"

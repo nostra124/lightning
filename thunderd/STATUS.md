@@ -46,8 +46,13 @@ infrastructure, so they are intentionally **not** shipped as code:
    and address derivation are done (above); what still needs a live node is
    chain-scan to discover UTXOs (callers supply inputs for now) and
    broadcasting the finalized tx.
-3. **Validating remote signer (VLS)** policy on the device side.
-4. **thunder-pay PWA** (FEAT-340-349): the browser frontend + WASM signer.
+3. **Validating remote signer (VLS-style)** — **done** as the `signer-core`
+   crate (validate PSBT against a device policy + sign controlled p2wpkh
+   inputs; unit-tested). Closes the A2 loop with the daemon's PSBT builder.
+   (LDK commitment-tx signing is part of the LDK engine, item 1.)
+4. **thunder-pay PWA** (FEAT-340-349): the browser frontend. `signer-core`
+   is structured to compile to WASM for it; the PWA itself is a separate
+   codebase.
 
 ## The 2.0.0 cutover runbook (operational — needs the production node)
 

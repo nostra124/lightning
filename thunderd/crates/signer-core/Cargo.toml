@@ -1,0 +1,11 @@
+[package]
+name = "signer-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Shared validating remote-signer core (native + WASM) for the non-custodial tier"
+
+[dependencies]
+anyhow.workspace = true
+bitcoin = { version = "0.32", features = ["base64"] }
