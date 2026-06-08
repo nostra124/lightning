@@ -7,16 +7,27 @@
 
 ARG LIGHTNING_GIT_REF=master
 
+# Core Lightning is not in Debian apt; pull the binaries + plugins from
+# the upstream multi-arch image and copy them onto our regtest base.
+FROM docker.io/polarlightning/clightning:24.11.1 AS cln
+
 FROM lightning-regtest:latest
 
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl bash git make stow \
-        lightningd lightning-cli \
-        apache2 libapache2-mod-cgi \
+        ca-certificates curl bash git make \
+        apache2 \
         python3 sqlite3 jq qrencode openssl \
-        bats \
+        bats sudo \
     && rm -rf /var/lib/apt/lists/*
+
+# lightningd / lightning-cli / hsmtool + the bundled plugins. CLN is
+# statically linked against libsodium/gmp/sqlite, so the base libc on the
+# bookworm regtest image is enough at runtime.
+COPY --from=cln /usr/local/bin/lightningd \
+                /usr/local/bin/lightning-cli \
+                /usr/local/bin/lightning-hsmtool /usr/local/bin/
+COPY --from=cln /usr/local/libexec/c-lightning /usr/local/libexec/c-lightning
 
 # Apache modules for the Lightning Address handler + the
 # JSON API ScriptAliasMatch + RewriteRule.
@@ -33,6 +44,9 @@ RUN ./configure --prefix=/usr/local && make install
 # account for the api-* verbs (FEAT-196).
 RUN useradd --create-home --shell /bin/bash --groups sudo alice \
     && echo 'alice ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/alice-root
+# The CMD runs as `bitcoin` and needs passwordless sudo to start apache +
+# drop into the alice operator shell (test container only).
+RUN echo 'bitcoin ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/bitcoin-root
 
 # Run the JSON-API sudo bridge install.
 RUN LIGHTNING_OPERATOR=alice make install-apache-bridge
@@ -43,13 +57,25 @@ RUN cp /usr/local/share/lightning/apache/lnurlp.conf \
     && sed -i 's,/usr/share/lightning,/usr/local/share/lightning,g' \
            /etc/apache2/conf-enabled/lightning.conf
 
+# Regtest wiring for the CGI path: the bash verbs read the network only
+# from $LIGHTNING_NETWORK (default mainnet), and the sudo bridge
+# (`sudo -n -u alice lightning …`) strips env. So (a) give apache's CGI
+# environment LIGHTNING_NETWORK=regtest and (b) let sudo preserve it.
+# SIT-only — no production config is touched.
+RUN a2enmod env >/dev/null 2>&1; \
+    printf 'SetEnv LIGHTNING_NETWORK regtest\n' > /etc/apache2/conf-enabled/sit-regtest.conf \
+    && printf 'Defaults env_keep += "LIGHTNING_NETWORK"\n' > /etc/sudoers.d/sit-regtest \
+    && chmod 0440 /etc/sudoers.d/sit-regtest
+
+# Entrypoint brings up bitcoind + lightningd (as alice) + apache. Kept as
+# a script rather than an inline CMD to avoid nested-quoting fragility and
+# so the cross-user bitcoin/lightning wiring is readable.
+COPY tests/sit/podman/clightning-entrypoint.sh /usr/local/bin/sit-entrypoint
+# 0755 explicitly: the dev tree may carry owner/group-only modes, and a
+# script needs world read+exec to run as the `bitcoin` user.
+RUN chmod 0755 /usr/local/bin/sit-entrypoint
+
 USER bitcoin
 WORKDIR /home/bitcoin
 
-CMD ["/bin/bash", "-c", "\
-    bitcoind -regtest -daemon && \
-    sleep 2 && \
-    bitcoin-cli -regtest -rpcuser=test -rpcpassword=test createwallet test && \
-    sudo apache2ctl start && \
-    sudo -u alice -i bash -c 'lightning daemon start && tail -F /dev/null' \
-"]
+CMD ["/usr/local/bin/sit-entrypoint"]

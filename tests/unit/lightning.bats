@@ -97,10 +97,10 @@ EOF
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 1.3.1" {
+@test "lightning version returns 2.0.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.3.1" ]
+	[ "$output" = "2.0.0" ]
 }
 
 @test "lightning version comes from the root VERSION file" {
@@ -1992,7 +1992,7 @@ EOF
 @test "1.2.0: -q flag parses + version still prints" {
 	run "$LIGHTNING_BIN" -q version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.3.1" ]
+	[ "$output" = "2.0.0" ]
 }
 
 @test "1.2.0: -q -d flags compose (getopts handles both)" {
@@ -2002,7 +2002,7 @@ EOF
 	# second flag was lost or the verb was treated as a flag.
 	run "$LIGHTNING_BIN" -q -d version
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"1.3.1"* ]]
+	[[ "$output" == *"2.0.0"* ]]
 }
 
 @test "1.2.0: unknown flag exits non-zero" {
@@ -4524,18 +4524,18 @@ _acct212pr2_teardown() {
 	grep -q "api-account-close" "$f"
 }
 
-@test "FEAT-212 PR-2: apache vhost maps the account API (FEAT-224 versioned path)" {
+@test "2.0.0 cutover: the account API is no longer served by this package" {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
 	[ -f "$f" ]
-	# FEAT-224/232: moved under /.well-known/lightning/v1/.
-	grep -q "ScriptAlias /.well-known/lightning/v1/accounts" "$f"
-	grep -q "wellknown/api/accounts.py" "$f"
-}
-
-@test "FEAT-212 PR-2: dispatcher script is executable Python" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-	[ -x "$f" ]
-	head -1 "$f" | grep -q python3
+	# FEAT-327/328/329: the account/commerce API was carved out into the
+	# standalone `thunder` repo. This package's apache fragment must NOT
+	# serve or proxy it — thunder owns that routing entirely.
+	! grep -qE "(ScriptAlias|ProxyPass)\s+/.well-known/lightning/v1/accounts" "$f"
+	# The legacy CGI dispatcher was retired.
+	[ ! -e "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py" ]
+	# No functional thunderd coupling (a doc comment pointing to the thunder
+	# repo is fine; a Proxy/Script route or daemon address is not).
+	! grep -qE "ProxyPass|127.0.0.1:9737|:9737" "$f"
 }
 
 # ---------------------------------------------------------------------------
@@ -6091,9 +6091,9 @@ _acct225_teardown() {
 # FEAT-224 + FEAT-232: versioned .well-known move + API versioning.
 # ---------------------------------------------------------------------------
 
-@test "FEAT-224: apache vhost mounts account API + MCP under .well-known/v1" {
+@test "FEAT-224: apache vhost mounts MCP under .well-known/v1 (accounts moved to thunder)" {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
-	grep -q "ScriptAlias /.well-known/lightning/v1/accounts" "$f"
+	# 2.0.0: the account API moved to the thunder repo; MCP stays local.
 	grep -q "ScriptAlias /.well-known/lightning/v1/mcp" "$f"
 	# Old unversioned aliases are gone.
 	! grep -qE "ScriptAlias /api/accounts\b" "$f"
@@ -7657,103 +7657,22 @@ _cc_test_module() {
 # FEAT-209: wallet PWA + `lightning ui` installer.
 # ---------------------------------------------------------------------------
 
-@test "FEAT-209: ui install copies the PWA + docs into a docroot" {
-	local dr="$BATS_TMPDIR/docroot.$$"
-	rm -rf "$dr"
-	run "$LIGHTNING_BIN" ui install "$dr" --no-vhost
-	[ "$status" -eq 0 ]
-	[ -f "$dr/index.html" ]
-	[ -f "$dr/app.js" ]
-	[ -f "$dr/style.css" ]
-	[ -f "$dr/manifest.webmanifest" ]
-	[ -f "$dr/config.json" ]
-	[ -f "$dr/docs/index.html" ]
-	[ -f "$dr/docs/llms.txt" ]
-	rm -rf "$dr"
-}
 
-@test "FEAT-209: ui install writes a hardened Apache vhost fragment" {
-	local dr="$BATS_TMPDIR/docroot.$$"
-	local frag="$BATS_TEST_DIRNAME/../../share/lightning/apache/ui.conf"
-	rm -rf "$dr" "$frag"
-	run "$LIGHTNING_BIN" ui install "$dr"
-	[ "$status" -eq 0 ]
-	[ -f "$frag" ]
-	grep -q "Alias /lightning $dr" "$frag"
-	grep -q -- "-ExecCGI" "$frag"
-	grep -q -- "-Indexes" "$frag"
-	rm -rf "$dr" "$frag"
-}
 
-@test "FEAT-209: ui --no-vhost skips the fragment" {
-	local dr="$BATS_TMPDIR/docroot.$$"
-	local frag="$BATS_TEST_DIRNAME/../../share/lightning/apache/ui.conf"
-	rm -rf "$dr" "$frag"
-	"$LIGHTNING_BIN" ui install "$dr" --no-vhost >/dev/null
-	[ ! -f "$frag" ]
-	rm -rf "$dr"
-}
 
-@test "FEAT-209: ui upgrade preserves an operator-edited config.json" {
-	local dr="$BATS_TMPDIR/docroot.$$"
-	rm -rf "$dr"
-	"$LIGHTNING_BIN" ui install "$dr" --no-vhost >/dev/null
-	echo '{"api_base":"/custom","name":"Mine"}' > "$dr/config.json"
-	run "$LIGHTNING_BIN" ui upgrade "$dr"
-	[ "$status" -eq 0 ]
-	grep -q '/custom' "$dr/config.json"
-	# Other files were refreshed.
-	[ -f "$dr/app.js" ]
-	rm -rf "$dr"
-}
 
-@test "FEAT-209: ui uninstall removes our docroot but refuses a foreign one" {
-	local dr="$BATS_TMPDIR/docroot.$$"
-	rm -rf "$dr"
-	"$LIGHTNING_BIN" ui install "$dr" --no-vhost >/dev/null
-	run "$LIGHTNING_BIN" ui uninstall "$dr"
-	[ "$status" -eq 0 ]
-	[ ! -d "$dr" ]
-	# A directory we didn't populate is refused.
-	local foreign="$BATS_TMPDIR/foreign.$$"
-	mkdir -p "$foreign"; echo x > "$foreign/random.txt"
-	run "$LIGHTNING_BIN" ui uninstall "$foreign"
-	[ "$status" -ne 0 ]
-	[ -d "$foreign" ]
-	rm -rf "$foreign"
-}
 
-@test "FEAT-209: ui (no args) prints usage" {
-	run "$LIGHTNING_BIN" ui
-	[ "$status" -ne 0 ]
-	[[ "$output" == *"install"* ]]
-	[[ "$output" == *"uninstall"* ]]
-}
 
-@test "FEAT-209: PWA config.json + manifest are valid JSON; app.js is hardwired same-origin" {
-	local ui="$BATS_TEST_DIRNAME/../../share/lightning/ui"
-	jq -e . "$ui/config.json" >/dev/null
-	jq -e . "$ui/manifest.webmanifest" >/dev/null
-	# Default API base is the real FEAT-212 versioned path.
-	[ "$(jq -r '.api_base' "$ui/config.json")" = "/.well-known/lightning/v1" ]
-	# No absolute cross-origin URLs baked into the client.
-	! grep -qE 'https?://' "$ui/app.js"
-}
+# ---------------------------------------------------------------------------
+# FEAT-346/347: "Real PWA" — service worker (offline app shell) + web push.
+# ---------------------------------------------------------------------------
 
-@test "FEAT-209: llms.txt covers the PWA, REST, and MCP surfaces" {
-	local f="$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
-	[ -f "$f" ]
-	grep -q "REST API" "$f"
-	grep -q "/accounts" "$f"
-	grep -qi "MCP" "$f"
-	grep -q "/.well-known/lightning/v1/mcp" "$f"
-}
 
-@test "FEAT-209: inline docs index.html is plain HTML (no script)" {
-	local f="$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/index.html"
-	[ -f "$f" ]
-	! grep -qi "<script" "$f"
-}
+
+
+
+
+
 
 # ---------------------------------------------------------------------------
 # FEAT-220: referral UX in the PWA (invite-codes endpoint + PWA wiring).
@@ -7813,17 +7732,6 @@ _acct220_teardown() {
 	grep -q "api-account-invite-codes" "$f"
 }
 
-@test "FEAT-220: PWA consumes ?invite, sends invite_code, and has a referrals screen" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "consumeInviteParam" "$f"
-	grep -q 'URLSearchParams' "$f"
-	grep -q 'sessionStorage' "$f"
-	grep -q 'body.invite_code' "$f"
-	grep -q 'screenReferrals' "$f"
-	grep -q '/invite-codes' "$f"
-	# The invite param is dropped from the address bar after consumption.
-	grep -q 'history.replaceState' "$f"
-}
 
 # ---------------------------------------------------------------------------
 # FEAT-231: PWA commerce + POS (mandate pulls listing + PWA wiring).
@@ -7867,28 +7775,7 @@ _acct231_teardown() {
 	_acct231_teardown
 }
 
-@test "FEAT-231: PWA app.js surfaces POS + transfer + standing orders + mandates + fiat + tax export" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "screenPOS" "$f"
-	grep -q "screenTransfer" "$f"
-	grep -q "screenStandingOrders" "$f"
-	grep -q "screenMandates" "$f"
-	grep -q "screenCommerce" "$f"
-	# POS mints a commercial invoice and polls until paid.
-	grep -q "/invoice" "$f"
-	grep -q "setInterval" "$f"
-	grep -q '\.paid' "$f"
-	# Fiat display + tax-data export.
-	grep -q "fiatPerSat" "$f"
-	grep -q "/export/tax-data" "$f"
-	# Mandate approval inbox.
-	grep -q "/pulls" "$f"
-}
 
-@test "FEAT-231: inline docs mention the commerce / POS surface" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
-	grep -qi "point of sale" "$f"
-}
 
 # ---------------------------------------------------------------------------
 # FEAT-222 PR-5: user invite-codes + hierarchical governance.
@@ -8028,64 +7915,14 @@ _pr5_teardown() {
 # FEAT-222 PR-7: PWA user registration / login flow + Show API key.
 # ---------------------------------------------------------------------------
 
-@test "FEAT-222 PR-7: app.js has user registration screen (screenUserRegister)" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "screenUserRegister" "$f"
-	grep -q "user-register" "$f"
-	grep -q "register/begin" "$f"
-}
 
-@test "FEAT-222 PR-7: app.js has user login screen (screenUserLogin)" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "screenUserLogin" "$f"
-	grep -q "user-login" "$f"
-	grep -q "login/begin" "$f"
-	grep -q "login/finish" "$f"
-}
 
-@test "FEAT-222 PR-7: app.js has user accounts screen (screenUser)" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "screenUser\b" "$f"
-	grep -q "users/.*accounts" "$f"
-}
 
-@test "FEAT-222 PR-7: app.js routes user-register, user-login, user" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q '"user-register"' "$f"
-	grep -q '"user-login"' "$f"
-	grep -q '"user".*screenUser\b' "$f"
-}
 
-@test "FEAT-222 PR-7: app.js has passkey WebAuthn helpers (passkeyCreate + passkeyGet)" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "passkeyCreate" "$f"
-	grep -q "passkeyGet" "$f"
-	grep -q "navigator.credentials.create" "$f"
-	grep -q "navigator.credentials.get" "$f"
-}
 
-@test "FEAT-222 PR-7: app.js stores user_id + session separately (LS_USER_KEY)" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "LS_USER_KEY" "$f"
-	grep -q "storedUser\|saveUser" "$f"
-	grep -q "userSession\|saveSession\|clearSession" "$f"
-}
 
-@test "FEAT-222 PR-7: app.js has 'Show API key' in settings screen" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "showkey\|Show API key" "$f"
-}
 
-@test "FEAT-222 PR-7: app.js surfaces api-key retrieval for user-owned accounts" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "api-key\|apikey\|api_key" "$f"
-	grep -q "users/.*accounts.*/api-key" "$f"
-}
 
-@test "FEAT-222 PR-7: screenPicker links to user-register / user view" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "user-register\|user-login" "$f"
-}
 
 # ---------------------------------------------------------------------------
 # FEAT-222 PR-6: access control — require_referral + invite whitelist.
@@ -8330,27 +8167,10 @@ _acct243_teardown() {
 # FEAT-245 — PWA: BOLT-12 reusable offer on the Receive screen
 # ---------------------------------------------------------------------------
 
-@test "FEAT-245: screenRecv has BOLT-12 tab button" {
-	grep -q "tab-bolt12" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-245: screenRecv calls recv-reusable endpoint" {
-	grep -q "recv-reusable" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-245: BOLT-12 tab sends sat=any when amount is blank" {
-	grep -q '"any"' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-245: screenRecv renders both Invoice and Reusable offer tabs" {
-	js="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-	grep -q "Invoice (BOLT-11)" "$js"
-	grep -q "Reusable offer (BOLT-12)" "$js"
-}
 
-@test "FEAT-245: screenRecv displays bolt12 string on success" {
-	grep -q "r.bolt12" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
 # ---------------------------------------------------------------------------
 # FEAT-246 — Transaction history API + PWA screen
@@ -8393,22 +8213,9 @@ _acct243_teardown() {
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR"
 }
 
-@test "FEAT-246: accounts.py routes GET history" {
-	grep -q '"history"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-	grep -q '_history' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-}
 
-@test "FEAT-246: PWA app.js has screenHistory" {
-	grep -q "screenHistory" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-246: PWA account screen has History button" {
-	grep -q 'History' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-246: llms.txt documents the history endpoint" {
-	grep -q "history" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
-}
 
 # ---------------------------------------------------------------------------
 # FEAT-247 — MCP account_history tool + ledger resource
@@ -8428,9 +8235,6 @@ _acct243_teardown() {
 	grep -q '"limit"' "$py"
 }
 
-@test "FEAT-247: llms.txt mentions account_history MCP tool" {
-	grep -q "account_history" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
-}
 
 @test "FEAT-247: sudoers fragment lists api-account-history" {
 	grep -q "api-account-history" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
@@ -8440,25 +8244,10 @@ _acct243_teardown() {
 # FEAT-248 — Send screen UX + copy button on receive
 # ---------------------------------------------------------------------------
 
-@test "FEAT-248: Send screen label mentions Lightning address" {
-	grep -q "Lightning address" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-248: Send receipt shows fee_sat" {
-	grep -q "fee_sat" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-248: Receive screen has Copy button for invoice" {
-	grep -q "copy-inv" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-248: Receive screen has Copy button for offer" {
-	grep -q "copy-offer" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-248: Copy uses navigator.clipboard" {
-	grep -q "navigator.clipboard" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
 # FEAT-249 — PWA Settings backup + api-key endpoint
 
@@ -8466,62 +8255,25 @@ _acct243_teardown() {
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-apikey" ]
 }
 
-@test "FEAT-249: accounts.py routes GET api-key" {
-	grep -q '"api-key"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-}
 
 @test "FEAT-249: sudoers lists api-account-apikey" {
 	grep -q "api-account-apikey" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
 }
 
-@test "FEAT-249: PWA Settings has Download backup button" {
-	grep -q "dlbackup" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-249: PWA backup download uses account_id and api_key" {
-	grep -q "account_id.*api_key\|api_key.*account_id" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-249: backup filename includes short account id" {
-	grep -q 'lightning-backup-' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-249: llms.txt documents the api-key endpoint" {
-	grep -q "api-key" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
-}
 
 # FEAT-250 — PWA import from backup blob
 
-@test "FEAT-250: picker screen has import-file input" {
-	grep -q "import-file" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-250: importBackup function validates account_id and api_key" {
-	grep -q "importBackup" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-250: import validates bech32 account_id prefix" {
-	grep -q "bc1.*tb1.*bcrt1\|bc1|tb1|bcrt1" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-250: successful import navigates to account view" {
-	grep -q 'go("account/' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
 # FEAT-251 — PWA rename account label
 
-@test "FEAT-251: Settings screen has label input" {
-	grep -q "label-input" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-251: Settings screen has Save label button" {
-	grep -q "save-label" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-251: save-label handler calls upsertAccount" {
-	grep -A5 "save-label.*onclick" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js" \
-		| grep -q "upsertAccount"
-}
 
 # FEAT-252 — node info verb + PWA node screen
 
@@ -8541,17 +8293,8 @@ _acct243_teardown() {
 	grep -q "api-node-info" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
 }
 
-@test "FEAT-252: PWA has screenNode function" {
-	grep -q "function screenNode" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-252: PWA router handles node route" {
-	grep -q '"node".*screenNode' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-252: llms.txt documents GET /node" {
-	grep -q "GET /node" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
-}
 
 # FEAT-253 — payment note / memo
 
@@ -8563,17 +8306,8 @@ _acct243_teardown() {
 	grep -q "sql_quote.*note\|note.*sql_quote" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-pay"
 }
 
-@test "FEAT-253: accounts.py passes note to verb" {
-	grep -q '"--note"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-}
 
-@test "FEAT-253: PWA Send screen has note input" {
-	grep -q 'id="note"' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-253: PWA Send includes note in pay body" {
-	grep -q "body.note\|body\[.note.\]" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
 # FEAT-254 — PATCH history/<entry_id> update note
 
@@ -8581,21 +8315,12 @@ _acct243_teardown() {
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-history-note" ]
 }
 
-@test "FEAT-254: accounts.py routes PATCH history/<entry_id>" {
-	grep -q "history.*entry_id\|entry_id.*history" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-}
 
 @test "FEAT-254: sudoers lists api-account-history-note" {
 	grep -q "api-account-history-note" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
 }
 
-@test "FEAT-254: PWA history rows have note inputs" {
-	grep -q "hist-note" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-254: PWA history note change sends PATCH request" {
-	grep -q '"PATCH"' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
 # FEAT-255 — MCP node_info tool
 
@@ -8653,31 +8378,13 @@ assert t['auth'] is None
 	grep -q "api-channel-list" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
 }
 
-@test "FEAT-257: PWA has screenChannels function" {
-	grep -q "function screenChannels" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-257: llms.txt documents GET /channels" {
-	grep -q "GET /channels" "$BATS_TEST_DIRNAME/../../share/lightning/ui/docs/llms.txt"
-}
 
 # FEAT-258 — PWA light/dark mode toggle
 
-@test "FEAT-258: style.css has light mode variables" {
-	grep -q "body.light" "$BATS_TEST_DIRNAME/../../share/lightning/ui/style.css"
-}
 
-@test "FEAT-258: app.js has toggleTheme function" {
-	grep -q "function toggleTheme" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-258: app.js applies theme on startup" {
-	grep -q "applyTheme" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-258: Settings screen has theme toggle button" {
-	grep -q "toggle-theme" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
 # FEAT-259 — peer-connect / peer-disconnect / peer-list verbs
 
@@ -8753,13 +8460,7 @@ assert t['auth'] is None
 	grep -q "v1/decode" "$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
 }
 
-@test "FEAT-262: PWA Send screen has invoice decode preview" {
-	grep -q "pay-preview" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
-@test "FEAT-262: PWA Send screen calls decode endpoint on blur" {
-	grep -q "showDecodePreview\|v1/decode" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
 # FEAT-263 — invoice-list verb
 
@@ -8806,9 +8507,6 @@ assert t['auth'] is None
 	[ -f "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/node_funds.py" ]
 }
 
-@test "FEAT-265: PWA has screenNodeFunds" {
-	grep -q "function screenNodeFunds" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
-}
 
 @test "FEAT-265: node-funds man page exists" {
 	[ -f "$BATS_TEST_DIRNAME/../../share/man/man1/lightning-node-funds.1" ]
@@ -9322,19 +9020,9 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 
 # FEAT-286 — GET /v1/accounts operator listing
 
-@test "FEAT-286: accounts.py routes GET /v1/accounts to list" {
-	python3 -c "
-src = open('share/lightning/wellknown/api/accounts.py').read()
-assert '_list_accounts' in src
-assert 'api-account-list' in src
-"
-}
 
 # FEAT-287 — api-account-describe verb + PATCH /v1/accounts/<id>/describe
 
-@test "FEAT-287: accounts.py routes PATCH describe" {
-	grep -q '"describe"' share/lightning/wellknown/api/accounts.py
-}
 
 @test "FEAT-287: sudoers lists api-account-describe" {
 	grep -q "api-account-describe" share/lightning/sudoers.d/lightning

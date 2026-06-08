@@ -136,5 +136,6 @@ One man page per top-level verb under `share/man/man1/lightning-<verb>.1`;
 When a verb's CLI surface changes, update the matching
 `share/man/man1/lightning-<verb>.1` page **in the same PR**. A bats test
 asserts every dispatchable verb (excluding `_*` helpers and the `api-*`
-HTTP-bridge verbs, which are documented via the FEAT-209 inline docs) has
-a page whose `.SH NAME` carries the verb.
+HTTP-bridge verbs, which are internal endpoints invoked by the reverse
+proxy / CGI, not user-facing CLI) has a page whose `.SH NAME` carries the
+verb.

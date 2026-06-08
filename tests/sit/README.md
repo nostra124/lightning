@@ -53,6 +53,48 @@ The clightning Dockerfile copies the whole repo into the
 image, so `lightning` inside the container is whatever
 your working tree is — no need to install before running.
 
+> **Status of the legacy `make check-sit` images (rebuilt 2026-06-08):**
+> - `Dockerfile.regtest` — **fixed + builds**: Debian dropped
+>   the `bitcoind` apt package, so it installs the official
+>   multi-arch Bitcoin Core release binaries.
+> - `Dockerfile.clightning` — **builds, installs, and the
+>   stack comes up**: `lightningd` (also absent from apt) is
+>   copied from the upstream `polarlightning/clightning`
+>   image; the bogus `libapache2-mod-cgi` package was dropped
+>   (mod_cgi ships in `apache2` on bookworm) and `sudo` added.
+>   The Makefile `stow`/double-prefix packaging bug it used to
+>   hit is fixed (`make install` installs directly into
+>   `$PREFIX`), so the `lightning` CLI installs world-executably.
+>   A `clightning-entrypoint.sh` now brings the whole regtest
+>   stack up under one user — **bitcoind + lightningd (regtest,
+>   synced) + apache** — verified live (`getinfo` returns a
+>   regtest node). Run it: `podman run --rm lightning-clightning`.
+> - **CGI account API — mostly wired, one residual:** the
+>   container threads `LIGHTNING_NETWORK=regtest` to the
+>   sudo-bridged verbs (apache `SetEnv` + sudoers `env_keep`),
+>   and two **real apache-conf bugs were fixed in the source
+>   `lnurlp.conf`**: `CGIPassAuth On` (Apache 2.4.13+ strips
+>   `Authorization`, so every bearer endpoint 401'd) and
+>   `AcceptPathInfo On`. Verified working: `GET /v1/health`
+>   returns `{"ok":true,"daemon":true,…}` (full chain
+>   apache→CGI→sudo→verb→lightningd), and bare `/v1/accounts`
+>   now returns a proper `401` instead of an empty body.
+>   **Residual:** sub-path routes (`/v1/accounts/<id>/balance`)
+>   still 404 — a further Apache PATH_INFO nuance, undiagnosed.
+> - **Remaining:** finish the sub-path routing, then validate
+>   the 12 SIT suites (their `helpers.bash` needs
+>   `LIGHTNING_NETWORK=regtest`). These are prerequisites for
+>   the `2.0.0` shadow-run parity diff (FEAT-326).
+>
+> The bash-verb **unit** suite is the primary gate today.
+
+> **thunderd moved out (2.0.0).** The Rust `thunderd` daemon
+> and its live-node integration harness now live in the
+> sister repo `nostra124/thunder`. As of 2.0.0 the account
+> API is served by thunderd; this package reverse-proxies
+> `/.well-known/lightning/v1/accounts` to it (see
+> `share/lightning/apache/lnurlp.conf`).
+
 ## What's NOT covered here
 
 - Real LSP / Loop / Boltz endpoints. The

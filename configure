@@ -61,8 +61,10 @@ done
 : "${DATADIR:=$PREFIX/share}"
 : "${MANDIR:=$PREFIX/share/man}"
 
-# Required tools
-for tool in bash stow git; do
+# Required tools. (stow is NOT required: `make install` installs directly
+# into $PREFIX — CLAUDE.md §7 — and rpk pulls in stow itself via
+# .rpk/depends/stow for its own versioning layer.)
+for tool in bash git; do
 	if ! command -v "$tool" >/dev/null; then
 		echo "configure: required tool not found: $tool" >&2
 		exit 1
