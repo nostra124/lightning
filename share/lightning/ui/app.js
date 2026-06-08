@@ -648,6 +648,9 @@ function screenSettings(id) {
      <pre id="key" class="key" hidden>${esc(acct.key)}</pre>
      <button id="dlbackup">Download backup</button>
      <p class="muted">Saves account_id + API key as a JSON file for recovery.</p>
+     <button id="enable-push">Enable notifications</button>
+     <p class="muted">Lets the node nudge this device when something needs
+        you (e.g. a pending signature). Opt-in; nothing sensitive is sent.</p>
      <button id="remove" class="danger">Remove from this device</button>
      <p class="muted">Removing only forgets the account locally; the account
         and its funds stay on the node. Re-add it with its API key.</p>
@@ -685,6 +688,12 @@ function screenSettings(id) {
     a.href = URL.createObjectURL(blob);
     a.download = `lightning-backup-${id.slice(0, 12)}.json`;
     a.click();
+  };
+  document.getElementById("enable-push").onclick = async () => {
+    try {
+      await enableNotifications();
+      toast("Notifications enabled", "ok");
+    } catch (e) { toast("Notifications: " + e.message, "error"); }
   };
   document.getElementById("remove").onclick = () => {
     if (confirm("Forget this account on this device?")) { removeAccount(id); go("picker"); }
@@ -1068,10 +1077,47 @@ function route() {
 
 window.addEventListener("hashchange", route);
 
+// FEAT-346 — register the service worker so the app shell works offline.
+// Relative URL keeps the SW same-origin (scope = where the PWA is served).
+async function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return null;
+  try {
+    return await navigator.serviceWorker.register("sw.js");
+  } catch (_) {
+    return null; // offline support is a progressive enhancement
+  }
+}
+
+// FEAT-347 — opt-in web push.  Groundwork for Track C's push-to-sign wake:
+// ask permission, then subscribe via the SW's pushManager.  The VAPID
+// public key, when present, comes from config.json (no hardcoded URL, so
+// the same-origin stance holds).  Returns the PushSubscription or null.
+async function enableNotifications() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    throw new Error("Push not supported on this device");
+  }
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") throw new Error("Notifications not granted");
+  const reg = await navigator.serviceWorker.ready;
+  const opts = { userVisibleOnly: true };
+  if (CONFIG.vapid_public_key) {
+    opts.applicationServerKey = urlBase64ToUint8Array(CONFIG.vapid_public_key);
+  }
+  return reg.pushManager.subscribe(opts);
+}
+
+// VAPID keys are base64url; PushManager wants a Uint8Array.
+function urlBase64ToUint8Array(base64) {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const raw = atob((base64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
 (async function main() {
   applyTheme();
   await loadConfig();
   consumeInviteParam();
   document.getElementById("apibase").textContent = "API: " + CONFIG.api_base;
+  registerServiceWorker();
   route();
 })();

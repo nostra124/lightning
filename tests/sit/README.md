@@ -53,6 +53,68 @@ The clightning Dockerfile copies the whole repo into the
 image, so `lightning` inside the container is whatever
 your working tree is — no need to install before running.
 
+> **Status of the legacy `make check-sit` images (rebuilt 2026-06-08):**
+> - `Dockerfile.regtest` — **fixed + builds**: Debian dropped
+>   the `bitcoind` apt package, so it installs the official
+>   multi-arch Bitcoin Core release binaries.
+> - `Dockerfile.clightning` — **builds, installs, and the
+>   stack comes up**: `lightningd` (also absent from apt) is
+>   copied from the upstream `polarlightning/clightning`
+>   image; the bogus `libapache2-mod-cgi` package was dropped
+>   (mod_cgi ships in `apache2` on bookworm) and `sudo` added.
+>   The Makefile `stow`/double-prefix packaging bug it used to
+>   hit is fixed (`make install` installs directly into
+>   `$PREFIX`), so the `lightning` CLI installs world-executably.
+>   A `clightning-entrypoint.sh` now brings the whole regtest
+>   stack up under one user — **bitcoind + lightningd (regtest,
+>   synced) + apache** — verified live (`getinfo` returns a
+>   regtest node). Run it: `podman run --rm lightning-clightning`.
+> - **CGI account API — mostly wired, one residual:** the
+>   container threads `LIGHTNING_NETWORK=regtest` to the
+>   sudo-bridged verbs (apache `SetEnv` + sudoers `env_keep`),
+>   and two **real apache-conf bugs were fixed in the source
+>   `lnurlp.conf`**: `CGIPassAuth On` (Apache 2.4.13+ strips
+>   `Authorization`, so every bearer endpoint 401'd) and
+>   `AcceptPathInfo On`. Verified working: `GET /v1/health`
+>   returns `{"ok":true,"daemon":true,…}` (full chain
+>   apache→CGI→sudo→verb→lightningd), and bare `/v1/accounts`
+>   now returns a proper `401` instead of an empty body.
+>   **Residual:** sub-path routes (`/v1/accounts/<id>/balance`)
+>   still 404 — a further Apache PATH_INFO nuance, undiagnosed.
+> - **Remaining:** finish the sub-path routing, then validate
+>   the 12 SIT suites (their `helpers.bash` needs
+>   `LIGHTNING_NETWORK=regtest`). These are prerequisites for
+>   the `2.0.0` shadow-run parity diff (FEAT-326).
+>
+> The bash-verb **unit** suite is the primary gate today;
+> the **thunderd live-node** harness below is fully working.
+
+## thunderd live-node integration (`make check-thunderd-sit`)
+
+`tests/sit/thunderd-live.sh` exercises the **Rust `thunderd`
+daemon** against a *real* regtest Core Lightning node — the
+integration the unit suite can only mock. It stands up, via
+podman:
+
+    bitcoind (regtest)
+       ├── cln   (Core Lightning)   ← thunderd drives THIS over
+       │                              its lightning-rpc socket
+       └── cln2  (counterparty for a real channel payment)
+
+using the `polarlightning/bitcoind` + `polarlightning/clightning`
+images and `tests/sit/podman/Dockerfile.thunderd` (a multi-stage
+Rust build that runs as uid 1000 so it can open the `0600`
+`lightning-rpc` socket shared in over a volume).
+
+It asserts, end-to-end and green from a clean slate:
+health/getinfo against the live node, BOLT-11 receive
+(decoded + listed on-node), BOLT-12 offer, the bearer-auth
+`401` contract, and a `send` that pays a counterparty invoice
+over an open channel with the custodial ledger debiting
+correctly. This is the **shadow-run prerequisite** for the
+`2.0.0` cutover (FEAT-326). Soft-skips when podman is absent;
+pass `--keep` to leave the stack running for poking at.
+
 ## What's NOT covered here
 
 - Real LSP / Loop / Boltz endpoints. The

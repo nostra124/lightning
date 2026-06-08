@@ -1,0 +1,4 @@
+# Keep the build context small + avoid copying host build artifacts into
+# the image (they bloat the context and carry xattrs that break bulk
+# copy under rootless podman). Cargo rebuilds inside the image anyway.
+target/

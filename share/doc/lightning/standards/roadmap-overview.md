@@ -81,11 +81,19 @@ remote-signer CLI) · `thunder-pay` (PWA frontend) · `signer-core`
 
 ## Roadmap (semver releases)
 
-Milestones are repo semver releases. **Current version: `1.3.1`.** The
-whole build runs in the `1.x` line *alongside* the existing `lightning`
-CGI; **`2.0.0` is the target** — the breaking release where `lightning`
-is **stripped down** to simple administration and **`thunder` is
-separated** into its own repo.
+Milestones are repo semver releases. **Current version: `2.0.0`.** The
+`2.0.0` cutover (FEAT-327/328) has landed: the account/commerce **HTTP
+API is now served by `thunderd`** — the legacy CGI dispatcher
+(`wellknown/api/accounts.py`) was retired and Apache reverse-proxies
+`/.well-known/lightning/v1/accounts` to thunderd's canonical
+`/.well-known/thunder/v1` namespace (a deprecated transitional alias).
+The `api-account-*` shell verbs are kept as **operator-local helpers**
+(the `lightning account …` CLI still works against the node's state.db).
+**Remaining post-2.0 cleanup:** fully migrate the operator-side account
+state into thunderd (so `lightning` carries no commerce state at all) and
+`git filter-repo` `thunder` + `thunder-pay` into their own repos
+(FEAT-329/349/431). Until then the operator account/ledger substrate stays
+because the FEAT-196 Lightning-Address flow and operator wallet share it.
 
 | Deliverable | Releases | Features | Doc |
 |---|---|---|---|

@@ -97,10 +97,10 @@ EOF
 	[ -x "$LIGHTNING_BIN" ]
 }
 
-@test "lightning version returns 1.3.1" {
+@test "lightning version returns 2.0.0" {
 	run "$LIGHTNING_BIN" version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.3.1" ]
+	[ "$output" = "2.0.0" ]
 }
 
 @test "lightning version comes from the root VERSION file" {
@@ -1992,7 +1992,7 @@ EOF
 @test "1.2.0: -q flag parses + version still prints" {
 	run "$LIGHTNING_BIN" -q version
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.3.1" ]
+	[ "$output" = "2.0.0" ]
 }
 
 @test "1.2.0: -q -d flags compose (getopts handles both)" {
@@ -2002,7 +2002,7 @@ EOF
 	# second flag was lost or the verb was treated as a flag.
 	run "$LIGHTNING_BIN" -q -d version
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"1.3.1"* ]]
+	[[ "$output" == *"2.0.0"* ]]
 }
 
 @test "1.2.0: unknown flag exits non-zero" {
@@ -4524,18 +4524,14 @@ _acct212pr2_teardown() {
 	grep -q "api-account-close" "$f"
 }
 
-@test "FEAT-212 PR-2: apache vhost maps the account API (FEAT-224 versioned path)" {
+@test "2.0.0 cutover: apache proxies the account API to thunderd" {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
 	[ -f "$f" ]
-	# FEAT-224/232: moved under /.well-known/lightning/v1/.
-	grep -q "ScriptAlias /.well-known/lightning/v1/accounts" "$f"
-	grep -q "wellknown/api/accounts.py" "$f"
-}
-
-@test "FEAT-212 PR-2: dispatcher script is executable Python" {
-	f="$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-	[ -x "$f" ]
-	head -1 "$f" | grep -q python3
+	# FEAT-327/328: the account/commerce HTTP API is served by thunderd;
+	# the legacy path reverse-proxies to thunderd's namespace.
+	grep -q "ProxyPass .*/.well-known/lightning/v1/accounts .*thunder/v1/accounts" "$f"
+	# The legacy CGI dispatcher was retired.
+	[ ! -e "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py" ]
 }
 
 # ---------------------------------------------------------------------------
@@ -6093,7 +6089,8 @@ _acct225_teardown() {
 
 @test "FEAT-224: apache vhost mounts account API + MCP under .well-known/v1" {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
-	grep -q "ScriptAlias /.well-known/lightning/v1/accounts" "$f"
+	# 2.0.0 (FEAT-327/328): account API proxied to thunderd; MCP still local.
+	grep -q "ProxyPass .*/.well-known/lightning/v1/accounts .*thunder/v1/accounts" "$f"
 	grep -q "ScriptAlias /.well-known/lightning/v1/mcp" "$f"
 	# Old unversioned aliases are gone.
 	! grep -qE "ScriptAlias /api/accounts\b" "$f"
@@ -7667,6 +7664,7 @@ _cc_test_module() {
 	[ -f "$dr/style.css" ]
 	[ -f "$dr/manifest.webmanifest" ]
 	[ -f "$dr/config.json" ]
+	[ -f "$dr/sw.js" ]
 	[ -f "$dr/docs/index.html" ]
 	[ -f "$dr/docs/llms.txt" ]
 	rm -rf "$dr"
@@ -7738,6 +7736,54 @@ _cc_test_module() {
 	[ "$(jq -r '.api_base' "$ui/config.json")" = "/.well-known/lightning/v1" ]
 	# No absolute cross-origin URLs baked into the client.
 	! grep -qE 'https?://' "$ui/app.js"
+}
+
+# ---------------------------------------------------------------------------
+# FEAT-346/347: "Real PWA" — service worker (offline app shell) + web push.
+# ---------------------------------------------------------------------------
+
+@test "FEAT-346: PWA ships a same-origin service worker that caches the app shell" {
+	local ui="$BATS_TEST_DIRNAME/../../share/lightning/ui"
+	[ -f "$ui/sw.js" ]
+	# Versioned cache + precached shell assets.
+	grep -q "caches.open" "$ui/sw.js"
+	grep -q "app.js" "$ui/sw.js"
+	grep -q "index.html" "$ui/sw.js"
+	# install/activate/fetch lifecycle present.
+	grep -q "addEventListener(\"install\"" "$ui/sw.js"
+	grep -q "addEventListener(\"activate\"" "$ui/sw.js"
+	grep -q "addEventListener(\"fetch\"" "$ui/sw.js"
+	# Same-origin stance: no absolute URLs in the worker either.
+	! grep -qE 'https?://' "$ui/sw.js"
+}
+
+@test "FEAT-346: service worker never caches the money-sensitive account API" {
+	local ui="$BATS_TEST_DIRNAME/../../share/lightning/ui"
+	# The API guard keys off the well-known prefix and bails before caching.
+	grep -q '/.well-known/' "$ui/sw.js"
+	grep -qi "network-only" "$ui/sw.js"
+}
+
+@test "FEAT-346: app.js registers the service worker" {
+	local f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "serviceWorker" "$f"
+	grep -q "registerServiceWorker" "$f"
+	grep -q 'register("sw.js")' "$f"
+}
+
+@test "FEAT-347: service worker handles web push + notification click" {
+	local ui="$BATS_TEST_DIRNAME/../../share/lightning/ui"
+	grep -q "addEventListener(\"push\"" "$ui/sw.js"
+	grep -q "showNotification" "$ui/sw.js"
+	grep -q "addEventListener(\"notificationclick\"" "$ui/sw.js"
+}
+
+@test "FEAT-347: app.js has opt-in notification enable wired into settings" {
+	local f="$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
+	grep -q "enableNotifications" "$f"
+	grep -q "Notification.requestPermission" "$f"
+	grep -q "pushManager.subscribe" "$f"
+	grep -q "enable-push" "$f"
 }
 
 @test "FEAT-209: llms.txt covers the PWA, REST, and MCP surfaces" {
@@ -8393,10 +8439,6 @@ _acct243_teardown() {
 	rm -rf "$LIGHTNING_WALLETS_ROOT" "$LIGHTNING_DIR"
 }
 
-@test "FEAT-246: accounts.py routes GET history" {
-	grep -q '"history"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-	grep -q '_history' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-}
 
 @test "FEAT-246: PWA app.js has screenHistory" {
 	grep -q "screenHistory" "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
@@ -8466,9 +8508,6 @@ _acct243_teardown() {
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-apikey" ]
 }
 
-@test "FEAT-249: accounts.py routes GET api-key" {
-	grep -q '"api-key"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-}
 
 @test "FEAT-249: sudoers lists api-account-apikey" {
 	grep -q "api-account-apikey" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
@@ -8563,9 +8602,6 @@ _acct243_teardown() {
 	grep -q "sql_quote.*note\|note.*sql_quote" "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-pay"
 }
 
-@test "FEAT-253: accounts.py passes note to verb" {
-	grep -q '"--note"' "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-}
 
 @test "FEAT-253: PWA Send screen has note input" {
 	grep -q 'id="note"' "$BATS_TEST_DIRNAME/../../share/lightning/ui/app.js"
@@ -8581,9 +8617,6 @@ _acct243_teardown() {
 	[ -x "$BATS_TEST_DIRNAME/../../libexec/lightning/api-account-history-note" ]
 }
 
-@test "FEAT-254: accounts.py routes PATCH history/<entry_id>" {
-	grep -q "history.*entry_id\|entry_id.*history" "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py"
-}
 
 @test "FEAT-254: sudoers lists api-account-history-note" {
 	grep -q "api-account-history-note" "$BATS_TEST_DIRNAME/../../share/lightning/sudoers.d/lightning"
@@ -9322,19 +9355,9 @@ assert '\"auth\": None' in snippet or \"'auth': None\" in snippet, repr(snippet)
 
 # FEAT-286 — GET /v1/accounts operator listing
 
-@test "FEAT-286: accounts.py routes GET /v1/accounts to list" {
-	python3 -c "
-src = open('share/lightning/wellknown/api/accounts.py').read()
-assert '_list_accounts' in src
-assert 'api-account-list' in src
-"
-}
 
 # FEAT-287 — api-account-describe verb + PATCH /v1/accounts/<id>/describe
 
-@test "FEAT-287: accounts.py routes PATCH describe" {
-	grep -q '"describe"' share/lightning/wellknown/api/accounts.py
-}
 
 @test "FEAT-287: sudoers lists api-account-describe" {
 	grep -q "api-account-describe" share/lightning/sudoers.d/lightning

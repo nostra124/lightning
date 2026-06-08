@@ -82,6 +82,22 @@ Balances and amounts show a fiat estimate alongside sats (from the public
 price tick). Settings → **Export transaction data (for tax)** downloads a
 FIFO-matched CSV — source data, not a report.
 
+## Offline & notifications (FEAT-346/347)
+
+A service worker (`sw.js`) caches the app shell so the PWA opens and
+renders offline; cached read screens stay usable without a connection.
+The account API (anything under `/.well-known/…`) is **never** cached —
+balances and bearer-authed calls always hit the network so nothing
+money-sensitive lingers on disk. The worker stays same-origin (no
+absolute URLs), preserving the "trust the origin you loaded" stance.
+
+Settings → **Enable notifications** is opt-in web push: it asks
+permission and subscribes via the worker's `pushManager`. Today it is
+groundwork — the wake path the node uses to nudge a device when something
+needs it (e.g. a pending signature in the non-custodial tier). The push
+payload is advisory only; the app re-authenticates and fetches the real
+request when opened.
+
 ## Self-custody notes
 
 Custodial-by-default when provider-hosted; mitigations are a transparent

@@ -1,0 +1,8 @@
+# Keep the SIT build context lean and avoid copying host build artifacts
+# (their xattrs break bulk copy under rootless podman, and they are not
+# needed inside the image — the package is rebuilt there).
+thunder/target/
+.git/
+# Stale host stow output (carries host-specific paths like Users/<me>/.local);
+# the image rebuilds it fresh via `make install`.
+build/
