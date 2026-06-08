@@ -97,7 +97,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 // ---- web push (FEAT-347) ------------------------------------------------
-// Groundwork for Track C's push-to-sign wake: a server (thunderd) can
+// Groundwork for a push-to-sign wake: the configured API server can
 // nudge the device to come fetch a pending signing request.  The payload
 // is advisory only — the app re-authenticates and fetches the real
 // request when opened; nothing sensitive rides in the notification.

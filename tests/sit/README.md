@@ -86,34 +86,14 @@ your working tree is — no need to install before running.
 >   `LIGHTNING_NETWORK=regtest`). These are prerequisites for
 >   the `2.0.0` shadow-run parity diff (FEAT-326).
 >
-> The bash-verb **unit** suite is the primary gate today;
-> the **thunderd live-node** harness below is fully working.
+> The bash-verb **unit** suite is the primary gate today.
 
-## thunderd live-node integration (`make check-thunderd-sit`)
-
-`tests/sit/thunderd-live.sh` exercises the **Rust `thunderd`
-daemon** against a *real* regtest Core Lightning node — the
-integration the unit suite can only mock. It stands up, via
-podman:
-
-    bitcoind (regtest)
-       ├── cln   (Core Lightning)   ← thunderd drives THIS over
-       │                              its lightning-rpc socket
-       └── cln2  (counterparty for a real channel payment)
-
-using the `polarlightning/bitcoind` + `polarlightning/clightning`
-images and `tests/sit/podman/Dockerfile.thunderd` (a multi-stage
-Rust build that runs as uid 1000 so it can open the `0600`
-`lightning-rpc` socket shared in over a volume).
-
-It asserts, end-to-end and green from a clean slate:
-health/getinfo against the live node, BOLT-11 receive
-(decoded + listed on-node), BOLT-12 offer, the bearer-auth
-`401` contract, and a `send` that pays a counterparty invoice
-over an open channel with the custodial ledger debiting
-correctly. This is the **shadow-run prerequisite** for the
-`2.0.0` cutover (FEAT-326). Soft-skips when podman is absent;
-pass `--keep` to leave the stack running for poking at.
+> **thunderd moved out (2.0.0).** The Rust `thunderd` daemon
+> and its live-node integration harness now live in the
+> sister repo `nostra124/thunder`. As of 2.0.0 the account
+> API is served by thunderd; this package reverse-proxies
+> `/.well-known/lightning/v1/accounts` to it (see
+> `share/lightning/apache/lnurlp.conf`).
 
 ## What's NOT covered here
 

@@ -30,9 +30,8 @@ DESTDIR ?=
 BUILD_DIR = build/$(PACKAGE)
 
 .PHONY: all install uninstall check check-unit check-vectors \
-        check-sit check-thunderd-sit check-all lint test help package clean \
-        install-skills-user uninstall-skills-user \
-        thunderd thunderd-check thunderd-guard
+        check-sit check-all lint test help package clean \
+        install-skills-user uninstall-skills-user
 
 all: install
 
@@ -204,15 +203,7 @@ check-sit:
 		lightning-clightning \
 		/bin/bash -lc 'bats /suites/*.bats'
 
-# thunderd live-node integration: drives the Rust daemon end-to-end
-# against a real regtest lightningd (health/getinfo, BOLT-11 recv,
-# BOLT-12 offer, auth contract, and a channel payment). Soft-skips when
-# podman is absent. This is the shadow-run prerequisite for the 2.0
-# cutover (FEAT-326). See tests/sit/thunderd-live.sh.
-check-thunderd-sit:
-	@tests/sit/thunderd-live.sh
-
-check-all: check check-sit check-thunderd-sit
+check-all: check check-sit
 
 lint:
 	@if command -v shellcheck >/dev/null 2>&1; then \
@@ -220,23 +211,6 @@ lint:
 	else echo "shellcheck not installed; skipping"; fi
 
 test: check
-
-# thunderd — the Rust companion daemon (FEAT-300+). The `thunder/`
-# workspace is deliberately standalone (no coupling to this bash
-# package), so it builds/tests on its own. Kept out of the default
-# `install` until the FEAT-301 binary-install wiring lands; build
-# it explicitly with `make thunderd`.
-thunderd:
-	@cd thunder && cargo build --release
-
-thunderd-check:
-	@cd thunder && cargo fmt --check \
-		&& cargo clippy --all-targets -- -D warnings \
-		&& cargo test
-
-# FEAT-302 — one-way carve-out boundary check.
-thunderd-guard:
-	@thunder/scripts/carve-out-guard.sh
 
 # Skills installation (FEAT-192).
 #

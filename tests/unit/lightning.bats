@@ -4524,14 +4524,18 @@ _acct212pr2_teardown() {
 	grep -q "api-account-close" "$f"
 }
 
-@test "2.0.0 cutover: apache proxies the account API to thunderd" {
+@test "2.0.0 cutover: the account API is no longer served by this package" {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
 	[ -f "$f" ]
-	# FEAT-327/328: the account/commerce HTTP API is served by thunderd;
-	# the legacy path reverse-proxies to thunderd's namespace.
-	grep -q "ProxyPass .*/.well-known/lightning/v1/accounts .*thunder/v1/accounts" "$f"
+	# FEAT-327/328/329: the account/commerce API was carved out into the
+	# standalone `thunder` repo. This package's apache fragment must NOT
+	# serve or proxy it — thunder owns that routing entirely.
+	! grep -qE "(ScriptAlias|ProxyPass)\s+/.well-known/lightning/v1/accounts" "$f"
 	# The legacy CGI dispatcher was retired.
 	[ ! -e "$BATS_TEST_DIRNAME/../../share/lightning/wellknown/api/accounts.py" ]
+	# No functional thunderd coupling (a doc comment pointing to the thunder
+	# repo is fine; a Proxy/Script route or daemon address is not).
+	! grep -qE "ProxyPass|127.0.0.1:9737|:9737" "$f"
 }
 
 # ---------------------------------------------------------------------------
@@ -6087,10 +6091,9 @@ _acct225_teardown() {
 # FEAT-224 + FEAT-232: versioned .well-known move + API versioning.
 # ---------------------------------------------------------------------------
 
-@test "FEAT-224: apache vhost mounts account API + MCP under .well-known/v1" {
+@test "FEAT-224: apache vhost mounts MCP under .well-known/v1 (accounts moved to thunder)" {
 	f="$BATS_TEST_DIRNAME/../../share/lightning/apache/lnurlp.conf"
-	# 2.0.0 (FEAT-327/328): account API proxied to thunderd; MCP still local.
-	grep -q "ProxyPass .*/.well-known/lightning/v1/accounts .*thunder/v1/accounts" "$f"
+	# 2.0.0: the account API moved to the thunder repo; MCP stays local.
 	grep -q "ScriptAlias /.well-known/lightning/v1/mcp" "$f"
 	# Old unversioned aliases are gone.
 	! grep -qE "ScriptAlias /api/accounts\b" "$f"
