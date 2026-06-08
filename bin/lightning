@@ -8,16 +8,15 @@
 [ -n "$SELF_DEBUG" ] && set -vx
 
 # VERSION source of truth: the root VERSION file (dev tree) or
-# $PREFIX/share/lightning/version (installed).  `.rpk/version` is a
-# deprecated fallback for older trees; the hardcoded value is the last
-# resort if every file is missing.
+# $PREFIX/share/lightning/version (installed, copied from VERSION at
+# package time).  The hardcoded value is the last resort if every file
+# is missing.
 __d="$(cd "$(dirname "$0")" && pwd)"; __s="$(basename "$0")"
 # FEAT-170: when invoked as `lightning.sh` (symlink), present as `lightning`.
 __s="${__s%.sh}"
 VERSION=$(cat "$__d/../VERSION" 2>/dev/null \
 	|| cat "$__d/../share/$__s/version" 2>/dev/null \
-	|| cat "$__d/../.rpk/version" 2>/dev/null \
-	|| echo '1.3.1')
+	|| echo '2.0.0')
 unset __d
 SELF=$__s
 export SELF

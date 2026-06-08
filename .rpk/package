@@ -31,6 +31,6 @@ cp -a bin/* "$TARGET/bin/"
 [ -d share/man/man1 ] && cp -a share/man/man1/* "$TARGET/share/man/man1/"
 [ -d "share/doc/$PACKAGE" ] && cp -a "share/doc/$PACKAGE/"* "$TARGET/share/doc/$PACKAGE/"
 [ -d "share/$PACKAGE" ] && cp -a "share/$PACKAGE/"* "$TARGET/share/$PACKAGE/"
-[ -f .rpk/version ] && install -m 644 .rpk/version "$TARGET/share/$PACKAGE/version"
+[ -f VERSION ] && install -m 644 VERSION "$TARGET/share/$PACKAGE/version"
 
 git checkout "$BRANCH" --force

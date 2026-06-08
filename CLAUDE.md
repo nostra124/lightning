@@ -110,8 +110,9 @@ Key files:
 - `.rpk/type` — "user" or "system"
 - `.rpk/identity` — package name (optional, defaults to repo basename)
 - `.rpk/spec` — spec number (e.g., "1")
-- `.rpk/version` — current version string (e.g., `1.3.0`)
-- `.rpk/versions` — version ledger (commit SHAs)
+- `VERSION` — current version string (root file, autoconf
+  convention; the source of truth read by `lightning version`)
+- `.rpk/versions` — version ledger (version→commit SHAs)
 - `.rpk/package` — build script that runs `./configure && make install`
 - `.rpk/depends/*` — prerequisite scripts
 

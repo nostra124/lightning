@@ -9,13 +9,13 @@ set -e
 LD="--lightning-dir=${LIGHTNING_DIR:-$HOME/.lightning}"
 NET="--network=${LIGHTNING_NETWORK:-bitcoin}"
 
-# Self version from installed package marker or fallback.
+# Self version: the root VERSION file (dev tree) or the bundle's
+# share/lightning/version (installed, copied from VERSION at package time).
 self_dir="$(cd "$(dirname "$0")" && pwd)"
 pkg_ver=""
 for candidate in \
-    "$self_dir/../../../.rpk/version" \
-    "$self_dir/../../.rpk/version" \
-    "$self_dir/../.rpk/version"; do
+    "$self_dir/../../VERSION" \
+    "$self_dir/../../share/lightning/version"; do
     if [ -f "$candidate" ]; then
         pkg_ver=$(cat "$candidate")
         break
